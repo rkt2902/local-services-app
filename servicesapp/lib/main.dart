@@ -8,10 +8,12 @@ import 'core/config/supabase_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
+
 
   runApp(
     const ProviderScope(

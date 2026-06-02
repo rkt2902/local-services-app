@@ -41,6 +41,8 @@ o código e a base de dados são genéricos para suportar futuras categorias
 - Numa equipa, todos trabalham ao preço/hora definido pelo worker principal.
 - Ajudantes veem o contacto do worker principal, não o do client (no MVP).
 - Avaliações simples (estrelas + comentário opcional).
+- Máximo 2 fotos por pedido. Fotos são comprimidas antes do upload (máx. 800px, qualidade 60%).
+
 
 ## Stack
 - App: Flutter + Dart, Material 3, visual verde profissional.
@@ -55,3 +57,4 @@ o código e a base de dados são genéricos para suportar futuras categorias
   Supabase, regras de negócio. Só integra código revisto e refatorado.
 - Detalhe completo do workflow e papéis dos AI: ver documentos originais do
   projeto (workflow + instruções AI).
+  

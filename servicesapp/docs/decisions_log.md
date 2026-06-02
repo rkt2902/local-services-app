@@ -3,6 +3,13 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-02 — Fotos: máximo 2 por job, compressão obrigatória
+Supabase Free Plan tem 50mb de storage. Para maximizar espaço:
+- Máximo 2 fotos por job_request.
+- Compressão obrigatória antes do upload: largura máxima 800px, qualidade 60%.
+- Implementar na Fase 8 com o package `flutter_image_compress`.
+- Validação no cliente antes do upload (tamanho + número de fotos).
+
 ## 2026-06-02 — Credenciais Supabase via --dart-define + launch.json
 As credenciais do Supabase (URL e anon key) são passadas via `--dart-define`
 em tempo de execução. Configuradas em `.vscode/launch.json` (no .gitignore).
