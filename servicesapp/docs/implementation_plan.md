@@ -4,9 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 0 — `/docs` criados (overview, architecture, database_schema,
-implementation_plan, decisions_log).
-**Próximo passo:** 1 — Criar projetos Flutter.
+**Passo concluído:** 4 — Supabase config.
+**Próximo passo:** 5 — Supabase schema + RLS.
 
 ## Fases
 
@@ -33,10 +32,10 @@ implementation_plan, decisions_log).
 - [x] `main.dart` — `ProviderScope` + runApp.
 
 ### Fase 3 — Navegação
-- [ ] `core/router/` — go_router com rotas placeholder.
-- [ ] Rotas iniciais: `/`, `/login`, `/signup`, `/choose-role`,
+- [x] `core/router/` — go_router com rotas placeholder.
+- [x] Rotas iniciais: `/`, `/login`, `/signup`, `/choose-role`,
       `/client/home`, `/worker/home`.
-- [ ] Redirect de auth (placeholder; lógica real na Fase 5).
+- [x] Redirect de auth (placeholder; lógica real na Fase 5).
 
 ### Fase 4 — Supabase: setup
 - [ ] Criar projeto Supabase. Guardar URL e anon key.
