@@ -33,6 +33,12 @@ refletidos como CHECK/constraints na base de dados. Nunca strings soltas.
 "Primeiro worker a enviar proposta válida fica associado" tem condição de
 corrida. Garantir na base de dados (transação/constraint), não na app.
 
+## 2026-06-02 — Auth: registo em 2 ecrãs
+Registo dividido em: Ecrã 1 (email, password, nome, telefone) → Ecrã 2 (escolher
+role: client ou worker). Perfil criado na tabela `profiles` após escolha de role.
+Validações mínimas: email válido, password ≥ 6 chars, nome e telefone não vazios.
+Recuperação de password deixada para pós-MVP.
+
 ## 2026-06-02 — /docs reduzido a 5 ficheiros
 Essenciais: project_overview, architecture, database_schema,
 implementation_plan, decisions_log. workflow/ai_roles/design_handoff ficam nos

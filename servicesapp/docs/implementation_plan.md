@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 4 — Supabase config.
-**Próximo passo:** 5 — Supabase schema + RLS.
+**Passo concluído:** 6 — Auth.
+**Próximo passo:** 7 — Perfis (client + worker).
 
 ## Fases
 
@@ -54,10 +54,10 @@
       `reject_proposal` (resolvem condição de corrida).
 
 ### Fase 6 — Auth
-- [ ] Feature `auth/`: data + application + presentation.
-- [ ] Signup / login / logout com Supabase Auth.
-- [ ] Escolher role (client/worker) → cria registo em `profiles`.
-- [ ] Redirect real no go_router.
+- [x] Feature `auth/`: data + application + presentation.
+- [x] Signup / login / logout com Supabase Auth.
+- [x] Escolher role (client/worker) → cria registo em `profiles`.
+- [x] Redirect real no go_router.
 
 ### Fase 7 — Perfil
 - [ ] Feature `client/`: ver/editar perfil base.

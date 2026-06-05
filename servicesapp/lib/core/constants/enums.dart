@@ -62,6 +62,8 @@ enum UserRole {
         'worker' => UserRole.worker,
         _ => throw ArgumentError('Unknown UserRole: $value'),
       };
+
+  static UserRole fromString(String value) => fromValue(value);
 }
 
 enum HelpRequestStatus {
