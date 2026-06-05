@@ -36,13 +36,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       phone: _phoneController.text.trim(),
     );
     if (!mounted) return;
-    final state = ref.read(authControllerProvider);
-    if (state is AuthSuccess) {
-      context.push('/choose-role', extra: {
-        'fullName': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
-    }
+    final currentState = ref.read(authControllerProvider);
+    if (currentState is! AuthSuccess) return;
+    // Manually navigate before session invalidation triggers router redirect
+    context.go('/choose-role', extra: {
+      'fullName': _nameController.text.trim(),
+      'phone': _phoneController.text.trim(),
+    });
   }
 
   @override
@@ -139,7 +139,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextButton(
-                  onPressed: () => context.pop(),
+                  onPressed: () => context.go('/login'),
                   child: const Text('Já tens conta? Entra'),
                 ),
               ],

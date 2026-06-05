@@ -29,6 +29,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
     );
+    if (!mounted) return;
+    final currentState = ref.read(authControllerProvider);
+    if (currentState is! AuthSuccess) return;
+    // Router will redirect based on role — just go to root and let redirect handle it
+    context.go('/');
   }
 
   @override

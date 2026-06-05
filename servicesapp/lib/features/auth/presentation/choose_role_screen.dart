@@ -21,25 +21,31 @@ class ChooseRoleScreen extends ConsumerStatefulWidget {
 
 class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
   UserRole? _selectedRole;
+  bool _submitting = false;
 
   Future<void> _submit() async {
-    if (_selectedRole == null) return;
+    if (_submitting || _selectedRole == null) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    await ref.read(authControllerProvider.notifier).createProfile(
-      userId: user.id,
-      fullName: widget.fullName,
-      phone: widget.phone,
-      role: _selectedRole!,
-    );
-    if (!mounted) return;
-    final state = ref.read(authControllerProvider);
-    if (state is AuthSuccess) {
+    setState(() => _submitting = true);
+    try {
+      await ref.read(authControllerProvider.notifier).createProfile(
+        userId: user.id,
+        fullName: widget.fullName,
+        phone: widget.phone,
+        role: _selectedRole!,
+      );
+      if (!mounted) return;
+      final currentState = ref.read(authControllerProvider);
+      if (currentState is AuthError) return;
+      // Navigate directly — don't wait for router redirect
       if (_selectedRole == UserRole.client) {
         context.go('/client/home');
       } else {
-        context.go('/worker/home');
+        context.go('/worker/setup');
       }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -58,7 +64,13 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Como queres usar a app?')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
+        ),
+        title: const Text('Como queres usar a app?'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -92,8 +104,8 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: (isLoading || _selectedRole == null) ? null : _submit,
-                child: isLoading
+                onPressed: (_submitting || isLoading || _selectedRole == null) ? null : _submit,
+                child: (_submitting || isLoading)
                     ? const SizedBox(
                         height: 20,
                         width: 20,

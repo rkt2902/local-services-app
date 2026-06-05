@@ -27,7 +27,7 @@ class AuthRepository {
     required String phone,
     required UserRole role,
   }) async {
-    await _client.from('profiles').insert({
+    await _client.from('profiles').upsert({
       'id': userId,
       'full_name': fullName,
       'phone': phone,

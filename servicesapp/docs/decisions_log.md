@@ -33,6 +33,14 @@ refletidos como CHECK/constraints na base de dados. Nunca strings soltas.
 "Primeiro worker a enviar proposta válida fica associado" tem condição de
 corrida. Garantir na base de dados (transação/constraint), não na app.
 
+## 2026-06-02 — Fase 7: Perfis
+- Localização base do worker via GPS (geolocator).
+- Foto de perfil para client e worker (câmara ou galeria, imageQuality 70, maxWidth 400).
+- Fotos de trabalhos do worker deixadas para pós-MVP.
+- Worker obrigado a completar perfil antes de entrar na home (router redirect).
+- Serviços selecionados via FilterChips; ferramentas via texto livre.
+- Perfil acessível via ícone no AppBar (designer integra navegação depois).
+
 ## 2026-06-02 — Auth: registo em 2 ecrãs
 Registo dividido em: Ecrã 1 (email, password, nome, telefone) → Ecrã 2 (escolher
 role: client ou worker). Perfil criado na tabela `profiles` após escolha de role.
@@ -43,3 +51,16 @@ Recuperação de password deixada para pós-MVP.
 Essenciais: project_overview, architecture, database_schema,
 implementation_plan, decisions_log. workflow/ai_roles/design_handoff ficam nos
 documentos originais; só se criam aqui se divergirem.
+
+## 2026-06-05 — Fase 7: bugs resolvidos
+- Router redirect usava queries async à BD em cada navegação → refatorado para
+  `AsyncNotifierProvider` (SessionNotifier) com refresh explícito.
+- `currentUserProvider` era cached permanentemente → corrigido com
+  `ref.watch(authStateProvider)` para re-avaliar em cada evento de auth.
+- `createProfile` usava INSERT direto → substituído por upsert para ser
+  idempotente (resolve duplicate key em retries e trigger handle_new_user).
+- Worker setup não refrescava a sessão antes de navegar → adicionado
+  `await sessionStatusProvider.notifier.refresh()` antes de `context.go`.
+- `/choose-role` não estava na lista de rotas permitidas para utilizadores
+  não autenticados → adicionado para evitar redirect loop no primeiro registo.
+- Confirmação de email Supabase desativada para MVP — reativar antes do launch.

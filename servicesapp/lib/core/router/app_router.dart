@@ -1,74 +1,96 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/application/auth_providers.dart';
+import '../../features/auth/application/session_provider.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/choose_role_screen.dart';
+import '../../features/client/presentation/client_home_screen.dart';
+import '../../features/client/presentation/client_profile_screen.dart';
+import '../../features/worker/presentation/worker_home_screen.dart';
+import '../../features/worker/presentation/worker_profile_screen.dart';
+import '../../features/worker/presentation/worker_setup_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final refresh = ValueNotifier(0);
+
+  ref.listen(sessionStatusProvider, (prev, next) {
+    // Only refresh router when session finishes loading (not while loading)
+    if (!next.isLoading) refresh.value++;
+  });
+
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
-    redirect: (context, state) async {
-      final isAuthenticated = authState.value?.session != null;
-      final isAuthRoute = ['/login', '/signup', '/choose-role', '/']
-          .contains(state.matchedLocation);
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final sessionAsync = ref.read(sessionStatusProvider);
+      final loc = state.matchedLocation;
+      final publicRoutes = ['/', '/login', '/signup'];
 
-      if (!isAuthenticated && !isAuthRoute) return '/';
-      if (isAuthenticated && state.matchedLocation == '/') {
-        final repo = ref.read(authRepositoryProvider);
-        final user = ref.read(currentUserProvider);
-        if (user == null) return '/';
-        final role = await repo.fetchUserRole(user.id);
-        if (role == null) return '/choose-role';
-        return role.value == 'client' ? '/client/home' : '/worker/home';
+      // While loading → don't redirect
+      if (sessionAsync.isLoading) return null;
+      final session = sessionAsync.value;
+      if (session == null || session.isLoading) return null;
+
+      // Not authenticated
+      if (!session.isAuthenticated) {
+        const unauthAllowed = ['/', '/login', '/signup', '/choose-role'];
+        return unauthAllowed.contains(loc) ? null : '/';
+      }
+
+      // No role yet
+      if (session.role == null) {
+        const allowed = ['/choose-role', '/signup', '/login', '/'];
+        return allowed.contains(loc) ? null : '/choose-role';
+      }
+
+      // Client
+      if (session.role!.value == 'client') {
+        if (loc.startsWith('/client/')) return null;
+        if (publicRoutes.contains(loc) || loc == '/choose-role') {
+          return '/client/home';
+        }
+        return null;
+      }
+
+      // Worker without profile
+      if (!session.workerProfileComplete) {
+        return loc == '/worker/setup' ? null : '/worker/setup';
+      }
+
+      // Worker with profile
+      if (loc == '/worker/setup' ||
+          publicRoutes.contains(loc) ||
+          loc == '/choose-role') {
+        return '/worker/home';
       }
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const LandingScreen()),
-      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
-      GoRoute(
-          path: '/signup', builder: (context, state) => const SignupScreen()),
+      GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/signup', builder: (_, _) => const SignupScreen()),
       GoRoute(
         path: '/choose-role',
         builder: (context, state) {
-          final extra = state.extra as Map<String, String>?;
+          final extra = state.extra != null
+              ? Map<String, String>.from(state.extra as Map)
+              : null;
           return ChooseRoleScreen(
             fullName: extra?['fullName'] ?? '',
             phone: extra?['phone'] ?? '',
           );
         },
       ),
-      GoRoute(
-        path: '/client/home',
-        builder: (context, state) =>
-            const _PlaceholderScreen(title: 'Cliente — Home'),
-      ),
-      GoRoute(
-        path: '/worker/home',
-        builder: (context, state) =>
-            const _PlaceholderScreen(title: 'Jardineiro — Home'),
-      ),
+      GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
+      GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
+      GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
+      GoRoute(path: '/worker/home', builder: (_, _) => const WorkerHomeScreen()),
+      GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
     ],
   );
 });
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const _PlaceholderScreen({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
-      ),
-    );
-  }
-}

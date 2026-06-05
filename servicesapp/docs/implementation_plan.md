@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 6 — Auth.
-**Próximo passo:** 7 — Perfis (client + worker).
+**Passo concluído:** 7 — Perfis (client + worker).
+**Próximo passo:** 8 — Jobs e Propostas.
 
 ## Fases
 
@@ -60,8 +60,8 @@
 - [x] Redirect real no go_router.
 
 ### Fase 7 — Perfil
-- [ ] Feature `client/`: ver/editar perfil base.
-- [ ] Feature `worker/`: ver/editar `worker_profiles` (raio, base, ferramentas,
+- [x] Feature `client/`: ver/editar perfil base.
+- [x] Feature `worker/`: ver/editar `worker_profiles` (raio, base, ferramentas,
       serviços, fotos).
 
 ### Fase 8 — Jobs e Propostas (núcleo do MVP)
