@@ -18,6 +18,10 @@ class ClientHomeScreen extends ConsumerWidget {
         ],
       ),
       body: const Center(child: Text('Os meus pedidos — em breve')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/client/create-job'),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }

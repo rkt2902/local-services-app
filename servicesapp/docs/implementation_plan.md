@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 7 — Perfis (client + worker).
-**Próximo passo:** 8 — Jobs e Propostas.
+**Passo concluído:** 8A — Criar pedido (cliente).
+**Próximo passo:** 8B — Os meus pedidos (cliente).
 
 ## Fases
 

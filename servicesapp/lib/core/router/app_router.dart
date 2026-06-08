@@ -9,6 +9,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
 import '../../features/worker/presentation/worker_home_screen.dart';
+import '../../features/jobs/presentation/create_job_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 
@@ -89,6 +90,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
       GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
       GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
+      GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
       GoRoute(path: '/worker/home', builder: (_, _) => const WorkerHomeScreen()),
       GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
     ],
