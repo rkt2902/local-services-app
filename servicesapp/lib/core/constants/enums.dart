@@ -24,6 +24,8 @@ enum JobStatus {
         'cancelled' => JobStatus.cancelled,
         _ => throw ArgumentError('Unknown JobStatus: $value'),
       };
+
+  static JobStatus fromString(String value) => fromValue(value);
 }
 
 enum ProposalStatus {
@@ -46,6 +48,8 @@ enum ProposalStatus {
         'superseded' => ProposalStatus.superseded,
         _ => throw ArgumentError('Unknown ProposalStatus: $value'),
       };
+
+  static ProposalStatus fromString(String value) => fromValue(value);
 }
 
 enum UserRole {
@@ -83,6 +87,8 @@ enum HelpRequestStatus {
         'cancelled' => HelpRequestStatus.cancelled,
         _ => throw ArgumentError('Unknown HelpRequestStatus: $value'),
       };
+
+  static HelpRequestStatus fromString(String value) => fromValue(value);
 }
 
 enum HelpAcceptanceStatus {
@@ -99,4 +105,45 @@ enum HelpAcceptanceStatus {
         'cancelled' => HelpAcceptanceStatus.cancelled,
         _ => throw ArgumentError('Unknown HelpAcceptanceStatus: $value'),
       };
+
+  static HelpAcceptanceStatus fromString(String value) => fromValue(value);
+}
+
+enum Urgency {
+  normal,
+  urgent;
+
+  String get value => switch (this) {
+        Urgency.normal => 'normal',
+        Urgency.urgent => 'urgent',
+      };
+
+  static Urgency fromValue(String value) => switch (value) {
+        'normal' => Urgency.normal,
+        'urgent' => Urgency.urgent,
+        _ => throw ArgumentError('Unknown Urgency: $value'),
+      };
+
+  static Urgency fromString(String value) => fromValue(value);
+}
+
+enum SizeEstimate {
+  small,
+  medium,
+  large;
+
+  String get value => switch (this) {
+        SizeEstimate.small => 'small',
+        SizeEstimate.medium => 'medium',
+        SizeEstimate.large => 'large',
+      };
+
+  static SizeEstimate fromValue(String value) => switch (value) {
+        'small' => SizeEstimate.small,
+        'medium' => SizeEstimate.medium,
+        'large' => SizeEstimate.large,
+        _ => throw ArgumentError('Unknown SizeEstimate: $value'),
+      };
+
+  static SizeEstimate fromString(String value) => fromValue(value);
 }

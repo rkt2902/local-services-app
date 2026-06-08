@@ -64,3 +64,11 @@ documentos originais; só se criam aqui se divergirem.
 - `/choose-role` não estava na lista de rotas permitidas para utilizadores
   não autenticados → adicionado para evitar redirect loop no primeiro registo.
 - Confirmação de email Supabase desativada para MVP — reativar antes do launch.
+
+## 2026-06-08 — Fase 8A: decisões de criação de pedido
+- Localização via flutter_map + GPS + morada texto; pino define coordenadas; sem geocoding.
+- Serviço por dropdown (seleção única). Data com opção "flexível" (preferred_date nullable).
+- Urgência: toggle (normal/urgent). Tamanho: chips (small/medium/large).
+- Fotos comprimidas no cliente a 1280px/qualidade 72% (flutter_image_compress) antes do upload.
+- preferred_date passou a nullable. Adicionadas políticas RLS a job_photos e storage (job-photos).
+- ServiceType/serviceTypesProvider reutilizados de features/worker por agora; mover para shared no futuro se necessário.
