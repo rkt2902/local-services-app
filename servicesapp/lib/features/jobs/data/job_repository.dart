@@ -5,6 +5,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
+import 'job_model.dart';
 
 class JobRepository {
   const JobRepository(this._client);
@@ -78,5 +79,32 @@ class JobRepository {
     });
 
     return _client.storage.from('job-photos').getPublicUrl(storagePath);
+  }
+
+  Future<List<JobRequest>> fetchClientJobs(String clientId) async {
+    final data = await _client
+        .from('job_requests')
+        .select()
+        .eq('client_id', clientId)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => JobRequest.fromJson(e)).toList();
+  }
+
+  Future<void> cancelJob(String jobId) async {
+    await _client.from('job_requests').update({
+      'status': JobStatus.cancelled.value,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', jobId);
+  }
+
+  Future<List<String>> fetchJobPhotos(String jobId) async {
+    final data = await _client
+        .from('job_photos')
+        .select('storage_path')
+        .eq('job_id', jobId);
+    return (data as List).map((e) {
+      final path = e['storage_path'] as String;
+      return _client.storage.from('job-photos').getPublicUrl(path);
+    }).toList();
   }
 }

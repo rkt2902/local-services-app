@@ -72,3 +72,12 @@ documentos originais; só se criam aqui se divergirem.
 - Fotos comprimidas no cliente a 1280px/qualidade 72% (flutter_image_compress) antes do upload.
 - preferred_date passou a nullable. Adicionadas políticas RLS a job_photos e storage (job-photos).
 - ServiceType/serviceTypesProvider reutilizados de features/worker por agora; mover para shared no futuro se necessário.
+
+## 2026-06-09 — Fase 8B: decisões de lista e detalhe de pedidos (cliente)
+- Proposta aceite/recusada via update direto nas tabelas (não RPC) — suficiente para MVP single-user.
+- cancelJob faz update direto (status→cancelled); não usa RPC para MVP.
+- JobProposal.fetchProposalById adicionado para suportar secção "confirmado" quando a tela é aberta diretamente (não só após aceitar na sessão atual).
+- workerBasicInfoProvider usa sentinel string vazia → fetchWorkerBasicInfo devolve {} imediatamente — evita ref.watch condicional.
+- Contacto WhatsApp: limpa espaços/hífens do telefone, abre wa.me/<número> em app externa; requer package android.name="com.whatsapp" em queries.
+- _statusInfo duplicado em client_jobs_screen e client_job_detail_screen (funções top-level privadas) — sem abstração partilhada para MVP.
+- url_launcher adicionado (já era dependência transitiva via supabase_flutter; promovido a dependência direta).

@@ -23,3 +23,8 @@ final workerHasProfileProvider = FutureProvider<bool>((ref) async {
 final serviceTypesProvider = FutureProvider<List<ServiceType>>((ref) async {
   return ref.read(workerRepositoryProvider).fetchServiceTypes();
 });
+
+final workerBasicInfoProvider =
+    FutureProvider.family<Map<String, String>, String>((ref, workerId) {
+  return ref.read(workerRepositoryProvider).fetchWorkerBasicInfo(workerId);
+});

@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8A — Criar pedido (cliente).
-**Próximo passo:** 8B — Os meus pedidos (cliente).
+**Passo concluído:** 8B — Os meus pedidos (cliente).
+**Próximo passo:** 8C — Pedidos disponíveis (worker).
 
 ## Fases
 

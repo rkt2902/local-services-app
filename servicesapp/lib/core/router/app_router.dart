@@ -10,6 +10,9 @@ import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
 import '../../features/worker/presentation/worker_home_screen.dart';
 import '../../features/jobs/presentation/create_job_screen.dart';
+import '../../features/jobs/presentation/client_jobs_screen.dart';
+import '../../features/jobs/presentation/client_job_detail_screen.dart';
+import '../../features/jobs/data/job_model.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 
@@ -91,6 +94,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
       GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
       GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
+      GoRoute(path: '/client/jobs', builder: (_, _) => const ClientJobsScreen()),
+      GoRoute(
+        path: '/client/job/:id',
+        builder: (_, state) {
+          final job = state.extra! as JobRequest;
+          return ClientJobDetailScreen(job: job);
+        },
+      ),
       GoRoute(path: '/worker/home', builder: (_, _) => const WorkerHomeScreen()),
       GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
     ],
