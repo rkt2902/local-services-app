@@ -4,7 +4,7 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8B — Os meus pedidos (cliente).
+**Passo concluído:** Tab bar navigation + client home with recent jobs.
 **Próximo passo:** 8C — Pedidos disponíveis (worker).
 
 ## Fases

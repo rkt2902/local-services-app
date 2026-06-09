@@ -81,3 +81,14 @@ documentos originais; só se criam aqui se divergirem.
 - Contacto WhatsApp: limpa espaços/hífens do telefone, abre wa.me/<número> em app externa; requer package android.name="com.whatsapp" em queries.
 - _statusInfo duplicado em client_jobs_screen e client_job_detail_screen (funções top-level privadas) — sem abstração partilhada para MVP.
 - url_launcher adicionado (já era dependência transitiva via supabase_flutter; promovido a dependência direta).
+
+## 2026-06-09 — Tab bar navigation (client + worker)
+- 5-tab NavigationBar (Material 3) para client e worker.
+- Tab central (+): client faz push /client/create-job sem alterar índice selecionado; worker mostra bottom sheet "Em breve" sem alterar índice.
+- ShellRoute envolve rotas de client e worker — NavigationBar persiste entre screens.
+- Índice selecionado derivado de GoRouterState.of(context).matchedLocation (sem estado local).
+- /client/messages e /worker/messages e /worker/jobs são rotas placeholder (_PlaceholderScreen) dentro do ShellRoute.
+- _PlaceholderScreen definido no app_router.dart (file-private) e referenciado pelas rotas; shell files mantêm cópia privada anotada com ignore:unused_element para facilitar futura migração para StatefulShellRoute.
+- Client home mostra últimos 3 pedidos ativos com link "Ver todos"; cumprimento usa primeiro nome de clientProfileProvider.
+- FAB e ícone de perfil no AppBar removidos das home screens — substituídos pela NavigationBar.
+- flutter/foundation.dart removido do router (flutter/material.dart é superset).

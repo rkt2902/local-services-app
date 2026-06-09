@@ -154,6 +154,8 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         await repo.uploadJobPhoto(jobId: jobId, file: photo);
       }
 
+      ref.invalidate(clientJobsProvider);
+
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       context.go('/client/home');
