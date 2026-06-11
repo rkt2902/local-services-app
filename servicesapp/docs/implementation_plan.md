@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8C.1 — Pedidos disponíveis + envio de proposta (worker).
-**Próximo passo:** 8C.2 — Sistema de notificações.
+**Passo concluído:** 8C.2 — Sistema de notificações.
+**Próximo passo:** 8D — Propostas (aceitar/recusar) + Os meus jobs (worker).
 
 ## Fases
 

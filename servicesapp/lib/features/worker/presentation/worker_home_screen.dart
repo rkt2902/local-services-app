@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
+import '../../notifications/application/notification_providers.dart';
 import '../application/worker_providers.dart';
 
 class WorkerHomeScreen extends ConsumerWidget {
@@ -22,10 +23,7 @@ class WorkerHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LocalServices'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: null,
-          ),
+          _NotificationButton(),
         ],
       ),
       body: RefreshIndicator(
@@ -94,6 +92,21 @@ class WorkerHomeScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _NotificationButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(unreadCountProvider);
+    return IconButton(
+      icon: Badge(
+        label: Text('$count'),
+        isLabelVisible: count > 0,
+        child: const Icon(Icons.notifications_outlined),
+      ),
+      onPressed: () => context.push('/notifications'),
     );
   }
 }

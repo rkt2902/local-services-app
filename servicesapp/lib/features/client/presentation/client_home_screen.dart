@@ -7,6 +7,7 @@ import '../../../core/constants/enums.dart';
 import '../application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
+import '../../notifications/application/notification_providers.dart';
 
 class ClientHomeScreen extends ConsumerWidget {
   const ClientHomeScreen({super.key});
@@ -27,10 +28,7 @@ class ClientHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LocalServices'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: null,
-          ),
+          _NotificationButton(),
         ],
       ),
       body: SingleChildScrollView(
@@ -206,6 +204,21 @@ class _CompactJobCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NotificationButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(unreadCountProvider);
+    return IconButton(
+      icon: Badge(
+        label: Text('$count'),
+        isLabelVisible: count > 0,
+        child: const Icon(Icons.notifications_outlined),
+      ),
+      onPressed: () => context.push('/notifications'),
     );
   }
 }

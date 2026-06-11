@@ -89,6 +89,17 @@ documentos originais; só se criam aqui se divergirem.
 - _statusInfo duplicado em client_jobs_screen e client_job_detail_screen (funções top-level privadas) — sem abstração partilhada para MVP.
 - url_launcher adicionado (já era dependência transitiva via supabase_flutter; promovido a dependência direta).
 
+## 2026-06-11 — Fase 8C.2: Sistema de notificações
+- Tabela `notifications` dedicada na BD (user_id, type, title, body, related_id, related_type, read).
+- Triggers na BD para: novo job no raio (workers), proposta recebida (cliente),
+  proposta aceite/recusada (worker).
+- Realtime via Supabase stream — um canal por utilizador, subscrito em notificationsStreamProvider.
+- NotificationType: constantes centralizadas para todos os tipos.
+- NotificationHandler: routing centralizado ao toque na notificação.
+- notificationSyncProvider: invalida providers relevantes quando chegam notificações novas.
+- Badge de contagem não lidas no sino do AppBar (Material 3 Badge widget).
+- Extensível: novos tipos requerem apenas nova constante + caso no NotificationHandler.
+
 ## 2026-06-11 — Fase 8C.1 bugfixes + geocoding + horas como intervalo
 - Bug: fetchWorkerBasicInfo usava .single() → PGRST116 quando perfil não existe; corrigido para .maybeSingle() com retorno {} em null.
 - Bug: ecrã de detalhe do cliente mostrava morada vazia; corrigido com addressText.isNotEmpty nos dois ecrãs de cliente (detalhe e lista).

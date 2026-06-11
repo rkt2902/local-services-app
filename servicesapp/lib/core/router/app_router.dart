@@ -17,6 +17,7 @@ import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/data/job_model.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -87,6 +88,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
+      GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       ShellRoute(
         builder: (context, state, child) => ClientShell(child: child),
         routes: [
