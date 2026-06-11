@@ -32,18 +32,10 @@ class ProposalRepository {
   }
 
   Future<void> acceptProposal(String proposalId, String jobId) async {
-    await _client
-        .from('job_proposals')
-        .update({
-          'status': ProposalStatus.accepted.value,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', proposalId);
-    await _client.from('job_requests').update({
-      'status': JobStatus.confirmed.value,
-      'accepted_proposal_id': proposalId,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', jobId);
+    await _client.rpc('accept_proposal', params: {
+      'p_proposal_id': proposalId,
+      'p_job_id': jobId,
+    });
   }
 
 
@@ -69,15 +61,39 @@ class ProposalRepository {
   }
 
   Future<void> rejectProposal(String proposalId, String jobId) async {
+    await _client.rpc('reject_proposal', params: {
+      'p_proposal_id': proposalId,
+      'p_job_id': jobId,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchWorkerProposalsWithJobs(
+      String workerId) async {
+    final data = await _client
+        .from('job_proposals')
+        .select('*, job_requests!job_proposals_job_id_fkey(*)')
+        .eq('worker_id', workerId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> withdrawProposal(String proposalId, String jobId) async {
     await _client
         .from('job_proposals')
         .update({
-          'status': ProposalStatus.rejected.value,
+          'status': ProposalStatus.superseded.value,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', proposalId);
     await _client.from('job_requests').update({
       'status': JobStatus.open.value,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', jobId);
+  }
+
+  Future<void> markJobCompleted(String jobId) async {
+    await _client.from('job_requests').update({
+      'status': JobStatus.completed.value,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', jobId);
   }

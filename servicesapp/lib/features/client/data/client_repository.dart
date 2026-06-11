@@ -29,4 +29,17 @@ class ClientRepository {
         );
     return _client.storage.from('avatars').getPublicUrl(path);
   }
+
+  Future<Map<String, String>> fetchClientBasicInfo(String clientId) async {
+    final data = await _client
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', clientId)
+        .maybeSingle();
+    if (data == null) return {'full_name': '', 'phone': ''};
+    return {
+      'full_name': data['full_name'] as String? ?? '',
+      'phone': data['phone'] as String? ?? '',
+    };
+  }
 }

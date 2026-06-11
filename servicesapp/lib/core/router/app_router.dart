@@ -17,8 +17,11 @@ import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/data/job_model.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
+import '../../features/worker/presentation/worker_jobs_screen.dart';
+import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
+import '../../features/proposals/data/proposal_model.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
@@ -123,7 +126,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
           GoRoute(
             path: '/worker/jobs',
-            builder: (_, _) => const _PlaceholderScreen('Os meus jobs'),
+            builder: (_, _) => const WorkerJobsScreen(),
+          ),
+          GoRoute(
+            path: '/worker/my-job/:id',
+            builder: (context, state) {
+              final extra = state.extra! as Map<String, dynamic>;
+              return WorkerMyJobDetailScreen(
+                proposal: extra['proposal'] as JobProposal,
+                job: extra['job'] as JobRequest,
+              );
+            },
           ),
           GoRoute(
             path: '/worker/messages',

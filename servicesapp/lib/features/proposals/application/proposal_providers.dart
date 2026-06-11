@@ -17,3 +17,12 @@ final proposalByIdProvider =
     FutureProvider.family<JobProposal?, String>((ref, proposalId) {
   return ref.read(proposalRepositoryProvider).fetchProposalById(proposalId);
 });
+
+final workerProposalsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  return ref
+      .read(proposalRepositoryProvider)
+      .fetchWorkerProposalsWithJobs(user.id);
+});

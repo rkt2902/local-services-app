@@ -12,3 +12,9 @@ final clientProfileProvider = FutureProvider<ClientProfile?>((ref) async {
   if (user == null) return null;
   return ref.read(clientRepositoryProvider).fetchProfile(user.id);
 });
+
+final clientBasicInfoProvider =
+    FutureProvider.family<Map<String, String>, String>((ref, clientId) {
+  if (clientId.isEmpty) return Future.value({'full_name': '', 'phone': ''});
+  return ref.read(clientRepositoryProvider).fetchClientBasicInfo(clientId);
+});

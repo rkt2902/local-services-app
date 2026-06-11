@@ -294,7 +294,7 @@ class _ClientJobDetailScreenState
         actions: [
           if (canCancel)
             IconButton(
-              icon: const Icon(Icons.cancel_outlined),
+              icon: const Icon(Icons.close),
               tooltip: 'Cancelar pedido',
               onPressed: _saving ? null : _cancelJob,
             ),

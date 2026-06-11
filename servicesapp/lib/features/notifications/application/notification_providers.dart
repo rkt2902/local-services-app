@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 import '../data/notification_types.dart';
@@ -29,6 +31,7 @@ final unreadCountProvider = Provider<int>((ref) {
 /// Keep this provider watched in the app root (App widget).
 final notificationSyncProvider = Provider<void>((ref) {
   ref.listen(notificationsStreamProvider, (prev, next) {
+    debugPrint('notificationSync fired: prev=${prev?.asData?.value.length} next=${next.asData?.value.length}');
     final prevList = prev?.asData?.value ?? [];
     final nextList = next.asData?.value ?? [];
     if (nextList.length <= prevList.length) return;
@@ -40,12 +43,18 @@ final notificationSyncProvider = Provider<void>((ref) {
     for (final notification in newNotifications) {
       switch (notification.type) {
         case NotificationType.newJobInRadius:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
         case NotificationType.proposalReceived:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
+          ref.invalidate(workerProposalsProvider);
         case NotificationType.proposalAccepted:
         case NotificationType.proposalRejected:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
+          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(proposalByIdProvider);
       }
     }
   });

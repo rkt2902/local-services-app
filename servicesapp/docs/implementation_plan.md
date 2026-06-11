@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8C.2 — Sistema de notificações.
-**Próximo passo:** 8D — Propostas (aceitar/recusar) + Os meus jobs (worker).
+**Passo concluído:** 8D — Worker "Os meus jobs" tab.
+**Próximo passo:** Fase 9 — Equipa e ajudantes, ou polish/bugs pré-Fase 9.
 
 ## Fases
 
