@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../auth/application/auth_controller.dart';
@@ -35,6 +36,11 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
   final List<String> _selectedServiceTypeIds = [];
   bool _saving = false;
   bool _initialized = false;
+  bool _geocoding = false;
+  bool _showManualCoords = false;
+  final _addressSearchController = TextEditingController();
+  final _latController = TextEditingController();
+  final _lngController = TextEditingController();
 
   @override
   void dispose() {
@@ -43,6 +49,9 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     _bioController.dispose();
     _hourlyRateController.dispose();
     _toolController.dispose();
+    _addressSearchController.dispose();
+    _latController.dispose();
+    _lngController.dispose();
     super.dispose();
   }
 
@@ -63,6 +72,44 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
       ..clear()
       ..addAll(profile.serviceTypeIds);
     _initialized = true;
+  }
+
+  Future<void> _geocodeAddress() async {
+    final text = _addressSearchController.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _geocoding = true);
+    try {
+      final locations = await locationFromAddress(text);
+      if (!mounted) return;
+      if (locations.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Morada não encontrada.'),
+        ));
+        return;
+      }
+      setState(() {
+        _baseLat = locations.first.latitude;
+        _baseLng = locations.first.longitude;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Erro ao pesquisar morada.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _geocoding = false);
+    }
+  }
+
+  void _applyManualCoords() {
+    final lat = double.tryParse(_latController.text.trim());
+    final lng = double.tryParse(_lngController.text.trim());
+    if (lat != null && lng != null) {
+      setState(() {
+        _baseLat = lat;
+        _baseLng = lng;
+      });
+    }
   }
 
   Future<void> _getLocation() async {
@@ -310,6 +357,67 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                         : const Icon(Icons.my_location),
                     label: const Text('Atualizar localização'),
                   ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _addressSearchController,
+                    decoration: InputDecoration(
+                      labelText: 'Pesquisar morada',
+                      prefixIcon: const Icon(Icons.place_outlined),
+                      suffixIcon: _geocoding
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              ),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search),
+                              onPressed: _geocodeAddress,
+                            ),
+                    ),
+                    onFieldSubmitted: (_) => _geocodeAddress(),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _showManualCoords = !_showManualCoords),
+                    child: Text(_showManualCoords
+                        ? 'Ocultar coordenadas'
+                        : 'Introduzir coordenadas manualmente'),
+                  ),
+                  if (_showManualCoords) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _latController,
+                            decoration: const InputDecoration(
+                                labelText: 'Latitude'),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true, signed: true),
+                            onChanged: (_) => _applyManualCoords(),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _lngController,
+                            decoration: const InputDecoration(
+                                labelText: 'Longitude'),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true, signed: true),
+                            onChanged: (_) => _applyManualCoords(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Text('Raio de atuação: $_radiusKm km',
                       style: theme.textTheme.titleMedium),

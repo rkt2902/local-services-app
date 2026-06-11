@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** Tab bar navigation + client home with recent jobs.
-**Próximo passo:** 8C — Pedidos disponíveis (worker).
+**Passo concluído:** 8C.1 — Pedidos disponíveis + envio de proposta (worker).
+**Próximo passo:** 8C.2 — Sistema de notificações.
 
 ## Fases
 
@@ -65,10 +65,10 @@
       serviços, fotos).
 
 ### Fase 8 — Jobs e Propostas (núcleo do MVP)
-- [ ] Feature `jobs/`: criar pedido (client), lista de pedidos no raio (worker),
+- [x] Feature `jobs/`: criar pedido (client), lista de pedidos no raio (worker),
       detalhe do pedido.
-- [ ] Upload de fotos para `job-photos`.
-- [ ] Feature `proposals/`: enviar proposta (worker), ver proposta (client),
+- [x] Upload de fotos para `job-photos`.
+- [x] Feature `proposals/`: enviar proposta (worker), ver proposta (client),
       aceitar/recusar (client).
 - [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
 

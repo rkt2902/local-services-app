@@ -140,7 +140,6 @@ class _ClientJobDetailScreenState
       builder: (_) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final theme = Theme.of(ctx);
-          final total = proposal.hourlyRate * proposal.estimatedHours;
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
@@ -153,10 +152,19 @@ class _ClientJobDetailScreenState
                   const SizedBox(height: 16),
                   _sheetRow(ctx, 'Taxa/hora',
                       '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'),
-                  _sheetRow(ctx, 'Horas estimadas',
-                      '${proposal.estimatedHours.toStringAsFixed(1)} h'),
-                  _sheetRow(ctx, 'Total estimado',
-                      '≈ €${total.toStringAsFixed(0)}'),
+                  if (proposal.estimatedHoursMin != null ||
+                      proposal.estimatedHoursMax != null)
+                    _sheetRow(
+                        ctx,
+                        'Horas estimadas',
+                        _hoursLabel(proposal.estimatedHoursMin,
+                            proposal.estimatedHoursMax)),
+                  _sheetRow(
+                      ctx,
+                      'Total estimado',
+                      _formatEstimate(proposal.hourlyRate,
+                          proposal.estimatedHoursMin,
+                          proposal.estimatedHoursMax)),
                   _sheetRow(ctx, 'Pessoas', '${proposal.peopleNeeded}'),
                   if (proposal.notes != null &&
                       proposal.notes!.isNotEmpty) ...[
@@ -316,8 +324,9 @@ class _ClientJobDetailScreenState
             // Info card
             _DetailSection(
               children: [
-                _detailRow(context, Icons.place_outlined, 'Localização',
-                    _job.addressText),
+                if (_job.addressText.isNotEmpty)
+                  _detailRow(context, Icons.place_outlined, 'Localização',
+                      _job.addressText),
                 _detailRow(
                   context,
                   Icons.calendar_today_outlined,
@@ -399,8 +408,10 @@ class _ClientJobDetailScreenState
                     return const Text(
                         'Nenhuma proposta pendente encontrada.');
                   }
-                  final total =
-                      proposal.hourlyRate * proposal.estimatedHours;
+                  final estimate = _formatEstimate(proposal.hourlyRate,
+                      proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+                  final hoursStr = _hoursLabel(
+                      proposal.estimatedHoursMin, proposal.estimatedHoursMax);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -421,14 +432,14 @@ class _ClientJobDetailScreenState
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '≈ €${total.toStringAsFixed(0)}',
+                                        estimate,
                                         style: theme.textTheme.titleLarge
                                             ?.copyWith(
                                                 color: theme
                                                     .colorScheme.primary),
                                       ),
                                       Text(
-                                        '${proposal.hourlyRate.toStringAsFixed(2)} €/h · ${proposal.estimatedHours.toStringAsFixed(1)} h · ${proposal.peopleNeeded} pessoa${proposal.peopleNeeded > 1 ? 's' : ''}',
+                                        '${proposal.hourlyRate.toStringAsFixed(2)} €/h${hoursStr.isNotEmpty ? ' · $hoursStr' : ''} · ${proposal.peopleNeeded} pessoa${proposal.peopleNeeded > 1 ? 's' : ''}',
                                         style: theme.textTheme.bodySmall,
                                       ),
                                     ],
@@ -451,9 +462,16 @@ class _ClientJobDetailScreenState
               workerInfoAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Erro: $e'),
+                error: (_, _) =>
+                    const Text('Não foi possível carregar o contacto.'),
                 data: (info) {
-                  if (info.isEmpty) return const SizedBox.shrink();
+                  if (workerId.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (info.isEmpty) {
+                    return const Text(
+                        'Não foi possível carregar o contacto.');
+                  }
                   final name = info['full_name'] ?? '';
                   final phone = info['phone'] ?? '';
                   return Column(
@@ -511,6 +529,28 @@ class _ClientJobDetailScreenState
       ),
     );
   }
+}
+
+String _formatEstimate(double rate, double? min, double? max) {
+  if (min != null && max != null) {
+    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
+  } else if (min != null) {
+    return '≈ €${(rate * min).toStringAsFixed(0)}';
+  } else if (max != null) {
+    return '≈ €${(rate * max).toStringAsFixed(0)}';
+  }
+  return '';
+}
+
+String _hoursLabel(double? min, double? max) {
+  if (min != null && max != null) {
+    return '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)} h';
+  } else if (min != null) {
+    return '${min.toStringAsFixed(1)} h';
+  } else if (max != null) {
+    return '${max.toStringAsFixed(1)} h';
+  }
+  return '';
 }
 
 (String, Color) _statusInfo(JobStatus status) => switch (status) {

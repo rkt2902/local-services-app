@@ -65,6 +65,13 @@ documentos originais; só se criam aqui se divergirem.
   não autenticados → adicionado para evitar redirect loop no primeiro registo.
 - Confirmação de email Supabase desativada para MVP — reativar antes do launch.
 
+## 2026-06-08 — Fase 8C.1: Pedidos disponíveis (worker)
+- Lista de jobs abertos no raio via RPC get_jobs_in_radius (Haversine na BD).
+- Distância calculada no cliente (Geolocator.distanceBetween) para exibição.
+- Ordenação por distância (da RPC). Morada só mostrada se existir.
+- Envio de proposta via RPC create_proposal (resolve condição de corrida).
+- Notificações ficam para a Fase 8C.2 (tabela dedicada + triggers + realtime).
+
 ## 2026-06-08 — Fase 8A: decisões de criação de pedido
 - Localização via flutter_map + GPS + morada texto; pino define coordenadas; sem geocoding.
 - Serviço por dropdown (seleção única). Data com opção "flexível" (preferred_date nullable).
@@ -81,6 +88,13 @@ documentos originais; só se criam aqui se divergirem.
 - Contacto WhatsApp: limpa espaços/hífens do telefone, abre wa.me/<número> em app externa; requer package android.name="com.whatsapp" em queries.
 - _statusInfo duplicado em client_jobs_screen e client_job_detail_screen (funções top-level privadas) — sem abstração partilhada para MVP.
 - url_launcher adicionado (já era dependência transitiva via supabase_flutter; promovido a dependência direta).
+
+## 2026-06-11 — Fase 8C.1 bugfixes + geocoding + horas como intervalo
+- Bug: fetchWorkerBasicInfo usava .single() → PGRST116 quando perfil não existe; corrigido para .maybeSingle() com retorno {} em null.
+- Bug: ecrã de detalhe do cliente mostrava morada vazia; corrigido com addressText.isNotEmpty nos dois ecrãs de cliente (detalhe e lista).
+- Bug: secção "confirmado" no detalhe do cliente mostrava loading infinito em caso de erro; corrigido com handler explícito "Não foi possível carregar o contacto." para erro e para map vazio quando workerId ainda não foi resolvido.
+- Horas estimadas na proposta passaram de valor único para intervalo (min/max); DB precisa de colunas estimated_hours_min e estimated_hours_max em job_proposals e função RPC create_proposal atualizada (TODO marcado).
+- Geocoding adicionado ao ecrã de criação de pedido: botão de pesquisa no campo de morada move o pino no mapa para o resultado (package geocoding 4.0.0).
 
 ## 2026-06-09 — Tab bar navigation (client + worker)
 - 5-tab NavigationBar (Material 3) para client e worker.

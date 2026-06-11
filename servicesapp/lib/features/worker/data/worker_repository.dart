@@ -106,7 +106,8 @@ class WorkerRepository {
         .from('profiles')
         .select('full_name, phone')
         .eq('id', workerId)
-        .single();
+        .maybeSingle();
+    if (data == null) return {};
     return {
       'full_name': data['full_name'] as String? ?? '',
       'phone': data['phone'] as String? ?? '',

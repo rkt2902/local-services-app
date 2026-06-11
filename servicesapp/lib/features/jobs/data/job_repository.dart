@@ -81,6 +81,19 @@ class JobRepository {
     return _client.storage.from('job-photos').getPublicUrl(storagePath);
   }
 
+  Future<List<JobRequest>> fetchJobsInRadius({
+    required double workerLat,
+    required double workerLng,
+    required int radiusKm,
+  }) async {
+    final data = await _client.rpc('get_jobs_in_radius', params: {
+      'worker_lat': workerLat,
+      'worker_lng': workerLng,
+      'radius_km': radiusKm,
+    });
+    return (data as List).map((e) => JobRequest.fromJson(e)).toList();
+  }
+
   Future<List<JobRequest>> fetchClientJobs(String clientId) async {
     final data = await _client
         .from('job_requests')

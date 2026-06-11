@@ -121,9 +121,11 @@ class _JobCard extends ConsumerWidget {
       estimateWidget = proposalAsync.maybeWhen(
         data: (proposal) {
           if (proposal == null) return null;
-          final total = proposal.hourlyRate * proposal.estimatedHours;
+          final estimate = _formatEstimate(proposal.hourlyRate,
+              proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+          if (estimate.isEmpty) return null;
           return Text(
-            '≈ €${total.toStringAsFixed(0)}',
+            estimate,
             style: theme.textTheme.titleSmall?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.bold,
@@ -167,13 +169,14 @@ class _JobCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                job.addressText,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              if (job.addressText.isNotEmpty)
+                Text(
+                  job.addressText,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               const SizedBox(height: 4),
               Text(dateText, style: theme.textTheme.bodySmall),
               if (estimateWidget != null) ...[
@@ -197,3 +200,14 @@ class _JobCard extends ConsumerWidget {
       JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
       JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
     };
+
+String _formatEstimate(double rate, double? min, double? max) {
+  if (min != null && max != null) {
+    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
+  } else if (min != null) {
+    return '≈ €${(rate * min).toStringAsFixed(0)}';
+  } else if (max != null) {
+    return '≈ €${(rate * max).toStringAsFixed(0)}';
+  }
+  return '';
+}

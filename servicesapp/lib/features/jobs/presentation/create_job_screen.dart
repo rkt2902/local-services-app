@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,12 +35,40 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   SizeEstimate? _sizeEstimate;
   final List<File> _photos = [];
   bool _saving = false;
+  bool _geocoding = false;
 
   @override
   void dispose() {
     _addressController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _geocode() async {
+    final text = _addressController.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _geocoding = true);
+    try {
+      final locations = await locationFromAddress(text);
+      if (!mounted) return;
+      if (locations.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Morada não encontrada. Tenta ser mais específico.'),
+        ));
+        return;
+      }
+      final loc = locations.first;
+      final latlng = LatLng(loc.latitude, loc.longitude);
+      setState(() => _pinPosition = latlng);
+      _mapController.move(latlng, 14);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Erro ao pesquisar morada.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _geocoding = false);
+    }
   }
 
   Future<void> _getLocation() async {
@@ -324,10 +353,23 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Morada / referência para o jardineiro',
                   helperText: 'Ex: Rua das Flores 23, portão azul',
-                  prefixIcon: Icon(Icons.place_outlined),
+                  prefixIcon: const Icon(Icons.place_outlined),
+                  suffixIcon: _geocoding
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: _geocode,
+                        ),
                 ),
               ),
               const SizedBox(height: 24),

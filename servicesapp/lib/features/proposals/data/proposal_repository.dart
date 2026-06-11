@@ -46,6 +46,28 @@ class ProposalRepository {
     }).eq('id', jobId);
   }
 
+
+  Future<String> createProposal({
+    required String jobId,
+    required String workerId,
+    required double hourlyRate,
+    double? estimatedHoursMin,
+    double? estimatedHoursMax,
+    required int peopleNeeded,
+    String? notes,
+  }) async {
+    final result = await _client.rpc('create_proposal', params: {
+      'p_job_id': jobId,
+      'p_worker_id': workerId,
+      'p_hourly_rate': hourlyRate,
+      'p_estimated_hours_min': estimatedHoursMin,
+      'p_estimated_hours_max': estimatedHoursMax,
+      'p_people_needed': peopleNeeded,
+      'p_notes': notes,
+    });
+    return result as String;
+  }
+
   Future<void> rejectProposal(String proposalId, String jobId) async {
     await _client
         .from('job_proposals')

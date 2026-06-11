@@ -5,7 +5,8 @@ class JobProposal {
   final String jobId;
   final String workerId;
   final double hourlyRate;
-  final double estimatedHours;
+  final double? estimatedHoursMin;
+  final double? estimatedHoursMax;
   final int peopleNeeded;
   final String? notes;
   final ProposalStatus status;
@@ -16,7 +17,8 @@ class JobProposal {
     required this.jobId,
     required this.workerId,
     required this.hourlyRate,
-    required this.estimatedHours,
+    this.estimatedHoursMin,
+    this.estimatedHoursMax,
     required this.peopleNeeded,
     this.notes,
     required this.status,
@@ -28,7 +30,10 @@ class JobProposal {
         jobId: json['job_id'] as String,
         workerId: json['worker_id'] as String,
         hourlyRate: (json['hourly_rate'] as num).toDouble(),
-        estimatedHours: (json['estimated_hours'] as num).toDouble(),
+        estimatedHoursMin:
+            (json['estimated_hours_min'] as num?)?.toDouble(),
+        estimatedHoursMax:
+            (json['estimated_hours_max'] as num?)?.toDouble(),
         peopleNeeded: (json['people_needed'] as num).toInt(),
         notes: json['notes'] as String?,
         status: ProposalStatus.fromString(json['status'] as String),

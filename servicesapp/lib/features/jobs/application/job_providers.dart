@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_providers.dart';
+import '../../worker/application/worker_providers.dart' show workerProfileProvider;
 import '../data/job_model.dart';
 import '../data/job_repository.dart';
 
@@ -23,4 +24,14 @@ final clientJobsProvider = FutureProvider<List<JobRequest>>((ref) async {
 final jobPhotosProvider =
     FutureProvider.family<List<String>, String>((ref, jobId) {
   return ref.read(jobRepositoryProvider).fetchJobPhotos(jobId);
+});
+
+final jobsInRadiusProvider = FutureProvider<List<JobRequest>>((ref) async {
+  final workerProfile = await ref.watch(workerProfileProvider.future);
+  if (workerProfile == null) return [];
+  return ref.read(jobRepositoryProvider).fetchJobsInRadius(
+        workerLat: workerProfile.baseLat,
+        workerLng: workerProfile.baseLng,
+        radiusKm: workerProfile.radiusKm,
+      );
 });
