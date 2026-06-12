@@ -18,7 +18,9 @@ class JobRepository {
     required String addressText,
     required double locationLat,
     required double locationLng,
+    required DateMode dateMode,
     DateTime? preferredDate,
+    String? availabilityText,
     Urgency? urgency,
     SizeEstimate? sizeEstimate,
     required String description,
@@ -31,8 +33,11 @@ class JobRepository {
       'location_lng': locationLng,
       'description': description,
       'status': 'open',
+      'date_mode': dateMode.value,
       if (preferredDate != null)
         'preferred_date': preferredDate.toIso8601String().substring(0, 10),
+      if (availabilityText != null && availabilityText.isNotEmpty)
+        'availability_text': availabilityText,
       if (urgency != null) 'urgency': urgency.value,
       if (sizeEstimate != null) 'size_estimate': sizeEstimate.value,
     };

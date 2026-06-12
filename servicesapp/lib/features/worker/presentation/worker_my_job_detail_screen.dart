@@ -266,6 +266,19 @@ class _WorkerMyJobDetailScreenState
 
             // === ACCEPTED ===
             if (liveStatus == ProposalStatus.accepted) ...[
+              if (widget.job.confirmedDate != null) ...[
+                Text('Agendamento', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                _SectionCard(children: [
+                  _infoRow(
+                    context,
+                    Icons.event_available_outlined,
+                    'Agendado para',
+                    _confirmedScheduleLabel(widget.job),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+              ],
               Text('Cliente', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               clientInfoAsync.when(
@@ -439,6 +452,14 @@ class _WorkerMyJobDetailScreenState
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+String _confirmedScheduleLabel(JobRequest job) {
+  if (job.confirmedDate == null) return '';
+  final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
+  if (job.confirmedFlexible) return '$date (horário flexível)';
+  if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
+  return date;
+}
 
 (String, Color) _proposalStatusInfo(ProposalStatus status) => switch (status) {
       ProposalStatus.pending => ('Aguarda resposta', Colors.orange.shade700),

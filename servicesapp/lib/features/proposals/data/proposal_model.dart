@@ -10,6 +10,9 @@ class JobProposal {
   final int peopleNeeded;
   final String? notes;
   final ProposalStatus status;
+  final DateTime? scheduledDate;
+  final String? scheduledTime;
+  final bool scheduledFlexible;
   final DateTime createdAt;
 
   const JobProposal({
@@ -22,6 +25,9 @@ class JobProposal {
     required this.peopleNeeded,
     this.notes,
     required this.status,
+    this.scheduledDate,
+    this.scheduledTime,
+    this.scheduledFlexible = false,
     required this.createdAt,
   });
 
@@ -37,6 +43,11 @@ class JobProposal {
         peopleNeeded: (json['people_needed'] as num).toInt(),
         notes: json['notes'] as String?,
         status: ProposalStatus.fromString(json['status'] as String),
+        scheduledDate: json['scheduled_date'] != null
+            ? DateTime.parse(json['scheduled_date'] as String)
+            : null,
+        scheduledTime: json['scheduled_time'] as String?,
+        scheduledFlexible: json['scheduled_flexible'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 }

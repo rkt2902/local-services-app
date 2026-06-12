@@ -228,6 +228,8 @@ class _NotificationButton extends ConsumerWidget {
       JobStatus.proposalReceived =>
         ('Proposta', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
+      JobStatus.awaitingConfirmation =>
+        ('A confirmar', Colors.teal.shade600),
       JobStatus.completed => ('Concluído', Colors.grey.shade600),
       JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
       JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),

@@ -36,16 +36,19 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     context.go('/worker/home');
   }
 
-  String _formatDate() {
-    if (widget.job.preferredDate == null) return 'Flexível';
-    return DateFormat('dd/MM/yyyy').format(widget.job.preferredDate!);
-  }
-
   String? _sizeLabel() => switch (widget.job.sizeEstimate) {
         SizeEstimate.small => 'Pequeno',
         SizeEstimate.medium => 'Médio',
         SizeEstimate.large => 'Grande',
         null => null,
+      };
+
+  String _dateModeShortLabel() => switch (widget.job.dateMode) {
+        DateMode.fixed when widget.job.preferredDate != null =>
+          'Data: ${DateFormat('dd/MM/yyyy').format(widget.job.preferredDate!)}',
+        DateMode.fixed => 'Data não definida',
+        DateMode.flexible => 'Cliente flexível quanto à data',
+        DateMode.availability => 'Por disponibilidade',
       };
 
   @override
@@ -115,7 +118,7 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
               children: [
                 _DetailChip(
                     icon: Icons.calendar_today_outlined,
-                    label: _formatDate()),
+                    label: _dateModeShortLabel()),
                 if (distanceStr != null)
                   _DetailChip(
                       icon: Icons.place_outlined, label: distanceStr),
@@ -124,6 +127,35 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                       icon: Icons.straighten_outlined, label: sizeLabel),
               ],
             ),
+            // Availability text shown separately (can be long)
+            if (widget.job.dateMode == DateMode.availability &&
+                widget.job.availabilityText != null &&
+                widget.job.availabilityText!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.event_note_outlined,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Disponibilidade do cliente:',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                        Text(widget.job.availabilityText!,
+                            style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (widget.job.addressText.isNotEmpty) ...[
               const SizedBox(height: 12),
               Row(
@@ -232,6 +264,10 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
   final _notesController = TextEditingController();
   bool _submitting = false;
 
+  DateTime? _scheduledDate;
+  TimeOfDay? _scheduledTime;
+  bool _scheduledFlexible = false;
+
   @override
   void initState() {
     super.initState();
@@ -253,8 +289,54 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
     super.dispose();
   }
 
+  Future<void> _pickScheduledDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate:
+          _scheduledDate ?? DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) setState(() => _scheduledDate = picked);
+  }
+
+  Future<void> _pickScheduledTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduledTime ?? const TimeOfDay(hour: 9, minute: 0),
+    );
+    if (picked != null) setState(() => _scheduledTime = picked);
+  }
+
+  String _formatScheduledDate() {
+    if (_scheduledDate == null) return 'Data do trabalho';
+    return DateFormat('dd/MM/yyyy').format(_scheduledDate!);
+  }
+
+  String _formatScheduledTime() {
+    if (_scheduledTime == null) return 'Hora de início';
+    return '${_scheduledTime!.hour.toString().padLeft(2, '0')}:'
+        '${_scheduledTime!.minute.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _submit() async {
     if (_submitting || !_formKey.currentState!.validate()) return;
+
+    if (_scheduledDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Define a data do trabalho.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+    if (!_scheduledFlexible && _scheduledTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Define a hora de início ou marca horário flexível.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     setState(() => _submitting = true);
@@ -271,6 +353,9 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
             notes: _notesController.text.trim().isEmpty
                 ? null
                 : _notesController.text.trim(),
+            scheduledDate: _scheduledDate,
+            scheduledTime: _scheduledTime != null ? _formatScheduledTime() : null,
+            scheduledFlexible: _scheduledFlexible,
           );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -380,6 +465,35 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
+
+                // ── Scheduling ─────────────────────────────────────────────
+                Text('Agendamento', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _pickScheduledDate,
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(_formatScheduledDate()),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  value: _scheduledFlexible,
+                  onChanged: (v) => setState(() {
+                    _scheduledFlexible = v;
+                    if (v) _scheduledTime = null;
+                  }),
+                  title: const Text('Horário flexível neste dia'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                if (!_scheduledFlexible) ...[
+                  OutlinedButton.icon(
+                    onPressed: _pickScheduledTime,
+                    icon: const Icon(Icons.access_time_outlined),
+                    label: Text(_formatScheduledTime()),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 16),
+
                 FilledButton(
                   onPressed: _submitting ? null : _submit,
                   child: _submitting

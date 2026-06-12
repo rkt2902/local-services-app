@@ -497,6 +497,19 @@ class _ClientJobDetailScreenState
                                           theme.textTheme.titleMedium),
                                 ],
                               ),
+                              if (_job.confirmedDate != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.event_available_outlined),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatConfirmedSchedule(_job),
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               FilledButton.icon(
                                 onPressed: phone.isEmpty
@@ -531,6 +544,14 @@ class _ClientJobDetailScreenState
   }
 }
 
+String _formatConfirmedSchedule(JobRequest job) {
+  if (job.confirmedDate == null) return '';
+  final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
+  if (job.confirmedFlexible) return 'Agendado para: $date (horário flexível)';
+  if (job.confirmedTime != null) return 'Agendado para: $date às ${job.confirmedTime}';
+  return 'Agendado para: $date';
+}
+
 String _formatEstimate(double rate, double? min, double? max) {
   if (min != null && max != null) {
     return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
@@ -558,6 +579,8 @@ String _hoursLabel(double? min, double? max) {
       JobStatus.proposalReceived =>
         ('Proposta recebida', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
+      JobStatus.awaitingConfirmation =>
+        ('A aguardar confirmação', Colors.teal.shade600),
       JobStatus.completed => ('Concluído', Colors.grey.shade600),
       JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
       JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),

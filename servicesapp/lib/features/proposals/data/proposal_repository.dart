@@ -47,8 +47,11 @@ class ProposalRepository {
     double? estimatedHoursMax,
     required int peopleNeeded,
     String? notes,
+    DateTime? scheduledDate,
+    String? scheduledTime,
+    bool scheduledFlexible = false,
   }) async {
-    final result = await _client.rpc('create_proposal', params: {
+    final params = <String, dynamic>{
       'p_job_id': jobId,
       'p_worker_id': workerId,
       'p_hourly_rate': hourlyRate,
@@ -56,7 +59,16 @@ class ProposalRepository {
       'p_estimated_hours_max': estimatedHoursMax,
       'p_people_needed': peopleNeeded,
       'p_notes': notes,
-    });
+      'p_scheduled_flexible': scheduledFlexible,
+    };
+    if (scheduledDate != null) {
+      params['p_scheduled_date'] =
+          scheduledDate.toIso8601String().substring(0, 10);
+    }
+    if (scheduledTime != null) {
+      params['p_scheduled_time'] = scheduledTime;
+    }
+    final result = await _client.rpc('create_proposal', params: params);
     return result as String;
   }
 

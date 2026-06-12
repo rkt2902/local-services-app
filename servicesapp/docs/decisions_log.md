@@ -118,6 +118,13 @@ documentos originais; só se criam aqui se divergirem.
 - WorkerMyJobDetailScreen: recebe proposal + job via GoRouter extra; secções distintas por ProposalStatus (accepted/rejected/pending); "Marcar como concluído" invalida workerProposalsProvider + jobsInRadiusProvider e navega para /worker/home.
 - Rota `/worker/my-job/:id` dentro do worker ShellRoute — índice da tab bar não muda ao navegar para ela (startsWith('/worker/jobs') não corresponde a '/worker/my-job/').
 
+## 2026-06-12 — Fase 8E.1: Agendamento
+- Cliente escolhe date_mode: fixed / flexible / availability (texto dedicado).
+- Proposta do worker inclui scheduled_date + scheduled_time (+ scheduled_flexible para horário flexível no dia).
+- Ao aceitar, scheduled_* é copiado para confirmed_* no job (via RPC).
+- Novo estado awaiting_confirmation adicionado ao enum JobStatus (para conclusão a dois lados, 8E.4).
+- create_proposal e accept_proposal DB functions precisam de atualização (TODO marcado no repository).
+
 ## 2026-06-09 — Tab bar navigation (client + worker)
 - 5-tab NavigationBar (Material 3) para client e worker.
 - Tab central (+): client faz push /client/create-job sem alterar índice selecionado; worker mostra bottom sheet "Em breve" sem alterar índice.

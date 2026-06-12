@@ -23,13 +23,14 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _availabilityController = TextEditingController();
   final _mapController = MapController();
 
   String? _selectedServiceTypeId;
   LatLng? _pinPosition;
   bool _loadingLocation = false;
   String? _locationError;
-  bool _isFlexible = false;
+  DateMode _dateMode = DateMode.flexible;
   DateTime? _selectedDate;
   Urgency _urgency = Urgency.normal;
   SizeEstimate? _sizeEstimate;
@@ -41,6 +42,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   void dispose() {
     _addressController.dispose();
     _descriptionController.dispose();
+    _availabilityController.dispose();
     super.dispose();
   }
 
@@ -154,9 +156,9 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       return;
     }
 
-    if (!_isFlexible && _selectedDate == null) {
+    if (_dateMode == DateMode.fixed && _selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Escolhe uma data ou marca "Sem data definida".'),
+        content: Text('Escolhe uma data para o modo "Data fixa".'),
         backgroundColor: Colors.red,
       ));
       return;
@@ -173,7 +175,11 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         addressText: _addressController.text.trim(),
         locationLat: _pinPosition!.latitude,
         locationLng: _pinPosition!.longitude,
-        preferredDate: _isFlexible ? null : _selectedDate,
+        dateMode: _dateMode,
+        preferredDate: _dateMode == DateMode.fixed ? _selectedDate : null,
+        availabilityText: _dateMode == DateMode.availability
+            ? _availabilityController.text.trim()
+            : null,
         urgency: _urgency,
         sizeEstimate: _sizeEstimate,
         description: _descriptionController.text.trim(),
@@ -376,16 +382,33 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
 
               // ── Preferred date ────────────────────────────────────────────
               Text('Data', style: theme.textTheme.titleMedium),
-              SwitchListTile(
-                value: _isFlexible,
-                onChanged: (v) => setState(() {
-                  _isFlexible = v;
-                  if (v) _selectedDate = null;
+              const SizedBox(height: 12),
+              SegmentedButton<DateMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: DateMode.fixed,
+                    label: Text('Data fixa'),
+                    icon: Icon(Icons.event_outlined),
+                  ),
+                  ButtonSegment(
+                    value: DateMode.flexible,
+                    label: Text('Flexível'),
+                    icon: Icon(Icons.calendar_today_outlined),
+                  ),
+                  ButtonSegment(
+                    value: DateMode.availability,
+                    label: Text('Disponibilidade'),
+                    icon: Icon(Icons.schedule_outlined),
+                  ),
+                ],
+                selected: {_dateMode},
+                onSelectionChanged: (s) => setState(() {
+                  _dateMode = s.first;
+                  if (_dateMode != DateMode.fixed) _selectedDate = null;
                 }),
-                title: const Text('Sem data definida (o quanto antes)'),
-                contentPadding: EdgeInsets.zero,
               ),
-              if (!_isFlexible)
+              const SizedBox(height: 12),
+              if (_dateMode == DateMode.fixed)
                 OutlinedButton.icon(
                   onPressed: _pickDate,
                   icon: const Icon(Icons.calendar_today_outlined),
@@ -396,6 +419,23 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                             '${_selectedDate!.month.toString().padLeft(2, '0')}/'
                             '${_selectedDate!.year}',
                   ),
+                ),
+              if (_dateMode == DateMode.availability)
+                TextFormField(
+                  controller: _availabilityController,
+                  decoration: const InputDecoration(
+                    labelText: 'A tua disponibilidade',
+                    helperText: 'Ex: todos os dias a partir das 17h',
+                    prefixIcon: Icon(Icons.schedule_outlined),
+                  ),
+                  maxLines: 2,
+                  validator: (v) {
+                    if (_dateMode != DateMode.availability) return null;
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Descreve a tua disponibilidade.';
+                    }
+                    return null;
+                  },
                 ),
               const SizedBox(height: 24),
 

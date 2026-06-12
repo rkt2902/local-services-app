@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8D — Worker "Os meus jobs" tab.
-**Próximo passo:** Fase 9 — Equipa e ajudantes, ou polish/bugs pré-Fase 9.
+**Passo concluído:** 8E.1 — Agendamento (Flutter side).
+**Próximo passo:** 8E.1 — DB functions update (create_proposal + accept_proposal) + test end-to-end.
 
 ## Fases
 

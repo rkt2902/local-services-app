@@ -2,6 +2,7 @@ enum JobStatus {
   open,
   proposalReceived,
   confirmed,
+  awaitingConfirmation,
   completed,
   noResponse,
   cancelled;
@@ -10,6 +11,7 @@ enum JobStatus {
         JobStatus.open => 'open',
         JobStatus.proposalReceived => 'proposal_received',
         JobStatus.confirmed => 'confirmed',
+        JobStatus.awaitingConfirmation => 'awaiting_confirmation',
         JobStatus.completed => 'completed',
         JobStatus.noResponse => 'no_response',
         JobStatus.cancelled => 'cancelled',
@@ -19,6 +21,7 @@ enum JobStatus {
         'open' => JobStatus.open,
         'proposal_received' => JobStatus.proposalReceived,
         'confirmed' => JobStatus.confirmed,
+        'awaiting_confirmation' => JobStatus.awaitingConfirmation,
         'completed' => JobStatus.completed,
         'no_response' => JobStatus.noResponse,
         'cancelled' => JobStatus.cancelled,
@@ -26,6 +29,25 @@ enum JobStatus {
       };
 
   static JobStatus fromString(String value) => fromValue(value);
+}
+
+enum DateMode {
+  fixed,
+  flexible,
+  availability;
+
+  String get value => switch (this) {
+        DateMode.fixed => 'fixed',
+        DateMode.flexible => 'flexible',
+        DateMode.availability => 'availability',
+      };
+
+  static DateMode fromString(String value) => switch (value) {
+        'fixed' => DateMode.fixed,
+        'flexible' => DateMode.flexible,
+        'availability' => DateMode.availability,
+        _ => throw ArgumentError('Unknown DateMode: $value'),
+      };
 }
 
 enum ProposalStatus {

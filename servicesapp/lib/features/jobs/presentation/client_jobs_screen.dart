@@ -196,6 +196,8 @@ class _JobCard extends ConsumerWidget {
       JobStatus.proposalReceived =>
         ('Proposta recebida', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
+      JobStatus.awaitingConfirmation =>
+        ('A aguardar confirmação', Colors.teal.shade600),
       JobStatus.completed => ('Concluído', Colors.grey.shade600),
       JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
       JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
