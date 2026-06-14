@@ -25,6 +25,8 @@ class _ClientJobDetailScreenState
     extends ConsumerState<ClientJobDetailScreen> {
   late JobRequest _job;
   bool _saving = false;
+  final Map<String, bool> _accepting = {};
+  String _sortBy = 'price';
 
   @override
   void initState() {
@@ -35,17 +37,17 @@ class _ClientJobDetailScreenState
   Future<void> _cancelJob() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Cancelar pedido?'),
         content:
             const Text('Tens a certeza? Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('Não'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Cancelar'),
           ),
@@ -55,17 +57,16 @@ class _ClientJobDetailScreenState
     if (confirmed != true || !mounted) return;
 
     setState(() => _saving = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     try {
       await ref.read(jobRepositoryProvider).cancelJob(_job.id);
       ref.invalidate(clientJobsProvider);
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      context.pop();
-      messenger.showSnackBar(
+      scaffold.showSnackBar(
           const SnackBar(content: Text('Pedido cancelado.')));
+      router.pop();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffold.showSnackBar(
         SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
       );
     } finally {
@@ -74,200 +75,22 @@ class _ClientJobDetailScreenState
   }
 
   Future<void> _acceptProposal(JobProposal proposal) async {
-    setState(() => _saving = true);
+    setState(() => _accepting[proposal.id] = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
           .acceptProposal(proposal.id, _job.id);
       ref.invalidate(clientJobsProvider);
-      ref.invalidate(proposalForJobProvider(_job.id));
-      if (!mounted) return;
-      setState(() {
-        _job = _job.copyWith(
-          status: JobStatus.confirmed,
-          acceptedProposalId: proposal.id,
-        );
-      });
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Proposta aceite!')),
-      );
+      ref.invalidate(pendingProposalsForJobProvider(_job.id));
+      scaffold.showSnackBar(const SnackBar(content: Text('Proposta aceite!')));
+      router.go('/client/jobs');
     } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      scaffold.showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      if (mounted) setState(() => _accepting[proposal.id] = false);
     }
-  }
-
-  Future<void> _rejectProposal(JobProposal proposal) async {
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(proposalRepositoryProvider)
-          .rejectProposal(proposal.id, _job.id);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(proposalForJobProvider(_job.id));
-      if (!mounted) return;
-      setState(() {
-        _job = _job.copyWith(status: JobStatus.open);
-      });
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Proposta recusada.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  void _showProposalSheet(JobProposal proposal) {
-    bool accepting = false;
-    bool rejecting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          final theme = Theme.of(ctx);
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Proposta do jardineiro',
-                      style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 16),
-                  _sheetRow(ctx, 'Taxa/hora',
-                      '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'),
-                  if (proposal.estimatedHoursMin != null ||
-                      proposal.estimatedHoursMax != null)
-                    _sheetRow(
-                        ctx,
-                        'Horas estimadas',
-                        _hoursLabel(proposal.estimatedHoursMin,
-                            proposal.estimatedHoursMax)),
-                  _sheetRow(
-                      ctx,
-                      'Total estimado',
-                      _formatEstimate(proposal.hourlyRate,
-                          proposal.estimatedHoursMin,
-                          proposal.estimatedHoursMax)),
-                  _sheetRow(ctx, 'Pessoas', '${proposal.peopleNeeded}'),
-                  if (proposal.notes != null &&
-                      proposal.notes!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text('Notas',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
-                    const SizedBox(height: 4),
-                    Text(proposal.notes!,
-                        style: theme.textTheme.bodyMedium),
-                  ],
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: (accepting || rejecting)
-                              ? null
-                              : () async {
-                                  final confirmed =
-                                      await showDialog<bool>(
-                                    context: ctx,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text(
-                                          'Recusar proposta?'),
-                                      content: const Text(
-                                          'O pedido voltará a estar disponível para outros jardineiros.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, false),
-                                          child: const Text('Não'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(ctx, true),
-                                          style: TextButton.styleFrom(
-                                              foregroundColor: Colors.red),
-                                          child:
-                                              const Text('Recusar'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirmed != true) return;
-                                  setSheetState(() => rejecting = true);
-                                  await _rejectProposal(proposal);
-                                },
-                          child: rejecting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))
-                              : const Text('Recusar'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: (accepting || rejecting)
-                              ? null
-                              : () async {
-                                  setSheetState(() => accepting = true);
-                                  await _acceptProposal(proposal);
-                                },
-                          child: accepting
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
-                              : const Text('Aceitar'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _sheetRow(BuildContext ctx, String label, String value) {
-    final theme = Theme.of(ctx);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          Text(value,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
   }
 
   @override
@@ -275,18 +98,17 @@ class _ClientJobDetailScreenState
     final theme = Theme.of(context);
 
     // Watch all providers unconditionally at the top of build
-    final pendingProposalAsync = ref.watch(proposalForJobProvider(_job.id));
-    final acceptedProposalId = _job.acceptedProposalId ?? '';
+    final pendingProposalsAsync =
+        ref.watch(pendingProposalsForJobProvider(_job.id));
     final acceptedProposalAsync =
-        ref.watch(proposalByIdProvider(acceptedProposalId));
+        ref.watch(acceptedProposalForJobProvider(_job.id));
     final photosAsync = ref.watch(jobPhotosProvider(_job.id));
+
     final workerId = acceptedProposalAsync.asData?.value?.workerId ?? '';
     final workerInfoAsync = ref.watch(workerBasicInfoProvider(workerId));
 
-    final canCancel = _job.status == JobStatus.open ||
-        _job.status == JobStatus.proposalReceived;
-
-    final (statusLabel, statusColor) = _statusInfo(_job.status);
+    final canCancel = _job.status == JobStatus.open;
+    final (statusLabel, statusColor) = _statusInfo(_job.status, _job.proposalCount);
 
     return Scaffold(
       appBar: AppBar(
@@ -397,73 +219,76 @@ class _ClientJobDetailScreenState
               },
             ),
 
-            // Proposal section (proposal_received)
-            if (_job.status == JobStatus.proposalReceived)
-              pendingProposalAsync.when(
+            // Proposals section — open job with pending proposals
+            if (_job.status == JobStatus.open && _job.proposalCount > 0)
+              pendingProposalsAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('Erro: $e'),
-                data: (proposal) {
-                  if (proposal == null) {
+                data: (proposals) {
+                  if (proposals.isEmpty) {
                     return const Text(
-                        'Nenhuma proposta pendente encontrada.');
+                        'Nenhuma proposta disponível de momento.');
                   }
-                  final estimate = _formatEstimate(proposal.hourlyRate,
-                      proposal.estimatedHoursMin, proposal.estimatedHoursMax);
-                  final hoursStr = _hoursLabel(
-                      proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+                  final sorted = [...proposals];
+                  if (_sortBy == 'price') {
+                    sorted.sort((a, b) {
+                      final aEst =
+                          a.hourlyRate * (a.estimatedHoursMin ?? 0);
+                      final bEst =
+                          b.hourlyRate * (b.estimatedHoursMin ?? 0);
+                      return aEst.compareTo(bEst);
+                    });
+                  }
+                  final anyAccepting = _accepting.values.any((v) => v);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Proposta recebida',
-                          style: theme.textTheme.titleMedium),
+                      Text(
+                        'Propostas recebidas (${proposals.length})',
+                        style: theme.textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 8),
-                      Card(
-                        child: InkWell(
-                          onTap: () => _showProposalSheet(proposal),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        estimate,
-                                        style: theme.textTheme.titleLarge
-                                            ?.copyWith(
-                                                color: theme
-                                                    .colorScheme.primary),
-                                      ),
-                                      Text(
-                                        '${proposal.hourlyRate.toStringAsFixed(2)} €/h${hoursStr.isNotEmpty ? ' · $hoursStr' : ''} · ${proposal.peopleNeeded} pessoa${proposal.peopleNeeded > 1 ? 's' : ''}',
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.chevron_right_outlined),
-                              ],
-                            ),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                              value: 'price', label: Text('Por preço')),
+                          ButtonSegment(
+                            value: 'rating',
+                            label: Text('Por avaliação'),
+                            tooltip:
+                                'Disponível após as primeiras avaliações',
+                            enabled: false,
                           ),
+                        ],
+                        selected: {_sortBy},
+                        onSelectionChanged: (sel) =>
+                            setState(() => _sortBy = sel.first),
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      ...sorted.map((p) => _ProposalCard(
+                            key: ValueKey(p.id),
+                            proposal: p,
+                            accepting: _accepting[p.id] == true,
+                            onAccept: anyAccepting
+                                ? null
+                                : () => _acceptProposal(p),
+                          )),
                     ],
                   );
                 },
               ),
 
             // Confirmed section
-            if (_job.status == JobStatus.confirmed &&
-                acceptedProposalId.isNotEmpty)
+            if (_job.status == JobStatus.confirmed)
               workerInfoAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (_, _) =>
-                    const Text('Não foi possível carregar o contacto.'),
+                error: (_, _) => const Text(
+                    'Não foi possível carregar o contacto.'),
                 data: (info) {
                   if (workerId.isEmpty) {
                     return const Center(child: CircularProgressIndicator());
@@ -501,7 +326,8 @@ class _ClientJobDetailScreenState
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    const Icon(Icons.event_available_outlined),
+                                    const Icon(
+                                        Icons.event_available_outlined),
                                     const SizedBox(width: 8),
                                     Text(
                                       _formatConfirmedSchedule(_job),
@@ -544,11 +370,125 @@ class _ClientJobDetailScreenState
   }
 }
 
+// ── Proposal card ─────────────────────────────────────────────────────────────
+
+class _ProposalCard extends ConsumerWidget {
+  const _ProposalCard({
+    super.key,
+    required this.proposal,
+    required this.accepting,
+    required this.onAccept,
+  });
+
+  final JobProposal proposal;
+  final bool accepting;
+  final VoidCallback? onAccept;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final workerNameAsync = ref.watch(workerNameProvider(proposal.workerId));
+    final workerName = workerNameAsync.asData?.value.isNotEmpty == true
+        ? workerNameAsync.asData!.value
+        : '—';
+
+    final estimateStr = _formatEstimate(
+        proposal.hourlyRate,
+        proposal.estimatedHoursMin,
+        proposal.estimatedHoursMax);
+    final hoursStr =
+        _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+    final scheduleStr = _formatProposedSchedule(proposal);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.person_outlined, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(workerName,
+                    style: theme.textTheme.titleMedium),
+              ),
+            ]),
+            const Divider(height: 20),
+            _cardRow(context, Icons.euro_outlined,
+                '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'),
+            if (estimateStr.isNotEmpty)
+              _cardRow(context, Icons.calculate_outlined, estimateStr),
+            if (hoursStr.isNotEmpty)
+              _cardRow(context, Icons.schedule_outlined, hoursStr),
+            if (scheduleStr.isNotEmpty)
+              _cardRow(context, Icons.event_outlined,
+                  'Propõe: $scheduleStr'),
+            if (proposal.peopleNeeded > 1)
+              _cardRow(context, Icons.group_outlined,
+                  'Equipa: ${proposal.peopleNeeded} pessoas'),
+            if (proposal.notes?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                proposal.notes!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: accepting ? () {} : onAccept,
+                child: accepting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Aceitar esta proposta'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+Widget _cardRow(BuildContext context, IconData icon, String text) {
+  final theme = Theme.of(context);
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+      const SizedBox(width: 8),
+      Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+    ]),
+  );
+}
+
+String _formatProposedSchedule(JobProposal proposal) {
+  if (proposal.scheduledDate == null) return '';
+  final date = DateFormat('dd/MM/yyyy').format(proposal.scheduledDate!);
+  if (proposal.scheduledFlexible) return '$date (horário flexível)';
+  if (proposal.scheduledTime != null) return '$date às ${proposal.scheduledTime}';
+  return date;
+}
+
 String _formatConfirmedSchedule(JobRequest job) {
   if (job.confirmedDate == null) return '';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return 'Agendado para: $date (horário flexível)';
-  if (job.confirmedTime != null) return 'Agendado para: $date às ${job.confirmedTime}';
+  if (job.confirmedTime != null) {
+    return 'Agendado para: $date às ${job.confirmedTime}';
+  }
   return 'Agendado para: $date';
 }
 
@@ -574,10 +514,12 @@ String _hoursLabel(double? min, double? max) {
   return '';
 }
 
-(String, Color) _statusInfo(JobStatus status) => switch (status) {
+(String, Color) _statusInfo(JobStatus status, int proposalCount) =>
+    switch (status) {
+      JobStatus.open when proposalCount > 0 =>
+        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
+        Colors.orange.shade700),
       JobStatus.open => ('À espera de proposta', Colors.blue.shade600),
-      JobStatus.proposalReceived =>
-        ('Proposta recebida', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
       JobStatus.awaitingConfirmation =>
         ('A aguardar confirmação', Colors.teal.shade600),

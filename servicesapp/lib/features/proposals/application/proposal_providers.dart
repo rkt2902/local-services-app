@@ -8,14 +8,33 @@ final proposalRepositoryProvider = Provider<ProposalRepository>(
   (ref) => ProposalRepository(ref.watch(supabaseClientProvider)),
 );
 
-final proposalForJobProvider =
+/// All pending proposals for a job — client sees this to choose one.
+final pendingProposalsForJobProvider =
+    FutureProvider.family<List<JobProposal>, String>((ref, jobId) {
+  return ref
+      .read(proposalRepositoryProvider)
+      .fetchPendingProposalsForJob(jobId);
+});
+
+/// The accepted proposal for a confirmed job.
+final acceptedProposalForJobProvider =
     FutureProvider.family<JobProposal?, String>((ref, jobId) {
-  return ref.read(proposalRepositoryProvider).fetchProposalForJob(jobId);
+  return ref
+      .read(proposalRepositoryProvider)
+      .fetchAcceptedProposalForJob(jobId);
 });
 
 final proposalByIdProvider =
     FutureProvider.family<JobProposal?, String>((ref, proposalId) {
   return ref.read(proposalRepositoryProvider).fetchProposalById(proposalId);
+});
+
+/// Check if a specific worker already has a pending proposal for a job.
+final workerProposalForJobProvider =
+    FutureProvider.family<JobProposal?, (String, String)>((ref, args) {
+  return ref
+      .read(proposalRepositoryProvider)
+      .fetchWorkerProposalForJob(args.$1, args.$2);
 });
 
 final workerProposalsProvider =

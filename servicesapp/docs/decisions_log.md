@@ -125,6 +125,19 @@ documentos originais; só se criam aqui se divergirem.
 - Novo estado awaiting_confirmation adicionado ao enum JobStatus (para conclusão a dois lados, 8E.4).
 - create_proposal e accept_proposal DB functions precisam de atualização (TODO marcado no repository).
 
+## 2026-06-14 — Múltiplas propostas por pedido (remoção de proposal_received)
+- Removido modelo "primeiro a chegar" — job mantém-se `open` com N propostas pending.
+- Removido status `proposal_received` do enum JobStatus (compat: `fromValue` mapeia o valor legado de BD para `open`).
+- Campo `proposal_count` adicionado a `job_requests` e ao modelo JobRequest (default 0).
+- Cliente vê lista de propostas ordenável (preço / avaliação futura Phase 11).
+- Aceitar uma proposta rejeita automaticamente as restantes (via `accept_proposal` RPC).
+- Worker vê quantas propostas existem no job (`proposal_count` chip) e se já enviou uma (`workerProposalForJobProvider`).
+- Retirar proposta via `withdraw_proposal` RPC (decrementa proposal_count + notifica cliente).
+- `proposalWithdrawn` adicionado a NotificationType + notificationSyncProvider + notificationHandler.
+- Rejeitadas passam a exibir "Não selecionada" em vez de "Recusada" na UI do worker.
+- `proposalForJobProvider` substituído por `pendingProposalsForJobProvider` + `acceptedProposalForJobProvider`.
+- `fetchWorkerName` adicionado a WorkerRepository; `workerNameProvider` adicionado a worker_providers.dart.
+
 ## 2026-06-09 — Tab bar navigation (client + worker)
 - 5-tab NavigationBar (Material 3) para client e worker.
 - Tab central (+): client faz push /client/create-job sem alterar índice selecionado; worker mostra bottom sheet "Em breve" sem alterar índice.

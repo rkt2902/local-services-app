@@ -34,17 +34,17 @@ class _WorkerMyJobDetailScreenState
   Future<void> _withdrawProposal() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Retirar proposta?'),
         content: const Text(
             'O pedido ficará disponível para outros jardineiros.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('Não'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Retirar'),
           ),
@@ -53,22 +53,21 @@ class _WorkerMyJobDetailScreenState
     );
     if (confirmed != true || !mounted) return;
     setState(() => _withdrawing = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
           .withdrawProposal(widget.proposal.id, widget.job.id);
       ref.invalidate(workerProposalsProvider);
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      context.pop();
-      messenger.showSnackBar(
+      router.pop();
+      scaffold.showSnackBar(
           const SnackBar(content: Text('Proposta retirada.')));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffold.showSnackBar(
         SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
       );
-      setState(() => _withdrawing = false);
+      if (mounted) setState(() => _withdrawing = false);
     }
   }
 
@@ -81,16 +80,19 @@ class _WorkerMyJobDetailScreenState
   Future<void> _markCompleted() async {
     await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Tens a certeza?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
             child: const Text('Não'),
           ),
           FilledButton(
             onPressed: _completing ? null : () async {
+              final dialogNavigator = Navigator.of(dialogCtx);
+              final scaffold = ScaffoldMessenger.of(context);
+              final router = GoRouter.of(context);
               setState(() => _completing = true);
               try {
                 await ref
@@ -98,23 +100,19 @@ class _WorkerMyJobDetailScreenState
                     .markJobCompleted(widget.job.id);
                 ref.invalidate(workerProposalsProvider);
                 ref.invalidate(jobsInRadiusProvider);
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  context.go('/worker/home');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Trabalho marcado como concluído!')),
-                  );
-                }
+                dialogNavigator.pop();
+                router.go('/worker/home');
+                scaffold.showSnackBar(
+                  const SnackBar(
+                      content: Text('Trabalho marcado como concluído!')),
+                );
               } catch (e) {
-                if (mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Erro: $e'),
-                        backgroundColor: Colors.red),
-                  );
-                }
+                dialogNavigator.pop();
+                scaffold.showSnackBar(
+                  SnackBar(
+                      content: Text('Erro: $e'),
+                      backgroundColor: Colors.red),
+                );
               } finally {
                 if (mounted) setState(() => _completing = false);
               }
@@ -373,7 +371,7 @@ class _WorkerMyJobDetailScreenState
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                          'A tua proposta foi recusada pelo cliente.'),
+                          'A tua proposta não foi selecionada. O cliente escolheu outra proposta.'),
                     ),
                   ]),
                 ),
@@ -392,7 +390,7 @@ class _WorkerMyJobDetailScreenState
                         onPressed: () => _openWhatsApp(phone),
                         icon: const Icon(Icons.chat_outlined),
                         label: const Text(
-                            'Contactar cliente via WhatsApp'),
+                            'Contactar cliente para novo pedido'),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -405,6 +403,24 @@ class _WorkerMyJobDetailScreenState
                     ],
                   );
                 },
+              ),
+            ],
+
+            // === SUPERSEDED ===
+            if (liveStatus == ProposalStatus.superseded) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(children: [
+                    Icon(Icons.undo,
+                        color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                          'Retiraste a tua proposta para este pedido.'),
+                    ),
+                  ]),
+                ),
               ),
             ],
 
@@ -464,7 +480,7 @@ String _confirmedScheduleLabel(JobRequest job) {
 (String, Color) _proposalStatusInfo(ProposalStatus status) => switch (status) {
       ProposalStatus.pending => ('Aguarda resposta', Colors.orange.shade700),
       ProposalStatus.accepted => ('Aceite', Colors.green.shade600),
-      ProposalStatus.rejected => ('Recusada', Colors.red.shade600),
+      ProposalStatus.rejected => ('Não selecionada', Colors.red.shade600),
       ProposalStatus.superseded => ('Substituída', Colors.grey.shade500),
     };
 

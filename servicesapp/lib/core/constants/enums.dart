@@ -1,6 +1,5 @@
 enum JobStatus {
   open,
-  proposalReceived,
   confirmed,
   awaitingConfirmation,
   completed,
@@ -9,7 +8,6 @@ enum JobStatus {
 
   String get value => switch (this) {
         JobStatus.open => 'open',
-        JobStatus.proposalReceived => 'proposal_received',
         JobStatus.confirmed => 'confirmed',
         JobStatus.awaitingConfirmation => 'awaiting_confirmation',
         JobStatus.completed => 'completed',
@@ -19,7 +17,7 @@ enum JobStatus {
 
   static JobStatus fromValue(String value) => switch (value) {
         'open' => JobStatus.open,
-        'proposal_received' => JobStatus.proposalReceived,
+        'proposal_received' => JobStatus.open,
         'confirmed' => JobStatus.confirmed,
         'awaiting_confirmation' => JobStatus.awaitingConfirmation,
         'completed' => JobStatus.completed,

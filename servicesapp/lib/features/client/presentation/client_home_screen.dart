@@ -61,7 +61,6 @@ class ClientHomeScreen extends ConsumerWidget {
                 final activeJobs = jobs
                     .where((j) =>
                         j.status == JobStatus.open ||
-                        j.status == JobStatus.proposalReceived ||
                         j.status == JobStatus.confirmed)
                     .take(3)
                     .toList();
@@ -154,7 +153,7 @@ class _CompactJobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (statusLabel, statusColor) = _statusChip(job.status);
+    final (statusLabel, statusColor) = _statusChip(job.status, job.proposalCount);
     final dateText = job.preferredDate == null
         ? 'Flexível'
         : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
@@ -223,10 +222,12 @@ class _NotificationButton extends ConsumerWidget {
   }
 }
 
-(String, Color) _statusChip(JobStatus status) => switch (status) {
+(String, Color) _statusChip(JobStatus status, int proposalCount) =>
+    switch (status) {
+      JobStatus.open when proposalCount > 0 =>
+        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
+        Colors.orange.shade700),
       JobStatus.open => ('À espera', Colors.blue.shade600),
-      JobStatus.proposalReceived =>
-        ('Proposta', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
       JobStatus.awaitingConfirmation =>
         ('A confirmar', Colors.teal.shade600),

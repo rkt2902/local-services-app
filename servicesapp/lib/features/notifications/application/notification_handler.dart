@@ -13,12 +13,21 @@ class NotificationHandler {
           context.go('/worker/home');
         }
       case NotificationType.proposalReceived:
+      case NotificationType.proposalWithdrawn:
         if (notification.relatedId != null) {
           context.go('/client/jobs');
         }
       case NotificationType.proposalAccepted:
       case NotificationType.proposalRejected:
         context.go('/worker/home');
+      case NotificationType.jobCancelled:
+      case NotificationType.jobMarkedDone:
+      case NotificationType.jobCompleted:
+      case NotificationType.jobNoResponse:
+      case NotificationType.rescheduleProposed:
+      case NotificationType.rescheduleAccepted:
+      case NotificationType.rescheduleRejected:
+        break;
       default:
         break;
     }

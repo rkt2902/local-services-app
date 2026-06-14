@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
-import '../../proposals/application/proposal_providers.dart';
 
 class ClientJobsScreen extends ConsumerWidget {
   const ClientJobsScreen({super.key});
@@ -35,11 +34,11 @@ class ClientJobsScreen extends ConsumerWidget {
               final activeJobs = jobs
                   .where((j) =>
                       j.status == JobStatus.open ||
-                      j.status == JobStatus.proposalReceived ||
                       j.status == JobStatus.confirmed)
                   .toList();
               final historyJobs = jobs
                   .where((j) =>
+                      j.status == JobStatus.awaitingConfirmation ||
                       j.status == JobStatus.completed ||
                       j.status == JobStatus.noResponse ||
                       j.status == JobStatus.cancelled)
@@ -93,14 +92,14 @@ class _JobList extends StatelessWidget {
   }
 }
 
-class _JobCard extends ConsumerWidget {
+class _JobCard extends StatelessWidget {
   const _JobCard({required this.job, required this.serviceTypes});
 
   final JobRequest job;
   final List<ServiceType> serviceTypes;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final serviceName = serviceTypes
@@ -113,28 +112,7 @@ class _JobCard extends ConsumerWidget {
         ? 'Flexível'
         : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
 
-    final (statusLabel, statusColor) = _statusInfo(job.status);
-
-    Widget? estimateWidget;
-    if (job.status == JobStatus.proposalReceived) {
-      final proposalAsync = ref.watch(proposalForJobProvider(job.id));
-      estimateWidget = proposalAsync.maybeWhen(
-        data: (proposal) {
-          if (proposal == null) return null;
-          final estimate = _formatEstimate(proposal.hourlyRate,
-              proposal.estimatedHoursMin, proposal.estimatedHoursMax);
-          if (estimate.isEmpty) return null;
-          return Text(
-            estimate,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
-          );
-        },
-        orElse: () => null,
-      );
-    }
+    final (statusLabel, statusColor) = _statusInfo(job.status, job.proposalCount);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -179,10 +157,6 @@ class _JobCard extends ConsumerWidget {
                 ),
               const SizedBox(height: 4),
               Text(dateText, style: theme.textTheme.bodySmall),
-              if (estimateWidget != null) ...[
-                const SizedBox(height: 8),
-                estimateWidget,
-              ],
             ],
           ),
         ),
@@ -191,10 +165,12 @@ class _JobCard extends ConsumerWidget {
   }
 }
 
-(String, Color) _statusInfo(JobStatus status) => switch (status) {
+(String, Color) _statusInfo(JobStatus status, int proposalCount) =>
+    switch (status) {
+      JobStatus.open when proposalCount > 0 =>
+        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
+        Colors.orange.shade700),
       JobStatus.open => ('À espera de proposta', Colors.blue.shade600),
-      JobStatus.proposalReceived =>
-        ('Proposta recebida', Colors.orange.shade700),
       JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
       JobStatus.awaitingConfirmation =>
         ('A aguardar confirmação', Colors.teal.shade600),
@@ -202,14 +178,3 @@ class _JobCard extends ConsumerWidget {
       JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
       JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
     };
-
-String _formatEstimate(double rate, double? min, double? max) {
-  if (min != null && max != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
-  } else if (min != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)}';
-  } else if (max != null) {
-    return '≈ €${(rate * max).toStringAsFixed(0)}';
-  }
-  return '';
-}

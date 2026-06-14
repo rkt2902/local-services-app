@@ -8,13 +8,14 @@
 
 | Estado | Significado |
 |---|---|
-| `open` | Pedido criado, à espera de proposta |
-| `proposal_received` | Tem uma proposta pendente |
-| `confirmed` | Proposta aceite, data agendada |
+| `open` | Pedido criado; aceita 0..N propostas em simultâneo |
+| `confirmed` | Proposta aceite (auto-rejeita as restantes), data agendada |
 | `awaiting_confirmation` | Worker marcou como concluído, à espera da confirmação do cliente |
 | `completed` | Cliente confirmou conclusão |
 | `no_response` | 48h sem proposta |
 | `cancelled` | Cancelado por um dos lados |
+
+> **Nota:** `proposal_received` foi removido. O job mantém-se `open` enquanto acumula propostas. O campo `proposal_count` no job indica quantas propostas pending existem.
 
 ## Estados da proposta (`proposal_status`)
 
@@ -45,7 +46,7 @@ Regra das 24h aplica-se a cancelamento E remarcação: bloqueado se faltarem < 2
 | # | Transição | Quem | Notifica | job_status | proposal_status |
 |---|---|---|---|---|---|
 | 1 | Criar pedido | Cliente | Workers no raio | `open` | — |
-| 2 | Enviar proposta | Worker | Cliente | `proposal_received` | `pending` |
+| 2 | Enviar proposta | Worker | Cliente | `open` (incrementa proposal_count) | `pending` |
 | 3 | Retirar proposta | Worker | Cliente | `open` | `superseded` |
 | 4 | Aceitar proposta | Cliente | Worker | `confirmed` | `accepted` |
 | 5 | Recusar proposta | Cliente | Worker | `open` | `rejected` |

@@ -48,13 +48,31 @@ final notificationSyncProvider = Provider<void>((ref) {
         case NotificationType.proposalReceived:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
+          ref.invalidate(pendingProposalsForJobProvider);
           ref.invalidate(workerProposalsProvider);
+        case NotificationType.proposalWithdrawn:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          ref.invalidate(clientJobsProvider);
+          ref.invalidate(pendingProposalsForJobProvider);
         case NotificationType.proposalAccepted:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          ref.invalidate(jobsInRadiusProvider);
+          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(proposalByIdProvider);
+          ref.invalidate(workerProposalForJobProvider);
         case NotificationType.proposalRejected:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(workerProposalsProvider);
           ref.invalidate(proposalByIdProvider);
+        case NotificationType.jobCancelled:
+        case NotificationType.jobMarkedDone:
+        case NotificationType.jobCompleted:
+        case NotificationType.jobNoResponse:
+        case NotificationType.rescheduleProposed:
+        case NotificationType.rescheduleAccepted:
+        case NotificationType.rescheduleRejected:
+          break;
       }
     }
   });

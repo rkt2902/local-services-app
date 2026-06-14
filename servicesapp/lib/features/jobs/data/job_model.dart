@@ -15,6 +15,7 @@ class JobRequest {
   final String description;
   final JobStatus status;
   final String? acceptedProposalId;
+  final int proposalCount;
   final DateTime? confirmedDate;
   final String? confirmedTime;
   final bool confirmedFlexible;
@@ -36,6 +37,7 @@ class JobRequest {
     required this.description,
     required this.status,
     this.acceptedProposalId,
+    this.proposalCount = 0,
     this.confirmedDate,
     this.confirmedTime,
     this.confirmedFlexible = false,
@@ -66,6 +68,7 @@ class JobRequest {
         description: json['description'] as String,
         status: JobStatus.fromString(json['status'] as String),
         acceptedProposalId: json['accepted_proposal_id'] as String?,
+        proposalCount: json['proposal_count'] as int? ?? 0,
         confirmedDate: json['confirmed_date'] != null
             ? DateTime.parse(json['confirmed_date'] as String)
             : null,
@@ -90,6 +93,7 @@ class JobRequest {
     String? description,
     JobStatus? status,
     String? acceptedProposalId,
+    int? proposalCount,
     DateTime? confirmedDate,
     String? confirmedTime,
     bool? confirmedFlexible,
@@ -111,6 +115,7 @@ class JobRequest {
         description: description ?? this.description,
         status: status ?? this.status,
         acceptedProposalId: acceptedProposalId ?? this.acceptedProposalId,
+        proposalCount: proposalCount ?? this.proposalCount,
         confirmedDate: confirmedDate ?? this.confirmedDate,
         confirmedTime: confirmedTime ?? this.confirmedTime,
         confirmedFlexible: confirmedFlexible ?? this.confirmedFlexible,

@@ -88,7 +88,7 @@ bool _isActive(JobProposal proposal, JobRequest job) {
 (String, Color) _proposalStatusInfo(ProposalStatus status) => switch (status) {
       ProposalStatus.pending => ('Aguarda resposta', Colors.orange.shade700),
       ProposalStatus.accepted => ('Aceite', Colors.green.shade600),
-      ProposalStatus.rejected => ('Recusada', Colors.red.shade600),
+      ProposalStatus.rejected => ('Não selecionada', Colors.red.shade600),
       ProposalStatus.superseded => ('Substituída', Colors.grey.shade500),
     };
 

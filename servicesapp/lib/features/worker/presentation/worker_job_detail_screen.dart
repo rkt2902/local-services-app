@@ -23,17 +23,19 @@ class WorkerJobDetailScreen extends ConsumerStatefulWidget {
 
 class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
   Future<void> _showProposalSheet() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     final success = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _ProposalSheet(job: widget.job),
     );
-    if (!mounted || success != true) return;
+    if (success != true) return;
     ref.invalidate(jobsInRadiusProvider);
-    ScaffoldMessenger.of(context).showSnackBar(
+    scaffold.showSnackBar(
       const SnackBar(content: Text('Proposta enviada!')),
     );
-    context.go('/worker/home');
+    router.go('/worker/home');
   }
 
   String? _sizeLabel() => switch (widget.job.sizeEstimate) {
@@ -57,6 +59,12 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
     final workerAsync = ref.watch(workerProfileProvider);
     final photosAsync = ref.watch(jobPhotosProvider(widget.job.id));
+
+    final userId = ref.watch(currentUserProvider)?.id ?? '';
+    final workerProposalAsync =
+        ref.watch(workerProposalForJobProvider((widget.job.id, userId)));
+    final isCheckingProposal = workerProposalAsync.isLoading;
+    final alreadySent = workerProposalAsync.asData?.value != null;
 
     final serviceType = serviceTypesAsync.value
         ?.where((s) => s.id == widget.job.serviceTypeId)
@@ -125,6 +133,12 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                 if (sizeLabel != null)
                   _DetailChip(
                       icon: Icons.straighten_outlined, label: sizeLabel),
+                if (widget.job.proposalCount > 0)
+                  _DetailChip(
+                    icon: Icons.people_outlined,
+                    label:
+                        '${widget.job.proposalCount} proposta${widget.job.proposalCount > 1 ? 's' : ''}',
+                  ),
               ],
             ),
             // Availability text shown separately (can be long)
@@ -174,6 +188,26 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                 ],
               ),
             ],
+            if (alreadySent) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(children: [
+                  Icon(Icons.info_outline,
+                      color: Colors.blue.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                        'Já enviaste uma proposta para este pedido.'),
+                  ),
+                ]),
+              ),
+            ],
             const SizedBox(height: 24),
             Text('Descrição', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -212,17 +246,26 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                 );
               },
             ),
-            const SizedBox(height: 80),
+            SizedBox(height: alreadySent ? 32 : 80),
           ],
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: FilledButton(
-          onPressed: _showProposalSheet,
-          child: const Text('Enviar proposta'),
-        ),
-      ),
+      bottomNavigationBar: alreadySent
+          ? null
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: FilledButton(
+                onPressed: isCheckingProposal ? null : _showProposalSheet,
+                child: isCheckingProposal
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Enviar proposta'),
+              ),
+            ),
     );
   }
 }

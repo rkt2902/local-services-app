@@ -114,6 +114,16 @@ class WorkerRepository {
     };
   }
 
+  Future<String> fetchWorkerName(String workerId) async {
+    if (workerId.isEmpty) return '';
+    final data = await _client
+        .from('profiles')
+        .select('full_name')
+        .eq('id', workerId)
+        .maybeSingle();
+    return data?['full_name'] as String? ?? '';
+  }
+
   Future<String> uploadAvatar(String userId, File file) async {
     final path = 'avatars/$userId.jpg';
     await _client.storage.from('avatars').upload(

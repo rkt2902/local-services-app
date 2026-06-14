@@ -8,13 +8,13 @@ class ProposalRepository {
 
   final SupabaseClient _client;
 
-  Future<JobProposal?> fetchProposalForJob(String jobId) async {
+  Future<JobProposal?> fetchAcceptedProposalForJob(String jobId) async {
     if (jobId.isEmpty) return null;
     final data = await _client
         .from('job_proposals')
         .select()
         .eq('job_id', jobId)
-        .eq('status', ProposalStatus.pending.value)
+        .eq('status', ProposalStatus.accepted.value)
         .maybeSingle();
     if (data == null) return null;
     return JobProposal.fromJson(data);
@@ -31,13 +31,41 @@ class ProposalRepository {
     return JobProposal.fromJson(data);
   }
 
+  // RLS: relies on "Client vê propostas dos seus jobs" SELECT policy.
+  // Policy must cover multi-row SELECT (not just maybeSingle).
+  // Verify in Supabase: SELECT on job_proposals WHERE job_id IN
+  // (SELECT id FROM job_requests WHERE client_id = auth.uid()).
+  Future<List<JobProposal>> fetchPendingProposalsForJob(String jobId) async {
+    if (jobId.isEmpty) return [];
+    final data = await _client
+        .from('job_proposals')
+        .select()
+        .eq('job_id', jobId)
+        .eq('status', ProposalStatus.pending.value)
+        .order('created_at', ascending: true);
+    return (data as List).map((e) => JobProposal.fromJson(e)).toList();
+  }
+
+  Future<JobProposal?> fetchWorkerProposalForJob(
+      String jobId, String workerId) async {
+    if (jobId.isEmpty || workerId.isEmpty) return null;
+    final data = await _client
+        .from('job_proposals')
+        .select()
+        .eq('job_id', jobId)
+        .eq('worker_id', workerId)
+        .eq('status', ProposalStatus.pending.value)
+        .maybeSingle();
+    if (data == null) return null;
+    return JobProposal.fromJson(data);
+  }
+
   Future<void> acceptProposal(String proposalId, String jobId) async {
     await _client.rpc('accept_proposal', params: {
       'p_proposal_id': proposalId,
       'p_job_id': jobId,
     });
   }
-
 
   Future<String> createProposal({
     required String jobId,
@@ -90,22 +118,15 @@ class ProposalRepository {
   }
 
   Future<void> withdrawProposal(String proposalId, String jobId) async {
-    await _client
-        .from('job_proposals')
-        .update({
-          'status': ProposalStatus.superseded.value,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', proposalId);
-    await _client.from('job_requests').update({
-      'status': JobStatus.open.value,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', jobId);
+    await _client.rpc('withdraw_proposal', params: {
+      'p_proposal_id': proposalId,
+      'p_job_id': jobId,
+    });
   }
 
   Future<void> markJobCompleted(String jobId) async {
     await _client.from('job_requests').update({
-      'status': JobStatus.completed.value,
+      'status': JobStatus.awaitingConfirmation.value,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', jobId);
   }
