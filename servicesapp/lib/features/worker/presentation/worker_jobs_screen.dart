@@ -29,12 +29,16 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     final proposalsAsync = ref.watch(workerProposalsProvider);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Os meus jobs'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Ativos'), Tab(text: 'Histórico')],
+            tabs: [
+              Tab(text: 'Por confirmar'),
+              Tab(text: 'Agendados'),
+              Tab(text: 'Concluídos'),
+            ],
           ),
         ),
         body: proposalsAsync.when(
@@ -52,20 +56,36 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
                 })
                 .toList();
 
-            final active =
-                entries.where((e) => _isActive(e.$1, e.$2)).toList();
-            final history =
-                entries.where((e) => !_isActive(e.$1, e.$2)).toList();
+            final pending = entries
+                .where((e) => e.$1.status == ProposalStatus.pending)
+                .toList();
+
+            final scheduled = entries
+                .where((e) =>
+                    e.$1.status == ProposalStatus.accepted &&
+                    (e.$2.status == JobStatus.confirmed ||
+                        e.$2.status == JobStatus.awaitingConfirmation))
+                .toList();
+
+            final done = entries
+                .where((e) =>
+                    e.$1.status == ProposalStatus.accepted &&
+                    e.$2.status == JobStatus.completed)
+                .toList();
 
             return TabBarView(
               children: [
                 _JobList(
-                  items: active,
-                  emptyText: 'Ainda não enviaste propostas.',
+                  items: pending,
+                  emptyText: 'Nenhuma proposta a aguardar resposta.',
                 ),
                 _JobList(
-                  items: history,
-                  emptyText: 'Sem histórico.',
+                  items: scheduled,
+                  emptyText: 'Sem trabalhos agendados.',
+                ),
+                _JobList(
+                  items: done,
+                  emptyText: 'Ainda não tens trabalhos concluídos.',
                 ),
               ],
             );
@@ -74,15 +94,6 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       ),
     );
   }
-}
-
-bool _isActive(JobProposal proposal, JobRequest job) {
-  if (proposal.status == ProposalStatus.rejected) return false;
-  if (proposal.status == ProposalStatus.superseded) return false;
-  if (job.status == JobStatus.completed || job.status == JobStatus.cancelled) {
-    return false;
-  }
-  return true;
 }
 
 (String, Color) _proposalStatusInfo(ProposalStatus status) => switch (status) {

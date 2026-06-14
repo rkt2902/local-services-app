@@ -107,263 +107,291 @@ class _ClientJobDetailScreenState
     final workerId = acceptedProposalAsync.asData?.value?.workerId ?? '';
     final workerInfoAsync = ref.watch(workerBasicInfoProvider(workerId));
 
-    final canCancel = _job.status == JobStatus.open;
-    final (statusLabel, statusColor) = _statusInfo(_job.status, _job.proposalCount);
+    final (statusLabel, statusColor) =
+        _statusInfo(_job.status, _job.proposalCount);
+
+    final statusBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: statusColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        statusLabel,
+        style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
+      ),
+    );
+
+    final photosWidget = photosAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (urls) {
+        if (urls.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Fotos', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: urls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    urls[i],
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
+    );
+
+    // Shared: status badge + info card + description + photos
+    final detailChildren = <Widget>[
+      statusBadge,
+      const SizedBox(height: 24),
+      _DetailSection(
+        children: [
+          if (_job.addressText.isNotEmpty)
+            _detailRow(context, Icons.place_outlined, 'Localização',
+                _job.addressText),
+          _detailRow(
+            context,
+            Icons.calendar_today_outlined,
+            'Data',
+            _job.preferredDate == null
+                ? 'Flexível'
+                : DateFormat('dd/MM/yyyy').format(_job.preferredDate!),
+          ),
+          _detailRow(
+            context,
+            Icons.bolt_outlined,
+            'Urgência',
+            _job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
+          ),
+          if (_job.sizeEstimate != null)
+            _detailRow(
+              context,
+              Icons.straighten_outlined,
+              'Dimensão',
+              switch (_job.sizeEstimate!) {
+                SizeEstimate.small => 'Pequeno',
+                SizeEstimate.medium => 'Médio',
+                SizeEstimate.large => 'Grande',
+              },
+            ),
+        ],
+      ),
+      const SizedBox(height: 20),
+      Text('Descrição', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 8),
+      Text(_job.description, style: theme.textTheme.bodyMedium),
+      const SizedBox(height: 20),
+      photosWidget,
+    ];
+
+    // ── Open status: two-tab layout ─────────────────────────────────────────
+
+    if (_job.status == JobStatus.open) {
+      final proposalTabLabel = pendingProposalsAsync.when(
+        data: (list) => 'Propostas (${list.length})',
+        loading: () => 'Propostas',
+        error: (e, _) => 'Propostas',
+      );
+
+      final proposalsTab = pendingProposalsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erro: $e')),
+        data: (proposals) {
+          if (proposals.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Nenhuma proposta disponível de momento.'),
+              ),
+            );
+          }
+          final sorted = [...proposals];
+          if (_sortBy == 'price') {
+            sorted.sort((a, b) {
+              final aEst = a.hourlyRate * (a.estimatedHoursMin ?? 0);
+              final bEst = b.hourlyRate * (b.estimatedHoursMin ?? 0);
+              return aEst.compareTo(bEst);
+            });
+          }
+          final anyAccepting = _accepting.values.any((v) => v);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                        value: 'price', label: Text('Por preço')),
+                    ButtonSegment(
+                      value: 'rating',
+                      label: Text('Por avaliação'),
+                      tooltip:
+                          'Disponível após as primeiras avaliações',
+                      enabled: false,
+                    ),
+                  ],
+                  selected: {_sortBy},
+                  onSelectionChanged: (sel) =>
+                      setState(() => _sortBy = sel.first),
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...sorted.map((p) => _ProposalCard(
+                      key: ValueKey(p.id),
+                      proposal: p,
+                      accepting: _accepting[p.id] == true,
+                      onAccept:
+                          anyAccepting ? null : () => _acceptProposal(p),
+                    )),
+              ],
+            ),
+          );
+        },
+      );
+
+      return DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('Pedido #${_job.id.substring(0, 8)}'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Cancelar pedido',
+                onPressed: _saving ? null : _cancelJob,
+              ),
+            ],
+            bottom: TabBar(
+              tabs: [
+                const Tab(text: 'Detalhes'),
+                Tab(text: proposalTabLabel),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: detailChildren,
+                ),
+              ),
+              proposalsTab,
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ── Non-open: single scrollable view ────────────────────────────────────
+
+    if (_job.status == JobStatus.confirmed) {
+      detailChildren.add(
+        workerInfoAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) =>
+              const Text('Não foi possível carregar o contacto.'),
+          data: (info) {
+            if (workerId.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (info.isEmpty) {
+              return const Text('Não foi possível carregar o contacto.');
+            }
+            final name = info['full_name'] ?? '';
+            final phone = info['phone'] ?? '';
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Serviço confirmado',
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Card(
+                  color: theme.colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outlined),
+                            const SizedBox(width: 8),
+                            Text(name,
+                                style: theme.textTheme.titleMedium),
+                          ],
+                        ),
+                        if (_job.confirmedDate != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(
+                                  Icons.event_available_outlined),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatConfirmedSchedule(_job),
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: phone.isEmpty
+                              ? null
+                              : () async {
+                                  final clean = phone.replaceAll(
+                                      RegExp(r'[\s\-]'), '');
+                                  final uri = Uri.parse(
+                                      'https://wa.me/$clean');
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri,
+                                        mode: LaunchMode
+                                            .externalApplication);
+                                  }
+                                },
+                          icon: const Icon(Icons.chat_outlined),
+                          label: const Text('Contactar via WhatsApp'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Pedido #${_job.id.substring(0, 8)}'),
-        actions: [
-          if (canCancel)
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Cancelar pedido',
-              onPressed: _saving ? null : _cancelJob,
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status badge
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                statusLabel,
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Info card
-            _DetailSection(
-              children: [
-                if (_job.addressText.isNotEmpty)
-                  _detailRow(context, Icons.place_outlined, 'Localização',
-                      _job.addressText),
-                _detailRow(
-                  context,
-                  Icons.calendar_today_outlined,
-                  'Data',
-                  _job.preferredDate == null
-                      ? 'Flexível'
-                      : DateFormat('dd/MM/yyyy')
-                          .format(_job.preferredDate!),
-                ),
-                _detailRow(
-                  context,
-                  Icons.bolt_outlined,
-                  'Urgência',
-                  _job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
-                ),
-                if (_job.sizeEstimate != null)
-                  _detailRow(
-                    context,
-                    Icons.straighten_outlined,
-                    'Dimensão',
-                    switch (_job.sizeEstimate!) {
-                      SizeEstimate.small => 'Pequeno',
-                      SizeEstimate.medium => 'Médio',
-                      SizeEstimate.large => 'Grande',
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            Text('Descrição', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(_job.description, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 20),
-
-            // Photos
-            photosAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (urls) {
-                if (urls.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Fotos', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: urls.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (_, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            urls[i],
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                );
-              },
-            ),
-
-            // Proposals section — open job with pending proposals
-            if (_job.status == JobStatus.open && _job.proposalCount > 0)
-              pendingProposalsAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Erro: $e'),
-                data: (proposals) {
-                  if (proposals.isEmpty) {
-                    return const Text(
-                        'Nenhuma proposta disponível de momento.');
-                  }
-                  final sorted = [...proposals];
-                  if (_sortBy == 'price') {
-                    sorted.sort((a, b) {
-                      final aEst =
-                          a.hourlyRate * (a.estimatedHoursMin ?? 0);
-                      final bEst =
-                          b.hourlyRate * (b.estimatedHoursMin ?? 0);
-                      return aEst.compareTo(bEst);
-                    });
-                  }
-                  final anyAccepting = _accepting.values.any((v) => v);
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Propostas recebidas (${proposals.length})',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                              value: 'price', label: Text('Por preço')),
-                          ButtonSegment(
-                            value: 'rating',
-                            label: Text('Por avaliação'),
-                            tooltip:
-                                'Disponível após as primeiras avaliações',
-                            enabled: false,
-                          ),
-                        ],
-                        selected: {_sortBy},
-                        onSelectionChanged: (sel) =>
-                            setState(() => _sortBy = sel.first),
-                        style: const ButtonStyle(
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...sorted.map((p) => _ProposalCard(
-                            key: ValueKey(p.id),
-                            proposal: p,
-                            accepting: _accepting[p.id] == true,
-                            onAccept: anyAccepting
-                                ? null
-                                : () => _acceptProposal(p),
-                          )),
-                    ],
-                  );
-                },
-              ),
-
-            // Confirmed section
-            if (_job.status == JobStatus.confirmed)
-              workerInfoAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const Text(
-                    'Não foi possível carregar o contacto.'),
-                data: (info) {
-                  if (workerId.isEmpty) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (info.isEmpty) {
-                    return const Text(
-                        'Não foi possível carregar o contacto.');
-                  }
-                  final name = info['full_name'] ?? '';
-                  final phone = info['phone'] ?? '';
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Serviço confirmado',
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      Card(
-                        color: theme.colorScheme.primaryContainer,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.person_outlined),
-                                  const SizedBox(width: 8),
-                                  Text(name,
-                                      style:
-                                          theme.textTheme.titleMedium),
-                                ],
-                              ),
-                              if (_job.confirmedDate != null) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                        Icons.event_available_outlined),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      _formatConfirmedSchedule(_job),
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              const SizedBox(height: 12),
-                              FilledButton.icon(
-                                onPressed: phone.isEmpty
-                                    ? null
-                                    : () async {
-                                        final clean = phone.replaceAll(
-                                            RegExp(r'[\s\-]'), '');
-                                        final uri = Uri.parse(
-                                            'https://wa.me/$clean');
-                                        if (await canLaunchUrl(uri)) {
-                                          await launchUrl(uri,
-                                              mode: LaunchMode
-                                                  .externalApplication);
-                                        }
-                                      },
-                                icon: const Icon(Icons.chat_outlined),
-                                label: const Text(
-                                    'Contactar via WhatsApp'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-          ],
+          children: detailChildren,
         ),
       ),
     );

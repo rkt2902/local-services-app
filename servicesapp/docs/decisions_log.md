@@ -148,3 +148,9 @@ documentos originais; só se criam aqui se divergirem.
 - Client home mostra últimos 3 pedidos ativos com link "Ver todos"; cumprimento usa primeiro nome de clientProfileProvider.
 - FAB e ícone de perfil no AppBar removidos das home screens — substituídos pela NavigationBar.
 - flutter/foundation.dart removido do router (flutter/material.dart é superset).
+
+## 2026-06-14 — Tabs internas (cliente) e 3 tabs (worker)
+- Cliente: detalhe do job tem 2 tabs (Detalhes / Propostas) só quando status == open.
+  Outros estados: vista única sem tabs.
+- Worker: "Os meus jobs" tem 3 tabs (Por confirmar / Agendados / Concluídos).
+- Excluídos dos workers: rejected, superseded, cancelled, no_response — são ruído.
