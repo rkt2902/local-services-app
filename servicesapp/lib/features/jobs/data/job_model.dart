@@ -21,6 +21,17 @@ class JobRequest {
   final bool confirmedFlexible;
   final DateTime expiresAt;
   final DateTime createdAt;
+  final String? cancelledBy;
+  final String? cancelReason;
+  final String? cancelReasonDetail;
+  final String? reopenedFrom;
+  final int reopenCountClient;
+  final int reopenCountWorker;
+  final DateTime? rescheduleProposedDate;
+  final String? rescheduleProposedTime;
+  final bool? rescheduleProposedFlexible;
+  final String? rescheduleProposedBy;
+  final String? rescheduleStatus;
 
   const JobRequest({
     required this.id,
@@ -43,6 +54,17 @@ class JobRequest {
     this.confirmedFlexible = false,
     required this.expiresAt,
     required this.createdAt,
+    this.cancelledBy,
+    this.cancelReason,
+    this.cancelReasonDetail,
+    this.reopenedFrom,
+    this.reopenCountClient = 0,
+    this.reopenCountWorker = 0,
+    this.rescheduleProposedDate,
+    this.rescheduleProposedTime,
+    this.rescheduleProposedFlexible,
+    this.rescheduleProposedBy,
+    this.rescheduleStatus,
   });
 
   factory JobRequest.fromJson(Map<String, dynamic> json) => JobRequest(
@@ -76,6 +98,20 @@ class JobRequest {
         confirmedFlexible: json['confirmed_flexible'] as bool? ?? false,
         expiresAt: DateTime.parse(json['expires_at'] as String),
         createdAt: DateTime.parse(json['created_at'] as String),
+        cancelledBy: json['cancelled_by'] as String?,
+        cancelReason: json['cancel_reason'] as String?,
+        cancelReasonDetail: json['cancel_reason_detail'] as String?,
+        reopenedFrom: json['reopened_from'] as String?,
+        reopenCountClient: json['reopen_count_client'] as int? ?? 0,
+        reopenCountWorker: json['reopen_count_worker'] as int? ?? 0,
+        rescheduleProposedDate: json['reschedule_proposed_date'] != null
+            ? DateTime.parse(json['reschedule_proposed_date'] as String)
+            : null,
+        rescheduleProposedTime: json['reschedule_proposed_time'] as String?,
+        rescheduleProposedFlexible:
+            json['reschedule_proposed_flexible'] as bool?,
+        rescheduleProposedBy: json['reschedule_proposed_by'] as String?,
+        rescheduleStatus: json['reschedule_status'] as String?,
       );
 
   JobRequest copyWith({
@@ -99,6 +135,17 @@ class JobRequest {
     bool? confirmedFlexible,
     DateTime? expiresAt,
     DateTime? createdAt,
+    String? cancelledBy,
+    String? cancelReason,
+    String? cancelReasonDetail,
+    String? reopenedFrom,
+    int? reopenCountClient,
+    int? reopenCountWorker,
+    DateTime? rescheduleProposedDate,
+    String? rescheduleProposedTime,
+    bool? rescheduleProposedFlexible,
+    String? rescheduleProposedBy,
+    String? rescheduleStatus,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -121,5 +168,19 @@ class JobRequest {
         confirmedFlexible: confirmedFlexible ?? this.confirmedFlexible,
         expiresAt: expiresAt ?? this.expiresAt,
         createdAt: createdAt ?? this.createdAt,
+        cancelledBy: cancelledBy ?? this.cancelledBy,
+        cancelReason: cancelReason ?? this.cancelReason,
+        cancelReasonDetail: cancelReasonDetail ?? this.cancelReasonDetail,
+        reopenedFrom: reopenedFrom ?? this.reopenedFrom,
+        reopenCountClient: reopenCountClient ?? this.reopenCountClient,
+        reopenCountWorker: reopenCountWorker ?? this.reopenCountWorker,
+        rescheduleProposedDate:
+            rescheduleProposedDate ?? this.rescheduleProposedDate,
+        rescheduleProposedTime:
+            rescheduleProposedTime ?? this.rescheduleProposedTime,
+        rescheduleProposedFlexible:
+            rescheduleProposedFlexible ?? this.rescheduleProposedFlexible,
+        rescheduleProposedBy: rescheduleProposedBy ?? this.rescheduleProposedBy,
+        rescheduleStatus: rescheduleStatus ?? this.rescheduleStatus,
       );
 }
