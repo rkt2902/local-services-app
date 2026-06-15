@@ -5,9 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
+import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
+import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 
@@ -30,6 +33,105 @@ class _WorkerMyJobDetailScreenState
     extends ConsumerState<WorkerMyJobDetailScreen> {
   bool _completing = false;
   bool _withdrawing = false;
+  bool _cancellingJob = false;
+  bool _proposingReschedule = false;
+  bool _acceptingReschedule = false;
+  bool _rejectingReschedule = false;
+
+  Future<void> _cancelJob() async {
+    final result = await CancelJobDialog.show(context, isClient: false);
+    if (result == null || !mounted) return;
+
+    setState(() => _cancellingJob = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
+            jobId: widget.job.id,
+            reason: result['reason']!,
+            reasonDetail: result['reasonDetail'],
+          );
+      ref.invalidate(workerProposalsProvider);
+      ref.invalidate(jobsInRadiusProvider);
+      scaffold.showSnackBar(SnackBar(
+        content: Text(newJobId != null
+            ? 'Pedido cancelado. O cliente foi notificado e o pedido foi reaberto.'
+            : 'Pedido cancelado.'),
+      ));
+      router.go('/worker/home');
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _cancellingJob = false);
+    }
+  }
+
+  Future<void> _proposeReschedule() async {
+    final result = await RescheduleDialog.show(context);
+    if (result == null || !mounted) return;
+
+    setState(() => _proposingReschedule = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).proposeReschedule(
+            jobId: widget.job.id,
+            newDate: result['date'] as DateTime,
+            newTime: result['time'] as String?,
+            newFlexible: result['flexible'] as bool,
+          );
+      ref.invalidate(workerProposalsProvider);
+      scaffold.showSnackBar(
+          const SnackBar(content: Text('Remarcação enviada.')));
+      router.pop();
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _proposingReschedule = false);
+    }
+  }
+
+  Future<void> _acceptReschedule() async {
+    setState(() => _acceptingReschedule = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).acceptReschedule(widget.job.id);
+      ref.invalidate(workerProposalsProvider);
+      scaffold.showSnackBar(
+          const SnackBar(content: Text('Nova data aceite.')));
+      router.pop();
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _acceptingReschedule = false);
+    }
+  }
+
+  Future<void> _rejectReschedule() async {
+    setState(() => _rejectingReschedule = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).rejectReschedule(widget.job.id);
+      ref.invalidate(workerProposalsProvider);
+      scaffold.showSnackBar(
+          const SnackBar(content: Text('Remarcação recusada.')));
+      router.pop();
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _rejectingReschedule = false);
+    }
+  }
 
   Future<void> _withdrawProposal() async {
     final confirmed = await showDialog<bool>(
@@ -127,6 +229,7 @@ class _WorkerMyJobDetailScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUserId = ref.watch(currentUserIdProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
     final photosAsync = ref.watch(jobPhotosProvider(widget.job.id));
     final clientInfoAsync =
@@ -264,6 +367,84 @@ class _WorkerMyJobDetailScreenState
 
             // === ACCEPTED ===
             if (liveStatus == ProposalStatus.accepted) ...[
+              // Reschedule banner
+              if (widget.job.rescheduleStatus == RescheduleStatus.pending) ...[
+                if (widget.job.rescheduleProposedBy != null &&
+                    widget.job.rescheduleProposedBy != currentUserId)
+                  Card(
+                    color: Colors.orange.shade50,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(children: [
+                            Icon(Icons.event_repeat,
+                                color: Colors.orange.shade800, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'O cliente propôs remarcar para ${_proposedRescheduleLabel(widget.job)}'
+                                    .trim(),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.orange.shade900),
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 12),
+                          Row(children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _acceptingReschedule
+                                    ? null
+                                    : _acceptReschedule,
+                                child: _acceptingReschedule
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white),
+                                      )
+                                    : const Text('Aceitar nova data'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _rejectingReschedule
+                                    ? null
+                                    : _rejectReschedule,
+                                child: const Text('Recusar'),
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Card(
+                    color: Colors.grey.shade100,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(children: [
+                        Icon(Icons.schedule_outlined,
+                            color: Colors.grey.shade600),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Aguarda resposta à remarcação que propuseste para ${_proposedRescheduleLabel(widget.job)}'
+                                .trim(),
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+              ],
               if (widget.job.confirmedDate != null) ...[
                 Text('Agendamento', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
@@ -342,6 +523,45 @@ class _WorkerMyJobDetailScreenState
                     ]),
                   ),
                 ),
+                const SizedBox(height: 16),
+              ],
+              // Cancel + reschedule buttons — only when job is confirmed
+              if (widget.job.status == JobStatus.confirmed) ...[
+                if (widget.job.rescheduleStatus == RescheduleStatus.pending)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Aguarda resposta da remarcação',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (widget.job.rescheduleStatus == RescheduleStatus.pending ||
+                              _proposingReschedule)
+                          ? null
+                          : _proposeReschedule,
+                      icon: const Icon(Icons.event_repeat),
+                      label: const Text('Remarcar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: (widget.job.rescheduleStatus == RescheduleStatus.pending ||
+                              _cancellingJob)
+                          ? null
+                          : _cancelJob,
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Cancelar'),
+                    ),
+                  ),
+                ]),
                 const SizedBox(height: 16),
               ],
               SizedBox(
@@ -468,6 +688,16 @@ class _WorkerMyJobDetailScreenState
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+String _proposedRescheduleLabel(JobRequest job) {
+  if (job.rescheduleProposedDate == null) return '';
+  final date = DateFormat('dd/MM/yyyy').format(job.rescheduleProposedDate!);
+  if (job.rescheduleProposedFlexible == true) return '$date (horário flexível)';
+  if (job.rescheduleProposedTime != null) {
+    return '$date às ${job.rescheduleProposedTime}';
+  }
+  return date;
+}
 
 String _confirmedScheduleLabel(JobRequest job) {
   if (job.confirmedDate == null) return '';

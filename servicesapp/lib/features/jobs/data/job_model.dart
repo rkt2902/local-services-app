@@ -31,7 +31,7 @@ class JobRequest {
   final String? rescheduleProposedTime;
   final bool? rescheduleProposedFlexible;
   final String? rescheduleProposedBy;
-  final String? rescheduleStatus;
+  final RescheduleStatus? rescheduleStatus;
 
   const JobRequest({
     required this.id,
@@ -111,7 +111,7 @@ class JobRequest {
         rescheduleProposedFlexible:
             json['reschedule_proposed_flexible'] as bool?,
         rescheduleProposedBy: json['reschedule_proposed_by'] as String?,
-        rescheduleStatus: json['reschedule_status'] as String?,
+        rescheduleStatus: RescheduleStatus.fromString(json['reschedule_status'] as String?),
       );
 
   JobRequest copyWith({
@@ -145,7 +145,7 @@ class JobRequest {
     String? rescheduleProposedTime,
     bool? rescheduleProposedFlexible,
     String? rescheduleProposedBy,
-    String? rescheduleStatus,
+    RescheduleStatus? rescheduleStatus,
   }) =>
       JobRequest(
         id: id ?? this.id,

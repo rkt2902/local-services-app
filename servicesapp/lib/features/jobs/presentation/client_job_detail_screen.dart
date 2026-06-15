@@ -5,11 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../auth/application/auth_providers.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import 'widgets/cancel_job_dialog.dart';
+import 'widgets/reschedule_dialog.dart';
 
 class ClientJobDetailScreen extends ConsumerStatefulWidget {
   const ClientJobDetailScreen({super.key, required this.job});
@@ -25,6 +28,7 @@ class _ClientJobDetailScreenState
     extends ConsumerState<ClientJobDetailScreen> {
   late JobRequest _job;
   bool _saving = false;
+  bool _proposingReschedule = false;
   final Map<String, bool> _accepting = {};
   String _sortBy = 'price';
 
@@ -35,42 +39,106 @@ class _ClientJobDetailScreenState
   }
 
   Future<void> _cancelJob() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Cancelar pedido?'),
-        content:
-            const Text('Tens a certeza? Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Não'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    final result = await CancelJobDialog.show(context, isClient: true);
+    if (result == null || !mounted) return;
 
     setState(() => _saving = true);
     final scaffold = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     try {
-      await ref.read(jobRepositoryProvider).cancelJob(_job.id);
+      final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
+            jobId: _job.id,
+            reason: result['reason']!,
+            reasonDetail: result['reasonDetail'],
+          );
       ref.invalidate(clientJobsProvider);
-      scaffold.showSnackBar(
-          const SnackBar(content: Text('Pedido cancelado.')));
-      router.pop();
+      ref.invalidate(pendingProposalsForJobProvider(_job.id));
+      if (newJobId != null) {
+        scaffold.showSnackBar(
+          const SnackBar(content: Text('Pedido reaberto automaticamente.')),
+        );
+      } else {
+        scaffold.showSnackBar(
+          const SnackBar(content: Text('Pedido cancelado.')),
+        );
+      }
+      router.go('/client/jobs');
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _proposeReschedule() async {
+    final result = await RescheduleDialog.show(context);
+    if (result == null || !mounted) return;
+
+    setState(() => _proposingReschedule = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final currentUserId = ref.read(currentUserIdProvider);
+    try {
+      await ref.read(jobRepositoryProvider).proposeReschedule(
+            jobId: _job.id,
+            newDate: result['date'] as DateTime,
+            newTime: result['time'] as String?,
+            newFlexible: result['flexible'] as bool,
+          );
+      ref.invalidate(clientJobsProvider);
+      setState(() {
+        _job = _job.copyWith(
+          rescheduleStatus: RescheduleStatus.pending,
+          rescheduleProposedBy: currentUserId,
+        );
+      });
+      scaffold.showSnackBar(
+        const SnackBar(content: Text('Remarcação enviada.')),
+      );
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _proposingReschedule = false);
+    }
+  }
+
+  Future<void> _acceptReschedule() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).acceptReschedule(_job.id);
+      ref.invalidate(clientJobsProvider);
+      setState(() => _job = _job.copyWith(
+            confirmedDate: _job.rescheduleProposedDate,
+            confirmedTime: _job.rescheduleProposedTime,
+            confirmedFlexible: _job.rescheduleProposedFlexible ?? false,
+            rescheduleStatus: RescheduleStatus.accepted,
+          ));
+      scaffold.showSnackBar(
+        const SnackBar(content: Text('Nova data aceite.')),
+      );
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _rejectReschedule() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).rejectReschedule(_job.id);
+      ref.invalidate(clientJobsProvider);
+      setState(() => _job = _job.copyWith(rescheduleStatus: RescheduleStatus.rejected));
+      scaffold.showSnackBar(
+        const SnackBar(content: Text('Remarcação recusada.')),
+      );
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -96,8 +164,9 @@ class _ClientJobDetailScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUserId = ref.watch(currentUserIdProvider);
 
-    // Watch all providers unconditionally at the top of build
+    // Watch all providers unconditionally at top of build
     final pendingProposalsAsync =
         ref.watch(pendingProposalsForJobProvider(_job.id));
     final acceptedProposalAsync =
@@ -155,8 +224,90 @@ class _ClientJobDetailScreenState
       },
     );
 
+    // Reschedule pending banner — shown when the other party proposed a reschedule
+    Widget? rescheduleBanner;
+    if (_job.rescheduleStatus == RescheduleStatus.pending &&
+        _job.rescheduleProposedBy != null &&
+        _job.rescheduleProposedBy != currentUserId) {
+      final dateStr = _job.rescheduleProposedDate != null
+          ? DateFormat('dd/MM/yyyy').format(_job.rescheduleProposedDate!)
+          : '—';
+      final timeStr = _job.rescheduleProposedFlexible == true
+          ? '(horário flexível)'
+          : (_job.rescheduleProposedTime != null
+              ? 'às ${_job.rescheduleProposedTime}'
+              : '');
+      rescheduleBanner = Card(
+        color: Colors.orange.shade50,
+        margin: const EdgeInsets.only(bottom: 16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [
+                Icon(Icons.event_repeat,
+                    color: Colors.orange.shade800, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'O jardineiro propôs remarcar para $dateStr $timeStr'
+                        .trim(),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.orange.shade900),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _acceptReschedule,
+                      child: const Text('Aceitar nova data'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _rejectReschedule,
+                      child: const Text('Recusar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Shared: status badge + info card + description + photos
     final detailChildren = <Widget>[
+      if (_job.reopenedFrom != null)
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline,
+                  color: theme.colorScheme.secondary, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Este pedido foi criado automaticamente após o cancelamento de um pedido anterior.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ?rescheduleBanner,
       statusBadge,
       const SizedBox(height: 24),
       _DetailSection(
@@ -236,13 +387,11 @@ class _ClientJobDetailScreenState
               children: [
                 SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(
-                        value: 'price', label: Text('Por preço')),
+                    ButtonSegment(value: 'price', label: Text('Por preço')),
                     ButtonSegment(
                       value: 'rating',
                       label: Text('Por avaliação'),
-                      tooltip:
-                          'Disponível após as primeiras avaliações',
+                      tooltip: 'Disponível após as primeiras avaliações',
                       enabled: false,
                     ),
                   ],
@@ -302,7 +451,7 @@ class _ClientJobDetailScreenState
       );
     }
 
-    // ── Non-open: single scrollable view ────────────────────────────────────
+    // ── Confirmed status: contact + cancel/reschedule buttons ────────────────
 
     if (_job.status == JobStatus.confirmed) {
       detailChildren.add(
@@ -336,16 +485,14 @@ class _ClientJobDetailScreenState
                           children: [
                             const Icon(Icons.person_outlined),
                             const SizedBox(width: 8),
-                            Text(name,
-                                style: theme.textTheme.titleMedium),
+                            Text(name, style: theme.textTheme.titleMedium),
                           ],
                         ),
                         if (_job.confirmedDate != null) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(
-                                  Icons.event_available_outlined),
+                              const Icon(Icons.event_available_outlined),
                               const SizedBox(width: 8),
                               Text(
                                 _formatConfirmedSchedule(_job),
@@ -361,8 +508,8 @@ class _ClientJobDetailScreenState
                               : () async {
                                   final clean = phone.replaceAll(
                                       RegExp(r'[\s\-]'), '');
-                                  final uri = Uri.parse(
-                                      'https://wa.me/$clean');
+                                  final uri =
+                                      Uri.parse('https://wa.me/$clean');
                                   if (await canLaunchUrl(uri)) {
                                     await launchUrl(uri,
                                         mode: LaunchMode
@@ -375,6 +522,71 @@ class _ClientJobDetailScreenState
                       ],
                     ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                // Cancel + reschedule buttons
+                if (_job.rescheduleStatus == RescheduleStatus.pending) ...[
+                  if (_job.rescheduleProposedBy == currentUserId)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.hourglass_top,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Aguarda resposta à remarcação que propuseste.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Aguarda resposta da remarcação',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: (_proposingReschedule ||
+                                _job.rescheduleStatus == RescheduleStatus.pending)
+                            ? null
+                            : _proposeReschedule,
+                        icon: const Icon(Icons.event_repeat),
+                        label: const Text('Remarcar'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: (_saving ||
+                                _job.rescheduleStatus == RescheduleStatus.pending)
+                            ? null
+                            : _cancelJob,
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: theme.colorScheme.error),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Cancelar'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -439,8 +651,7 @@ class _ProposalCard extends ConsumerWidget {
               const Icon(Icons.person_outlined, size: 20),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(workerName,
-                    style: theme.textTheme.titleMedium),
+                child: Text(workerName, style: theme.textTheme.titleMedium),
               ),
             ]),
             const Divider(height: 20),
@@ -451,8 +662,7 @@ class _ProposalCard extends ConsumerWidget {
             if (hoursStr.isNotEmpty)
               _cardRow(context, Icons.schedule_outlined, hoursStr),
             if (scheduleStr.isNotEmpty)
-              _cardRow(context, Icons.event_outlined,
-                  'Propõe: $scheduleStr'),
+              _cardRow(context, Icons.event_outlined, 'Propõe: $scheduleStr'),
             if (proposal.peopleNeeded > 1)
               _cardRow(context, Icons.group_outlined,
                   'Equipa: ${proposal.peopleNeeded} pessoas'),

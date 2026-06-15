@@ -276,6 +276,18 @@ class _JobCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ],
+              if (job.rescheduleStatus == RescheduleStatus.pending) ...[
+                const SizedBox(height: 6),
+                Chip(
+                  avatar: const Icon(Icons.event_repeat, size: 14),
+                  label: const Text('Remarcação pendente'),
+                  backgroundColor: Colors.orange.shade100,
+                  labelStyle: TextStyle(
+                      fontSize: 11, color: Colors.orange.shade900),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ],
           ),
         ),

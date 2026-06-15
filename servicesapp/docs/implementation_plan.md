@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8E.1 — Agendamento (Flutter side).
-**Próximo passo:** 8E.1 — DB functions update (create_proposal + accept_proposal) + test end-to-end.
+**Passo concluído:** 8E.2 + 8E.3 — Cancelamento com razão + Remarcação (Flutter side).
+**Próximo passo:** 8E.4 — Conclusão a dois lados (worker marca → cliente confirma).
 
 ## Fases
 

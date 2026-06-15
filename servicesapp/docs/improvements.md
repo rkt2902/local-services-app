@@ -108,6 +108,63 @@
 **Ideia:** Expandir para limpeza, pequenas reparações, manutenção. Só depois de jardinagem ter tração numa zona.
 **Prioridade:** Baixa — não expandir antes de validar.
 
+
+### Mini-chat por proposta (modelo Vinted)
+**Contexto:** Negociação entre cliente e worker acontece fora da app (WhatsApp).
+Trazer a negociação para dentro da app aumenta confiança e contexto.
+**Ideia:** Cada job_proposal tem um chat associado — cliente e worker trocam
+mensagens dentro dessa proposta específica. Chat visível no card da proposta
+(cliente) e no detalhe do worker. Mensagens em tempo real via Supabase Realtime
+(infraestrutura já existe). Após proposta rejeitada/retirada, chat fica em
+modo leitura (histórico).
+**Modelo de dados:**
+- Tabela `proposal_messages`: id, proposal_id, sender_id, content, created_at
+- RLS: só client e worker da proposta veem as mensagens
+- Realtime: subscrição por proposal_id
+**UI:** bottom sheet da proposta tem duas tabs — "Detalhes" e "Chat".
+Chat simples com bolhas, campo de texto, enviar. Sem fotos no MVP do chat.
+**Porque é relativamente simples:** Realtime já configurado, padrão de
+bottom sheet já existe, tabela é simples.
+**Prioridade:** Alta — diferenciador forte vs contacto por WhatsApp.
+Implementar depois de MVP estável e testado.
+
+### Relações persistentes Worker ↔ Cliente + Jobs recorrentes
+**Contexto:** Após o primeiro trabalho concluído, cliente e worker têm uma
+relação que vale a pena preservar dentro da app. Hoje perdem-se para o WhatsApp.
+**Visão em camadas (implementar por ordem):**
+
+**Camada 1 — Conversa persistente (pós mini-chat de proposta)**
+Canal de mensagens direto entre worker e cliente, criado automaticamente após
+o primeiro job completed entre os dois. Mantém-se para trabalhos futuros.
+Substitui o WhatsApp para comunicação recorrente.
+
+**Camada 2 — Jobs recorrentes**
+Dentro da conversa, cliente ativa "repetir trabalho" com frequência
+(semanal, quinzenal, mensal). Worker confirma. Jobs seguintes criam-se
+automaticamente com proposta automática (mesmo worker, mesmo preço).
+Sem passar pelo marketplace — relação direta.
+
+**Camada 3 — Perfil de cliente para o worker**
+Worker vê histórico com aquele cliente: trabalhos feitos, morada guardada,
+notas pessoais ("tem cão", "portão azul"), ganhos totais.
+
+**Modelo de dados:**
+- `worker_client_relationships`: id, worker_id, client_id, status, created_at, notes
+- `relationship_messages`: id, relationship_id, sender_id, content, created_at
+- `recurring_jobs`: id, relationship_id, service_type_id, frequency, next_date, last_job_id, status
+
+Relação criada automaticamente após primeiro job completed entre os dois.
+
+**Porque é estratégico:**
+- Resolve desintermediação (relação vive na app, WhatsApp perde valor)
+- Receita recorrente previsível para o worker
+- Retém ambos os lados a longo prazo
+- Base para programa de benefícios (worker com X recorrentes → nível Pro)
+- Dados de uso (frequência, sazonalidade, padrões)
+
+**Dependências:** Mini-chat por proposta deve estar implementado primeiro.
+**Prioridade:** Muito Alta — é a feature anti-desintermediação mais importante.
+
 ---
 
 ## Notificações e comunicação

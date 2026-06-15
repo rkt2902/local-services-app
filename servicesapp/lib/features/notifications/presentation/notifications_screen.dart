@@ -115,7 +115,7 @@ class _NotificationTile extends ConsumerWidget {
         ),
         isThreeLine: true,
         onTap: () {
-          NotificationHandler.handle(context, notification);
+          NotificationHandler.handle(context, ref, notification);
           ref
               .read(notificationRepositoryProvider)
               .markAsRead(notification.id);

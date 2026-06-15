@@ -5,6 +5,7 @@ abstract class NotificationType {
   static const proposalAccepted = 'proposal_accepted';
   static const proposalRejected = 'proposal_rejected';
   static const jobCancelled = 'job_cancelled';
+  static const jobReopened = 'job_reopened';
   static const jobMarkedDone = 'job_marked_done';
   static const jobCompleted = 'job_completed';
   static const jobNoResponse = 'job_no_response';

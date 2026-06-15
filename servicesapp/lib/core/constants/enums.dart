@@ -90,6 +90,22 @@ enum UserRole {
   static UserRole fromString(String value) => fromValue(value);
 }
 
+enum RescheduleStatus {
+  pending,
+  accepted,
+  rejected;
+
+  String get value => name;
+
+  static RescheduleStatus? fromString(String? value) {
+    if (value == null) return null;
+    return RescheduleStatus.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => RescheduleStatus.pending,
+    );
+  }
+}
+
 enum HelpRequestStatus {
   open,
   filled,

@@ -138,6 +138,20 @@ documentos originais; só se criam aqui se divergirem.
 - `proposalForJobProvider` substituído por `pendingProposalsForJobProvider` + `acceptedProposalForJobProvider`.
 - `fetchWorkerName` adicionado a WorkerRepository; `workerNameProvider` adicionado a worker_providers.dart.
 
+## 2026-06-15 — Fase 8E.2 + 8E.3: Cancelamento e Remarcação
+- Dois botões separados: Remarcar e Cancelar (não um menu).
+- 4 razões de cancelamento (cliente vê 4, worker vê 3 — sem "já não preciso").
+- Auto-reabertura: cliente máx 1 reabertura, worker máx 2; cria novo job (id diferente) com reopened_from.
+- cancelJob usa RPC `cancel_job`; retorna novo job ID se reaberto, null caso contrário.
+- proposeReschedule/acceptReschedule/rejectReschedule via RPCs homónimas.
+- Regra das 24h aplica-se a cancelamento E remarcação (validado na BD).
+- Remarcação: campos no próprio job (uma pendente de cada vez); quem propõe não pode aceitar.
+- Client detail: após reschedule propose/accept/reject, actualiza _job local via copyWith.
+- Worker detail: após qualquer ação de reschedule/cancel, navega back (widget.job é estático).
+- currentUserIdProvider adicionado a auth_providers.dart para comparação de rescheduleProposedBy.
+- RadioGroup (Flutter 3.32+) substitui groupValue/onChanged no RadioListTile.
+- Null-aware element `?expr` em collection literals (Dart 3.4+) usado em detailChildren.
+
 ## 2026-06-09 — Tab bar navigation (client + worker)
 - 5-tab NavigationBar (Material 3) para client e worker.
 - Tab central (+): client faz push /client/create-job sem alterar índice selecionado; worker mostra bottom sheet "Em breve" sem alterar índice.

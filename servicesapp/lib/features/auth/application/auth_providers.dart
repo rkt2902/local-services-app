@@ -18,3 +18,7 @@ final currentUserProvider = Provider<User?>((ref) {
   ref.watch(authStateProvider);
   return ref.watch(authRepositoryProvider).currentUser;
 });
+
+final currentUserIdProvider = Provider<String?>((ref) {
+  return ref.watch(currentUserProvider)?.id;
+});

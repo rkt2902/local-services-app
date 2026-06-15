@@ -108,11 +108,39 @@ class JobRepository {
     return (data as List).map((e) => JobRequest.fromJson(e)).toList();
   }
 
-  Future<void> cancelJob(String jobId) async {
-    await _client.from('job_requests').update({
-      'status': JobStatus.cancelled.value,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', jobId);
+  Future<String?> cancelJob({
+    required String jobId,
+    required String reason,
+    String? reasonDetail,
+  }) async {
+    final result = await _client.rpc('cancel_job', params: {
+      'p_job_id': jobId,
+      'p_reason': reason,
+      'p_reason_detail': reasonDetail,
+    });
+    return result as String?;
+  }
+
+  Future<void> proposeReschedule({
+    required String jobId,
+    required DateTime newDate,
+    String? newTime,
+    required bool newFlexible,
+  }) async {
+    await _client.rpc('propose_reschedule', params: {
+      'p_job_id': jobId,
+      'p_new_date': newDate.toIso8601String().split('T')[0],
+      'p_new_time': newTime,
+      'p_new_flexible': newFlexible,
+    });
+  }
+
+  Future<void> acceptReschedule(String jobId) async {
+    await _client.rpc('accept_reschedule', params: {'p_job_id': jobId});
+  }
+
+  Future<void> rejectReschedule(String jobId) async {
+    await _client.rpc('reject_reschedule', params: {'p_job_id': jobId});
   }
 
   Future<List<String>> fetchJobPhotos(String jobId) async {
