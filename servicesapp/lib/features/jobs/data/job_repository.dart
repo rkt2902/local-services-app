@@ -90,12 +90,13 @@ class JobRepository {
     required double workerLat,
     required double workerLng,
     required int radiusKm,
+    required String workerId,
   }) async {
-
     final data = await _client.rpc('get_jobs_in_radius', params: {
       'worker_lat': workerLat,
       'worker_lng': workerLng,
       'radius_km': radiusKm,
+      'p_worker_id': workerId,
     });
     return (data as List).map((e) => JobRequest.fromJson(e)).toList();
   }

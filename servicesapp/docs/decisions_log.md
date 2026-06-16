@@ -181,3 +181,12 @@ documentos originais; só se criam aqui se divergirem.
   para blacklist de workers após 2 cancelamentos.
 - get_jobs_in_radius exclui workers em excluded_worker_ids.
 - Storage RLS para avatars corrigida (Bug 1 — feito na BD).
+
+## 2026-06-16 — Optimizações de performance e UX
+- App mostrava login ao abrir: corrigido com rota /loading enquanto sessão resolve.
+- Splash preso ao minimizar: corrigido com WidgetsBindingObserver em App que
+  invalida sessionStatusProvider apenas no resume, não em cada build.
+- Jobs onde worker já tem proposta pending removidos da lista home (filtro
+  client-side em fetchJobsInRadius — futura melhoria: mover para RPC).
+- N+1 queries nos chips da lista home eliminados: workerProposalForJobProvider
+  removido de _JobCard; lista mostra apenas contagem total de propostas.

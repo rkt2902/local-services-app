@@ -33,7 +33,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/loading',
     debugLogDiagnostics: true,
     refreshListenable: refresh,
     redirect: (context, state) {
@@ -41,9 +41,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final publicRoutes = ['/', '/login', '/signup'];
 
-      if (sessionAsync.isLoading) return null;
+      if (sessionAsync.isLoading) {
+        return loc == '/loading' ? null : '/loading';
+      }
       final session = sessionAsync.value;
-      if (session == null || session.isLoading) return null;
+      if (session == null || session.isLoading) {
+        return loc == '/loading' ? null : '/loading';
+      }
 
       if (!session.isAuthenticated) {
         const unauthAllowed = ['/', '/login', '/signup', '/choose-role'];
@@ -75,6 +79,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/loading',
+        builder: (_, _) => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
       GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, _) => const SignupScreen()),

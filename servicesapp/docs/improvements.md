@@ -237,6 +237,17 @@ Só permitir avaliar jobs `completed`. Evita avaliações falsas.
 
 ---
 
+## Performance técnica
+
+### Optimizar get_jobs_in_radius para filtrar propostas do worker na BD (✅ implementado)
+**Contexto:** Actualmente o Flutter faz 2 queries — uma para jobs no raio,
+outra para proposals do worker — e filtra client-side. Pode ser uma query só.
+**Solução:** Adicionar parâmetro `p_worker_id` ao RPC e fazer NOT EXISTS
+na query SQL para excluir jobs onde o worker já tem proposta pending.
+**Prioridade:** Média.
+
+---
+
 ## Bugs pendentes / melhorias técnicas
 
 ### Worker que cancela não vê o job reaberto
