@@ -96,8 +96,16 @@ class ProposalRepository {
     if (scheduledTime != null) {
       params['p_scheduled_time'] = scheduledTime;
     }
-    final result = await _client.rpc('create_proposal', params: params);
-    return result as String;
+    try {
+      final result = await _client.rpc('create_proposal', params: params);
+      return result as String;
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('já tens uma proposta') || msg.contains('p0001')) {
+        throw Exception('Já enviaste uma proposta para este pedido.');
+      }
+      rethrow;
+    }
   }
 
   Future<void> rejectProposal(String proposalId, String jobId) async {
@@ -125,9 +133,6 @@ class ProposalRepository {
   }
 
   Future<void> markJobCompleted(String jobId) async {
-    await _client.from('job_requests').update({
-      'status': JobStatus.awaitingConfirmation.value,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', jobId);
+    await _client.rpc('mark_job_done', params: {'p_job_id': jobId});
   }
 }

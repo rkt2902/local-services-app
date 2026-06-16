@@ -21,7 +21,7 @@ class ClientRepository {
   }
 
   Future<String> uploadAvatar(String userId, File file) async {
-    final path = 'avatars/$userId.jpg';
+    final path = '$userId.jpg';
     await _client.storage.from('avatars').upload(
           path,
           file,

@@ -5,9 +5,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
+import '../../proposals/application/proposal_providers.dart';
 import '../application/worker_providers.dart';
 
 class WorkerHomeScreen extends ConsumerWidget {
@@ -111,7 +113,7 @@ class _NotificationButton extends ConsumerWidget {
   }
 }
 
-class _JobCard extends StatelessWidget {
+class _JobCard extends ConsumerWidget {
   final JobRequest job;
   final String serviceTypeName;
   final double? distanceMeters;
@@ -143,10 +145,15 @@ class _JobCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final distanceStr = _formatDistance();
     final sizeLabel = _sizeLabel();
+
+    final currentUserId = ref.watch(currentUserIdProvider) ?? '';
+    final myProposalAsync =
+        ref.watch(workerProposalForJobProvider((job.id, currentUserId)));
+    final hasMyProposal = myProposalAsync.asData?.value != null;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -206,6 +213,48 @@ class _JobCard extends StatelessWidget {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (hasMyProposal) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    Chip(
+                      avatar: const Icon(Icons.check_circle_outline, size: 14),
+                      label: const Text('A tua proposta'),
+                      backgroundColor: Colors.green.shade100,
+                      labelStyle: TextStyle(
+                          fontSize: 11, color: Colors.green.shade900),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                    ),
+                    if (job.proposalCount > 1)
+                      Chip(
+                        avatar: const Icon(Icons.people_outline, size: 14),
+                        label: Text(
+                          '${job.proposalCount - 1} outra${job.proposalCount - 1 == 1 ? '' : 's'}',
+                        ),
+                        backgroundColor: Colors.orange.shade100,
+                        labelStyle: TextStyle(
+                            fontSize: 11, color: Colors.orange.shade900),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
+                  ],
+                ),
+              ] else if (job.proposalCount > 0) ...[
+                const SizedBox(height: 6),
+                Chip(
+                  avatar: const Icon(Icons.people_outline, size: 14),
+                  label: Text(
+                    '${job.proposalCount} proposta${job.proposalCount == 1 ? '' : 's'}',
+                  ),
+                  backgroundColor: Colors.orange.shade100,
+                  labelStyle: TextStyle(
+                      fontSize: 11, color: Colors.orange.shade900),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
                 ),
               ],
             ],

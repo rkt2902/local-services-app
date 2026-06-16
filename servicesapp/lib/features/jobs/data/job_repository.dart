@@ -91,6 +91,7 @@ class JobRepository {
     required double workerLng,
     required int radiusKm,
   }) async {
+
     final data = await _client.rpc('get_jobs_in_radius', params: {
       'worker_lat': workerLat,
       'worker_lng': workerLng,

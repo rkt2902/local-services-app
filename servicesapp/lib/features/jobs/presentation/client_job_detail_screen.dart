@@ -39,6 +39,53 @@ class _ClientJobDetailScreenState
   }
 
   Future<void> _cancelJob() async {
+    // Open jobs have no confirmed worker — simple confirmation, no reason picker
+    if (_job.status == JobStatus.open) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          title: const Text('Cancelar pedido?'),
+          content:
+              const Text('Tens a certeza que queres cancelar este pedido?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Voltar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Cancelar pedido'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      setState(() => _saving = true);
+      final scaffold = ScaffoldMessenger.of(context);
+      final router = GoRouter.of(context);
+      try {
+        await ref.read(jobRepositoryProvider).cancelJob(
+              jobId: _job.id,
+              reason: 'no_longer_needed',
+              reasonDetail: null,
+            );
+        ref.invalidate(clientJobsProvider);
+        ref.invalidate(pendingProposalsForJobProvider(_job.id));
+        scaffold.showSnackBar(
+            const SnackBar(content: Text('Pedido cancelado.')));
+        router.go('/client/jobs');
+      } catch (e) {
+        scaffold.showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        );
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
+      return;
+    }
+
+    // Confirmed jobs — show reason picker
     final result = await CancelJobDialog.show(context, isClient: true);
     if (result == null || !mounted) return;
 

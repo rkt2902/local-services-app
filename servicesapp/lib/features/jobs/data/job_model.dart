@@ -32,6 +32,8 @@ class JobRequest {
   final bool? rescheduleProposedFlexible;
   final String? rescheduleProposedBy;
   final RescheduleStatus? rescheduleStatus;
+  final String? cancelledWorkerId;
+  final List<String> excludedWorkerIds;
 
   const JobRequest({
     required this.id,
@@ -65,6 +67,8 @@ class JobRequest {
     this.rescheduleProposedFlexible,
     this.rescheduleProposedBy,
     this.rescheduleStatus,
+    this.cancelledWorkerId,
+    this.excludedWorkerIds = const [],
   });
 
   factory JobRequest.fromJson(Map<String, dynamic> json) => JobRequest(
@@ -112,6 +116,8 @@ class JobRequest {
             json['reschedule_proposed_flexible'] as bool?,
         rescheduleProposedBy: json['reschedule_proposed_by'] as String?,
         rescheduleStatus: RescheduleStatus.fromString(json['reschedule_status'] as String?),
+        cancelledWorkerId: json['cancelled_worker_id'] as String?,
+        excludedWorkerIds: List<String>.from(json['excluded_worker_ids'] as List? ?? []),
       );
 
   JobRequest copyWith({
@@ -146,6 +152,8 @@ class JobRequest {
     bool? rescheduleProposedFlexible,
     String? rescheduleProposedBy,
     RescheduleStatus? rescheduleStatus,
+    String? cancelledWorkerId,
+    List<String>? excludedWorkerIds,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -182,5 +190,7 @@ class JobRequest {
             rescheduleProposedFlexible ?? this.rescheduleProposedFlexible,
         rescheduleProposedBy: rescheduleProposedBy ?? this.rescheduleProposedBy,
         rescheduleStatus: rescheduleStatus ?? this.rescheduleStatus,
+        cancelledWorkerId: cancelledWorkerId ?? this.cancelledWorkerId,
+        excludedWorkerIds: excludedWorkerIds ?? this.excludedWorkerIds,
       );
 }

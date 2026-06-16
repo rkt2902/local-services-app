@@ -168,3 +168,16 @@ documentos originais; só se criam aqui se divergirem.
   Outros estados: vista única sem tabs.
 - Worker: "Os meus jobs" tem 3 tabs (Por confirmar / Agendados / Concluídos).
 - Excluídos dos workers: rejected, superseded, cancelled, no_response — são ruído.
+
+## 2026-06-15 — Bug fixes pós-testes
+- Removido trigger on_proposal_updated (duplicava notificações de aceite/rejeição
+  com as RPCs accept_proposal e reject_proposal).
+- markJobCompleted migrado para RPC mark_job_done.
+- Jobs open cancelados excluídos do histórico do cliente.
+- awaitingConfirmation movido para tab Ativos (era Histórico).
+- Cancelar job open: dialog simples sem justificação.
+- Mensagem de erro de proposta duplicada melhorada.
+- cancel_job RPC actualizado: cancelled_worker_id e excluded_worker_ids
+  para blacklist de workers após 2 cancelamentos.
+- get_jobs_in_radius exclui workers em excluded_worker_ids.
+- Storage RLS para avatars corrigida (Bug 1 — feito na BD).

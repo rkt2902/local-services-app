@@ -237,6 +237,18 @@ Só permitir avaliar jobs `completed`. Evita avaliações falsas.
 
 ---
 
+## Bugs pendentes / melhorias técnicas
+
+### Worker que cancela não vê o job reaberto
+**Contexto:** Quando um worker cancela um job confirmado e o job é reaberto,
+o worker que cancelou não devia ver o novo job na sua lista nem conseguir propor.
+**Solução:** O cancel_job RPC deve guardar o worker_id do cancelador no novo job
+(campo `cancelled_worker_id`). A query fetchJobsInRadius deve excluir jobs onde
+`cancelled_worker_id = auth.uid()`.
+**Prioridade:** Alta.
+
+---
+
 ## Como manter este ficheiro
 
 - Sempre que aparecer uma ideia boa que **não cabe na fase atual**, adicionar aqui.

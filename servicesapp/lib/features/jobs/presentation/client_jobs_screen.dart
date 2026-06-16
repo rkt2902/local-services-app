@@ -34,14 +34,15 @@ class ClientJobsScreen extends ConsumerWidget {
               final activeJobs = jobs
                   .where((j) =>
                       j.status == JobStatus.open ||
-                      j.status == JobStatus.confirmed)
+                      j.status == JobStatus.confirmed ||
+                      j.status == JobStatus.awaitingConfirmation)
                   .toList();
               final historyJobs = jobs
                   .where((j) =>
-                      j.status == JobStatus.awaitingConfirmation ||
                       j.status == JobStatus.completed ||
                       j.status == JobStatus.noResponse ||
-                      j.status == JobStatus.cancelled)
+                      (j.status == JobStatus.cancelled &&
+                          j.acceptedProposalId != null))
                   .toList();
               return TabBarView(
                 children: [
