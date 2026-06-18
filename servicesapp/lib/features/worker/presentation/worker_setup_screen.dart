@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
 import '../application/worker_providers.dart';
@@ -206,7 +207,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _saving = false);

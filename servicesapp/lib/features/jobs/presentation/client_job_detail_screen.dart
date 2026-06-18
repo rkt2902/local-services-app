@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
@@ -77,7 +78,7 @@ class _ClientJobDetailScreenState
         router.go('/client/jobs');
       } catch (e) {
         scaffold.showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
         );
       } finally {
         if (mounted) setState(() => _saving = false);
@@ -112,7 +113,7 @@ class _ClientJobDetailScreenState
       router.go('/client/jobs');
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -145,7 +146,7 @@ class _ClientJobDetailScreenState
       );
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
@@ -168,7 +169,7 @@ class _ClientJobDetailScreenState
       );
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     }
   }
@@ -184,7 +185,7 @@ class _ClientJobDetailScreenState
       );
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     }
   }
@@ -203,7 +204,7 @@ class _ClientJobDetailScreenState
       router.go('/client/jobs');
     } catch (e) {
       scaffold.showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
       if (mounted) setState(() => _accepting[proposal.id] = false);
     }
   }
@@ -408,7 +409,7 @@ class _ClientJobDetailScreenState
 
       final proposalsTab = pendingProposalsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (proposals) {
           if (proposals.isEmpty) {
             return const Center(
@@ -703,7 +704,9 @@ class _ProposalCard extends ConsumerWidget {
             ]),
             const Divider(height: 20),
             _cardRow(context, Icons.euro_outlined,
-                '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'),
+                proposal.hourlyRate > 0
+                    ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
+                    : 'Preço a definir'),
             if (estimateStr.isNotEmpty)
               _cardRow(context, Icons.calculate_outlined, estimateStr),
             if (hoursStr.isNotEmpty)

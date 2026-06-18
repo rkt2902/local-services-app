@@ -54,6 +54,8 @@ final notificationSyncProvider = Provider<void>((ref) {
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingProposalsForJobProvider);
+          ref.invalidate(jobsInRadiusProvider);
+          ref.invalidate(workerProposalForJobProvider);
         // DB trigger on_proposal_updated was removed — it was duplicating
         // proposalAccepted/proposalRejected notifications already inserted by
         // the accept_proposal and reject_proposal RPCs.

@@ -50,8 +50,9 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
     final dateText = _date == null
         ? 'Escolher data *'
         : DateFormat('dd/MM/yyyy').format(_date!);
-    final timeText =
-        _time == null ? 'Escolher hora *' : _time!.format(context);
+    final timeText = _time == null
+        ? 'Escolher hora *'
+        : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
     return AlertDialog(
       title: const Text('Propor remarcação'),

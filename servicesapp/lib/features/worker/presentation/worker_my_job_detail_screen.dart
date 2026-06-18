@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -61,7 +62,7 @@ class _WorkerMyJobDetailScreenState
       router.go('/worker/home');
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _cancellingJob = false);
@@ -88,7 +89,7 @@ class _WorkerMyJobDetailScreenState
       router.pop();
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
@@ -107,7 +108,7 @@ class _WorkerMyJobDetailScreenState
       router.pop();
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _acceptingReschedule = false);
@@ -126,7 +127,7 @@ class _WorkerMyJobDetailScreenState
       router.pop();
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _rejectingReschedule = false);
@@ -167,7 +168,7 @@ class _WorkerMyJobDetailScreenState
           const SnackBar(content: Text('Proposta retirada.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
       if (mounted) setState(() => _withdrawing = false);
     }
@@ -212,7 +213,7 @@ class _WorkerMyJobDetailScreenState
                 dialogNavigator.pop();
                 scaffold.showSnackBar(
                   SnackBar(
-                      content: Text('Erro: $e'),
+                      content: Text(friendlyError(e)),
                       backgroundColor: Colors.red),
                 );
               } finally {
@@ -345,7 +346,9 @@ class _WorkerMyJobDetailScreenState
             const SizedBox(height: 8),
             _SectionCard(children: [
               _infoRow(context, Icons.euro_outlined, 'Taxa/hora',
-                  '${widget.proposal.hourlyRate.toStringAsFixed(2)} €/h'),
+                  widget.proposal.hourlyRate > 0
+                      ? '${widget.proposal.hourlyRate.toStringAsFixed(2)} €/h'
+                      : 'Preço a definir'),
               if (widget.proposal.estimatedHoursMin != null ||
                   widget.proposal.estimatedHoursMax != null)
                 _infoRow(

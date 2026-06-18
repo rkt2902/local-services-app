@@ -5,6 +5,7 @@ import '../data/notification_types.dart';
 import '../application/notification_handler.dart';
 import '../application/notification_providers.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../../core/utils/error_utils.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -50,7 +51,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ),
       body: notificationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (notifications) {
           if (notifications.isEmpty) {
             return const Center(

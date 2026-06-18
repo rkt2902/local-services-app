@@ -5,10 +5,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
+import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
 
 class WorkerJobDetailScreen extends ConsumerStatefulWidget {
@@ -60,9 +62,10 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     final workerAsync = ref.watch(workerProfileProvider);
     final photosAsync = ref.watch(jobPhotosProvider(widget.job.id));
 
-    final userId = ref.watch(currentUserProvider)?.id ?? '';
-    final workerProposalAsync =
-        ref.watch(workerProposalForJobProvider((widget.job.id, userId)));
+    final currentUserId = ref.watch(currentUserIdProvider) ?? '';
+    final workerProposalAsync = currentUserId.isEmpty
+        ? const AsyncValue<JobProposal?>.data(null)
+        : ref.watch(workerProposalForJobProvider((widget.job.id, currentUserId)));
     final isCheckingProposal = workerProposalAsync.isLoading;
     final alreadySent = workerProposalAsync.asData?.value != null;
 
@@ -316,9 +319,8 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
     super.initState();
     _peopleController.text = '1';
     final profile = ref.read(workerProfileProvider).value;
-    if (profile?.defaultHourlyRate != null) {
-      _rateController.text =
-          profile!.defaultHourlyRate!.toStringAsFixed(2);
+    if (profile?.defaultHourlyRate != null && profile!.defaultHourlyRate! > 0) {
+      _rateController.text = profile.defaultHourlyRate!.toStringAsFixed(2);
     }
   }
 
@@ -405,7 +407,7 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
 import '../application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -56,7 +57,7 @@ class ClientHomeScreen extends ConsumerWidget {
             jobsAsync.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Erro: $e'),
+              error: (e, _) => Text(friendlyError(e)),
               data: (jobs) {
                 final activeJobs = jobs
                     .where((j) =>
@@ -74,7 +75,7 @@ class ClientHomeScreen extends ConsumerWidget {
                 return serviceTypesAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text('Erro: $e'),
+                  error: (e, _) => Text(friendlyError(e)),
                   data: (serviceTypes) => Column(
                     children: activeJobs.map((job) {
                       final serviceName = serviceTypes

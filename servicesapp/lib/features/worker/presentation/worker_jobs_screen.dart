@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
+import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
@@ -43,7 +45,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
         ),
         body: proposalsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erro: $e')),
+          error: (e, _) => Center(child: Text(friendlyError(e))),
           data: (rawList) {
             final entries = rawList
                 .where((item) => item['job_requests'] != null)
@@ -109,6 +111,7 @@ String _formatDate(DateTime? date) {
 }
 
 String _formatEstimate(double rate, double? min, double? max) {
+  if (rate <= 0) return 'Preço a definir';
   if (min != null && max != null) {
     return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
   } else if (min != null) {
@@ -135,7 +138,10 @@ class _JobList extends ConsumerWidget {
     if (items.isEmpty) {
       return LayoutBuilder(
         builder: (context, constraints) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(workerProposalsProvider),
+          onRefresh: () async {
+            ref.invalidate(workerProposalsProvider);
+            ref.invalidate(jobsInRadiusProvider);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: SizedBox(

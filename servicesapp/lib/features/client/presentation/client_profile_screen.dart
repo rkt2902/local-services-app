@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../../core/utils/error_utils.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 
@@ -130,7 +131,7 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen> {
       ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (profile) {
           if (profile == null) {
             return const Center(child: Text('Perfil não encontrado.'));

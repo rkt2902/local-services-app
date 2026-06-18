@@ -190,3 +190,11 @@ documentos originais; só se criam aqui se divergirem.
   client-side em fetchJobsInRadius — futura melhoria: mover para RPC).
 - N+1 queries nos chips da lista home eliminados: workerProposalForJobProvider
   removido de _JobCard; lista mostra apenas contagem total de propostas.
+
+## 2026-06-16 — Polish e fixes pré-8E.4
+- workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
+- proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.
+- Mensagens de erro: helper friendlyError centralizado em core/utils/error_utils.dart; substitui todos os 'Erro: $e' raw.
+- Preço €0/null: substituído por "Preço a definir" em client_job_detail, worker_my_job_detail, worker_jobs list; perfil e proposta sheet ignoram rate ≤ 0.
+- Datas verificadas: formato dd/MM/yyyy em todos os DateFormat; hora explicitamente HH:mm (padLeft) em reschedule_dialog.
+- worker_jobs_screen pull-to-refresh invalida também jobsInRadiusProvider.

@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -30,7 +31,7 @@ class WorkerHomeScreen extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(jobsInRadiusProvider),
         child: jobsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erro: $e')),
+          error: (e, _) => Center(child: Text(friendlyError(e))),
           data: (jobs) {
             if (jobs.isEmpty) {
               return LayoutBuilder(

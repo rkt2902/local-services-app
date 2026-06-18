@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/worker_providers.dart';
@@ -61,7 +62,9 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     _phoneController.text = profile.phone;
     _bioController.text = profile.bio ?? '';
     _hourlyRateController.text =
-        profile.defaultHourlyRate?.toString() ?? '';
+        (profile.defaultHourlyRate != null && profile.defaultHourlyRate! > 0)
+            ? profile.defaultHourlyRate!.toStringAsFixed(2)
+            : '';
     _radiusKm = profile.radiusKm;
     _baseLat = profile.baseLat;
     _baseLng = profile.baseLng;
@@ -226,7 +229,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Erro ao guardar: $e'),
+            content: Text(friendlyError(e)),
             backgroundColor: Colors.red),
       );
     } finally {
@@ -258,7 +261,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
       ),
       body: profileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (profile) {
           if (profile == null) {
             return const Center(child: Text('Perfil não encontrado.'));
