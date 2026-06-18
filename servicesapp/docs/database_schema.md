@@ -268,6 +268,8 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `reject_reschedule`          | Recusa remarcação, mantém data original                            |
 | `worker_has_proposal_for_job`| Helper para RLS (evita recursão infinita)                          |
 | `get_jobs_in_radius`         | Haversine — jobs abertos dentro do raio do worker                  |
+| `mark_job_done`              | Worker marca job como concluído → `awaiting_confirmation`          |
+| `confirm_job_completion`     | Cliente confirma conclusão → `completed`                           |
 
 ---
 

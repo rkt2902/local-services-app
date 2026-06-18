@@ -155,4 +155,14 @@ class JobRepository {
       return _client.storage.from('job-photos').getPublicUrl(path);
     }).toList();
   }
+
+  Future<JobRequest?> fetchJobById(String jobId) async {
+    final data = await _client
+        .from('job_requests')
+        .select()
+        .eq('id', jobId)
+        .maybeSingle();
+    if (data == null) return null;
+    return JobRequest.fromJson(data);
+  }
 }

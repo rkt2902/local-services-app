@@ -157,7 +157,10 @@ class _JobList extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(workerProposalsProvider),
+      onRefresh: () async {
+        ref.invalidate(workerProposalsProvider);
+        ref.invalidate(jobsInRadiusProvider);
+      },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),

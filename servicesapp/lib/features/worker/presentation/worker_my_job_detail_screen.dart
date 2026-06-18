@@ -244,6 +244,10 @@ class _WorkerMyJobDetailScreenState
         .watch(proposalByIdProvider(widget.proposal.id))
         .asData?.value?.status ?? widget.proposal.status;
 
+    final liveJobStatus = ref
+        .watch(jobByIdProvider(widget.job.id))
+        .asData?.value?.status ?? widget.job.status;
+
     final (statusLabel, statusColor) = _proposalStatusInfo(liveStatus);
 
     final estimate = _formatEstimate(
@@ -448,7 +452,9 @@ class _WorkerMyJobDetailScreenState
                     ),
                   ),
               ],
-              if (widget.job.confirmedDate != null) ...[
+              if ((widget.job.status == JobStatus.confirmed ||
+                      liveJobStatus == JobStatus.awaitingConfirmation) &&
+                  widget.job.confirmedDate != null) ...[
                 Text('Agendamento', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 _SectionCard(children: [
@@ -528,8 +534,8 @@ class _WorkerMyJobDetailScreenState
                 ),
                 const SizedBox(height: 16),
               ],
-              // Cancel + reschedule buttons — only when job is confirmed
-              if (widget.job.status == JobStatus.confirmed) ...[
+              // Cancel + reschedule buttons — only when job is live-confirmed
+              if (liveJobStatus == JobStatus.confirmed) ...[
                 if (widget.job.rescheduleStatus == RescheduleStatus.pending)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -567,20 +573,39 @@ class _WorkerMyJobDetailScreenState
                 ]),
                 const SizedBox(height: 16),
               ],
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _completing ? null : _markCompleted,
-                  child: _completing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Marcar como concluído'),
+              if (liveJobStatus == JobStatus.awaitingConfirmation)
+                Card(
+                  color: theme.colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      Icon(Icons.hourglass_top,
+                          color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Aguarda confirmação do cliente. Já marcaste este trabalho como concluído.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ]),
+                  ),
+                )
+              else if (liveJobStatus == JobStatus.confirmed)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _completing ? null : _markCompleted,
+                    child: _completing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Marcar como concluído'),
+                  ),
                 ),
-              ),
             ],
 
             // === REJECTED ===

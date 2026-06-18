@@ -55,8 +55,8 @@
 | 9 | Propor remarcação | Cliente ou Worker | `propose_reschedule` | outro lado → `reschedule_proposed` | `confirmed` (inalterado) | `accepted` (inalterado) |
 | 10 | Aceitar remarcação | outro lado | `accept_reschedule` | quem propôs → `reschedule_accepted` | `confirmed` (nova data) | `accepted` (inalterado) |
 | 11 | Recusar remarcação | outro lado | `reject_reschedule` | quem propôs → `reschedule_rejected` | `confirmed` (data original) | `accepted` (inalterado) |
-| 12 | Marcar concluído | Worker | UPDATE direto | Cliente → `job_marked_done` (8E.4) | `awaiting_confirmation` | `accepted` |
-| 13 | Confirmar conclusão | Cliente | UPDATE direto | Worker → `job_completed` (8E.4) | `completed` | `accepted` |
+| 12 | Marcar concluído | Worker | `mark_job_done` | Cliente → `job_marked_done` | `awaiting_confirmation` | `accepted` |
+| 13 | Confirmar conclusão | Cliente | `confirm_job_completion` | Worker → `job_completed` | `completed` | `accepted` |
 | 14 | Sem resposta 48h | Sistema | — (cron/check) | Cliente → `job_no_response` | `no_response` | — |
 
 ## Regras de cancelamento
@@ -98,10 +98,9 @@
 | `reschedule_proposed` | `clientJobsProvider`, `workerProposalsProvider` |
 | `reschedule_accepted` | `clientJobsProvider`, `workerProposalsProvider` |
 | `reschedule_rejected` | `clientJobsProvider`, `workerProposalsProvider` |
-| `job_marked_done` | `clientJobsProvider` (8E.4) |
-| `job_completed` | `workerProposalsProvider` (8E.4) |
+| `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
+| `job_completed` | `workerProposalsProvider`, `jobByIdProvider` |
 
 ## Sub-fases pendentes
 
-- **8E.4** — Conclusão a dois lados (worker marca → cliente confirma → `completed`)
 - **8E.5** — Timeline de estados no detalhe do job

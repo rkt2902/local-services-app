@@ -30,6 +30,7 @@ class _ClientJobDetailScreenState
   late JobRequest _job;
   bool _saving = false;
   bool _proposingReschedule = false;
+  bool _confirming = false;
   final Map<String, bool> _accepting = {};
   String _sortBy = 'price';
 
@@ -190,6 +191,163 @@ class _ClientJobDetailScreenState
     }
   }
 
+  Future<void> _confirmJobCompletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Confirmar conclusão'),
+        content: const Text(
+            'Confirmas que o trabalho foi concluído conforme esperado?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _confirming = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    try {
+      await ref
+          .read(proposalRepositoryProvider)
+          .confirmJobCompletion(_job.id);
+      ref.invalidate(clientJobsProvider);
+      scaffold.showSnackBar(
+        const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
+      );
+      router.go('/client/jobs');
+    } catch (e) {
+      scaffold.showSnackBar(
+        SnackBar(
+            content: Text(friendlyError(e)), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _confirming = false);
+    }
+  }
+
+  Future<void> _reportProblem() async {
+    final formKey = GlobalKey<FormState>();
+    final descController = TextEditingController();
+    final scaffold = ScaffoldMessenger.of(context);
+
+    bool submitting = false;
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+                24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Reportar problema',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Descreve o que aconteceu. A nossa equipa vai rever o caso.',
+                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrição do problema',
+                      alignLabelWithHint: true,
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().length < 10) {
+                        return 'Descreve o problema (mínimo 10 caracteres).';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            if (!formKey.currentState!.validate()) return;
+                            setSheetState(() => submitting = true);
+                            try {
+                              await ref
+                                  .read(proposalRepositoryProvider)
+                                  .reportJobProblem(
+                                    jobId: _job.id,
+                                    description: descController.text.trim(),
+                                  );
+                              if (ctx.mounted) Navigator.pop(ctx, true);
+                            } catch (e) {
+                              setSheetState(() => submitting = false);
+                              scaffold.showSnackBar(SnackBar(
+                                  content: Text(friendlyError(e)),
+                                  backgroundColor: Colors.red));
+                            }
+                          },
+                    child: submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Enviar relato'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    descController.dispose();
+    if (submitted != true || !mounted) return;
+
+    scaffold.showSnackBar(
+      const SnackBar(
+          content: Text('Relato enviado. A nossa equipa vai analisar.')),
+    );
+
+    if (!mounted) return;
+    final confirmAnyway = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Confirmar conclusão?'),
+        content: const Text(
+            'Queres confirmar a conclusão do trabalho mesmo assim?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Ainda não'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Sim, confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmAnyway == true && mounted) {
+      await _confirmJobCompletion();
+    }
+  }
+
   Future<void> _acceptProposal(JobProposal proposal) async {
     setState(() => _accepting[proposal.id] = true);
     final scaffold = ScaffoldMessenger.of(context);
@@ -224,8 +382,12 @@ class _ClientJobDetailScreenState
     final workerId = acceptedProposalAsync.asData?.value?.workerId ?? '';
     final workerInfoAsync = ref.watch(workerBasicInfoProvider(workerId));
 
+    // Live job status — falls back to static _job if not yet loaded
+    final displayJob =
+        ref.watch(jobByIdProvider(_job.id)).asData?.value ?? _job;
+
     final (statusLabel, statusColor) =
-        _statusInfo(_job.status, _job.proposalCount);
+        _statusInfo(displayJob.status, displayJob.proposalCount);
 
     final statusBadge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -400,7 +562,7 @@ class _ClientJobDetailScreenState
 
     // ── Open status: two-tab layout ─────────────────────────────────────────
 
-    if (_job.status == JobStatus.open) {
+    if (displayJob.status == JobStatus.open) {
       final proposalTabLabel = pendingProposalsAsync.when(
         data: (list) => 'Propostas (${list.length})',
         loading: () => 'Propostas',
@@ -501,7 +663,7 @@ class _ClientJobDetailScreenState
 
     // ── Confirmed status: contact + cancel/reschedule buttons ────────────────
 
-    if (_job.status == JobStatus.confirmed) {
+    if (displayJob.status == JobStatus.confirmed) {
       detailChildren.add(
         workerInfoAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -639,6 +801,61 @@ class _ClientJobDetailScreenState
               ],
             );
           },
+        ),
+      );
+    }
+
+    // ── Awaiting confirmation: worker marked done, client confirms or reports ──
+
+    if (displayJob.status == JobStatus.awaitingConfirmation) {
+      detailChildren.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.task_alt,
+                            color: theme.colorScheme.primary, size: 24),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'O prestador marcou este trabalho como concluído',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Confirma se o trabalho foi feito conforme esperado.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _confirming ? null : _confirmJobCompletion,
+              style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary),
+              icon: const Icon(Icons.check_circle_outline),
+              label: const Text('Confirmar conclusão'),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _confirming ? null : _reportProblem,
+              icon: const Icon(Icons.flag_outlined),
+              label: const Text('Reportar problema'),
+            ),
+          ],
         ),
       );
     }

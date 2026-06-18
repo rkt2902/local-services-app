@@ -20,5 +20,12 @@ String friendlyError(Object e) {
       msg.contains('insufficient_privilege')) {
     return 'Não tens permissão para esta ação.';
   }
+  if (msg.contains('não autorizado') ||
+      msg.contains('não está a aguardar') ||
+      msg.contains('not authorized') ||
+      msg.contains('invalid state') ||
+      msg.contains('estado inválido')) {
+    return 'Esta ação já não é válida — o estado do pedido pode ter mudado. Atualiza e tenta novamente.';
+  }
   return 'Ocorreu um erro inesperado. Tenta novamente.';
 }

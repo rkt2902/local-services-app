@@ -135,4 +135,25 @@ class ProposalRepository {
   Future<void> markJobCompleted(String jobId) async {
     await _client.rpc('mark_job_done', params: {'p_job_id': jobId});
   }
+
+  Future<void> confirmJobCompletion(String jobId) async {
+    await _client
+        .rpc('confirm_job_completion', params: {'p_job_id': jobId});
+  }
+
+  // REQUIRES: job_reports table with RLS policy allowing INSERT where
+  // reporter_id = auth.uid(). Verify this exists in Supabase before relying
+  // on this method — see docs/database_schema.md.
+  Future<void> reportJobProblem({
+    required String jobId,
+    required String description,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw Exception('Não autenticado');
+    await _client.from('job_reports').insert({
+      'job_id': jobId,
+      'reporter_id': userId,
+      'description': description,
+    });
+  }
 }

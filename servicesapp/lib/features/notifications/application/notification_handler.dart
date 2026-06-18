@@ -35,10 +35,15 @@ class NotificationHandler {
         }
       case NotificationType.jobMarkedDone:
       case NotificationType.jobCompleted:
+        final session = ref.read(sessionStatusProvider).asData?.value;
+        if (session?.role == UserRole.client) {
+          context.go('/client/jobs');
+        } else {
+          context.go('/worker/home');
+        }
       case NotificationType.jobNoResponse:
         break;
-      default:
-        break;
+      // unreachable: all NotificationType cases handled above
     }
   }
 }

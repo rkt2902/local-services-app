@@ -26,6 +26,11 @@ final jobPhotosProvider =
   return ref.read(jobRepositoryProvider).fetchJobPhotos(jobId);
 });
 
+final jobByIdProvider =
+    FutureProvider.family<JobRequest?, String>((ref, jobId) async {
+  return ref.read(jobRepositoryProvider).fetchJobById(jobId);
+});
+
 final jobsInRadiusProvider = FutureProvider<List<JobRequest>>((ref) async {
   final workerProfile = await ref.watch(workerProfileProvider.future);
   if (workerProfile == null) return [];

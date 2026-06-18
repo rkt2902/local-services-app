@@ -191,6 +191,14 @@ documentos originais; só se criam aqui se divergirem.
 - N+1 queries nos chips da lista home eliminados: workerProposalForJobProvider
   removido de _JobCard; lista mostra apenas contagem total de propostas.
 
+## 2026-06-18 — Fase 8E.4 — Conclusão a dois lados
+- proposal_repository: confirmJobCompletion (confirm_job_completion RPC) e reportJobProblem (insert em job_reports).
+- job_repository: fetchJobById; job_providers: jobByIdProvider (FutureProvider.family).
+- client_job_detail_screen: secção awaiting_confirmation — card informativo + botão confirmar (AlertDialog → RPC → go('/client/jobs')) + botão reportar problema (ModalBottomSheet com StatefulBuilder → RPC → snackbar → follow-up dialog).
+- worker_my_job_detail_screen: liveJobStatus via jobByIdProvider; awaiting_confirmation mostra card "Aguarda confirmação do cliente"; confirmed mostra botão "Marcar como concluído".
+- notification_providers: jobMarkedDone invalida clientJobsProvider + jobByIdProvider; jobCompleted invalida workerProposalsProvider + jobByIdProvider.
+- notification_handler: jobMarkedDone e jobCompleted navegam para /client/jobs ou /worker/home conforme role.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.
