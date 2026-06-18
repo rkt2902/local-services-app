@@ -24,65 +24,24 @@ import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/proposals/data/proposal_model.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final refresh = ValueNotifier(0);
+  final notifier = RouterNotifier(ref);
 
-  ref.listen(sessionStatusProvider, (prev, next) {
-    if (!next.isLoading) refresh.value++;
-  });
-
-  ref.onDispose(refresh.dispose);
+  ref.onDispose(notifier.dispose);
 
   return GoRouter(
     initialLocation: '/loading',
     debugLogDiagnostics: true,
-    refreshListenable: refresh,
-    redirect: (context, state) {
-      final sessionAsync = ref.read(sessionStatusProvider);
-      final loc = state.matchedLocation;
-      final publicRoutes = ['/', '/login', '/signup'];
-
-      if (sessionAsync.isLoading) {
-        return loc == '/loading' ? null : '/loading';
-      }
-      final session = sessionAsync.value;
-      if (session == null || session.isLoading) {
-        return loc == '/loading' ? null : '/loading';
-      }
-
-      if (!session.isAuthenticated) {
-        const unauthAllowed = ['/', '/login', '/signup', '/choose-role'];
-        return unauthAllowed.contains(loc) ? null : '/';
-      }
-
-      if (session.role == null) {
-        const allowed = ['/choose-role', '/signup', '/login', '/'];
-        return allowed.contains(loc) ? null : '/choose-role';
-      }
-
-      if (session.role!.value == 'client') {
-        if (loc.startsWith('/client/')) return null;
-        if (publicRoutes.contains(loc) || loc == '/choose-role') {
-          return '/client/home';
-        }
-        return null;
-      }
-
-      if (!session.workerProfileComplete) {
-        return loc == '/worker/setup' ? null : '/worker/setup';
-      }
-
-      if (loc == '/worker/setup' ||
-          publicRoutes.contains(loc) ||
-          loc == '/choose-role') {
-        return '/worker/home';
-      }
-      return null;
-    },
+    refreshListenable: notifier,
+    redirect: notifier.redirect,
     routes: [
       GoRoute(
         path: '/loading',
         builder: (_, _) => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF2E7D32),
+            ),
+          ),
         ),
       ),
       GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
@@ -157,6 +116,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen(sessionStatusProvider, (prev, next) => notifyListeners());
+  }
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final sessionAsync = _ref.read(sessionStatusProvider);
+    final loc = state.matchedLocation;
+
+    if (sessionAsync.isLoading) {
+      return loc == '/loading' ? null : '/loading';
+    }
+
+    final session = sessionAsync.asData?.value;
+    final isAuthenticated = session?.isAuthenticated ?? false;
+    final role = session?.role;
+    final workerProfileComplete = session?.workerProfileComplete ?? false;
+
+    if (!isAuthenticated) {
+      const publicRoutes = ['/', '/login', '/signup', '/loading'];
+      return publicRoutes.contains(loc) ? null : '/';
+    }
+
+    if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup') {
+      if (role?.value == 'worker') {
+        if (workerProfileComplete) return '/worker/home';
+        return '/worker/setup';
+      }
+      return '/client/home';
+    }
+
+    if (role?.value == 'worker' && !workerProfileComplete) {
+      if (loc == '/worker/setup') return null;
+      return '/worker/setup';
+    }
+
+    return null;
+  }
+}
 
 class _PlaceholderScreen extends StatelessWidget {
   const _PlaceholderScreen(this.title);
