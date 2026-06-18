@@ -52,7 +52,7 @@ class _WorkerMyJobDetailScreenState
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
           );
-      ref.invalidate(workerProposalsProvider);
+      invalidateAllWorkerProposalProviders(ref);
       ref.invalidate(jobsInRadiusProvider);
       scaffold.showSnackBar(SnackBar(
         content: Text(newJobId != null
@@ -83,7 +83,7 @@ class _WorkerMyJobDetailScreenState
             newTime: result['time'] as String?,
             newFlexible: result['flexible'] as bool,
           );
-      ref.invalidate(workerProposalsProvider);
+      ref.invalidate(scheduledWorkerProposalsProvider);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação enviada.')));
       router.pop();
@@ -102,7 +102,7 @@ class _WorkerMyJobDetailScreenState
     final router = GoRouter.of(context);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(widget.job.id);
-      ref.invalidate(workerProposalsProvider);
+      ref.invalidate(scheduledWorkerProposalsProvider);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Nova data aceite.')));
       router.pop();
@@ -121,7 +121,7 @@ class _WorkerMyJobDetailScreenState
     final router = GoRouter.of(context);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(widget.job.id);
-      ref.invalidate(workerProposalsProvider);
+      ref.invalidate(scheduledWorkerProposalsProvider);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação recusada.')));
       router.pop();
@@ -162,7 +162,7 @@ class _WorkerMyJobDetailScreenState
       await ref
           .read(proposalRepositoryProvider)
           .withdrawProposal(widget.proposal.id, widget.job.id);
-      ref.invalidate(workerProposalsProvider);
+      ref.invalidate(pendingWorkerProposalsProvider);
       router.pop();
       scaffold.showSnackBar(
           const SnackBar(content: Text('Proposta retirada.')));
@@ -201,7 +201,8 @@ class _WorkerMyJobDetailScreenState
                 await ref
                     .read(proposalRepositoryProvider)
                     .markJobCompleted(widget.job.id);
-                ref.invalidate(workerProposalsProvider);
+                ref.invalidate(scheduledWorkerProposalsProvider);
+                ref.invalidate(completedWorkerProposalsProvider);
                 ref.invalidate(jobsInRadiusProvider);
                 dialogNavigator.pop();
                 router.go('/worker/home');

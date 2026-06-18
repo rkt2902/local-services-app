@@ -115,14 +115,77 @@ class ProposalRepository {
     });
   }
 
-  Future<List<Map<String, dynamic>>> fetchWorkerProposalsWithJobs(
+  Future<List<Map<String, dynamic>>> fetchPendingWorkerProposals(
       String workerId) async {
     final data = await _client
         .from('job_proposals')
         .select('*, job_requests!job_proposals_job_id_fkey(*)')
         .eq('worker_id', workerId)
+        .eq('status', 'pending')
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchScheduledWorkerProposals(
+      String workerId) async {
+    final data = await _client
+        .from('job_proposals')
+        .select('*, job_requests!job_proposals_job_id_fkey(*)')
+        .eq('worker_id', workerId)
+        .eq('status', 'accepted')
+        .order('created_at', ascending: false);
+
+    return (data as List)
+        .cast<Map<String, dynamic>>()
+        .where((item) {
+          final jobData = item['job_requests'] as Map<String, dynamic>?;
+          if (jobData == null) return false;
+          final jobStatus = jobData['status'] as String?;
+          return jobStatus == 'confirmed' || jobStatus == 'awaiting_confirmation';
+        })
+        .toList()
+      ..sort((a, b) {
+          final aDate =
+              (a['job_requests'] as Map?)?['confirmed_date'] as String?;
+          final bDate =
+              (b['job_requests'] as Map?)?['confirmed_date'] as String?;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return aDate.compareTo(bDate);
+        });
+  }
+
+  // TODO: Move completed filter to DB via RPC to avoid fetching non-completed
+  // rows into the page range — client-side filter means pages may have fewer
+  // items than pageSize even when more pages exist.
+  Future<List<Map<String, dynamic>>> fetchCompletedWorkerProposals(
+    String workerId, {
+    int page = 0,
+    int pageSize = 20,
+  }) async {
+    final data = await _client
+        .from('job_proposals')
+        .select('*, job_requests!job_proposals_job_id_fkey(*)')
+        .eq('worker_id', workerId)
+        .eq('status', 'accepted')
+        .order('created_at', ascending: false)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    return (data as List)
+        .cast<Map<String, dynamic>>()
+        .where((item) {
+          final jobData = item['job_requests'] as Map<String, dynamic>?;
+          if (jobData == null) return false;
+          return jobData['status'] == 'completed';
+        })
+        .toList();
+  }
+
+  @Deprecated('Use fetchPendingWorkerProposals instead.')
+  Future<List<Map<String, dynamic>>> fetchWorkerProposalsWithJobs(
+      String workerId) async {
+    return fetchPendingWorkerProposals(workerId);
   }
 
   Future<void> withdrawProposal(String proposalId, String jobId) async {

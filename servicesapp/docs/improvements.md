@@ -246,6 +246,18 @@ outra para proposals do worker — e filtra client-side. Pode ser uma query só.
 na query SQL para excluir jobs onde o worker já tem proposta pending.
 **Prioridade:** Média.
 
+### fetchCompletedWorkerProposals: mover filtro para BD
+**Contexto:** A query usa `.range(page * pageSize, ...)` antes de filtrar `job_requests.status == 'completed'` client-side. Páginas podem ter menos items que `pageSize` mesmo quando há mais páginas, levando o utilizador a não carregar mais quando ainda existem dados.
+**Solução:** Criar RPC `get_completed_worker_proposals(p_worker_id, p_limit, p_offset)` que filtra por `status = 'accepted'` E `job_requests.status = 'completed'` antes de paginar — garantindo que o `LIMIT` se aplica após o filtro.
+**Prioridade:** Média — afeta UX da paginação em workers com histórico longo.
+
+### Paginação nas tabs Por confirmar e Agendados
+**Contexto:** Actualmente sem limite. Para workers muito activos com muitas
+propostas pendentes, pode ficar lento.
+**Solução:** Adicionar paginação igual à tab Concluídos quando houver dados reais
+que justifiquem (>50 items por tab).
+**Prioridade:** Baixa — resolver quando houver utilizadores reais com volume alto.
+
 ---
 
 ## Bugs pendentes / melhorias técnicas

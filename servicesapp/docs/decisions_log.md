@@ -199,6 +199,22 @@ documentos originais; só se criam aqui se divergirem.
 - notification_providers: jobMarkedDone invalida clientJobsProvider + jobByIdProvider; jobCompleted invalida workerProposalsProvider + jobByIdProvider.
 - notification_handler: jobMarkedDone e jobCompleted navegam para /client/jobs ou /worker/home conforme role.
 
+## 2026-06-18 — Performance: notificações e workerProposals
+- notificationsStreamProvider filtra só não lidas: stream leve, não dispara ao marcar lidas.
+- allNotificationsProvider: fetch estático para histórico completo no ecrã de notificações.
+- Ecrã de notificações: secções "Novas" / "Anteriores", botão "Limpar" manual.
+- workerProposalsProvider dividido em 3 providers por tab (pending/scheduled/completed).
+- Tab Concluídos paginada (20 items por página, "Carregar mais").
+- Filtragem movida para a BD (queries focadas por estado).
+
+## 2026-06-18 — Performance review fixes
+- fetchScheduledWorkerProposals e fetchCompletedWorkerProposals: filtro client-side em vez de joined column filter (comportamento Supabase Dart não verificado para embedded resources).
+- invalidateAllWorkerProposalProviders helper criado para invalidar os 3 providers em conjunto.
+- worker_my_job_detail_screen: todas as 6 invalidações corrigidas para os providers corretos por ação.
+- Paginação: ref.listen em worker_jobs_screen.dart reseta estado quando provider é invalidado externamente.
+- "Limpar" notificações: _optimisticClear elimina flash de lista vazia entre tap e resposta da BD.
+- allNotificationsProvider invalidado no final de cada ciclo de notificationSyncProvider.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.

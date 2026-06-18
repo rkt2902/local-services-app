@@ -12,6 +12,20 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
 
+List<(JobProposal, JobRequest)> _parseEntries(
+    List<Map<String, dynamic>> raw) {
+  return raw
+      .where((m) => m['job_requests'] != null)
+      .map((m) {
+        final job = JobRequest.fromJson(
+            Map<String, dynamic>.from(m['job_requests'] as Map));
+        final proposal =
+            JobProposal.fromJson(Map<String, dynamic>.from(m));
+        return (proposal, job);
+      })
+      .toList();
+}
+
 class WorkerJobsScreen extends ConsumerStatefulWidget {
   const WorkerJobsScreen({super.key});
 
@@ -20,15 +34,95 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.invalidate(workerProposalsProvider));
+  final List<(JobProposal, JobRequest)> _additionalCompleted = [];
+  int _currentCompletedPage = 0;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+
+  Future<void> _onRefresh() async {
+    setState(() {
+      _additionalCompleted.clear();
+      _currentCompletedPage = 0;
+      _hasMore = true;
+    });
+    ref.invalidate(pendingWorkerProposalsProvider);
+    ref.invalidate(scheduledWorkerProposalsProvider);
+    ref.invalidate(completedWorkerProposalsProvider(0));
+    ref.invalidate(jobsInRadiusProvider);
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    final nextPage = _currentCompletedPage + 1;
+    try {
+      final raw =
+          await ref.read(completedWorkerProposalsProvider(nextPage).future);
+      if (!mounted) return;
+      final parsed = _parseEntries(raw);
+      setState(() {
+        _currentCompletedPage = nextPage;
+        _additionalCompleted.addAll(parsed);
+        _hasMore = parsed.length >= 20;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Widget _buildTabBody({
+    required AsyncValue<List<Map<String, dynamic>>> async,
+    required String emptyText,
+  }) {
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text(friendlyError(e))),
+      data: (raw) => _JobList(
+        items: _parseEntries(raw),
+        emptyText: emptyText,
+        onRefresh: _onRefresh,
+      ),
+    );
+  }
+
+  Widget _buildCompletedTab(
+      AsyncValue<List<Map<String, dynamic>>> completedAsync) {
+    return completedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text(friendlyError(e))),
+      data: (raw) {
+        final page0Items = _parseEntries(raw);
+        final allItems = [...page0Items, ..._additionalCompleted];
+        final showLoadMore = allItems.length >= 20 && _hasMore;
+        return _JobList(
+          items: allItems,
+          emptyText: 'Ainda não tens trabalhos concluídos.',
+          onRefresh: _onRefresh,
+          onLoadMore: showLoadMore ? _loadMore : null,
+          loadingMore: _loadingMore,
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final proposalsAsync = ref.watch(workerProposalsProvider);
+    final pendingAsync = ref.watch(pendingWorkerProposalsProvider);
+    final scheduledAsync = ref.watch(scheduledWorkerProposalsProvider);
+    final completedAsync = ref.watch(completedWorkerProposalsProvider(0));
+
+    // Reset pagination state whenever page 0 is invalidated externally
+    // (e.g. by notificationSyncProvider) so stale pages don't mix with fresh data.
+    ref.listen(completedWorkerProposalsProvider(0), (prev, next) {
+      if (next.isLoading && mounted) {
+        setState(() {
+          _additionalCompleted.clear();
+          _currentCompletedPage = 0;
+          _hasMore = true;
+        });
+      }
+    });
 
     return DefaultTabController(
       length: 3,
@@ -43,55 +137,18 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
             ],
           ),
         ),
-        body: proposalsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(friendlyError(e))),
-          data: (rawList) {
-            final entries = rawList
-                .where((item) => item['job_requests'] != null)
-                .map((item) {
-                  final job = JobRequest.fromJson(
-                      Map<String, dynamic>.from(item['job_requests'] as Map));
-                  final proposal = JobProposal.fromJson(
-                      Map<String, dynamic>.from(item));
-                  return (proposal, job);
-                })
-                .toList();
-
-            final pending = entries
-                .where((e) => e.$1.status == ProposalStatus.pending)
-                .toList();
-
-            final scheduled = entries
-                .where((e) =>
-                    e.$1.status == ProposalStatus.accepted &&
-                    (e.$2.status == JobStatus.confirmed ||
-                        e.$2.status == JobStatus.awaitingConfirmation))
-                .toList();
-
-            final done = entries
-                .where((e) =>
-                    e.$1.status == ProposalStatus.accepted &&
-                    e.$2.status == JobStatus.completed)
-                .toList();
-
-            return TabBarView(
-              children: [
-                _JobList(
-                  items: pending,
-                  emptyText: 'Nenhuma proposta a aguardar resposta.',
-                ),
-                _JobList(
-                  items: scheduled,
-                  emptyText: 'Sem trabalhos agendados.',
-                ),
-                _JobList(
-                  items: done,
-                  emptyText: 'Ainda não tens trabalhos concluídos.',
-                ),
-              ],
-            );
-          },
+        body: TabBarView(
+          children: [
+            _buildTabBody(
+              async: pendingAsync,
+              emptyText: 'Nenhuma proposta a aguardar resposta.',
+            ),
+            _buildTabBody(
+              async: scheduledAsync,
+              emptyText: 'Sem trabalhos agendados.',
+            ),
+            _buildCompletedTab(completedAsync),
+          ],
         ),
       ),
     );
@@ -125,8 +182,17 @@ String _formatEstimate(double rate, double? min, double? max) {
 class _JobList extends ConsumerWidget {
   final List<(JobProposal, JobRequest)> items;
   final String emptyText;
+  final Future<void> Function() onRefresh;
+  final VoidCallback? onLoadMore;
+  final bool loadingMore;
 
-  const _JobList({required this.items, required this.emptyText});
+  const _JobList({
+    required this.items,
+    required this.emptyText,
+    required this.onRefresh,
+    this.onLoadMore,
+    this.loadingMore = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -138,10 +204,7 @@ class _JobList extends ConsumerWidget {
     if (items.isEmpty) {
       return LayoutBuilder(
         builder: (context, constraints) => RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(workerProposalsProvider);
-            ref.invalidate(jobsInRadiusProvider);
-          },
+          onRefresh: onRefresh,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: SizedBox(
@@ -156,16 +219,35 @@ class _JobList extends ConsumerWidget {
       );
     }
 
+    final showFooter = onLoadMore != null || loadingMore;
+
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(workerProposalsProvider);
-        ref.invalidate(jobsInRadiusProvider);
-      },
+      onRefresh: onRefresh,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        itemCount: items.length,
+        itemCount: items.length + (showFooter ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == items.length) {
+            if (loadingMore) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: TextButton(
+                  onPressed: onLoadMore,
+                  child: const Text('Carregar mais'),
+                ),
+              ),
+            );
+          }
+
           final (proposal, job) = items[index];
           final serviceType =
               serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;

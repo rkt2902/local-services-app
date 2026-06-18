@@ -29,13 +29,28 @@ class NotificationRepository {
         .eq('read', false);
   }
 
+  /// Streams only unread notifications — keeps the channel lightweight and
+  /// ensures the badge count shrinks automatically when items are marked read.
   Stream<List<AppNotification>> streamNotifications(String userId) {
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .order('created_at', ascending: false)
-        .limit(50)
-        .map((data) => data.map((e) => AppNotification.fromJson(e)).toList());
+        .map((data) => data
+            .map((e) => AppNotification.fromJson(e))
+            .where((n) => !n.read)
+            .toList());
+  }
+
+  /// One-time fetch of the full history (read + unread) for the history screen.
+  Future<List<AppNotification>> fetchAllNotifications(String userId) async {
+    final data = await _client
+        .from('notifications')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (data as List).map((e) => AppNotification.fromJson(e)).toList();
   }
 }

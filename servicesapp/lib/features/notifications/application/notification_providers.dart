@@ -11,13 +11,21 @@ final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => NotificationRepository(ref.watch(supabaseClientProvider)),
 );
 
-/// Stream of all notifications for the current user.
-/// Used by both the notification screen and the badge counter.
+/// Stream of unread notifications — drives the badge counter and "Novas" section.
 final notificationsStreamProvider =
     StreamProvider<List<AppNotification>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return Stream.empty();
   return ref.read(notificationRepositoryProvider).streamNotifications(user.id);
+});
+
+/// Full history (read + unread) — used by the notifications screen.
+final allNotificationsProvider = FutureProvider<List<AppNotification>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  return ref
+      .read(notificationRepositoryProvider)
+      .fetchAllNotifications(user.id);
 });
 
 /// Unread count — derived from the stream, used for the badge.
@@ -27,7 +35,7 @@ final unreadCountProvider = Provider<int>((ref) {
   return notifications.where((n) => !n.read).length;
 });
 
-/// Side-effect provider: invalidates data providers when notifications arrive.
+/// Side-effect provider: invalidates data providers when new notifications arrive.
 /// Keep this provider watched in the app root (App widget).
 final notificationSyncProvider = Provider<void>((ref) {
   ref.listen(notificationsStreamProvider, (prev, next) {
@@ -49,51 +57,59 @@ final notificationSyncProvider = Provider<void>((ref) {
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingProposalsForJobProvider);
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
         case NotificationType.proposalWithdrawn:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingProposalsForJobProvider);
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(workerProposalForJobProvider);
-        // DB trigger on_proposal_updated was removed — it was duplicating
-        // proposalAccepted/proposalRejected notifications already inserted by
-        // the accept_proposal and reject_proposal RPCs.
-        // These notification types now come exclusively from those RPCs.
         case NotificationType.proposalAccepted:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(proposalByIdProvider);
           ref.invalidate(workerProposalForJobProvider);
         case NotificationType.proposalRejected:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(proposalByIdProvider);
         case NotificationType.jobCancelled:
         case NotificationType.jobReopened:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(jobsInRadiusProvider);
         case NotificationType.rescheduleProposed:
         case NotificationType.rescheduleAccepted:
         case NotificationType.rescheduleRejected:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
         case NotificationType.jobMarkedDone:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobCompleted:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
-          ref.invalidate(workerProposalsProvider);
+          ref.invalidate(scheduledWorkerProposalsProvider);
+          ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobNoResponse:
           break;
       }
     }
+    ref.invalidate(allNotificationsProvider);
   });
 });
