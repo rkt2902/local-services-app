@@ -84,6 +84,72 @@ provavelmente sobrevive ao redesign mesmo que o widget visual mude por completo.
 **Ideia:** URL público `/p/<worker-slug>` com perfil, fotos, avaliações, serviços, zona. Cada partilha é aquisição grátis.
 **Prioridade:** Alta — pós-MVP.
 
+### Perfil de worker visitável (em camadas)
+**Contexto:** Hoje o perfil do worker só é visível ao cliente depois de job
+confirmado, e não há ecrã read-only — só o ecrã de edição do próprio worker.
+Visão de produto: tornar o perfil um "cartão de visita a sério" dentro da
+app, com 3 camadas progressivas.
+
+**Camada 1 — Perfil visitável (sem dependências externas, pode iniciar
+quando quiser):**
+- RLS: cliente vê worker_profiles desde proposta `pending` (não só
+  `accepted` como hoje); bidirecional — worker vê profiles do cliente
+  desde `pending` também.
+- UI: um único ecrã `worker_profile_screen` com dois modos — "próprio"
+  (mostra botão editar) vs "visitante" (read-only), decidido por
+  `profile_id == auth.uid()`. Evita duplicar estrutura visual em dois ecrãs.
+- Conteúdo: foto, área de atuação (raio/zona), ferramentas, tipos de
+  trabalho, avaliações (estrelas + comentários).
+- Sem selo de "verificado" — só existe Nível 1 (telefone) implementado;
+  um selo agora seria enganador. Esperar pelo Nível 2 (documento de
+  identidade, já listado como Alta prioridade noutro item deste ficheiro).
+- Risco identificado a resolver no design técnico: a query do perfil
+  público NÃO deve expor `base_lat`/`base_lng` (localização base exata do
+  worker) mesmo que a RLS permita — filtrar isso ao nível da query/DTO,
+  não confiar só na RLS.
+- Navegação: clicável a partir do card de proposta (cliente) e do card de
+  job/cliente associado (worker).
+
+**Camada 2 — Portfólio de trabalhos:** extensão do perfil da Camada 1.
+Worker publica fotos de trabalhos feitos, separadas das fotos de jobs
+individuais (campo `photos` já existe em worker_profiles — dar-lhe secção
+própria com legendas/datas). Depende da Camada 1 estar pronta.
+
+**Camada 3 — Feed na home:** mostrar workers próximos/recomendados na
+página inicial do cliente. Depende de 1 e 2 estarem prontas e testadas com
+utilizadores reais — decisões de produto novas em aberto (critério de
+ordenação: proximidade? categoria? reputação?) ficam para quando lá
+chegarmos, não decidir agora.
+
+**Prioridade:** Camada 1 pode avançar a qualquer momento (sem bloqueios
+externos). Camadas 2 e 3 são sequenciais a partir daí.
+**Relacionado:** sobrepõe-se parcialmente com o item já existente "Perfil
+público partilhável" (URL /p/<worker-slug>) — esse item é sobre partilha
+FORA da app; esta Camada 1 é sobre visibilidade DENTRO da app. A estrutura
+de dados do perfil pode ser partilhada entre os dois quando ambos avançarem.
+
+### Carteira digital de cartões (combustível/seguro)
+**Contexto:** Visão de longo prazo do programa de benefícios (ver
+business_strategy.md secção 2) — quando uma parceria real for fechada
+(Prio/BP/Galp para combustível, MDS/Fidelidade para seguro), o worker deve
+poder guardar o cartão na app em vez de andar com o cartão físico.
+**Decisão de scope (2026-06-19):** sem integração NFC real nem emissão de
+pagamento (exigiria certificação com rede de cartões/Google Wallet — fora
+de questão para este produto). Versão viável: "carteira digital" simples —
+foto do cartão (frente/verso) + campos de texto livre (nome dado pelo
+worker, tipo de cartão, número opcional). Mostrado em full-screen para
+leitura manual por um funcionário — sem qualquer leitura eletrónica.
+**Dependência real:** bloqueado por decisão de NEGÓCIO, não técnica — precisa
+de pelo menos uma parceria de benefícios fechada (business_strategy.md
+secção 2, todas "Estado: Ideia" atualmente) antes de desenhar a estrutura
+final, porque o formato do cartão real só se sabe depois de negociar com
+o parceiro.
+**Modelo de dados (rascunho, não implementar):** tabela worker_benefit_cards
+(id, worker_id, card_type, label, photo_front_url, photo_back_url nullable,
+card_number nullable, created_at).
+**Prioridade:** Pós-MVP — não avançar antes de fechar pelo menos uma
+parceria real.
+
 ### Orçamento por projeto
 **Contexto:** Hoje só temos preço/hora. Trabalhos grandes (relvado novo, sistema de rega) precisam de orçamento fechado.
 **Ideia:** Novo tipo de pedido "Orçamento", worker envia proposta com valor total + descrição.

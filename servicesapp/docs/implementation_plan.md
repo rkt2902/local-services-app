@@ -80,6 +80,9 @@
 - [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
 
 ### Fase 9 — Equipa e ajudantes
+> Design de dados aprovado em 2026-06-19 (ver decisions_log.md) — implementação
+> aguarda sessão de design de UI/notificações antes de avançar para código.
+
 - [ ] Feature `help_requests/`: pedir ajudantes (worker principal),
       aprovação da equipa pelo client antes de confirmar.
 - [ ] Listagem de help_requests no raio (workers candidatos).

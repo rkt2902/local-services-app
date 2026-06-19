@@ -107,17 +107,20 @@ enum RescheduleStatus {
 }
 
 enum HelpRequestStatus {
+  pendingApproval,
   open,
   filled,
   cancelled;
 
   String get value => switch (this) {
+        HelpRequestStatus.pendingApproval => 'pending_approval',
         HelpRequestStatus.open => 'open',
         HelpRequestStatus.filled => 'filled',
         HelpRequestStatus.cancelled => 'cancelled',
       };
 
   static HelpRequestStatus fromValue(String value) => switch (value) {
+        'pending_approval' => HelpRequestStatus.pendingApproval,
         'open' => HelpRequestStatus.open,
         'filled' => HelpRequestStatus.filled,
         'cancelled' => HelpRequestStatus.cancelled,

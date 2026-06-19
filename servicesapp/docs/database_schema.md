@@ -43,7 +43,9 @@
 `availability` — disponibilidade descrita em texto livre (`availability_text`)
 
 ### help_request_status
-`open` | `filled` | `cancelled`
+`pending_approval` | `open` | `filled` | `cancelled`
+
+> `pending_approval`: usado quando `created_post_confirmation = true` — o help_request fica invisível a candidatos até o cliente aprovar via `approve_help_request`. Jobs criados como parte da proposta original aceite começam diretamente em `open`.
 
 ### help_acceptance_status
 `accepted` | `cancelled`
@@ -186,6 +188,8 @@ Propostas de workers para jobs.
 | created_at           | timestamptz |                                                            |
 | updated_at           | timestamptz |                                                            |
 
+> **`people_needed` e estimativa de custo:** quando `people_needed > 1`, a app exibe ao cliente uma estimativa do custo dos ajudantes: `(people_needed - 1) × hourly_rate × 0.7 × estimated_hours` (taxa padrão de 70% do principal por ajudante sem equipamento próprio). Valor sempre apresentado como estimativa — o custo real depende de quantos ajudantes levam equipamento e do `agreed_rate` registado em cada `help_acceptance`. Não requer coluna nova; calculado no cliente em tempo de exibição.
+
 ### job_reports
 Relatos de problemas submetidos por utilizadores após conclusão do trabalho. Para revisão manual pela equipa.
 
@@ -222,25 +226,29 @@ Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
 ### help_requests
 Pedido de ajudantes feito pelo worker principal.
 
-| coluna       | tipo        | notas                              |
-|--------------|-------------|------------------------------------|
-| id           | uuid PK     |                                    |
-| job_id       | uuid        | FK → `job_requests.id`             |
-| proposal_id  | uuid        | FK → `job_proposals.id`            |
-| slots_needed | int         | nº de ajudantes pedidos            |
-| status       | text        | CHECK in help_request_status       |
-| created_at   | timestamptz |                                    |
+| coluna                    | tipo        | notas                                                                          |
+|---------------------------|-------------|--------------------------------------------------------------------------------|
+| id                        | uuid PK     |                                                                                |
+| job_id                    | uuid        | FK → `job_requests.id`                                                         |
+| proposal_id               | uuid        | FK → `job_proposals.id`                                                        |
+| slots_needed              | int         | nº de ajudantes pedidos                                                        |
+| status                    | text        | CHECK in help_request_status                                                   |
+| equipment_required        | boolean     | default false — o helper deve trazer equipamento próprio                       |
+| created_post_confirmation | boolean     | default false — true se criado após job `confirmed` (implica `pending_approval`) |
+| created_at                | timestamptz |                                                                                |
 
 ### help_acceptances
 Ajudantes que aceitaram.
 
-| coluna           | tipo        | notas                                |
-|------------------|-------------|--------------------------------------|
-| id               | uuid PK     |                                      |
-| help_request_id  | uuid        | FK → `help_requests.id`              |
-| worker_id        | uuid        | FK → `worker_profiles.profile_id`    |
-| status           | text        | CHECK in help_acceptance_status      |
-| created_at       | timestamptz |                                      |
+| coluna           | tipo        | notas                                                                                   |
+|------------------|-------------|-----------------------------------------------------------------------------------------|
+| id               | uuid PK     |                                                                                         |
+| help_request_id  | uuid        | FK → `help_requests.id`                                                                 |
+| worker_id        | uuid        | FK → `worker_profiles.profile_id`                                                       |
+| status           | text        | CHECK in help_acceptance_status                                                         |
+| agreed_rate      | numeric     | not null — rate acordado no momento da aceitação (nunca recalculado a posteriori)       |
+| brought_equipment| boolean     | not null — se este helper trouxe equipamento próprio                                    |
+| created_at       | timestamptz |                                                                                         |
 
 UNIQUE (`help_request_id`, `worker_id`).
 Quando #aceites = `slots_needed`, o `help_request` passa a `filled`.
@@ -283,6 +291,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `get_jobs_in_radius`         | Haversine — jobs abertos dentro do raio do worker                  |
 | `mark_job_done`              | Worker marca job como concluído → `awaiting_confirmation`          |
 | `confirm_job_completion`     | Cliente confirma conclusão → `completed`                           |
+| `approve_help_request`       | Cliente aprova um help_request `pending_approval` → passa a `open` |
 
 ---
 

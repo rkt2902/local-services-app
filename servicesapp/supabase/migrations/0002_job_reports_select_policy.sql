@@ -1,3 +1,4 @@
+
 -- ==============================================================
 -- supabase/migrations/0002_job_reports_select_policy.sql
 -- Gap found during migrations-baseline review (2026-06-19):

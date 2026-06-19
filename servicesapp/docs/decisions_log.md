@@ -269,6 +269,58 @@ A tabela de providers em `docs/state_machine.md` foi também corrigida:
 `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`,
 `completedWorkerProposalsProvider`.
 
+## 2026-06-19 — Design da Fase 9 (Equipa e ajudantes)
+Design de dados aprovado. Implementação aguarda sessão de design de UI/notificações.
+
+1. **Sem tipo de conta "helper" separado.** Qualquer worker pode candidatar-se a
+   ajudar noutro job. A diferença é por participação (brought_equipment), não por
+   tipo de pessoa.
+
+2. **Rate do ajudante determinado por equipamento.**
+   - Se `equipment_required = true` no help_request: o candidato tem obrigatoriamente
+     de trazer equipamento → rate cheio (igual ao do principal).
+   - Se `equipment_required = false`: o candidato PROPÕE se leva equipamento ou não
+     (com o rate correspondente) e o principal escolhe entre os candidatos — modelo
+     "tipo um lobby" (terminologia do Henrique). O principal decide quem aceita, não
+     é primeiro-a-chegar.
+
+3. **Critérios mistos no mesmo job resolvidos com múltiplos help_requests.**
+   Em vez de slots individuais dentro de um único help_request com critérios mistos,
+   publicam-se múltiplos help_requests separados (um por critério). Mantém a estrutura
+   simples e reutiliza o suporte já existente a múltiplas linhas por job_id.
+
+4. **Aprovação do cliente depende do momento de criação.**
+   - Criado como parte da proposta original aceite (`created_post_confirmation = false`)
+     → aprovação implícita, começa diretamente em `open`.
+   - Criado depois do job já `confirmed` (`created_post_confirmation = true`) → começa
+     em `pending_approval`; só passa a `open` após o cliente aprovar explicitamente
+     via RPC `approve_help_request`.
+
+5. **Estimativa de custo extra na proposta inicial.** Quando `people_needed > 1`, a
+   app destaca ao cliente: `(people_needed - 1) × hourly_rate × 0.7 × estimated_hours`
+   (taxa padrão 70% por ajudante sem equipamento). Sempre como estimativa; o custo
+   real fica registado em `help_acceptance.agreed_rate` no momento da aceitação.
+
+6. **`agreed_rate` guardado no momento, nunca recalculado.** Protege o histórico de
+   pagamentos contra alterações futuras à regra dos 70%. Mesmo que a percentagem
+   default mude no futuro, aceitações passadas refletem o valor acordado na altura.
+
+UI e fluxo de notificações ainda NÃO foram desenhados — ficam para uma sessão de
+design futura antes de qualquer implementação.
+
+## 2026-06-19 — Duas ideias de produto registadas em improvements.md
+Carteira digital de cartões de benefícios (combustível/seguro): visão de
+longo prazo, bloqueada por decisão de negócio (nenhuma parceria fechada),
+sem integração NFC/pagamento — versão viável é foto do cartão + campos
+texto, mostrado em full-screen para leitura manual. Não avançar antes de
+parceria real.
+Perfil de worker visitável em 3 camadas: Camada 1 (perfil read-only dentro
+da app, RLS a partir de proposta pending, ecrã único com modo próprio/visitante,
+sem expor base_lat/base_lng) pode iniciar a qualquer momento. Camadas 2
+(portfólio) e 3 (feed na home) sequenciais. Relacionado com "Perfil público
+partilhável" mas distinto: esse é partilha fora da app, este é visibilidade
+dentro. Nenhuma implementação feita — só registo de visão e decisões de scope.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.
