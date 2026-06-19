@@ -54,11 +54,6 @@
 **Ideia:** Mostrar "Cumpre compromissos: 95%" no perfil público como sinal de confiança.
 **Prioridade:** Média — depende das avaliações estarem prontas.
 
-### Botão de denúncia
-**Contexto:** Não há forma de reportar comportamento abusivo.
-**Ideia:** Botão "Reportar" no perfil e no detalhe do job. Cria entrada em tabela `reports` para revisão manual.
-**Prioridade:** Alta — necessário antes de lançamento público.
-
 ### Restrição de "marcar concluído" antes da data
 **Contexto:** Hoje o worker pode marcar como concluído mesmo no dia em que enviou a proposta.
 **Ideia:** Bloquear ou avisar "Tens a certeza? O trabalho está marcado para o dia X."
@@ -262,6 +257,25 @@ que justifiquem (>50 items por tab).
 
 ## Bugs pendentes / melhorias técnicas
 
+### Limpar funções RPC obsoletas (overloads mortos)
+**Contexto:** Descoberto durante a criação da migration baseline (2026-06-19).
+A BD viva tem versões antigas de funções que coexistem com as atuais via
+overload do Postgres (mesmo nome, assinatura diferente):
+- `cancel_job(job_id_param uuid)` — versão antiga, escreve status
+  `proposal_received`, que já não existe no CHECK constraint. Falharia se
+  chamada.
+- `create_proposal` — duas versões antigas (uma com `estimated_hours`
+  singular, outra com `estimated_hours_min/max` mas sem `scheduled_date`),
+  ambas escrevem o mesmo status inválido.
+- `get_jobs_in_radius(worker_lat, worker_lng, radius_km)` sem `p_worker_id`
+  — esta ainda funciona, só ficou substituída.
+**Risco:** se alguma chamada esquecida no código ainda usar a assinatura
+antiga, falha de forma confusa (overload resolution silenciosa).
+**Solução:** DROP FUNCTION das assinaturas antigas, após confirmar (grep no
+código Dart) que nenhuma chamada usa essas assinaturas.
+**Prioridade:** Média-Alta — não é urgente (as antigas já falhariam se
+chamadas), mas é limpeza de segurança barata.
+
 ### Auto-confirmação de conclusão após 3 dias
 **Contexto:** Decisão de planeamento (8E.4): se o cliente não confirmar a
 conclusão em 3 dias, o job deve passar automaticamente a `completed` —
@@ -272,14 +286,6 @@ em `awaiting_confirmation` há mais de 3 dias, chamando `confirm_job_completion`
 automaticamente (ou uma variante sem verificação de `auth.uid() = client_id`).
 **Prioridade:** Alta — foi uma decisão de produto explícita para o MVP,
 não é polish opcional.
-
-### Worker que cancela não vê o job reaberto
-**Contexto:** Quando um worker cancela um job confirmado e o job é reaberto,
-o worker que cancelou não devia ver o novo job na sua lista nem conseguir propor.
-**Solução:** O cancel_job RPC deve guardar o worker_id do cancelador no novo job
-(campo `cancelled_worker_id`). A query fetchJobsInRadius deve excluir jobs onde
-`cancelled_worker_id = auth.uid()`.
-**Prioridade:** Alta.
 
 ---
 

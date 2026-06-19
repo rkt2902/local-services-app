@@ -4,8 +4,15 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8E.2 + 8E.3 — Cancelamento com razão + Remarcação (Flutter side).
-**Próximo passo:** 8E.4 — Conclusão a dois lados (worker marca → cliente confirma).
+**Passo concluído:** 8E.4 — Conclusão a dois lados (worker marca → cliente confirma). Implementado; testes manuais pendentes.
+**Próximo passo:** 8E.5 — Timeline de estados no detalhe do job.
+
+## Testes manuais pendentes — 8E.4
+- [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)
+- [ ] Tab "Concluídos" — jobs completed aparecem, "Carregar mais" funciona
+- [ ] Marcar como concluído → job desaparece de "Agendados" sem refresh manual
+- [ ] Notificações — badge mostra só não lidas, "Limpar" não dá flash vazio
+- [ ] Pull-to-refresh em "Os meus jobs" → reseta paginação e recarrega tudo
 
 ## Fases
 

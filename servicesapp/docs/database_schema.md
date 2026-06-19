@@ -149,6 +149,8 @@ Pedidos criados por clientes.
 | reschedule_proposed_flexible | boolean  | nullable                                                     |
 | reschedule_proposed_by    | uuid        | nullable, FK → `profiles.id`                                |
 | reschedule_status         | text        | nullable, CHECK in (`pending`,`accepted`,`rejected`)         |
+| cancelled_worker_id       | uuid        | nullable, FK → `profiles.id` — worker que cancelou um job confirmado; excluído do novo job reaberto |
+| excluded_worker_ids       | uuid[]      | default `'{}'` — lista generalizada de workers excluídos de ver/propor no job reaberto |
 | expires_at                | timestamptz | created_at + 48h (para `no_response`)                       |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
@@ -183,6 +185,17 @@ Propostas de workers para jobs.
 | status               | text        | CHECK in proposal_status                                   |
 | created_at           | timestamptz |                                                            |
 | updated_at           | timestamptz |                                                            |
+
+### job_reports
+Relatos de problemas submetidos por utilizadores após conclusão do trabalho. Para revisão manual pela equipa.
+
+| coluna       | tipo        | notas                                    |
+|--------------|-------------|------------------------------------------|
+| id           | uuid PK     |                                          |
+| job_id       | uuid        | FK → `job_requests.id`                   |
+| reporter_id  | uuid        | FK → `profiles.id` (quem reportou)       |
+| description  | text        |                                          |
+| created_at   | timestamptz |                                          |
 
 ### notifications
 Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
@@ -291,6 +304,7 @@ A RLS é definida em detalhe nas migrations. Princípios:
 - `notifications`: cada user vê e gere só as suas.
 - `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites.
 - `ratings`: SELECT público (para reputação); INSERT só pelo `rater_id` autenticado.
+- `job_reports`: INSERT pelo próprio reporter; SELECT só dos seus próprios reports (sem acesso a reports de outros — moderação é feita via Studio/service role).
 
 ---
 
@@ -298,3 +312,15 @@ A RLS é definida em detalhe nas migrations. Princípios:
 - Bucket `job-photos` (público de leitura, escrita autenticada, máx. 2 fotos por job).
 - Bucket `worker-photos` (público de leitura, escrita só pelo dono).
 - Bucket `avatars` (público de leitura, escrita só pelo dono).
+
+---
+
+## Migrations
+
+`supabase/migrations/0001_baseline.sql` é a fonte de verdade do schema a partir de 2026-06-19.
+Criado por inspeção do código Dart + docs; os corpos das funções são reconstruídos — verificar
+contra um `pg_dump` live antes de usar num réplica de produção.
+
+**Regra:** qualquer alteração ao schema (nova coluna, nova tabela, nova função, nova política RLS)
+deve vir acompanhada de um novo ficheiro de migration numerado sequencialmente
+(`0002_...sql`, `0003_...sql`, etc.). Nunca alterar o `0001_baseline.sql` após o primeiro deploy.

@@ -215,6 +215,44 @@ documentos originais; só se criam aqui se divergirem.
 - "Limpar" notificações: _optimisticClear elimina flash de lista vazia entre tap e resposta da BD.
 - allNotificationsProvider invalidado no final de cada ciclo de notificationSyncProvider.
 
+## 2026-06-19 — job_reports: política SELECT em falta corrigida
+Durante a revisão do baseline de migrations detectou-se que a tabela `job_reports`
+tinha política de INSERT mas nenhuma de SELECT para utilizadores autenticados.
+Um reporter que submetesse um report não conseguia depois ler de volta os seus
+próprios registos — o que bloquearia qualquer futura UI de "os meus reports".
+Corrigido em `supabase/migrations/0002_job_reports_select_policy.sql`:
+`CREATE POLICY "Utilizador vê os seus reports" ON job_reports FOR SELECT USING (auth.uid() = reporter_id);`
+SELECT de reports de outros utilizadores continua restrito ao service_role
+(acesso via Supabase Studio para moderação). Não há alteração ao código Dart.
+
+## 2026-06-19 — Exclusão de workers em jobs reabertos
+Implementado via dois campos em `job_requests`: `cancelled_worker_id` (uuid nullable)
+e `excluded_worker_ids` (uuid[], default `'{}'`).
+- `cancel_job` RPC guarda o worker cancelador em `cancelled_worker_id` e acrescenta-o
+  a `excluded_worker_ids` no job reaberto.
+- `get_jobs_in_radius` filtra jobs onde `auth.uid() = ANY(excluded_worker_ids)`.
+- A generalização para array (`excluded_worker_ids`) em vez de campo único
+  (`cancelled_worker_id` sozinho) permite futuramente excluir múltiplos workers
+  (ex: após vários cancelamentos sucessivos no mesmo job reaberto). O campo
+  `cancelled_worker_id` mantém-se para auditoria do cancelador específico.
+- Dart model (`JobRequest`) mapeia ambos os campos; lógica de exclusão fica
+  inteiramente no lado da BD, a app não filtra client-side.
+
+## 2026-06-19 — Reporting de problemas (job_reports)
+Implementado via tabela `job_reports` (job_id, reporter_id, description, created_at).
+- `reportJobProblem` em `ProposalRepository` faz INSERT direto (não via RPC) com
+  `reporter_id = auth.currentUser.id`.
+- UI: botão "Reportar problema" no `client_job_detail_screen` quando job está em
+  `awaiting_confirmation`; abre bottom sheet com campo de descrição (mín. 10 chars);
+  após submit, snackbar + follow-up dialog a perguntar se quer confirmar conclusão
+  na mesma.
+- RLS: política de INSERT permite ao utilizador autenticado inserir registos onde
+  `reporter_id = auth.uid()`. SELECT restrito (TODO: confirmar política exacta nas
+  migrations — sem ficheiros SQL no repositório para verificar).
+- A tabela foi nomeada `job_reports` (não `reports`) para ser específica ao domínio
+  de jobs. O campo original em `improvements.md` referia uma tabela genérica `reports`
+  — optámos por escopo mais restrito no MVP.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.
