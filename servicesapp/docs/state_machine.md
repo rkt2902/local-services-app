@@ -91,15 +91,15 @@
 | `new_job_in_radius` | `jobsInRadiusProvider` |
 | `proposal_received` | `clientJobsProvider`, `pendingProposalsForJobProvider` |
 | `proposal_withdrawn` | `clientJobsProvider`, `pendingProposalsForJobProvider` |
-| `proposal_accepted` | `jobsInRadiusProvider`, `workerProposalsProvider`, `proposalByIdProvider`, `workerProposalForJobProvider` |
-| `proposal_rejected` | `workerProposalsProvider`, `proposalByIdProvider` |
-| `job_cancelled` | `clientJobsProvider`, `workerProposalsProvider`, `jobsInRadiusProvider` |
-| `job_reopened` | `clientJobsProvider`, `workerProposalsProvider`, `jobsInRadiusProvider` |
-| `reschedule_proposed` | `clientJobsProvider`, `workerProposalsProvider` |
-| `reschedule_accepted` | `clientJobsProvider`, `workerProposalsProvider` |
-| `reschedule_rejected` | `clientJobsProvider`, `workerProposalsProvider` |
+| `proposal_accepted` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider`, `workerProposalForJobProvider`, `jobByIdProvider` |
+| `proposal_rejected` | `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider` |
+| `job_cancelled` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`, `jobByIdProvider` |
+| `job_reopened` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`, `jobByIdProvider` |
+| `reschedule_proposed` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
+| `reschedule_accepted` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
+| `reschedule_rejected` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 | `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
-| `job_completed` | `workerProposalsProvider`, `jobByIdProvider` |
+| `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 
 ## Sub-fases pendentes
 

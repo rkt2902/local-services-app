@@ -253,6 +253,22 @@ Implementado via tabela `job_reports` (job_id, reporter_id, description, created
   de jobs. O campo original em `improvements.md` referia uma tabela genérica `reports`
   — optámos por escopo mais restrito no MVP.
 
+## 2026-06-19 — jobByIdProvider: invalidações em falta no notificationSyncProvider
+`jobByIdProvider` não era invalidado para 5 tipos de notificação, descoberto
+durante a code review da 8E.5 (timeline de estados). Efeito: ecrãs de detalhe
+de job mantinham dados stale (confirmed_date, reschedule_status, job status)
+enquanto o utilizador estava no ecrã e o outro lado efectuava uma acção.
+Mais crítico: rescheduleAccepted — o campo confirmed_date muda e o badge
+"Remarcação pendente" ficava exibido indefinidamente.
+Corrigido adicionando `ref.invalidate(jobByIdProvider)` (forma broad, sem key
+de família — consistente com jobMarkedDone/jobCompleted já existentes) aos
+casos: `rescheduleProposed`, `rescheduleAccepted`, `rescheduleRejected`,
+`proposalAccepted`, `jobCancelled`/`jobReopened` (case partilhado).
+A tabela de providers em `docs/state_machine.md` foi também corrigida:
+`workerProposalsProvider` (nome fictício) substituído pelos nomes reais
+`pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`,
+`completedWorkerProposalsProvider`.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.

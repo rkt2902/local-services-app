@@ -40,6 +40,17 @@
 **Ideia:** Cor por idade — <24h normal, 24-48h amarelo, >48h cinzento (a expirar). "Há 6h", "Há 2 dias".
 **Prioridade:** Média.
 
+### Nota: Timeline de estados (8E.5) é implementação temporária
+**Contexto:** O StatusTimeline atual (lib/core/widgets/status_timeline.dart)
+foi feito como primeira versão funcional, lendo diretamente de JobRequest sem
+nova infraestrutura. Está confirmado que esta UI específica será refeita do
+zero mais tarde como parte de um redesign visual mais amplo (UI Playground).
+**Implicação:** não vale a pena investir tempo extra em polish visual ou
+animações nesta versão — só correção de bugs funcionais reais (dados errados
+exibidos), não cosmética. A lógica de derivação dos estados (job_timeline.dart)
+provavelmente sobrevive ao redesign mesmo que o widget visual mude por completo.
+**Prioridade:** Baixa (é só uma nota de contexto, não uma tarefa).
+
 ---
 
 ## Confiança e segurança
