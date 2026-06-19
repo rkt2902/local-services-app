@@ -12,6 +12,8 @@ import '../data/job_model.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../../../core/widgets/status_timeline.dart';
+import '../application/job_timeline.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
 
@@ -558,6 +560,10 @@ class _ClientJobDetailScreenState
       Text(_job.description, style: theme.textTheme.bodyMedium),
       const SizedBox(height: 20),
       photosWidget,
+      Text('Estado do pedido', style: theme.textTheme.titleMedium),
+      const SizedBox(height: 12),
+      StatusTimeline(steps: buildJobTimeline(displayJob)),
+      const SizedBox(height: 20),
     ];
 
     // ── Open status: two-tab layout ─────────────────────────────────────────

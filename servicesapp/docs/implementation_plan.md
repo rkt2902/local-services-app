@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8E.4 — Conclusão a dois lados (worker marca → cliente confirma). Implementado; testes manuais pendentes.
-**Próximo passo:** 8E.5 — Timeline de estados no detalhe do job.
+**Passo concluído:** 8E.5 — Timeline de estados no detalhe do job. Implementado (2026-06-19).
+**Próximo passo:** 8F — (definir próxima fase).
 
 ## Testes manuais pendentes — 8E.4
 - [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)

@@ -6,7 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../jobs/application/job_timeline.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -371,6 +373,16 @@ class _WorkerMyJobDetailScreenState
                 _infoRow(context, Icons.notes_outlined, 'Notas',
                     widget.proposal.notes!),
             ]),
+            const SizedBox(height: 20),
+
+            // Job state timeline
+            Text('Estado do pedido', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            StatusTimeline(
+              steps: buildJobTimeline(
+                widget.job.copyWith(status: liveJobStatus),
+              ),
+            ),
             const SizedBox(height: 20),
 
             // === ACCEPTED ===
