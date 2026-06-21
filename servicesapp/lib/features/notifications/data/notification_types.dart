@@ -12,4 +12,7 @@ abstract class NotificationType {
   static const rescheduleProposed = 'reschedule_proposed';
   static const rescheduleAccepted = 'reschedule_accepted';
   static const rescheduleRejected = 'reschedule_rejected';
+  static const helpRequestApproved = 'help_request_approved';
+  static const helpAccepted = 'help_accepted';
+  static const helpRejected = 'help_rejected';
 }

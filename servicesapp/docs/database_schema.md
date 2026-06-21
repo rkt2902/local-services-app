@@ -48,7 +48,9 @@
 > `pending_approval`: usado quando `created_post_confirmation = true` — o help_request fica invisível a candidatos até o cliente aprovar via `approve_help_request`. Jobs criados como parte da proposta original aceite começam diretamente em `open`.
 
 ### help_acceptance_status
-`accepted` | `cancelled`
+`pending` | `accepted` | `rejected` | `cancelled`
+
+> `pending`: candidatura submetida, a aguardar decisão do principal. `accepted`: principal selecionou o candidato (agreed_rate definido). `rejected`: principal recusou. `cancelled`: candidato retirou-se.
 
 ---
 
@@ -292,6 +294,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `mark_job_done`              | Worker marca job como concluído → `awaiting_confirmation`          |
 | `confirm_job_completion`     | Cliente confirma conclusão → `completed`                           |
 | `approve_help_request`       | Cliente aprova um help_request `pending_approval` → passa a `open` |
+| `reject_help_candidate`      | Principal worker recusa candidato `pending` → `rejected`, notifica candidato |
 
 ---
 

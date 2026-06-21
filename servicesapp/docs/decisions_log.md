@@ -269,6 +269,26 @@ A tabela de providers em `docs/state_machine.md` foi também corrigida:
 `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`,
 `completedWorkerProposalsProvider`.
 
+## 2026-06-21 — Fase 9 data layer: help_acceptance_status expandido
+- `help_acceptance_status` alargado de `accepted|cancelled` para
+  `pending|accepted|rejected|cancelled` (migration 0004).
+- `pending`: estado inicial quando worker se candidata (applyToHelpRequest).
+  Necessário para o modelo lobby onde o principal escolhe entre candidatos.
+- `rejected`: novo estado quando o principal recusa um candidato (não confundir
+  com `cancelled` que é retirada pelo próprio candidato).
+- Ordem deliberada espelha ProposalStatus: pending → accepted/rejected → cancelled.
+- `accept_help_candidate` atualizado para verificar status = 'pending' antes
+  de aceitar (idempotência — previne aceitar o mesmo candidato duas vezes).
+- Nova RPC `reject_help_candidate`: verifica caller = principal worker, verifica
+  status = 'pending', atualiza para 'rejected', insere notificação 'help_rejected'.
+- Três novos notification types adicionados: `help_request_approved`,
+  `help_accepted`, `help_rejected` (constantes em notification_types.dart).
+- RLS em help_acceptances completado: INSERT só pelo próprio worker com
+  status = 'pending'; SELECT por candidatos (próprias linhas) e pelo principal
+  (todas as candidaturas dos seus help_requests via is_principal_worker_for_help_request).
+- `applyToHelpRequest` em HelpRequestRepository: INSERT com agreed_rate = 0
+  (placeholder; o valor real é definido pelo principal via accept_help_candidate).
+
 ## 2026-06-19 — Design da Fase 9 (Equipa e ajudantes)
 Design de dados aprovado. Implementação aguarda sessão de design de UI/notificações.
 

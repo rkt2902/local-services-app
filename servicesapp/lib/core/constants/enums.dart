@@ -131,16 +131,22 @@ enum HelpRequestStatus {
 }
 
 enum HelpAcceptanceStatus {
+  pending,
   accepted,
+  rejected,
   cancelled;
 
   String get value => switch (this) {
+        HelpAcceptanceStatus.pending => 'pending',
         HelpAcceptanceStatus.accepted => 'accepted',
+        HelpAcceptanceStatus.rejected => 'rejected',
         HelpAcceptanceStatus.cancelled => 'cancelled',
       };
 
   static HelpAcceptanceStatus fromValue(String value) => switch (value) {
+        'pending' => HelpAcceptanceStatus.pending,
         'accepted' => HelpAcceptanceStatus.accepted,
+        'rejected' => HelpAcceptanceStatus.rejected,
         'cancelled' => HelpAcceptanceStatus.cancelled,
         _ => throw ArgumentError('Unknown HelpAcceptanceStatus: $value'),
       };
