@@ -13,6 +13,7 @@ class JobProposal {
   final DateTime? scheduledDate;
   final String? scheduledTime;
   final bool scheduledFlexible;
+  final bool helpersEquipmentRequired;
   final DateTime createdAt;
 
   const JobProposal({
@@ -28,6 +29,7 @@ class JobProposal {
     this.scheduledDate,
     this.scheduledTime,
     this.scheduledFlexible = false,
+    this.helpersEquipmentRequired = false,
     required this.createdAt,
   });
 
@@ -48,6 +50,8 @@ class JobProposal {
             : null,
         scheduledTime: json['scheduled_time'] as String?,
         scheduledFlexible: json['scheduled_flexible'] as bool? ?? false,
+        helpersEquipmentRequired:
+            json['helpers_equipment_required'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 }

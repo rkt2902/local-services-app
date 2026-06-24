@@ -341,6 +341,42 @@ sem expor base_lat/base_lng) pode iniciar a qualquer momento. Camadas 2
 partilhável" mas distinto: esse é partilha fora da app, este é visibilidade
 dentro. Nenhuma implementação feita — só registo de visão e decisões de scope.
 
+## 2026-06-24 — Fase 9: helpers_equipment_required + estimativa de custo de equipa
+
+### Campo helpers_equipment_required em job_proposals
+- Nova coluna `helpers_equipment_required boolean NOT NULL DEFAULT false` em
+  `job_proposals` (migration 0005).
+- Quando `true`, todos os ajudantes devem trazer equipamento → rate cheio (factor 1.0).
+- Quando `false`, ajudantes podem ou não trazer equipamento → rate reduzido (factor 0.75).
+
+### Factor de estimativa 0.75 vs pagamento real 0.70
+- A estimativa exibida ao cliente usa factor **0.75** (75% do rate do principal).
+- O pagamento real acordado com o ajudante sem equipamento é 70% (conforme
+  decisions_log 2026-06-19 "Rate do ajudante determinado por equipamento").
+- A diferença de 5 p.p. é intencional: serve de buffer para que a estimativa
+  que o cliente vê nunca subestime o custo real. `agreed_rate` registado em
+  `help_acceptances` é sempre a fonte de verdade do valor acordado.
+- Fórmula de estimativa: `hourly_rate × estimated_hours × (1 + (people_needed - 1) × factor)`.
+  Exibida como total arredondado ("≈ €120 - €160 (equipa incluída)") no card de
+  proposta em `client_job_detail_screen.dart`.
+
+### Overloads obsoletos de create_proposal eliminados (migration 0005)
+Dois overloads anteriores ao split de estimated_hours em min/max (2026-06-11)
+e à introdução de people_needed (2026-06-08) foram dropados:
+- `create_proposal(uuid, uuid, numeric, numeric, integer, text)` — 6 params
+- `create_proposal(uuid, uuid, numeric, numeric, numeric, integer, text)` — 7 params
+Assinaturas confirmadas na live DB antes do drop.
+
+### accept_proposal auto-cria help_request quando people_needed > 1
+- Após confirmar o job, se a proposta aceite tem `people_needed > 1`, a RPC
+  cria automaticamente um `help_request` com `slots_needed = people_needed - 1`,
+  `equipment_required = helpers_equipment_required`, `created_post_confirmation = false`,
+  `status = 'open'`.
+- `created_post_confirmation = false` → aprovação implícita (não precisa de
+  `approve_help_request`), começa diretamente visível a candidatos.
+- Sem alteração ao código Dart de `acceptProposal()` — a criação é transparente
+  para o cliente Flutter.
+
 ## 2026-06-16 — Polish e fixes pré-8E.4
 - workerProposalForJobProvider: guard para userId vazio + watch reactivo via currentUserIdProvider.
 - proposalWithdrawn invalida jobsInRadiusProvider (job volta à lista disponível) e workerProposalForJobProvider.

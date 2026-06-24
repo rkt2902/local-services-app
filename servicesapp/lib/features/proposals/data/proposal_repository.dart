@@ -78,6 +78,7 @@ class ProposalRepository {
     DateTime? scheduledDate,
     String? scheduledTime,
     bool scheduledFlexible = false,
+    bool helpersEquipmentRequired = false,
   }) async {
     final params = <String, dynamic>{
       'p_job_id': jobId,
@@ -88,6 +89,7 @@ class ProposalRepository {
       'p_people_needed': peopleNeeded,
       'p_notes': notes,
       'p_scheduled_flexible': scheduledFlexible,
+      'p_helpers_equipment_required': helpersEquipmentRequired,
     };
     if (scheduledDate != null) {
       params['p_scheduled_date'] =

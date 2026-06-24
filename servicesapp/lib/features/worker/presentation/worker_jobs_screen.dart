@@ -357,14 +357,20 @@ class _JobCard extends StatelessWidget {
               ),
               if (proposal.peopleNeeded > 1) ...[
                 const SizedBox(height: 6),
-                Chip(
-                  avatar: const Icon(Icons.group, size: 16),
-                  label: Text(
-                    'Equipa: ${proposal.peopleNeeded} pessoas',
-                    style: theme.textTheme.labelSmall,
+                GestureDetector(
+                  onTap: () => context.push(
+                    '/worker/job/${job.id}/help-requests',
+                    extra: {'job': job, 'proposal': proposal},
                   ),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
+                  child: Chip(
+                    avatar: const Icon(Icons.group, size: 16),
+                    label: Text(
+                      'Equipa: ${proposal.peopleNeeded} pessoas',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ],
               if (job.rescheduleStatus == RescheduleStatus.pending) ...[

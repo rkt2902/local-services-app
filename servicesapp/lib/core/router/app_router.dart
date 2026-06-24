@@ -19,6 +19,7 @@ import '../../features/jobs/data/job_model.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
+import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/proposals/data/proposal_model.dart';
@@ -104,6 +105,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return WorkerMyJobDetailScreen(
                 proposal: extra['proposal'] as JobProposal,
                 job: extra['job'] as JobRequest,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/worker/job/:id/help-requests',
+            builder: (context, state) {
+              final extra = state.extra! as Map<String, dynamic>;
+              return WorkerHelpRequestsLobbyScreen(
+                job: extra['job'] as JobRequest,
+                proposal: extra['proposal'] as JobProposal,
               );
             },
           ),

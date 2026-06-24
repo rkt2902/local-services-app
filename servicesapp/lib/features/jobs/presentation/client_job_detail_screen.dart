@@ -910,6 +910,7 @@ class _ProposalCard extends ConsumerWidget {
     final hoursStr =
         _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
     final scheduleStr = _formatProposedSchedule(proposal);
+    final teamEstimateStr = _teamTotalEstimate(proposal);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -939,6 +940,8 @@ class _ProposalCard extends ConsumerWidget {
             if (proposal.peopleNeeded > 1)
               _cardRow(context, Icons.group_outlined,
                   'Equipa: ${proposal.peopleNeeded} pessoas'),
+            if (teamEstimateStr.isNotEmpty)
+              _cardRow(context, Icons.calculate_outlined, teamEstimateStr),
             if (proposal.notes?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
               Text(
@@ -1010,6 +1013,24 @@ String _formatEstimate(double rate, double? min, double? max) {
     return '≈ €${(rate * min).toStringAsFixed(0)}';
   } else if (max != null) {
     return '≈ €${(rate * max).toStringAsFixed(0)}';
+  }
+  return '';
+}
+
+String _teamTotalEstimate(JobProposal p) {
+  if (p.peopleNeeded <= 1 || p.hourlyRate <= 0) return '';
+  final factor = p.helpersEquipmentRequired ? 1.0 : 0.75;
+  final multiplier = 1 + (p.peopleNeeded - 1) * factor;
+  final min = p.estimatedHoursMin;
+  final max = p.estimatedHoursMax;
+  if (min != null && max != null) {
+    final lo = (p.hourlyRate * min * multiplier).round();
+    final hi = (p.hourlyRate * max * multiplier).round();
+    return '≈ €$lo - €$hi (equipa incluída)';
+  } else if (min != null) {
+    return '≈ €${(p.hourlyRate * min * multiplier).round()} (equipa incluída)';
+  } else if (max != null) {
+    return '≈ €${(p.hourlyRate * max * multiplier).round()} (equipa incluída)';
   }
   return '';
 }

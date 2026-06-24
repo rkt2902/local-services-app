@@ -181,16 +181,17 @@ Propostas de workers para jobs.
 | estimated_hours      | numeric     | nullable — mantido por compatibilidade                     |
 | estimated_hours_min  | numeric     | nullable — substitui estimated_hours                       |
 | estimated_hours_max  | numeric     | nullable                                                   |
-| people_needed        | int         | default 1 (>1 implica help_request)                        |
-| notes                | text        | nullable                                                   |
-| scheduled_date       | date        | nullable — data proposta pelo worker                       |
-| scheduled_time       | time        | nullable                                                   |
-| scheduled_flexible   | boolean     | default false — horário flexível no dia agendado           |
-| status               | text        | CHECK in proposal_status                                   |
-| created_at           | timestamptz |                                                            |
-| updated_at           | timestamptz |                                                            |
+| people_needed                | int         | default 1 (>1 implica help_request)                        |
+| helpers_equipment_required   | boolean     | default false — ajudantes devem trazer equipamento próprio |
+| notes                        | text        | nullable                                                   |
+| scheduled_date               | date        | nullable — data proposta pelo worker                       |
+| scheduled_time               | time        | nullable                                                   |
+| scheduled_flexible           | boolean     | default false — horário flexível no dia agendado           |
+| status                       | text        | CHECK in proposal_status                                   |
+| created_at                   | timestamptz |                                                            |
+| updated_at                   | timestamptz |                                                            |
 
-> **`people_needed` e estimativa de custo:** quando `people_needed > 1`, a app exibe ao cliente uma estimativa do custo dos ajudantes: `(people_needed - 1) × hourly_rate × 0.7 × estimated_hours` (taxa padrão de 70% do principal por ajudante sem equipamento próprio). Valor sempre apresentado como estimativa — o custo real depende de quantos ajudantes levam equipamento e do `agreed_rate` registado em cada `help_acceptance`. Não requer coluna nova; calculado no cliente em tempo de exibição.
+> **`people_needed` e estimativa de custo:** quando `people_needed > 1`, a app exibe ao cliente a estimativa do custo total da equipa: `hourly_rate × estimated_hours × (1 + (people_needed - 1) × factor)`, onde `factor = 1.0` se `helpers_equipment_required = true`, ou `0.75` caso contrário (buffer de estimativa; o pagamento real ao ajudante sem equipamento é 70%, mas mostra-se 75% para dar margem). Custo real registado em `help_acceptance.agreed_rate` no momento da aceitação.
 
 ### job_reports
 Relatos de problemas submetidos por utilizadores após conclusão do trabalho. Para revisão manual pela equipa.
@@ -282,7 +283,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 |------------------------------|--------------------------------------------------------------------|
 | `create_user_profile`        | Cria perfil após registo (upsert)                                  |
 | `create_proposal`            | Cria proposta com data agendada (resolve condição de corrida)      |
-| `accept_proposal`            | Aceita proposta, rejeita outras, copia data para job               |
+| `accept_proposal`            | Aceita proposta, rejeita outras, copia data para job; auto-cria `help_request` quando `people_needed > 1` |
 | `reject_proposal`            | Recusa proposta, job volta a `open`                                |
 | `withdraw_proposal`          | Worker retira proposta, decrementa `proposal_count`                |
 | `cancel_job`                 | Cancela job, cria novo se dentro do limite de reabertura           |
