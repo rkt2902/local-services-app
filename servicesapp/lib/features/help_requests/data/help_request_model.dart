@@ -101,6 +101,43 @@ class HelpRequest {
       );
 }
 
+class HelpAcceptanceSummary {
+  final String id;
+  final String helpRequestId;
+  final HelpAcceptanceStatus status;
+  final double agreedRate;
+  final bool broughtEquipment;
+  final DateTime createdAt;
+  final String serviceTypeName;
+  final String principalName;
+  final String jobStatus;
+
+  const HelpAcceptanceSummary({
+    required this.id,
+    required this.helpRequestId,
+    required this.status,
+    required this.agreedRate,
+    required this.broughtEquipment,
+    required this.createdAt,
+    required this.serviceTypeName,
+    required this.principalName,
+    required this.jobStatus,
+  });
+
+  factory HelpAcceptanceSummary.fromJson(Map<String, dynamic> json) =>
+      HelpAcceptanceSummary(
+        id: json['id'] as String,
+        helpRequestId: json['help_request_id'] as String,
+        status: HelpAcceptanceStatus.fromValue(json['status'] as String),
+        agreedRate: (json['agreed_rate'] as num).toDouble(),
+        broughtEquipment: json['brought_equipment'] as bool,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        serviceTypeName: json['service_type_name'] as String? ?? '—',
+        principalName: json['principal_name'] as String? ?? '—',
+        jobStatus: json['job_status'] as String? ?? '',
+      );
+}
+
 class HelpAcceptance {
   final String id;
   final String helpRequestId;

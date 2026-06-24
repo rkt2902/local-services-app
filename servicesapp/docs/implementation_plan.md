@@ -4,8 +4,8 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** 8E.5 — Timeline de estados no detalhe do job. Implementado (2026-06-19).
-**Próximo passo:** 8F — (definir próxima fase).
+**Passo concluído:** Fase 9 — Equipa e ajudantes. Implementada, revistada e aplicada à BD de produção (2026-06-24).
+**Próximo passo:** Fase 10 — Contactos e conclusão (ou definir próxima fase).
 
 ## Testes manuais pendentes — 8E.4
 - [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)
@@ -79,14 +79,38 @@
       aceitar/recusar (client).
 - [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
 
-### Fase 9 — Equipa e ajudantes
-> Design de dados aprovado em 2026-06-19 (ver decisions_log.md) — implementação
-> aguarda sessão de design de UI/notificações antes de avançar para código.
+### Fase 9 — Equipa e ajudantes ✅
+> Implementada e aplicada à BD de produção em 2026-06-24.
+> Code review completa realizada em 2026-06-24 — ver decisions_log.md para todos os
+> findings e fixes aplicados (migrations 0003–0008, 2 fixes Dart).
 
-- [ ] Feature `help_requests/`: pedir ajudantes (worker principal),
-      aprovação da equipa pelo client antes de confirmar.
-- [ ] Listagem de help_requests no raio (workers candidatos).
-- [ ] Aceitar/cancelar vaga; reabertura automática.
+- [x] Schema: `help_requests`, `help_acceptances`, `helpers_equipment_required` em
+      `job_proposals` (migrations 0003–0007).
+- [x] RPCs: `approve_help_request`, `accept_help_candidate`, `reject_help_candidate`,
+      `get_help_requests_in_radius` (com joins de contexto via migration 0006).
+- [x] `cancel_job` faz cascade para `help_requests`/`help_acceptances` (migration 0007).
+- [x] RLS completo e auditado: INSERT restrito a candidaturas pending; UPDATE restrito
+      a retirada (status='cancelled'); INSERT em `help_requests` apenas para propostas
+      accepted; políticas redundantes removidas (migration 0007).
+- [x] Lobby screen (worker principal): aceitar/rejeitar candidatos, taxa editável,
+      visualização de slots, overflow de candidatos.
+- [x] Discovery screen (workers candidatos): `get_help_requests_in_radius` com dados
+      de contexto; botão de candidatura; estado local de candidaturas enviadas.
+- [x] Estimativa de custo de equipa no detalhe da proposta (cliente), factor 0.75 para
+      display vs 0.70 para taxa real.
+- [x] Notificações: `help_request_approved`, `help_accepted`, `help_rejected` (handler
+      + sync provider + 3 constantes em notification_types.dart).
+- [x] `agreed_rate` CHECK constraint na BD: `status <> 'accepted' OR agreed_rate > 0`.
+- [x] Validação client-side da taxa no lobby antes de chamar `accept_help_candidate`.
+- [x] `FilledButton` de aceitação de proposta mostra estilo desativado durante loading.
+
+**Gap intencional de MVP (infraestrutura pronta, sem UI):**
+A aprovação pelo cliente de help_requests criados pós-confirmação (`created_post_confirmation
+= true`, estado `pending_approval`) tem toda a infraestrutura de dados pronta — RPC
+`approve_help_request`, política RLS de SELECT para o cliente, método `approveHelpRequest`
+no repository — mas nenhum ecrã de UI foi construído para este fluxo. O `accept_proposal`
+auto-cria sempre com `created_post_confirmation = false` (aprovação implícita), por isso
+este gap não afeta o fluxo MVP principal.
 
 ### Fase 10 — Contactos e conclusão
 - [ ] Mostrar contactos (WhatsApp/tel) só após `confirmed`.

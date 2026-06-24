@@ -118,15 +118,29 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(helpRequestsForJobProvider);
         case NotificationType.helpAccepted:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
-          // Helper worker accepted into a team. No dedicated helper-facing
-          // provider exists yet; invalidate jobByIdProvider broadly as a safe
-          // default so any open job detail screens reflect the latest state.
           ref.invalidate(jobByIdProvider);
+          ref.invalidate(myHelpAcceptancesProvider);
         case NotificationType.helpRejected:
-          // Informational only — the candidate's rejection is already reflected
-          // in help_acceptances, but no provider currently displays that data
-          // in a live screen. Explicit no-op keeps the switch exhaustive.
-          break;
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          ref.invalidate(myHelpAcceptancesProvider);
+        case NotificationType.helpJobCancelled:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          // Helper's accepted job was cancelled. Refresh the discovery screen
+          // so the cancelled job no longer appears in results.
+          ref.invalidate(helpRequestSummariesInRadiusProvider);
+          ref.invalidate(helpRequestsInRadiusProvider);
+          ref.invalidate(myHelpAcceptancesProvider);
+        case NotificationType.helpRequestReopened:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          // A slot reopened for a help_request the candidate was rejected from.
+          // Refresh the discovery screen so they can see and re-apply to it.
+          ref.invalidate(helpRequestSummariesInRadiusProvider);
+          ref.invalidate(helpRequestsInRadiusProvider);
+        case NotificationType.helpWithdrew:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          // A helper withdrew from the principal's team. Lobby data changes:
+          // the help_request may have reverted from 'filled' to 'open'.
+          ref.invalidate(helpRequestsForJobProvider);
       }
     }
     ref.invalidate(allNotificationsProvider);

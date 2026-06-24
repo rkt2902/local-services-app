@@ -211,7 +211,8 @@ Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
 -- Tipos: new_job_in_radius, proposal_received, proposal_withdrawn,
 --        proposal_accepted, proposal_rejected, job_cancelled, job_reopened,
 --        job_marked_done, job_completed, job_no_response,
---        reschedule_proposed, reschedule_accepted, reschedule_rejected
+--        reschedule_proposed, reschedule_accepted, reschedule_rejected,
+--        help_request_approved, help_accepted, help_rejected
 ```
 
 | coluna       | tipo        | notas                                       |
@@ -249,7 +250,7 @@ Ajudantes que aceitaram.
 | help_request_id  | uuid        | FK → `help_requests.id`                                                                 |
 | worker_id        | uuid        | FK → `worker_profiles.profile_id`                                                       |
 | status           | text        | CHECK in help_acceptance_status                                                         |
-| agreed_rate      | numeric     | not null — rate acordado no momento da aceitação (nunca recalculado a posteriori)       |
+| agreed_rate      | numeric     | not null, CHECK (`status <> 'accepted' OR agreed_rate > 0`) — rate acordado no momento da aceitação (nunca recalculado a posteriori); placeholder `0` permitido para candidaturas pending |
 | brought_equipment| boolean     | not null — se este helper trouxe equipamento próprio                                    |
 | created_at       | timestamptz |                                                                                         |
 
@@ -286,7 +287,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `accept_proposal`            | Aceita proposta, rejeita outras, copia data para job; auto-cria `help_request` quando `people_needed > 1` |
 | `reject_proposal`            | Recusa proposta, job volta a `open`                                |
 | `withdraw_proposal`          | Worker retira proposta, decrementa `proposal_count`                |
-| `cancel_job`                 | Cancela job, cria novo se dentro do limite de reabertura           |
+| `cancel_job`                 | Cancela job, cria novo se dentro do limite de reabertura; faz cascade: cancela `help_requests` abertos e rejeita `help_acceptances` pending (migration 0007) |
 | `propose_reschedule`         | Propõe nova data (regra 24h, só uma pendente por vez)              |
 | `accept_reschedule`          | Aceita remarcação, copia nova data para `confirmed_*`              |
 | `reject_reschedule`          | Recusa remarcação, mantém data original                            |
@@ -294,6 +295,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `get_jobs_in_radius`         | Haversine — jobs abertos dentro do raio do worker                  |
 | `mark_job_done`              | Worker marca job como concluído → `awaiting_confirmation`          |
 | `confirm_job_completion`     | Cliente confirma conclusão → `completed`                           |
+| `get_help_requests_in_radius`| Haversine — help_requests `open` dentro do raio do worker; exclui jobs `cancelled`/`completed` e help_requests onde o caller é o principal (migration 0007) |
 | `approve_help_request`       | Cliente aprova um help_request `pending_approval` → passa a `open` |
 | `reject_help_candidate`      | Principal worker recusa candidato `pending` → `rejected`, notifica candidato |
 
@@ -337,3 +339,8 @@ contra um `pg_dump` live antes de usar num réplica de produção.
 **Regra:** qualquer alteração ao schema (nova coluna, nova tabela, nova função, nova política RLS)
 deve vir acompanhada de um novo ficheiro de migration numerado sequencialmente
 (`0002_...sql`, `0003_...sql`, etc.). Nunca alterar o `0001_baseline.sql` após o primeiro deploy.
+
+> **0001–0008 todas confirmadas como aplicadas à BD viva em 2026-06-24.** Ver
+> `decisions_log.md` (entrada "2026-06-24 — Code review da Fase 9") para o histórico
+> completo da descoberta: as migrations 0002–0007 nunca tinham sido aplicadas antes
+> dessa data, apesar de os ficheiros `.sql` existirem localmente.

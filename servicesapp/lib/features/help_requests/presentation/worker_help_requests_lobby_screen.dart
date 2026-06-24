@@ -198,10 +198,16 @@ class _WorkerHelpRequestsLobbyScreenState
                   onPressed: submitting
                       ? null
                       : () async {
-                          final rate = double.tryParse(
-                                controller.text.replaceAll(',', '.'),
-                              ) ??
-                              suggested;
+                          final parsed = double.tryParse(
+                            controller.text.replaceAll(',', '.'),
+                          );
+                          if (parsed != null && parsed <= 0) {
+                            scaffold.showSnackBar(const SnackBar(
+                              content: Text('A taxa deve ser maior que zero.'),
+                            ));
+                            return;
+                          }
+                          final rate = parsed ?? suggested;
                           setSheetState(() => submitting = true);
                           try {
                             await ref

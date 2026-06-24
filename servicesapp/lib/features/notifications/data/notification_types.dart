@@ -15,4 +15,7 @@ abstract class NotificationType {
   static const helpRequestApproved = 'help_request_approved';
   static const helpAccepted = 'help_accepted';
   static const helpRejected = 'help_rejected';
+  static const helpJobCancelled = 'help_job_cancelled';
+  static const helpRequestReopened = 'help_request_reopened';
+  static const helpWithdrew = 'help_withdrew';
 }

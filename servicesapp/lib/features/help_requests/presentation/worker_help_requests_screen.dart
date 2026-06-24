@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
+
+// ─── Root screen ─────────────────────────────────────────────────────────────
 
 class WorkerHelpRequestsScreen extends ConsumerStatefulWidget {
   const WorkerHelpRequestsScreen({super.key});
@@ -21,7 +24,7 @@ class _WorkerHelpRequestsScreenState
   final Map<String, bool> _broughtEquipment = {};
   final Map<String, bool> _applying = {};
 
-  Future<void> _onRefresh() async =>
+  Future<void> _onDiscoverRefresh() async =>
       ref.invalidate(helpRequestSummariesInRadiusProvider);
 
   Future<void> _apply(HelpRequestSummary summary) async {
@@ -51,96 +54,508 @@ class _WorkerHelpRequestsScreenState
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildDiscoverTab() {
     final summaryAsync = ref.watch(helpRequestSummariesInRadiusProvider);
     final workerProfile = ref.watch(workerProfileProvider).value;
     final serviceTypes = ref.watch(serviceTypesProvider).value ?? [];
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Pedidos de ajuda')),
-      body: summaryAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(friendlyError(e)),
-          ),
+    return summaryAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(friendlyError(e)),
         ),
-        data: (summaries) {
-          if (summaries.isEmpty) {
-            return LayoutBuilder(
-              builder: (context, constraints) => RefreshIndicator(
-                onRefresh: _onRefresh,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: SizedBox(
-                    height: constraints.maxHeight,
-                    child: const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.group_off, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'Não há pedidos de ajuda na tua zona.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+      ),
+      data: (summaries) {
+        if (summaries.isEmpty) {
+          return LayoutBuilder(
+            builder: (context, constraints) => RefreshIndicator(
+              onRefresh: _onDiscoverRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: constraints.maxHeight,
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.group_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'Não há pedidos de ajuda na tua zona.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: summaries.length,
-              itemBuilder: (context, index) {
-                final s = summaries[index];
-                final serviceTypeName = serviceTypes
-                        .where((t) => t.id == s.serviceTypeId)
-                        .firstOrNull
-                        ?.name ??
-                    '—';
-
-                double? distanceMeters;
-                if (workerProfile != null) {
-                  distanceMeters = Geolocator.distanceBetween(
-                    workerProfile.baseLat,
-                    workerProfile.baseLng,
-                    s.locationLat,
-                    s.locationLng,
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _HelpRequestCard(
-                    summary: s,
-                    serviceTypeName: serviceTypeName,
-                    distanceMeters: distanceMeters,
-                    isApplied: _appliedIds.contains(s.id),
-                    isApplying: _applying[s.id] == true,
-                    broughtEquipment: _broughtEquipment[s.id] ?? false,
-                    onBroughtEquipmentChanged: (v) =>
-                        setState(() => _broughtEquipment[s.id] = v),
-                    onApply: () => _apply(s),
-                  ),
-                );
-              },
             ),
           );
-        },
+        }
+
+        return RefreshIndicator(
+          onRefresh: _onDiscoverRefresh,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: summaries.length,
+            itemBuilder: (context, index) {
+              final s = summaries[index];
+              final serviceTypeName = serviceTypes
+                      .where((t) => t.id == s.serviceTypeId)
+                      .firstOrNull
+                      ?.name ??
+                  '—';
+
+              double? distanceMeters;
+              if (workerProfile != null) {
+                distanceMeters = Geolocator.distanceBetween(
+                  workerProfile.baseLat,
+                  workerProfile.baseLng,
+                  s.locationLat,
+                  s.locationLng,
+                );
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _HelpRequestCard(
+                  summary: s,
+                  serviceTypeName: serviceTypeName,
+                  distanceMeters: distanceMeters,
+                  isApplied: _appliedIds.contains(s.id),
+                  isApplying: _applying[s.id] == true,
+                  broughtEquipment: _broughtEquipment[s.id] ?? false,
+                  onBroughtEquipmentChanged: (v) =>
+                      setState(() => _broughtEquipment[s.id] = v),
+                  onApply: () => _apply(s),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Pedidos de ajuda'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Descobrir'),
+              Tab(text: 'As minhas candidaturas'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildDiscoverTab(),
+            const _MyApplicationsTab(),
+          ],
+        ),
       ),
     );
   }
 }
+
+// ─── "As minhas candidaturas" tab ────────────────────────────────────────────
+
+class _MyApplicationsTab extends ConsumerStatefulWidget {
+  const _MyApplicationsTab();
+
+  @override
+  ConsumerState<_MyApplicationsTab> createState() => _MyApplicationsTabState();
+}
+
+class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
+  final Set<String> _withdrawing = {};
+
+  Future<void> _onRefresh() async => ref.invalidate(myHelpAcceptancesProvider);
+
+  Future<void> _withdraw(HelpAcceptanceSummary ha) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Confirmar desistência'),
+        content: const Text(
+          'Tens a certeza que queres desistir desta ajuda? '
+          'O worker principal será notificado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Desistir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _withdrawing.add(ha.id));
+    try {
+      await ref
+          .read(helpRequestRepositoryProvider)
+          .withdrawHelpAcceptance(ha.id);
+      if (!mounted) return;
+      ref.invalidate(myHelpAcceptancesProvider);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Desististe desta ajuda.')),
+      );
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(
+          content: Text(friendlyError(e)),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _withdrawing.remove(ha.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(myHelpAcceptancesProvider);
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(friendlyError(e)),
+        ),
+      ),
+      data: (acceptances) {
+        if (acceptances.isEmpty) {
+          return LayoutBuilder(
+            builder: (context, constraints) => RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: constraints.maxHeight,
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.group_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            'Ainda não te candidataste a nenhum pedido de ajuda.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final pending = acceptances
+            .where((a) => a.status == HelpAcceptanceStatus.pending)
+            .toList();
+        final accepted = acceptances
+            .where((a) => a.status == HelpAcceptanceStatus.accepted)
+            .toList();
+        final history = acceptances
+            .where((a) =>
+                a.status == HelpAcceptanceStatus.rejected ||
+                a.status == HelpAcceptanceStatus.cancelled)
+            .toList();
+
+        return RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (pending.isNotEmpty) ...[
+                const _SectionHeader('Pendentes'),
+                ...pending.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _PendingCard(acceptance: a),
+                  ),
+                ),
+              ],
+              if (accepted.isNotEmpty) ...[
+                if (pending.isNotEmpty) const SizedBox(height: 8),
+                const _SectionHeader('Aceites'),
+                ...accepted.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AcceptedCard(
+                      acceptance: a,
+                      isWithdrawing: _withdrawing.contains(a.id),
+                      onWithdraw: () => _withdraw(a),
+                    ),
+                  ),
+                ),
+              ],
+              if (history.isNotEmpty) ...[
+                if (pending.isNotEmpty || accepted.isNotEmpty)
+                  const SizedBox(height: 8),
+                const _SectionHeader('Histórico'),
+                ...history.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _HistoryCard(acceptance: a),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+}
+
+(String, Color) _jobStatusDisplay(String status) => switch (status) {
+      'confirmed' => ('Confirmado', Colors.green.shade600),
+      'awaiting_confirmation' =>
+        ('A aguardar confirmação', Colors.orange.shade700),
+      'completed' => ('Concluído', Colors.green.shade800),
+      'cancelled' => ('Cancelado', Colors.red.shade400),
+      _ => ('Em aberto', Colors.blue.shade600),
+    };
+
+// ─── Candidature cards ────────────────────────────────────────────────────────
+
+class _PendingCard extends StatelessWidget {
+  const _PendingCard({required this.acceptance});
+  final HelpAcceptanceSummary acceptance;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              acceptance.serviceTypeName,
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            _Meta(
+              icon: Icons.person_outline,
+              label: 'Principal: ${acceptance.principalName}',
+            ),
+            if (acceptance.broughtEquipment) ...[
+              const SizedBox(height: 4),
+              _Meta(
+                icon: Icons.build_outlined,
+                label: 'Levo equipamento',
+              ),
+            ],
+            const SizedBox(height: 10),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                'À espera de decisão',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.orange.shade800,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AcceptedCard extends StatelessWidget {
+  const _AcceptedCard({
+    required this.acceptance,
+    required this.isWithdrawing,
+    required this.onWithdraw,
+  });
+  final HelpAcceptanceSummary acceptance;
+  final bool isWithdrawing;
+  final VoidCallback onWithdraw;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final (jobLabel, jobColor) = _jobStatusDisplay(acceptance.jobStatus);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    acceptance.serviceTypeName,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: jobColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    jobLabel,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: jobColor, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _Meta(
+              icon: Icons.person_outline,
+              label: 'Principal: ${acceptance.principalName}',
+            ),
+            if (acceptance.agreedRate > 0) ...[
+              const SizedBox(height: 4),
+              _Meta(
+                icon: Icons.euro_outlined,
+                label:
+                    '${acceptance.agreedRate.toStringAsFixed(2).replaceAll('.', ',')} €/h acordado',
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: isWithdrawing ? null : onWithdraw,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+                child: isWithdrawing
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: theme.colorScheme.error,
+                        ),
+                      )
+                    : const Text('Desistir'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryCard extends StatelessWidget {
+  const _HistoryCard({required this.acceptance});
+  final HelpAcceptanceSummary acceptance;
+
+  String get _statusLabel => switch (acceptance.status) {
+        HelpAcceptanceStatus.rejected => 'Não selecionado',
+        HelpAcceptanceStatus.cancelled => 'Desististe',
+        _ => '—',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    acceptance.serviceTypeName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface
+                          .withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Principal: ${acceptance.principalName}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _statusLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Discover tab widgets (unchanged) ────────────────────────────────────────
 
 class _HelpRequestCard extends StatelessWidget {
   const _HelpRequestCard({

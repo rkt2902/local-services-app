@@ -2,7 +2,7 @@
 
 > Referência única de todas as transições de estado, notificações e providers invalidados.
 > Cada transição: (1) muda estado na BD via RPC, (2) insere notificação, (3) invalida providers.
-> Atualizado após Fases 8A–8E.3.
+> Atualizado após Fases 8A–9 (cancellation handling gaps fechados 2026-06-24).
 
 ## Estados do job (`job_status`)
 
@@ -32,6 +32,24 @@
 | `accepted` | Nova data aceite, `confirmed_*` atualizado |
 | `rejected` | Recusada, mantém data original |
 
+## Estado do pedido de ajuda (`help_request_status`)
+
+| Estado | Significado |
+|---|---|
+| `pending_approval` | Criado pelo worker principal após o job estar confirmado; aguarda aprovação do cliente |
+| `open` | Disponível para candidaturas de ajudantes |
+| `filled` | Todos os slots preenchidos (`accepted` count = `slots_needed`) |
+| `cancelled` | Cancelado em cascade quando o job é cancelado |
+
+## Estado da candidatura de ajuda (`help_acceptance_status`)
+
+| Estado | Significado |
+|---|---|
+| `pending` | Candidatura enviada, à espera de decisão do principal |
+| `accepted` | Principal aceitou o ajudante; `agreed_rate` definido |
+| `rejected` | Principal recusou; candidato pode re-candidatar-se se o slot reabrir |
+| `cancelled` | Ajudante retirou a própria candidatura aceite (`withdraw_help_acceptance`) |
+
 ## Preferência de data do cliente (`date_mode`)
 
 | Modo | Significado |
@@ -58,6 +76,18 @@
 | 12 | Marcar concluído | Worker | `mark_job_done` | Cliente → `job_marked_done` | `awaiting_confirmation` | `accepted` |
 | 13 | Confirmar conclusão | Cliente | `confirm_job_completion` | Worker → `job_completed` | `completed` | `accepted` |
 | 14 | Sem resposta 48h | Sistema | — (cron/check) | Cliente → `job_no_response` | `no_response` | — |
+
+## Transições de equipa de ajudantes (Fase 9)
+
+| # | Transição | Quem | RPC | Notifica | help_request_status | help_acceptance_status |
+|---|---|---|---|---|---|---|
+| T1 | Criar pedido de ajuda | Worker principal | — (INSERT direto) | — | `open` ou `pending_approval` | — |
+| T2 | Aprovar pedido de ajuda | Cliente | `approve_help_request` | Worker principal → `help_request_approved` | `open` | — |
+| T3 | Candidatar-se | Worker ajudante | — (INSERT direto) | — | inalterado | `pending` |
+| T4 | Rejeitar candidatura | Worker principal | `reject_help_candidate` | Ajudante → `help_rejected` | inalterado | `rejected` |
+| T5 | Aceitar candidatura | Worker principal | `accept_help_candidate` | Ajudante → `help_accepted`; se slots preenchidos → `filled` | `open` ou `filled` | `accepted` |
+| T6 | Ajudante retira-se | Worker ajudante | `withdraw_help_acceptance` | Principal → `help_withdrew`; candidatos rejeitados → `help_request_reopened` (se era filled) | `filled → open` ou inalterado | `cancelled` |
+| T7 | Job cancelado (cascade) | Sistema via cancel_job | — | Ajudantes `accepted` → `help_job_cancelled` | `cancelled` | `rejected` (pending) / `accepted` (inalterado) |
 
 ## Regras de cancelamento
 
@@ -100,6 +130,12 @@
 | `reschedule_rejected` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 | `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
 | `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
+| `help_request_approved` | `helpRequestsForJobProvider` |
+| `help_accepted` | `jobByIdProvider` |
+| `help_rejected` | — (informational) |
+| `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
+| `help_request_reopened` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
+| `help_withdrew` | `helpRequestsForJobProvider` |
 
 ## Sub-fases pendentes
 

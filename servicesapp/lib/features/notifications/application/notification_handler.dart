@@ -69,6 +69,30 @@ class NotificationHandler {
         context.go('/worker/jobs');
       case NotificationType.helpRejected:
         break; // Informational only; no navigation needed.
+      case NotificationType.helpJobCancelled:
+        // Helper is told the job they were accepted onto was cancelled.
+        // TODO: navigate to dedicated helper job screen once built.
+        context.go('/worker/jobs');
+      case NotificationType.helpRequestReopened:
+        // A slot reopened; take the candidate to the discovery screen to re-apply.
+        context.push('/worker/help-requests');
+      case NotificationType.helpWithdrew:
+        // Principal worker is told a helper withdrew.
+        // related_id = help_request_id — navigate to the lobby.
+        if (notification.relatedId == null) break;
+        final helpRequest = await ref
+            .read(helpRequestRepositoryProvider)
+            .fetchHelpRequestById(notification.relatedId!);
+        if (helpRequest == null || !context.mounted) break;
+        final job =
+            await ref.read(jobByIdProvider(helpRequest.jobId).future);
+        final proposal = await ref
+            .read(proposalByIdProvider(helpRequest.proposalId).future);
+        if (job == null || proposal == null || !context.mounted) break;
+        context.push(
+          '/worker/job/${helpRequest.jobId}/help-requests',
+          extra: {'job': job, 'proposal': proposal},
+        );
       // unreachable: all NotificationType cases handled above
     }
   }

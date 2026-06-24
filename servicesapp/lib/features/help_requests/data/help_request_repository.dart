@@ -127,4 +127,17 @@ class HelpRequestRepository {
       'p_help_request_id': helpRequestId,
     });
   }
+
+  Future<void> withdrawHelpAcceptance(String helpAcceptanceId) async {
+    await _client.rpc('withdraw_help_acceptance', params: {
+      'p_help_acceptance_id': helpAcceptanceId,
+    });
+  }
+
+  Future<List<HelpAcceptanceSummary>> fetchMyHelpAcceptances() async {
+    final data = await _client.rpc('get_my_help_acceptances');
+    return (data as List)
+        .map((e) => HelpAcceptanceSummary.fromJson(e))
+        .toList();
+  }
 }

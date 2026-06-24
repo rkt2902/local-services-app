@@ -50,3 +50,10 @@ final helpRequestSummariesInRadiusProvider =
         radiusKm: workerProfile.radiusKm,
       );
 });
+
+final myHelpAcceptancesProvider =
+    FutureProvider<List<HelpAcceptanceSummary>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return Future.value([]);
+  return ref.read(helpRequestRepositoryProvider).fetchMyHelpAcceptances();
+});

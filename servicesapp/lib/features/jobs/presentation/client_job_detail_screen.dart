@@ -956,7 +956,7 @@ class _ProposalCard extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: accepting ? () {} : onAccept,
+                onPressed: accepting ? null : onAccept,
                 child: accepting
                     ? const SizedBox(
                         width: 20,

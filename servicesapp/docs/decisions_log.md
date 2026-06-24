@@ -384,3 +384,181 @@ Assinaturas confirmadas na live DB antes do drop.
 - Preço €0/null: substituído por "Preço a definir" em client_job_detail, worker_my_job_detail, worker_jobs list; perfil e proposta sheet ignoram rate ≤ 0.
 - Datas verificadas: formato dd/MM/yyyy em todos os DateFormat; hora explicitamente HH:mm (padLeft) em reschedule_dialog.
 - worker_jobs_screen pull-to-refresh invalida também jobsInRadiusProvider.
+
+## 2026-06-24 — Overloads obsoletos descobertos durante deployment de 0002-0007
+
+Descoberto durante a primeira aplicação manual das migrations 0002–0007 à live DB
+(nunca tinham sido aplicadas antes desta sessão): o comportamento de
+`CREATE OR REPLACE FUNCTION` em PostgreSQL cria um **novo overload** quando a lista
+de parâmetros muda — não substitui a assinatura antiga. Dois overloads ficaram vivos:
+
+### cancel_job(uuid)
+- Criado interativamente na BD antes do tracking por migrations começar.
+- Assinatura: `cancel_job(p_job_id uuid)` — sem razão, sem lógica de reabertura.
+- Supersedido por `cancel_job(uuid, text, text DEFAULT NULL)` no `0001_baseline.sql`,
+  mas como o baseline usou `CREATE OR REPLACE` com lista diferente, o overload antigo
+  sobreviveu.
+
+### create_proposal — versão 10 parâmetros
+- Assinatura: `create_proposal(uuid, uuid, numeric, numeric, numeric, integer, text, date, text, boolean)`
+- É a versão do `0001_baseline.sql` (com `p_scheduled_time text`).
+- Supersedida quando a migration `0005` adicionou `p_helpers_equipment_required boolean`
+  como 11.º parâmetro via `CREATE OR REPLACE` — o que criou um novo overload em vez de
+  substituir o de 10 parâmetros.
+- **Nota:** os overloads de 6 e 7 parâmetros foram corretamente dropados em 0005 com
+  `DROP FUNCTION IF EXISTS` explícito — o de 10 parâmetros foi deixado por engano.
+
+**Fix:** `supabase/migrations/0008_drop_obsolete_overloads.sql` dropa ambos com
+`DROP FUNCTION IF EXISTS`. Após aplicação, cada função deve ter exactamente um overload.
+
+**Lição aprendida:** ao adicionar um parâmetro a uma função existente via
+`CREATE OR REPLACE`, sempre preceder com `DROP FUNCTION IF EXISTS <assinatura-antiga>`
+para evitar acumulação silenciosa de overloads. Ver padrão correto em 0005
+(drops explícitos dos overloads de 6 e 7 params) e 0006 (drop explícito antes de
+mudar o return type).
+
+## 2026-06-24 — Code review da Fase 9 completa + descoberta crítica de deployment
+
+### Code review (22 itens, 7 categorias)
+
+Code review completa de tudo construído na Fase 9 (schema, RPCs, RLS, modelos Dart,
+e todos os 5 touchpoints de UI). 10 itens resolvidos imediatamente; 4 deixados em
+backlog não bloqueante; restantes são informativos/confirmados corretos.
+
+**Fixes aplicados via migration 0007:**
+- **C2.2** — `cancel_job` agora faz cascade: cancela `help_requests` abertos e rejeita
+  `help_acceptances` pending quando um job é cancelado. Previne órfãos visíveis no
+  ecrã de descoberta e no lobby.
+- **C2.3 + C7.4** — `get_help_requests_in_radius` agora exclui jobs com
+  `status IN ('cancelled', 'completed')` E exclui help_requests onde o caller é o
+  worker principal (`jp.worker_id <> auth.uid()`). Previne que candidatos vejam jobs
+  cancelados ou se candidatem ao próprio help_request.
+- **C3.1** — Removida política RLS "Worker aceita ajudar" (baseline) em
+  `help_acceptances` FOR INSERT. Era mais permissiva que a política de 0004 e, como
+  o PostgreSQL faz OR entre políticas permissivas, tornava a restrição de `status =
+  'pending'` ineficaz. A política "Worker candidata-se a help_request" (0004) é agora
+  a única INSERT policy e funciona como esperado.
+- **C3.3** — Política RLS "Worker principal cria help_requests" em `help_requests` FOR
+  INSERT restringida a propostas com `status = 'accepted'`. Antes permitia INSERT para
+  qualquer proposta do worker independentemente do estado.
+- **C3.4** — Política RLS "Worker cancela ajuda" em `help_acceptances` FOR UPDATE
+  restringida com `WITH CHECK (status = 'cancelled')`. Antes permitia ao candidato
+  atualizar qualquer coluna (incluindo `agreed_rate` e `status`) para qualquer valor.
+- **C5.2 (BD)** — Adicionado `CHECK (status <> 'accepted' OR agreed_rate > 0)` em
+  `help_acceptances`. Constraint condicional (não `> 0` incondicional) porque
+  `applyToHelpRequest` insere `agreed_rate = 0` como placeholder para candidaturas
+  pending — o valor real é definido pelo principal via `accept_help_candidate`. Pre-flight
+  na migration aborta se existirem linhas accepted com rate ≤ 0.
+
+**Fixes aplicados no Dart:**
+- **C7.1** — `client_job_detail_screen.dart`: `onPressed: accepting ? () {} : onAccept`
+  corrigido para `onPressed: accepting ? null : onAccept`. O `() {}` impedia o
+  `FilledButton` de mostrar o estilo desativado durante a chamada de aceitação.
+- **C5.2 (cliente)** — `worker_help_requests_lobby_screen.dart`: validação adicionada
+  antes de chamar `acceptCandidate`. Se o campo de taxa é apagado ou inválido →
+  fallback para o valor sugerido (comportamento anterior preservado). Se o utilizador
+  escrever explicitamente um valor ≤ 0 → SnackBar "A taxa deve ser maior que zero.",
+  sem chamar o RPC, sem fechar o sheet.
+
+**Backlog (não bloqueante — nenhum ecrã de UI precisa deles ainda):**
+- C3.2 — Sem política SELECT para o cliente ver `help_requests` em estado `open`/`filled`.
+- C7.2 — Estado de erro no lobby substitui ecrã inteiro em vez de mostrar erro inline.
+- C7.5 — `_iconForType` em `notifications_screen.dart` não é exaustivo para 9 tipos
+  de notificação pré-Fase-9 (mostram ícone genérico de sino).
+- C7.7 — `helpAccepted` navega para `/worker/jobs` mas os `help_acceptances` não
+  aparecem nesse ecrã — gap de UX até ser criado um ecrã dedicado de "helper jobs".
+
+### CRÍTICO: migrations 0002-0007 nunca tinham sido aplicadas à BD viva
+
+Descoberto durante a verificação manual em 2026-06-24: **as migrations 0002 a 0007
+nunca tinham sido aplicadas à base de dados de produção**, apesar de estarem marcadas
+como "feitas" em sessões anteriores.
+
+**Causa raiz:** o Claude Code consegue *ler* a BD via REST API do Supabase mas
+**não consegue executar alterações de schema diretamente** — apenas cria ficheiros
+`.sql` localmente. Em sessões anteriores, após criar os ficheiros de migration, o
+assistente reportou o trabalho como "concluído" sem confirmar se tinham sido aplicados.
+
+**Descoberto quando:** queries de verificação manual falharam a encontrar colunas e
+constraints esperados (ex: `helpers_equipment_required`, `equipment_required`,
+`created_post_confirmation`, políticas RLS da Fase 9).
+
+**Resolução:** todas as migrations 0001 a 0007 foram aplicadas manualmente via o SQL
+Editor do Supabase em 2026-06-24. Durante este processo, dois overloads obsoletos
+adicionais foram encontrados (`cancel_job(uuid)` e `create_proposal` de 10 parâmetros)
+e removidos via migration 0008 (ver entrada anterior neste log).
+
+### Lição aprendida: confirmação de deployment obrigatória
+
+> **Regra a seguir em todas as sessões futuras:** após qualquer prompt que crie um
+> ficheiro de migration, confirmar explicitamente com o Claude Code se a migration foi
+> aplicada à BD viva ou apenas escrita como ficheiro. Nunca assumir que "criado" =
+> "aplicado". Em caso de dúvida, verificar diretamente via SQL Editor antes de
+> considerar uma migration "feita".
+
+O Claude Code deve terminar qualquer resposta que crie um ficheiro `.sql` com a frase
+explícita: *"Este ficheiro foi criado mas NÃO aplicado à base de dados. Tens de o
+aplicar manualmente."*
+
+## 2026-06-24 — Fase 9: três gaps de cancelamento fechados (migration 0009)
+
+### Problema
+
+Após o code review da Fase 9, identificaram-se três situações não cobertas:
+
+1. **Ajudantes aceites não eram notificados quando o job era cancelado.** O `cancel_job`
+   (0007) fazia cascade de `help_requests` e rejeitava `help_acceptances` pending, mas
+   não notificava os ajudantes com `status = 'accepted'`.
+
+2. **Um ajudante aceite não tinha forma de se retirar.** Não existia nenhum RPC ou
+   endpoint para cancelar a própria candidatura aceite.
+
+3. **Quando um ajudante se retirava de um `help_request` preenchido, o slot ficava
+   perdido.** Nenhuma lógica repunha o `help_request` a `open` nem notificava os
+   candidatos rejeitados da nova vaga.
+
+### Solução (migration 0009)
+
+**cancel_job (atualização):**
+- Após os cascade UPDATEs existentes (0007), insere notificações `help_job_cancelled`
+  para todos os `help_acceptances` com `status = 'accepted'` no job cancelado.
+- O filtro `ha.status = 'accepted'` é seguro após o cascade porque o cascade apenas
+  rejeita `pending` — os `accepted` ficam inalterados até esta INSERT.
+- `related_id = p_job_id`, `related_type = 'job_request'`.
+
+**withdraw_help_acceptance (novo RPC SECURITY DEFINER):**
+- Pré-condições: chamador = `worker_id` da candidatura; `status = 'accepted'`.
+- Efeito 1: `help_acceptances.status → 'cancelled'`.
+- Efeito 2: se `help_request.status = 'filled'`, reverte para `'open'` (slot libertado).
+- Efeito 3: se houve reabertura, notifica todos os candidatos `rejected` com
+  `help_request_reopened` (podem re-candidatar-se).
+- Efeito 4 (sempre): notifica o worker principal com `help_withdrew`.
+- `related_id = help_request_id` para ambas as notificações.
+- Nota de race condition: dois ajudantes a retirar-se simultaneamente podem enviar
+  notificações duplicadas de reabertura. Idempotente nos dados; aceitável para MVP.
+
+**Três novos tipos de notificação (notification_types.dart):**
+- `help_job_cancelled` — ajudante notificado de que o job que aceitou foi cancelado.
+  Handler: `context.go('/worker/jobs')` (fallback, ecrã dedicado pendente). Sync:
+  invalida `helpRequestSummariesInRadiusProvider` + `helpRequestsInRadiusProvider`.
+- `help_request_reopened` — candidato rejeitado notificado de vaga disponível.
+  Handler: `context.push('/worker/help-requests')` (discovery screen). Sync: invalida
+  `helpRequestSummariesInRadiusProvider` + `helpRequestsInRadiusProvider`.
+- `help_withdrew` — principal notificado de que um ajudante desistiu.
+  Handler: fetch help_request → job → proposal → `context.push` lobby (mesmo padrão
+  que `helpRequestApproved`). Sync: invalida `helpRequestsForJobProvider`.
+
+**Dart — HelpRequestRepository:**
+- Adicionado `withdrawHelpAcceptance(String helpAcceptanceId)` que chama o novo RPC.
+
+**Gap de UI confirmado (backlog):**
+- Não existe nenhum ecrã que mostre ao ajudante as suas candidaturas aceites.
+  `withdrawHelpAcceptance` está no repositório mas sem ponto de entrada na UI.
+  A ser resolvido quando for criado o ecrã "os meus trabalhos como ajudante" (C7.7).
+
+**RLS:** ambas as funções são SECURITY DEFINER — contornam RLS. A política
+"Worker cancela ajuda" (`WITH CHECK status = 'cancelled'`) é compatível com o que
+`withdraw_help_acceptance` escreve, mas é irrelevante porque o SECURITY DEFINER
+não a aplica.
+
+**Estado:** migration 0009 criada localmente. NÃO aplicada à BD viva.
