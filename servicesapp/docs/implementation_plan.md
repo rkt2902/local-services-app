@@ -4,7 +4,7 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** Fase 9 — Equipa e ajudantes. Implementada, revistada e aplicada à BD de produção (2026-06-24).
+**Passo concluído:** Fase 9 — Equipa e ajudantes. Implementada, revistada e aplicada à BD de produção (2026-06-24). Migrations 0001–0010 todas aplicadas à BD viva.
 **Próximo passo:** Fase 10 — Contactos e conclusão (ou definir próxima fase).
 
 ## Testes manuais pendentes — 8E.4

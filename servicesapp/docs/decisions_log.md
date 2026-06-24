@@ -539,26 +539,146 @@ Após o code review da Fase 9, identificaram-se três situações não cobertas:
 
 **Três novos tipos de notificação (notification_types.dart):**
 - `help_job_cancelled` — ajudante notificado de que o job que aceitou foi cancelado.
-  Handler: `context.go('/worker/jobs')` (fallback, ecrã dedicado pendente). Sync:
-  invalida `helpRequestSummariesInRadiusProvider` + `helpRequestsInRadiusProvider`.
+  Handler: `context.go('/worker/help-requests', extra: {'initialTabIndex': 1})`
+  (tab "As minhas candidaturas"). Sync: invalida `helpRequestSummariesInRadiusProvider`
+  + `helpRequestsInRadiusProvider` + `myHelpAcceptancesProvider`.
 - `help_request_reopened` — candidato rejeitado notificado de vaga disponível.
   Handler: `context.push('/worker/help-requests')` (discovery screen). Sync: invalida
   `helpRequestSummariesInRadiusProvider` + `helpRequestsInRadiusProvider`.
 - `help_withdrew` — principal notificado de que um ajudante desistiu.
   Handler: fetch help_request → job → proposal → `context.push` lobby (mesmo padrão
   que `helpRequestApproved`). Sync: invalida `helpRequestsForJobProvider`.
+- `help_rejected` (pré-existente) — deixou de ser puramente informacional: sync passa
+  a invalidar `myHelpAcceptancesProvider` para actualizar a tab "Histórico" do ajudante.
+- `help_accepted` (pré-existente) — handler alterado de `context.go('/worker/jobs')`
+  para `context.go('/worker/help-requests', extra: {'initialTabIndex': 1})`; sync passa
+  a invalidar também `myHelpAcceptancesProvider`.
 
 **Dart — HelpRequestRepository:**
 - Adicionado `withdrawHelpAcceptance(String helpAcceptanceId)` que chama o novo RPC.
 
-**Gap de UI confirmado (backlog):**
-- Não existe nenhum ecrã que mostre ao ajudante as suas candidaturas aceites.
-  `withdrawHelpAcceptance` está no repositório mas sem ponto de entrada na UI.
-  A ser resolvido quando for criado o ecrã "os meus trabalhos como ajudante" (C7.7).
+**Gap de UI resolvido (C7.7):**
+- `withdrawHelpAcceptance` tem agora ponto de entrada na UI através da tab "As minhas
+  candidaturas" em `WorkerHelpRequestsScreen` (ver entrada de 2026-06-24 abaixo).
+  O gap C7.7 do code review está fechado.
 
 **RLS:** ambas as funções são SECURITY DEFINER — contornam RLS. A política
 "Worker cancela ajuda" (`WITH CHECK status = 'cancelled'`) é compatível com o que
 `withdraw_help_acceptance` escreve, mas é irrelevante porque o SECURITY DEFINER
 não a aplica.
 
-**Estado:** migration 0009 criada localmente. NÃO aplicada à BD viva.
+**Estado:** migration 0009 aplicada à BD viva (confirmado via probe REST API
+2026-06-24: `withdraw_help_acceptance` devolve HTTP 400 — função existe).
+
+## 2026-06-24 — Fase 9: get_my_help_acceptances RPC (migration 0010)
+
+### Problema
+
+Para popular a tab "As minhas candidaturas" (ver entrada abaixo), é necessário
+carregar todas as candidaturas do ajudante autenticado com contexto suficiente para
+display (nome do serviço, nome do worker principal, estado do job pai). Um SELECT
+direto via PostgREST em `help_acceptances` não consegue resolver o JOIN necessário.
+
+### Decisão: SECURITY DEFINER RPC em vez de PostgREST embedded join
+
+O join necessário é um two-hop FK:
+`job_proposals.worker_id → worker_profiles.profile_id → profiles.id`
+
+O PostgREST resolve JOINs simples (um salto de FK direta), mas esta cadeia
+`worker_profiles.profile_id` como intermediário não tem uma FK direta de
+`help_acceptances` para `profiles` — a linha do ajudante passa por
+`help_requests → job_requests → service_types` E por
+`help_requests → job_proposals → profiles`. O PostgREST embedded join falha
+neste cenário de FK indireta.
+
+Solução: `get_my_help_acceptances()` — função SECURITY DEFINER STABLE que:
+- Filtra por `ha.worker_id = auth.uid()` (sem expor dados de outros workers)
+- Faz os JOINs em SQL (sem limitações PostgREST)
+- Devolve: `id`, `help_request_id`, `status`, `agreed_rate`, `brought_equipment`,
+  `created_at`, `service_type_name`, `principal_name`, `job_status`
+- Ordenado por `ha.created_at DESC`
+
+**Padrão reutilizado:** idêntico à decisão da migration 0006 (`get_help_requests_in_radius`
+com join de contexto), onde o mesmo problema de FK indireta levou à mesma solução.
+
+**Dart:**
+- `fetchMyHelpAcceptances()` em `HelpRequestRepository` (chama o RPC)
+- `myHelpAcceptancesProvider` — `FutureProvider<List<HelpAcceptanceSummary>>`
+- `HelpAcceptanceSummary` — classe de modelo distinta de `HelpAcceptance` (que é
+  usada no lobby do principal e tem campos diferentes)
+
+**Estado:** migration 0010 aplicada à BD viva (confirmado via probe REST API
+2026-06-24: `get_my_help_acceptances` devolve HTTP 200 — função existe).
+
+## 2026-06-24 — Fase 9: tab "As minhas candidaturas" em WorkerHelpRequestsScreen
+
+### Problema
+
+Após fechar os gaps de cancelamento (0009 + `withdrawHelpAcceptance`), o RPC existia
+mas não havia nenhum ponto de entrada na UI para o ajudante ver ou gerir as suas
+candidaturas — o gap C7.7 do code review.
+
+### Solução
+
+`WorkerHelpRequestsScreen` convertida de ecrã único para ecrã com 2 tabs:
+
+**Estrutura:**
+- `DefaultTabController(length: 2, initialIndex: widget.initialTabIndex)` com:
+  - Tab 0 "Descobrir" — conteúdo original (`_buildDiscoverTab()`, inalterado)
+  - Tab 1 "As minhas candidaturas" — novo `_MyApplicationsTab`
+- `initialTabIndex` passado como parâmetro de construtor (default 0)
+
+**`_MyApplicationsTab` (ConsumerStatefulWidget):**
+- Consome `myHelpAcceptancesProvider`
+- Três secções: Pendentes / Aceites / Histórico (rejected + cancelled)
+- Pull-to-refresh: `ref.invalidate(myHelpAcceptancesProvider)`
+- Botão "Desistir" nas candidaturas aceites: AlertDialog de confirmação →
+  `withdrawHelpAcceptance()` → `ref.invalidate(myHelpAcceptancesProvider)`
+- Estado vazio único quando todas as secções estão vazias
+
+### Deep-linking via go_router state.extra
+
+Para que notificações possam navegar diretamente para a tab correcta, a rota
+`/worker/help-requests` foi actualizada para ler `initialTabIndex` de `state.extra`:
+
+```dart
+GoRoute(
+  path: '/worker/help-requests',
+  builder: (_, state) {
+    final extra = state.extra as Map<String, dynamic>?;
+    return WorkerHelpRequestsScreen(
+      initialTabIndex: extra?['initialTabIndex'] as int? ?? 0,
+    );
+  },
+)
+```
+
+Chamadores sem `extra` recebem tab 0 (Descobrir) por omissão — sem regressão.
+`DefaultTabController` suporta `initialIndex` nativamente; sem necessidade de
+`TickerProviderStateMixin` ou estado externo.
+
+## 2026-06-24 — Fase 9: TODO comments em notification_handler.dart fechados
+
+### Contexto
+
+Dois casos no switch de `NotificationHandler.handle()` tinham TODOs a marcar
+que a navegação era um fallback incorreto enquanto não existisse um ecrã dedicado
+de "helper jobs":
+
+- `helpAccepted` — navegava para `context.go('/worker/jobs')` com TODO
+- `helpJobCancelled` — navegava para `context.go('/worker/jobs')` com TODO
+
+`/worker/jobs` é o ecrã "Os meus jobs" do worker **principal** (propostas aceites),
+que não mostra candidaturas de ajudante — o utilizador ficava no ecrã errado.
+
+### Resolução
+
+Com a tab "As minhas candidaturas" disponível em `/worker/help-requests`, ambos os
+casos foram actualizados para:
+
+```dart
+context.go('/worker/help-requests', extra: {'initialTabIndex': 1});
+```
+
+Os comentários TODO foram removidos. O switch em `NotificationHandler` é agora
+exaustivo para todos os 19 tipos em `NotificationType` sem comentários de débito.

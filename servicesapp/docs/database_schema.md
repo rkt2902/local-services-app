@@ -212,7 +212,8 @@ Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
 --        proposal_accepted, proposal_rejected, job_cancelled, job_reopened,
 --        job_marked_done, job_completed, job_no_response,
 --        reschedule_proposed, reschedule_accepted, reschedule_rejected,
---        help_request_approved, help_accepted, help_rejected
+--        help_request_approved, help_accepted, help_rejected,
+--        help_job_cancelled, help_request_reopened, help_withdrew
 ```
 
 | coluna       | tipo        | notas                                       |
@@ -297,7 +298,10 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `confirm_job_completion`     | Cliente confirma conclusão → `completed`                           |
 | `get_help_requests_in_radius`| Haversine — help_requests `open` dentro do raio do worker; exclui jobs `cancelled`/`completed` e help_requests onde o caller é o principal (migration 0007) |
 | `approve_help_request`       | Cliente aprova um help_request `pending_approval` → passa a `open` |
-| `reject_help_candidate`      | Principal worker recusa candidato `pending` → `rejected`, notifica candidato |
+| `accept_help_candidate`      | Principal worker aceita candidato `pending` → `accepted`, define `agreed_rate`; marca `help_request` como `filled` se `accepted count = slots_needed`; notifica ajudante (`help_accepted`) |
+| `reject_help_candidate`      | Principal worker recusa candidato `pending` → `rejected`, notifica candidato (`help_rejected`) |
+| `withdraw_help_acceptance`   | Ajudante retira candidatura aceite → `cancelled`; reabre `help_request` se estava `filled`; notifica candidatos rejeitados (`help_request_reopened`) e principal (`help_withdrew`) |
+| `get_my_help_acceptances`    | Devolve todas as candidaturas do ajudante autenticado com contexto: `service_type_name`, `principal_name`, `job_status` — SECURITY DEFINER STABLE; two-hop FK (`job_proposals.worker_id → worker_profiles.profile_id → profiles.id`) inviabiliza PostgREST embedded join |
 
 ---
 
@@ -340,7 +344,7 @@ contra um `pg_dump` live antes de usar num réplica de produção.
 deve vir acompanhada de um novo ficheiro de migration numerado sequencialmente
 (`0002_...sql`, `0003_...sql`, etc.). Nunca alterar o `0001_baseline.sql` após o primeiro deploy.
 
-> **0001–0008 todas confirmadas como aplicadas à BD viva em 2026-06-24.** Ver
-> `decisions_log.md` (entrada "2026-06-24 — Code review da Fase 9") para o histórico
-> completo da descoberta: as migrations 0002–0007 nunca tinham sido aplicadas antes
-> dessa data, apesar de os ficheiros `.sql` existirem localmente.
+> **0001–0010 todas confirmadas como aplicadas à BD viva em 2026-06-24.** Ver
+> `decisions_log.md` (entradas "2026-06-24 — Code review da Fase 9" e seguintes)
+> para o histórico completo: as migrations 0002–0007 nunca tinham sido aplicadas
+> antes dessa data; 0009 e 0010 confirmadas via probe REST API (HTTP 400 / 200).

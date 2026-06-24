@@ -97,6 +97,11 @@
 - Worker: máx 2 reaberturas por job
 - Cancelamento cria novo job (novo id, `reopened_from` aponta para o original)
 - Contagens separadas: `reopen_count_client` e `reopen_count_worker`
+- `cancel_job` faz cascade à equipa de ajudantes: cancela todos os `help_requests`
+  não cancelados do job (→ `cancelled`), rejeita todas as `help_acceptances` com
+  `status = 'pending'` (→ `rejected`), e notifica todos os ajudantes com
+  `status = 'accepted'` via `help_job_cancelled` — ver transição **T7** na tabela
+  de equipa (migrations 0007 + 0009)
 
 ## Regras de remarcação
 
@@ -119,8 +124,8 @@
 | Tipo de notificação | Providers invalidados |
 |---|---|
 | `new_job_in_radius` | `jobsInRadiusProvider` |
-| `proposal_received` | `clientJobsProvider`, `pendingProposalsForJobProvider` |
-| `proposal_withdrawn` | `clientJobsProvider`, `pendingProposalsForJobProvider` |
+| `proposal_received` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider` |
+| `proposal_withdrawn` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `jobsInRadiusProvider`, `workerProposalForJobProvider` |
 | `proposal_accepted` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider`, `workerProposalForJobProvider`, `jobByIdProvider` |
 | `proposal_rejected` | `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider` |
 | `job_cancelled` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`, `jobByIdProvider` |
@@ -131,11 +136,16 @@
 | `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
 | `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 | `help_request_approved` | `helpRequestsForJobProvider` |
-| `help_accepted` | `jobByIdProvider` |
-| `help_rejected` | — (informational) |
-| `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
+| `help_accepted` | `jobByIdProvider`, `myHelpAcceptancesProvider` |
+| `help_rejected` | `myHelpAcceptancesProvider` |
+| `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider`, `myHelpAcceptancesProvider` |
 | `help_request_reopened` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
 | `help_withdrew` | `helpRequestsForJobProvider` |
+
+> **`myHelpAcceptancesProvider` — invalidação:** invalidado por `notificationSyncProvider`
+> para `help_accepted`, `help_rejected` e `help_job_cancelled` (ver tabela acima).
+> Também invalidado directamente por: acção "Desistir" na tab "As minhas candidaturas"
+> (`_withdraw` em `WorkerHelpRequestsScreen`) e pull-to-refresh na mesma tab (`_onRefresh`).
 
 ## Sub-fases pendentes
 
