@@ -35,3 +35,18 @@ final helpRequestsInRadiusProvider =
         radiusKm: workerProfile.radiusKm,
       );
 });
+
+final helpRequestSummariesInRadiusProvider =
+    FutureProvider<List<HelpRequestSummary>>((ref) async {
+  final workerProfile = await ref.watch(workerProfileProvider.future);
+  if (workerProfile == null) return [];
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+  return ref
+      .read(helpRequestRepositoryProvider)
+      .fetchHelpRequestSummariesInRadius(
+        workerLat: workerProfile.baseLat,
+        workerLng: workerProfile.baseLng,
+        radiusKm: workerProfile.radiusKm,
+      );
+});

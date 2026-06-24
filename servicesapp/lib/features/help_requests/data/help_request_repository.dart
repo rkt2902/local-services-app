@@ -68,6 +68,19 @@ class HelpRequestRepository {
     return (data as List).map((e) => HelpRequest.fromJson(e)).toList();
   }
 
+  Future<List<HelpRequestSummary>> fetchHelpRequestSummariesInRadius({
+    required double workerLat,
+    required double workerLng,
+    required int radiusKm,
+  }) async {
+    final data = await _client.rpc('get_help_requests_in_radius', params: {
+      'worker_lat': workerLat,
+      'worker_lng': workerLng,
+      'radius_km': radiusKm,
+    });
+    return (data as List).map((e) => HelpRequestSummary.fromJson(e)).toList();
+  }
+
   Future<List<HelpAcceptance>> fetchCandidatesForHelpRequest(
       String helpRequestId) async {
     final data = await _client

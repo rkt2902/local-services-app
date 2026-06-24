@@ -24,6 +24,11 @@ class WorkerHomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LocalServices'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.group_add_outlined),
+            tooltip: 'Pedidos de ajuda',
+            onPressed: () => context.push('/worker/help-requests'),
+          ),
           _NotificationButton(),
         ],
       ),

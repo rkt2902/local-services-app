@@ -1,5 +1,51 @@
 import '../../../core/constants/enums.dart';
 
+class HelpRequestSummary {
+  final String id;
+  final String jobId;
+  final String proposalId;
+  final int slotsNeeded;
+  final HelpRequestStatus status;
+  final bool equipmentRequired;
+  final bool createdPostConfirmation;
+  final DateTime createdAt;
+  final double locationLat;
+  final double locationLng;
+  final String serviceTypeId;
+  final String principalName;
+
+  const HelpRequestSummary({
+    required this.id,
+    required this.jobId,
+    required this.proposalId,
+    required this.slotsNeeded,
+    required this.status,
+    required this.equipmentRequired,
+    required this.createdPostConfirmation,
+    required this.createdAt,
+    required this.locationLat,
+    required this.locationLng,
+    required this.serviceTypeId,
+    required this.principalName,
+  });
+
+  factory HelpRequestSummary.fromJson(Map<String, dynamic> json) =>
+      HelpRequestSummary(
+        id: json['id'] as String,
+        jobId: json['job_id'] as String,
+        proposalId: json['proposal_id'] as String,
+        slotsNeeded: json['slots_needed'] as int,
+        status: HelpRequestStatus.fromValue(json['status'] as String),
+        equipmentRequired: json['equipment_required'] as bool,
+        createdPostConfirmation: json['created_post_confirmation'] as bool,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        locationLat: (json['location_lat'] as num).toDouble(),
+        locationLng: (json['location_lng'] as num).toDouble(),
+        serviceTypeId: json['service_type_id'] as String,
+        principalName: json['principal_name'] as String? ?? '',
+      );
+}
+
 class HelpRequest {
   final String id;
   final String jobId;
