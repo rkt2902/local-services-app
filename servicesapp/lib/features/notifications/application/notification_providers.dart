@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
@@ -110,6 +111,21 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobNoResponse:
+          break;
+        case NotificationType.helpRequestApproved:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          // Principal worker's help_request moved from pending_approval → open.
+          ref.invalidate(helpRequestsForJobProvider);
+        case NotificationType.helpAccepted:
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          // Helper worker accepted into a team. No dedicated helper-facing
+          // provider exists yet; invalidate jobByIdProvider broadly as a safe
+          // default so any open job detail screens reflect the latest state.
+          ref.invalidate(jobByIdProvider);
+        case NotificationType.helpRejected:
+          // Informational only — the candidate's rejection is already reflected
+          // in help_acceptances, but no provider currently displays that data
+          // in a live screen. Explicit no-op keeps the switch exhaustive.
           break;
       }
     }

@@ -188,6 +188,12 @@ class _NotificationTile extends ConsumerWidget {
         (Icons.check_circle, Colors.green.shade600),
       NotificationType.proposalRejected =>
         (Icons.cancel, Colors.red.shade600),
+      NotificationType.helpRequestApproved =>
+        (Icons.groups_outlined, Colors.green.shade600),
+      NotificationType.helpAccepted =>
+        (Icons.person_add_alt_1, Colors.green.shade600),
+      NotificationType.helpRejected =>
+        (Icons.person_remove, Colors.grey.shade600),
       _ => (Icons.notifications, Colors.grey.shade500),
     };
 

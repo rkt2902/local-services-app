@@ -35,6 +35,17 @@ class HelpRequestRepository {
     return result['id'] as String;
   }
 
+  Future<HelpRequest?> fetchHelpRequestById(String helpRequestId) async {
+    if (helpRequestId.isEmpty) return null;
+    final data = await _client
+        .from('help_requests')
+        .select()
+        .eq('id', helpRequestId)
+        .maybeSingle();
+    if (data == null) return null;
+    return HelpRequest.fromJson(data);
+  }
+
   Future<List<HelpRequest>> fetchHelpRequestsForJob(String jobId) async {
     final data = await _client
         .from('help_requests')
