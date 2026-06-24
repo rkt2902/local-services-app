@@ -33,3 +33,8 @@ final workerNameProvider =
     FutureProvider.family<String, String>((ref, workerId) {
   return ref.read(workerRepositoryProvider).fetchWorkerName(workerId);
 });
+
+final profileSummaryProvider =
+    FutureProvider.family<Map<String, String?>, String>((ref, profileId) {
+  return ref.read(workerRepositoryProvider).fetchProfileSummary(profileId);
+});
