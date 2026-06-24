@@ -65,14 +65,13 @@ class NotificationHandler {
           extra: {'job': job, 'proposal': proposal},
         );
       case NotificationType.helpAccepted:
-        // TODO: navigate to dedicated helper job detail screen once built.
-        context.go('/worker/jobs');
+        context.go('/worker/help-requests',
+            extra: {'initialTabIndex': 1});
       case NotificationType.helpRejected:
         break; // Informational only; no navigation needed.
       case NotificationType.helpJobCancelled:
-        // Helper is told the job they were accepted onto was cancelled.
-        // TODO: navigate to dedicated helper job screen once built.
-        context.go('/worker/jobs');
+        context.go('/worker/help-requests',
+            extra: {'initialTabIndex': 1});
       case NotificationType.helpRequestReopened:
         // A slot reopened; take the candidate to the discovery screen to re-apply.
         context.push('/worker/help-requests');

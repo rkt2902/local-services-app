@@ -121,7 +121,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/worker/help-requests',
-            builder: (_, _) => const WorkerHelpRequestsScreen(),
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              return WorkerHelpRequestsScreen(
+                initialTabIndex:
+                    extra?['initialTabIndex'] as int? ?? 0,
+              );
+            },
           ),
           GoRoute(
             path: '/worker/messages',

@@ -11,7 +11,9 @@ import '../data/help_request_model.dart';
 // ─── Root screen ─────────────────────────────────────────────────────────────
 
 class WorkerHelpRequestsScreen extends ConsumerStatefulWidget {
-  const WorkerHelpRequestsScreen({super.key});
+  const WorkerHelpRequestsScreen({super.key, this.initialTabIndex = 0});
+
+  final int initialTabIndex;
 
   @override
   ConsumerState<WorkerHelpRequestsScreen> createState() =>
@@ -144,6 +146,7 @@ class _WorkerHelpRequestsScreenState
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTabIndex,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Pedidos de ajuda'),
