@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-25 — Verificação retroativa das Fases 0–7
+
+Verificação completa e independente das Fases 0–7 (marcadas `[x]` no plano mas nunca
+auditadas contra o estado real do código e da BD viva). Resultado: **nenhum gap funcional**
+encontrado — ao contrário das Fases 8–10, que tinham gaps reais (contactos limitados a
+`confirmed`, 24h rule ausente de `cancel_job`, etc.).
+
+**4 issues de documentação corrigidos nesta sessão:**
+1. `implementation_plan.md` — Fase 4: todos os itens estavam `[ ]` (não marcados). Corrigido.
+2. `implementation_plan.md` — Fase 5: todos os itens estavam `[ ]` (não marcados). Corrigido.
+3. `implementation_plan.md` — Fase 10: todos os itens estavam `[ ]` apesar de implementados hoje. Corrigido.
+4. `database_schema.md` — `size_estimate`: dizia "sem CHECK na BD viva" mas migration 0001
+   inclui `CHECK (size_estimate IN ('small', 'medium', 'large'))`. Corrigido.
+
+**Nota informativa — `create_user_profile` RPC:** existe na BD (migration 0001, linha 473)
+mas nunca é chamado pelo código Dart. A app usa `from('profiles').upsert(...)` diretamente,
+autorizado pela política INSERT em `profiles`. A própria migration documenta esta escolha:
+*"The Dart app currently uses a direct upsert on profiles; this function is kept for
+DB-level or admin use."* Não é um bug — é uma decisão de implementação intencional.
+
 ## 2026-06-02 — Fotos: máximo 2 por job, compressão obrigatória
 Supabase Free Plan tem 50mb de storage. Para maximizar espaço:
 - Máximo 2 fotos por job_request.

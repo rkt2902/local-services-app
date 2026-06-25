@@ -4,8 +4,10 @@
 > O Claude Code lê este ficheiro para saber em que passo está.
 
 ## Estado atual
-**Passo concluído:** Fase 9 — Equipa e ajudantes. Implementada, revistada e aplicada à BD de produção (2026-06-24). Migrations 0001–0010 todas aplicadas à BD viva.
-**Próximo passo:** Fase 10 — Contactos e conclusão (ou definir próxima fase).
+**Passo concluído:** Fase 10 — Contactos e conclusão. Implementada e verificada em 2026-06-25.
+Migrations 0001–0010 aplicadas à BD viva; 0011–0014 escritas localmente, ainda não aplicadas.
+Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25 (ver decisions_log.md).
+**Próximo passo:** Fase 11 — Avaliações.
 
 ## Testes manuais pendentes — 8E.4
 - [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)
@@ -44,21 +46,23 @@
       `/client/home`, `/worker/home`.
 - [x] Redirect de auth (placeholder; lógica real na Fase 5).
 
-### Fase 4 — Supabase: setup
-- [ ] Criar projeto Supabase. Guardar URL e anon key.
-- [ ] `core/config/` — leitura de env (`.env` + `flutter_dotenv` OU
-      `--dart-define`; decisão a registar em `decisions_log.md`).
-- [ ] Inicializar `Supabase.initialize` no `main.dart`.
-- [ ] Smoke test: ligar e ler tabela vazia.
+### Fase 4 — Supabase: setup ✅
+- [x] Criar projeto Supabase. Guardar URL e anon key.
+- [x] `core/config/` — leitura de env via `--dart-define` (decisão: sem flutter_dotenv;
+      credenciais em `.vscode/launch.json` no .gitignore — ver decisions_log.md 2026-06-02).
+- [x] Inicializar `Supabase.initialize` no `main.dart` (parâmetro `publishableKey:` após fix de deprecation 2026-06-25).
+- [x] Smoke test: app conecta e lê tabelas — confirmado em 2026-06-25.
 
-### Fase 5 — Supabase: schema + RLS
-- [ ] Criar tabelas conforme `database_schema.md` (via SQL editor; guardar
-      ficheiro SQL em `local_services_app/supabase/migrations/`).
-- [ ] Ativar RLS e criar políticas.
-- [ ] Criar buckets de Storage.
-- [ ] Seed mínimo: 1 `service_category` (Jardinagem) + 3 `service_types`.
-- [ ] Criar funções PL/pgSQL: `create_proposal`, `accept_proposal`,
-      `reject_proposal` (resolvem condição de corrida).
+### Fase 5 — Supabase: schema + RLS ✅
+- [x] Criar tabelas conforme `database_schema.md` (migrations em `supabase/migrations/`;
+      baseline `0001_baseline.sql` — migrations 0001–0010 aplicadas à BD viva).
+- [x] Ativar RLS e criar políticas (RLS habilitado em todas as 13 tabelas base em 0001;
+      políticas expandidas em migrations 0003–0012 — confirmado 2026-06-25).
+- [x] Criar buckets de Storage (`job-photos`, `worker-photos`, `avatars` — definidos em 0001).
+- [x] Seed mínimo: 1 `service_category` "Jardinagem" + 3 `service_types` ("Corte de relva",
+      "Poda", "Limpeza de jardim") — confirmados via query live 2026-06-25.
+- [x] Criar funções PL/pgSQL: `create_proposal`, `accept_proposal`, `reject_proposal`
+      (resolvem condição de corrida) — presentes e auditadas ao longo das Fases 8–9.
 
 ### Fase 6 — Auth
 - [x] Feature `auth/`: data + application + presentation.
@@ -123,10 +127,14 @@ para este fluxo. O `accept_proposal` auto-cria sempre com `created_post_confirma
 (aprovação implícita), por isso este gap não afeta o fluxo MVP principal. A visibilidade
 dos helpers (tab "As minhas candidaturas") já está implementada e não é mais um gap.
 
-### Fase 10 — Contactos e conclusão
-- [ ] Mostrar contactos (WhatsApp/tel) só após `confirmed`.
-- [ ] Marcar job como `completed`.
-- [ ] Cancelamento até 24h antes (client e worker).
+### Fase 10 — Contactos e conclusão ✅
+- [x] Mostrar contactos (WhatsApp/tel) — card de contacto visível ao cliente em
+      `confirmed`, `awaiting_confirmation` e `completed`; ao worker em todos os estados
+      `accepted` da proposta. RLS confirmado via `client_has_confirmed_job_with_worker`.
+- [x] Marcar job como `completed` — `mark_job_done` + `confirm_job_completion` RPCs
+      existentes; auto-confirmação após 3 dias via pg_cron (migration 0014, não aplicada).
+- [x] Cancelamento até 24h antes (client e worker) — regra na BD via `cancel_job`
+      (migration 0013, não aplicada) e UI client-side (botão desativado + mensagem).
 
 ### Fase 11 — Avaliações
 - [ ] Feature `ratings/`: client avalia worker principal; worker avalia ajudantes.

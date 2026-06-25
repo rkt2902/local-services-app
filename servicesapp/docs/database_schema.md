@@ -134,7 +134,7 @@ Pedidos criados por clientes.
 | preferred_date            | date        | nullable — preenchida quando date_mode = `fixed`             |
 | availability_text         | text        | nullable — preenchida quando date_mode = `availability`      |
 | urgency                   | text        | nullable, CHECK in (`normal`,`urgent`)                       |
-| size_estimate             | text        | nullable — sem CHECK na BD viva; `SizeEstimate` enum no Dart é o único enforcement (adicionar CHECK numa migration futura se necessário)                |
+| size_estimate             | text        | nullable — CHECK in (`small`,`medium`,`large`) presente na BD viva (migration 0001); espelhado pelo enum `SizeEstimate` no Dart |
 | description               | text        |                                                              |
 | status                    | text        | CHECK in job_status                                          |
 | accepted_proposal_id      | uuid        | nullable, FK → `job_proposals.id`                           |

@@ -8,6 +8,1264 @@
 
 ---
 
+## 🔍 Auditoria 2026-06-25 — Fases 0-3 (a atacar em breve)
+
+> Resultado da revisão independente de Fases 0-3 feita em 2026-06-25.
+> Itens numerados com códigos estáveis (P1-P8, A1-A3, M1-M6, B1-B4) para
+> referência futura sem re-derivar a análise. Nenhum ficheiro .dart foi
+> alterado nesta sessão — só documentação.
+
+### Problemas encontrados
+
+**P1 — JobStatus color-label map duplicada 4× com inconsistências**
+A mesma lógica "JobStatus → (label, Color)" está implementada independentemente em 4 lugares:
+- `lib/features/client/presentation/client_home_screen.dart:227` — `_statusChip()`, label para `open`: **"À espera"**
+- `lib/features/jobs/presentation/client_jobs_screen.dart:183` — `_statusChip()`, label para `open`: **"À espera de proposta"** ← inconsistente
+- `lib/features/jobs/presentation/client_job_detail_screen.dart:1063` — `_statusInfo()`, label para `open`: **"À espera de proposta"**
+- `lib/features/help_requests/presentation/worker_help_requests_screen.dart:353` — `_jobStatusDisplay(String)` — opera em **strings brutas** em vez do enum `JobStatus`; `open` e `no_response` caem no wildcard `'Em aberto'`; não tem exaustividade garantida pelo compilador
+
+Consequências: label inconsistente em dois ecrãs de alta visibilidade; ao adicionar um novo `JobStatus`, as 3 versões enum serão apanhadas pelo compilador mas a versão string não.
+
+**P2 — Cores hex hardcoded divergentes do seed do tema**
+- `lib/core/router/app_router.dart:44` — `Color(0xFF2E7D32)` para o spinner de loading. Duplica `AppTheme._seed` mas não está ligado a ele — se a cor da marca mudar, o spinner fica verde.
+- `lib/core/widgets/status_timeline.dart:118` — `Color(0xFF43A047)` para o círculo "done". É um verde **diferente** do seed (`0xFF2E7D32`). Os dois hex são suficientemente próximos para passar na revisão visual mas divergirão com qualquer ajuste de tema ou modo escuro.
+
+**P3 — `Colors.orange` usado para semânticas diferentes sem mapeamento no tema**
+`Colors.orange.shade700` aparece nos chips de urgência, no badge de "propostas pendentes", no banner de "remarcação pendente", e em ícones de notificação — de features diferentes, sem token semântico partilhado. O Material 3 já gera `colorScheme.tertiary` (warning/accent) e `colorScheme.error` (destrutivo) a partir do seed, mas nenhum ecrã os usa; todos acedem a `Colors.orange` diretamente.
+
+**P4 — Wildcard em `_HistoryCard._statusLabel` silencia 2 casos válidos do enum**
+`lib/features/help_requests/presentation/worker_help_requests_screen.dart:509`:
+```dart
+String get _statusLabel => switch (acceptance.status) {
+  HelpAcceptanceStatus.rejected  => 'Não selecionado',
+  HelpAcceptanceStatus.cancelled => 'Desististe',
+  _ => '—',  // silencia .pending e .accepted
+};
+```
+Hoje está seguro porque o filtro upstream (linha 280-281) só envia `rejected | cancelled` para o separador de histórico. Mas o wildcard significa: (a) se o filtro mudar, `pending`/`accepted` mostram `'—'` sem aviso de compilação; (b) um novo valor no enum também cairia silenciosamente no wildcard.
+
+**⚠️ P5 — Sem guard cross-role no router (CRÍTICO)**
+O `redirect()` em `lib/core/router/app_router.dart:149` guarda:
+- Não autenticado → rotas públicas
+- `role == null` → `/choose-role`
+- `worker && !profileComplete` → `/worker/setup`
+- Autenticado em rota pública → home da role
+
+**Não guarda:** cliente a navegar para `/worker/home`, `/worker/jobs`, `/worker/profile`, `/worker/help-requests` (sem `extra` obrigatório), nem worker a navegar para `/client/jobs`, `/client/profile`, etc. O redirect retorna `null` para qualquer utilizador autenticado em qualquer rota não-pública, independentemente da role.
+
+Resultado: um cliente que aceda `/worker/home` vê o ecrã de worker a ler dados com o UID do cliente → estado vazio silencioso, sem redirect, sem mensagem de erro. Não é um crash — é pior, é um estado incorreto silencioso.
+
+**⚠️ P6 — 4 rotas crasham em navegação direta por usarem `state.extra!` sem fallback (CRÍTICO — bloqueia deep linking)**
+Estas rotas fazem `state.extra!` (null assertion) no builder:
+
+| Rota | Ficheiro:linha | Tipo de extra |
+|---|---|---|
+| `/client/job/:id` | `app_router.dart:73` | `JobRequest` |
+| `/worker/job/:id` | `app_router.dart:92` | `JobRequest` |
+| `/worker/my-job/:id` | `app_router.dart:104` | `Map<String, dynamic>` |
+| `/worker/job/:id/help-requests` | `app_router.dart:113` | `Map<String, dynamic>` |
+
+Navegação direta (deep link, back/forward do sistema, ou acesso cross-role de P5) lança `Null check operator used on a null value` antes de o ecrã renderizar. Deep links para qualquer job individual são impossíveis enquanto este padrão persistir.
+
+**P7 — `architecture.md` tem diagrama de pastas obsoleto**
+O diagrama em `docs/architecture.md` lista `ratings/` (não existe — Fase 11 por implementar) mas omite `notifications/` (totalmente implementado, com estrutura própria `data/`, `application/`, `presentation/`). Um novo developer que leia o diagrama vai à procura de uma pasta inexistente e não encontra a que existe.
+
+**P8 — `worker_setup_screen.dart` chama Supabase direto no widget, viola `architecture.md` Princípio #2**
+`lib/features/worker/presentation/worker_setup_screen.dart:178`:
+```dart
+final profileData = await ref
+    .read(supabaseClientProvider)
+    .from('profiles')
+    .select('full_name, phone')
+    .eq('id', currentUser.id)
+    .single();
+```
+Chamada direta ao Supabase dentro de um `ConsumerStatefulWidget`. `architecture.md` Princípio #2 diz explicitamente: *"Nunca chamar Supabase diretamente dentro de widgets."* É a única violação encontrada — mas cria um precedente se não for corrigida antes de a equipa crescer.
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Centralizar `JobStatus` → `(String label, Color color)` numa extension única (resolve P1)**
+Criar uma extension `StatusDisplay` em `JobStatus` (em `core/constants/` ou `core/widgets/`) com um único switch exaustivo que devolve label e cor. Todos os ecrãs chamam `status.displayInfo(proposalCount)`. Resolve simultaneamente:
+- A inconsistência "À espera" / "À espera de proposta"
+- ~100 linhas de duplicação (4 implementações → 1)
+- A versão raw-string em `worker_help_requests_screen.dart` que não tem exaustividade
+
+**A2 — Substituir navigation-extra por ID-based routing nos ecrãs de detalhe (resolve causa raiz dos bugs de `/choose-role` de hoje E P6; maior impacto estrutural do relatório)**
+O padrão atual passa objetos ricos em `state.extra`. O padrão correto go_router + Riverpod:
+```dart
+// Route: /client/job/:id — sem extra
+builder: (_, state) => ClientJobDetailScreen(jobId: state.pathParameters['id']!),
+
+// Ecrã: faz fetch via provider (já existe jobByIdProvider)
+final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
+```
+Elimina **toda a classe** de bugs "extra perdido durante redirect" (incluindo o bug `/choose-role` que foi corrigido hoje com um workaround no redirect). Habilita deep links para todos os ecrãs de detalhe. Resolve P6. O refactor toca 4 rotas e os ecrãs correspondentes; os providers necessários (`jobByIdProvider`, `proposalByIdProvider`) já existem e são usados em `notification_handler.dart`.
+
+**A3 — `PendingSignupStateProvider` para eliminar definitivamente o risco de perda de dados no `/choose-role` (complementa A2)**
+Mesmo com o fix de redirect atual, `fullName`/`phone` continuam a ser passados como `state.extra` para `/choose-role`. Se qualquer futura alteração ao router criar um novo caminho de redirect através de `/choose-role`, os dados voltam a perder-se.
+
+Solução robusta: um `StateProvider<PendingSignupState?>` na camada `auth/application/`. O `SignupScreen` escreve para ele antes de navegar; o `ChooseRoleScreen` lê dele. O extra de navegação deixa de ser load-bearing. Combinado com A2, fecha permanentemente a classe de "state de navegação perdido durante redirect do router".
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Tokens de cor semânticos no AppTheme usando o ColorScheme do Material 3 já gerado**
+O Material 3 já gera `theme.colorScheme.tertiary` (warning/accent) e `theme.colorScheme.error` (destrutivo) a partir do seed. Os ecrãs devem usar:
+- `theme.colorScheme.error` em vez de `Colors.red` nos SnackBars de erro
+- `theme.colorScheme.tertiary` em vez de `Colors.orange.shade700` para estados pending/warning
+Resolve P3. Nenhuma nova cor precisa de ser definida — o Material 3 já as calcula.
+
+**M2 — Expor `AppTheme.seed` como `static const` e referenciar em `app_router.dart` (resolve P2)**
+Mudar `_seed` para `seed` em `AppTheme` (torná-lo público) e substituir `Color(0xFF2E7D32)` em `app_router.dart:44` por `AppTheme.seed`. Um ficheiro, uma linha, elimina a divergência de P2.
+
+**M3 — Guard cross-role no redirect do router (resolve P5; nota de sequência importante)**
+Adicionar ao `redirect()` após estabelecer role:
+```dart
+if (role == UserRole.client && loc.startsWith('/worker/')) return '/client/home';
+if (role == UserRole.worker && loc.startsWith('/client/')) return '/worker/home';
+```
+**Nota de sequência:** este guard fica *mais* importante depois de A2 ser implementado. Hoje, o acesso cross-role às rotas com `state.extra!` resulta em crash antes de chegar ao ecrã (P6). Após A2, as rotas passam a aceitar navegação direta e renderizam o ecrã — mas com dados do UID errado, resultando num estado vazio ainda mais silencioso. M3 deve ser implementado em conjunto ou imediatamente a seguir a A2.
+
+**M4 — Constantes de border radius no AppTheme**
+Três valores aparecem repetidamente: `8` (~8 ocorrências), `12` (~12 ocorrências), `16` (~4 ocorrências). Adicionar:
+```dart
+static const double radiusSmall  = 8;
+static const double radiusMedium = 12;
+static const double radiusLarge  = 16;
+```
+Uma futura alteração de corner radius passa de ~24 ficheiros para 1 ficheiro.
+
+**M5 — Documentar setup de `--dart-define` para novos contribuidores em `project_overview.md`**
+O `decisions_log.md` regista a *decisão* (entrada 2026-06-02) mas não dá instruções de setup. Um novo developer precisa de:
+1. Saber que existe um `.vscode/launch.json` gitignored
+2. Saber o esqueleto exato do ficheiro com os campos `SUPABASE_URL` e `SUPABASE_ANON_KEY`
+3. Saber onde obter os valores (dashboard Supabase)
+
+Nenhum destes passos está documentado em `project_overview.md` ou `architecture.md`. Adicionar uma secção "Setup de desenvolvimento" com o esqueleto do `launch.json` e referência ao dashboard elimina este friction point.
+
+**M6 — Atualizar diagrama de pastas em `architecture.md` (resolve P7)**
+- Adicionar `notifications/` à lista de features
+- Anotar `ratings/` como `# Fase 11 — não implementado`
+Mudança de 2 linhas, diagrama passa a ser fidedigno.
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Boilerplate de enums: não vale code-gen a esta escala (decisão, não ação)**
+9 enums × ~6-15 linhas de `value`/`fromValue` = ~100 linhas de boilerplate total. Code-gen (json_serializable, freezed) adicionaria build_runner e indireção para um ganho mínimo. O Dart built-in `.name` cobre enums com valor igual ao identifier; para os com underscore (`awaitingConfirmation → 'awaiting_confirmation'`) o getter manual é mais legível do que qualquer abstração. **Decisão: manter o boilerplate.** O compilador já apanha casos em falta nos switches de expressão — o principal benefício do code-gen está coberto.
+
+**B2 — Partilha estrutural entre `ClientShell`/`WorkerShell`: não vale ainda (decisão, não ação)**
+Os dois shells têm tabs, ícones, FAB logic e contagens de destinos suficientemente diferentes para que um `GenericShell(tabs: [...])` fique tão complexo quanto a separação atual. **Decisão: manter separados.** O momento certo para extrair é quando surgir um terceiro shell (e.g. role admin) ou comportamento partilhado (e.g. banner global). Nenhum está no roadmap.
+
+**B3 — Tornar exaustivo o switch de `_HistoryCard._statusLabel` (resolve P4)**
+Substituir `_ => '—'` por casos explícitos para `pending` e `accepted`:
+```dart
+HelpAcceptanceStatus.pending  => 'Pendente',   // não deve aparecer aqui
+HelpAcceptanceStatus.accepted => 'Aceite',     // não deve aparecer aqui
+```
+Sem comportamento visível hoje (filtro upstream garante que não chegam). O ganho é que um novo valor no enum passa a ser um erro de compilação em vez de um wildcard silencioso.
+
+**B4 — Mover chamada Supabase de `worker_setup_screen.dart` para o repository (resolve P8)**
+Mover o `from('profiles').select('full_name, phone')` de `worker_setup_screen.dart:178` para um método `fetchBasicProfile(userId)` no `WorkerRepository` ou `ClientRepository`. Restaura a invariante de architecture.md e remove o único ponto de contacto direto com Supabase dentro de um widget.
+
+---
+
+> **Nota:** Esta auditoria cobre só Fases 0-3. A auditoria de Fases 4-5 foi
+> adicionada na secção seguinte (mesma sessão, 2026-06-25). Auditorias para
+> Fases 6-7, 8, 9 e 10 podem ser adicionadas como secções próprias.
+
+---
+
+## 🔍 Auditoria 2026-06-25 — Fases 4-5 (a atacar em breve)
+
+> Resultado da revisão independente de Fases 4-5 (Supabase config, schema,
+> RLS para todas as 13 tabelas, migrations 0001-0014, storage, índices) feita
+> em 2026-06-25. Itens numerados com códigos estáveis (P-FA1–P-FA8, A1–A4,
+> M1–M6, B1–B4) para referência futura sem re-derivar a análise.
+>
+> ⚠️ **MAIS URGENTE DESTA AUDITORIA: P-FA3** — policy de avatars quebrada desde
+> o dia 1, fix só na BD viva (nunca capturado em migration). Uma BD nova a partir
+> das migrations teria uploads de avatar bloqueados permanentemente.
+
+### Problemas encontrados
+
+**P-FA1 — `client_has_confirmed_job_with_worker` existe na BD viva mas ausente de todas as 14 migrations**
+
+A função existe na BD viva (confirmado via `pg_get_functiondef` em 2026-06-25, sessão de revisão da Fase 10). Predata o sistema de migrations — o mesmo padrão do `cancel_job(uuid)` e dos overloads do `create_proposal`, limpos na migration 0008. Nenhuma migration posterior a 0008 a resolveu.
+
+A função é referenciada numa policy SELECT de `worker_profiles` (restringe visibilidade de contactos). Mas as policies de `worker_profiles` em 0001_baseline são `USING(true)` (completamente abertas) — a policy que usa a função não existe em nenhuma migration. Uma BD nova construída só a partir de migrations NÃO teria nem a função nem a policy associada.
+
+**Query de diagnóstico para correr na BD viva:**
+```sql
+-- Confirmar existência e definição:
+SELECT proname,
+       pg_get_function_identity_arguments(oid) AS args,
+       pg_get_functiondef(oid)                 AS def
+FROM   pg_proc
+WHERE  proname = 'client_has_confirmed_job_with_worker';
+
+-- Confirmar se alguma policy a referencia:
+SELECT polname, tablename, pg_get_expr(polqual, polrelid) AS using_expr
+FROM   pg_policies
+WHERE  pg_get_expr(polqual, polrelid) LIKE '%client_has_confirmed_job_with_worker%';
+```
+
+Se nenhuma policy a referencia → DROP numa nova migration.
+Se alguma policy a referencia → adicionar função + policy a uma migration.
+
+---
+
+**P-FA2 — Storage DELETE policy de `job-photos` é não-funcional**
+
+Policy em 0001:
+```sql
+CREATE POLICY "job-photos: delete pelo dono"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'job-photos'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+```
+
+Path de upload em `job_repository.dart:70`: `'$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg'`
+
+`storage.foldername(name)[1]` extrai o primeiro componente do path, que é o `job_id` (UUID) — não o `auth.uid()` (também UUID mas diferente). `auth.uid()::text = job_id::text` é sempre falso. Ninguém consegue apagar fotos de jobs via esta policy. A app não tem feature de apagamento de fotos → sem impacto runtime, mas é dead code de segurança que documenta uma garantia que não cumpre.
+
+---
+
+**⚠️ P-FA3 — CRÍTICO: policy de avatars no 0001 está QUEBRADA desde o dia 1 (fix só na BD viva, nunca capturado em migration)**
+
+Decisions log 2026-06-15: *"Storage RLS para avatars corrigida (Bug 1 — feito na BD)."*
+
+Path de upload em `worker_repository.dart:143` e `client_repository.dart:24`: `'$userId.jpg'` (ficheiro no root, sem subfolder).
+
+Policy em 0001:
+```sql
+-- Para INSERT:
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+)
+```
+
+`storage.foldername('abc-uuid.jpg')` num ficheiro root-level devolve `{}` ou array vazio; `[1]` é NULL. `auth.uid()::text = NULL` avalia a NULL (falso em PostgreSQL). **A policy de INSERT do 0001 bloqueia todos os uploads de avatar.**
+
+A BD viva tem uma versão corrigida (fix interativo de 2026-06-15) mas o fix nunca foi capturado numa migration. Uma BD nova a partir de migrations 0001-0014 teria uploads de avatar quebrados desde o dia 1.
+
+**Query de diagnóstico — correr na BD viva para ver as policies atuais:**
+```sql
+SELECT polname,
+       pg_get_expr(polqual,      polrelid) AS using_expr,
+       pg_get_expr(polwithcheck, polrelid) AS withcheck_expr
+FROM   pg_policies
+WHERE  tablename  = 'objects'
+  AND  schemaname = 'storage'
+  AND  polname    LIKE 'avatars%';
+```
+
+---
+
+**P-FA4 — `job_proposals` UPDATE policy sem `WITH CHECK` — worker pode auto-aceitar a própria proposta via SQL direto**
+
+Policy em 0001:
+```sql
+CREATE POLICY "Worker atualiza as suas propostas"
+  ON job_proposals FOR UPDATE TO authenticated
+  USING (auth.uid() = worker_id);
+```
+
+Sem `WITH CHECK`, o worker pode fazer `UPDATE job_proposals SET status = 'accepted' WHERE id = ? AND worker_id = auth.uid()` via qualquer canal SQL direto (Supabase Studio, psql, HTTP direto ao PostgREST). Isso bypassa o RPC `accept_proposal` que atualiza `job_requests.status → 'confirmed'`, define `accepted_proposal_id`, rejeita as outras propostas e envia notificações. Resultado: proposta mostra `accepted` mas job fica `open` — estado inconsistente silencioso. Não exploitável via a app Dart (todos os mutations de propostas usam RPCs). Exploitável via acesso direto à BD.
+
+Fix correto:
+```sql
+DROP POLICY IF EXISTS "Worker atualiza as suas propostas" ON job_proposals;
+CREATE POLICY "Worker atualiza as suas propostas"
+  ON job_proposals FOR UPDATE TO authenticated
+  USING  (auth.uid() = worker_id)
+  WITH CHECK (auth.uid() = worker_id AND status = 'superseded');
+```
+
+O RPC `withdraw_proposal` é SECURITY DEFINER (bypassa RLS de qualquer forma) — a alteração não afeta o fluxo normal da app.
+
+---
+
+**P-FA5 — Índices em falta em `help_requests` e `help_acceptances`**
+
+Nenhum índice existe em:
+
+| Coluna | Usada em | Impacto |
+|---|---|---|
+| `help_requests.job_id` | `fetchHelpRequestsForJob` WHERE; JOIN em `get_help_requests_in_radius` | Sequential scan de all help_requests por lobby load |
+| `help_requests.proposal_id` | JOIN em `get_help_requests_in_radius`; `is_principal_worker_for_help_request` | Sequential scan no JOIN |
+| `help_acceptances.worker_id` | `get_my_help_acceptances` WHERE; RLS USING "Worker vê as suas candidaturas" | **Sequential scan por cada query à tabela** (avaliado pelo RLS em todas as queries) |
+
+O UNIQUE constraint `(help_request_id, worker_id)` em `help_acceptances` cobre lookups com `help_request_id` como prefixo esquerdo — `fetchCandidatesForHelpRequest` está coberto. Lookups só por `worker_id` (sem `help_request_id`) não usam este índice.
+
+`help_acceptances.worker_id` é o mais urgente: é avaliado pelo RLS em **todas** as queries à tabela, não só nas queries explícitas da app.
+
+---
+
+**P-FA6 — `help_acceptances.status` tem DEFAULT `'accepted'` na BD, contradiz a RLS de INSERT**
+
+A RLS de INSERT (migration 0004): `WITH CHECK (worker_id = auth.uid() AND status = 'pending')`.
+
+Qualquer INSERT que omita `status` recebe o default `'accepted'`, o que falha imediatamente no `WITH CHECK` — silenciosamente bloqueado (sem erro visível, só count=0). O default correto seria `'pending'`. O default `'accepted'` predata a migration 0004 (que introduziu o conceito de `pending`). Nenhuma migration posterior corrigiu o default.
+
+---
+
+**P-FA7 — `job_photos` (tabela) sem policy de DELETE — dois bloqueios separados para a mesma feature futura**
+
+A tabela `job_photos` tem INSERT e SELECT mas sem DELETE policy. O bucket `storage.objects` tem uma DELETE policy (quebrada — P-FA2). Se a feature de apagamento de fotos for alguma vez implementada, existem dois bloqueios independentes:
+1. Storage: DELETE policy não-funcional (job_id em vez de auth.uid() — P-FA2)
+2. Tabela: sem DELETE policy — linha da tabela fica órfã mesmo que o ficheiro fosse removido do storage
+
+Não é bug ativo (a app não apaga fotos). Flag para garantir que ambos são resolvidos juntos quando esta feature for implementada.
+
+---
+
+**P-FA8 — `cancel_job` reproduzido por completo em 4 migrations sem a 24h rule nas 3 mais antigas**
+
+O corpo completo de `cancel_job` aparece em 0001, 0007, 0009 e 0013. As versões 0001/0007/0009 não têm a 24h rule (introduzida em 0013) — correto por design (cada migration só reproduz o estado daquele momento). A versão autoritativa é sempre a última (0013). Mas um leitor que leia 0007 antes de 0013 pode perder as mudanças de 0009 (loop de notificações `help_job_cancelled`). É um comprehension hazard crescente, não um bug runtime.
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Adicionar `client_has_confirmed_job_with_worker` a uma migration (resolve P-FA1)**
+
+Após correr a query de diagnóstico de P-FA1:
+- Se nenhuma policy a referencia → criar migration 0015 com `DROP FUNCTION IF EXISTS client_has_confirmed_job_with_worker(...)` (mesmo padrão da 0008)
+- Se alguma policy a referencia → criar migration 0015 com a definição da função + a(s) policy(ies) associadas
+
+Sem este fix, a BD não é reproduzível a partir das migrations.
+
+**A2 — Corrigir policy de avatars numa migration (resolve P-FA3 — CRÍTICO)**
+
+Após correr a query de diagnóstico de P-FA3 para ver a versão atual na BD viva, criar uma migration que faz DROP das policies quebradas do 0001 e ADD das policies corretas. A versão correta provavelmente usa `storage.filename(name)` em vez de `storage.foldername(name)[1]`, ou o path foi alterado para incluir `$userId/` como prefixo.
+
+**A3 — Corrigir path de storage de `job-photos` e policy de DELETE (resolve P-FA2 + P-FA7)**
+
+Opção A (recomendada — mais simples que alterar a policy):
+Alterar o path em `job_repository.dart:70` de:
+```dart
+final storagePath = '$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+```
+para:
+```dart
+final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+```
+Com este path, `storage.foldername(name)[1]` = `clientId`, e a policy de storage já funciona. Adicionar também uma DELETE policy na tabela `job_photos`:
+```sql
+CREATE POLICY "Client apaga fotos do seu job"
+  ON job_photos FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM job_requests
+      WHERE id = job_photos.job_id
+        AND client_id = auth.uid()
+    )
+  );
+```
+
+Opção B (mudar a policy para usar subquery) requer JOIN entre `storage.objects` e `public.job_requests`, o que não é suportado nativamente em storage policies — descartada.
+
+**A4 — Adicionar `WITH CHECK` à policy de UPDATE de `job_proposals` (resolve P-FA4)**
+
+```sql
+DROP POLICY IF EXISTS "Worker atualiza as suas propostas" ON job_proposals;
+CREATE POLICY "Worker atualiza as suas propostas"
+  ON job_proposals FOR UPDATE TO authenticated
+  USING  (auth.uid() = worker_id)
+  WITH CHECK (auth.uid() = worker_id AND status = 'superseded');
+```
+
+Não afeta RPCs (todos são SECURITY DEFINER e bypassam RLS). Só restringe SQL direto.
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Índices em `help_requests` e `help_acceptances` (resolve P-FA5)**
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_help_requests_job_id
+  ON help_requests (job_id);
+
+CREATE INDEX IF NOT EXISTS idx_help_requests_proposal_id
+  ON help_requests (proposal_id);
+
+CREATE INDEX IF NOT EXISTS idx_help_acceptances_worker_id
+  ON help_acceptances (worker_id);
+```
+
+Ordem de prioridade: `help_acceptances.worker_id` (afeta RLS de cada query à tabela) > `help_requests.job_id` (lobby screen + JOIN do RPC) > `help_requests.proposal_id` (só JOIN do RPC, volume menor).
+
+**M2 — Corrigir DEFAULT de `help_acceptances.status` para `'pending'` (resolve P-FA6)**
+
+```sql
+ALTER TABLE help_acceptances ALTER COLUMN status SET DEFAULT 'pending';
+```
+
+Sem data migration — rows existentes não são afetadas. Torna o schema self-documenting e elimina silenciosa rejeição por RLS em INSERTs sem `status` explícito.
+
+**M3 — Índice composto `notifications(user_id, created_at DESC)` para queries ordenadas**
+
+Todas as queries de notificações em `notification_repository.dart` fazem ORDER BY `created_at DESC`. O índice atual `idx_notifications_user_id` cobre o filtro mas o Postgres ainda precisa de ordenar o resultado. Um índice composto permite um true index scan:
+```sql
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications (user_id, created_at DESC);
+```
+O índice `idx_notifications_user_read` (para contagem de não-lidas) continua útil e não conflitua.
+
+**M4 — CHECK constraints em `people_needed` e `slots_needed` (integridade de dados)**
+
+Sem estes CHECKs, `accept_proposal` pode calcular `slots_needed = people_needed - 1 = -1` se `people_needed = 0` chegar à BD, criando uma help_request com `slots_needed` negativo (imediatamente considerada "filled"):
+```sql
+ALTER TABLE job_proposals
+  ADD CONSTRAINT check_people_needed CHECK (people_needed >= 1);
+
+ALTER TABLE help_requests
+  ADD CONSTRAINT check_slots_needed CHECK (slots_needed >= 1);
+```
+
+**M5 — Policy SELECT mais ampla para o cliente em `help_requests` (fecha C3.2 do backlog da Fase 9)**
+
+Atualmente só `pending_approval` rows são visíveis ao cliente (policy da migration 0003). Qualquer ecrã futuro "ver equipa" (help_requests em `open`/`filled`) retornaria vazio silenciosamente. Fix proactivo:
+```sql
+-- Dropar a policy narrow de pending_approval:
+DROP POLICY IF EXISTS "Cliente vê help requests pendentes de aprovação" ON help_requests;
+
+-- Substituir por policy que cobre todos os estados para jobs do cliente:
+CREATE POLICY "Cliente vê help requests dos seus jobs"
+  ON help_requests FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM job_requests
+      WHERE id = help_requests.job_id
+        AND client_id = auth.uid()
+    )
+  );
+```
+
+O fluxo de aprovação (`approve_help_request` RPC) já valida que o cliente é dono do job — a policy mais ampla não altera o comportamento dos RPCs.
+
+**M6 — Coluna "Migration atual" na tabela de RPCs do `database_schema.md`**
+
+`cancel_job` tem corpo completo em 4 migrations; `accept_proposal` em 2; `create_proposal` em 3. Não é óbvio qual é a versão autoritativa sem ler todas. Adicionar uma coluna "Definido/atualizado em" à tabela de RPCs em `database_schema.md` para navegação direta à versão atual.
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Reproduções completas de `cancel_job` em 4 migrations: sem ação agora**
+
+Sem ação agora — o padrão de reproduzir o corpo completo em cada migration é correto e self-contained. Se o número de migrations passar de 20, considerar `supabase/FUNCTION_HISTORY.md` que mapeie cada função → migration mais recente que a tocou.
+
+**B2 — Policy "Sistema insere notificações": inconsistência docs-vs-baseline**
+
+O 0001_baseline cria:
+```sql
+CREATE POLICY "Sistema insere notificações"
+  ON notifications FOR INSERT TO service_role
+  WITH CHECK (true);
+```
+Mas `database_schema.md` diz: *"Não existe uma política 'Sistema insere notificações' na BD viva."*
+
+A policy é funcionalmente harmless (funções SECURITY DEFINER bypassam RLS independentemente), mas a inconsistência é confusa para quem audite o fluxo de INSERT de notificações. Resolver: atualizar `database_schema.md` para refletir que a policy é criada pelo 0001 mas redundante, ou fazer DROP explícito numa migration com comentário explicativo.
+
+**B3 — Remover coluna legacy `job_proposals.estimated_hours`**
+
+Coluna nullable que predata o split min/max (2026-06-11). Não mapeada em `JobProposal.fromJson` — ignorada silenciosamente. Aproveitar a migration da Fase 11 (ratings) para o drop:
+```sql
+ALTER TABLE job_proposals DROP COLUMN IF EXISTS estimated_hours;
+```
+
+**B4 — CHECK `(hourly_rate >= 0)` em `job_proposals`**
+
+`job_proposals.hourly_rate` é NOT NULL mas sem CHECK. Seguir o padrão já estabelecido pelo `check_agreed_rate` em `help_acceptances` (migration 0007):
+```sql
+ALTER TABLE job_proposals
+  ADD CONSTRAINT check_hourly_rate CHECK (hourly_rate >= 0);
+```
+Usar `>= 0` (não `> 0`) para permitir "negociar no local" como sinal explícito, se necessário.
+
+---
+
+> **Nota:** Esta auditoria cobre Fases 4-5. A auditoria de Fases 6-7 foi
+> adicionada na secção seguinte (mesma sessão, 2026-06-25).
+> ⚠️ Item mais urgente de toda a auditoria até agora: **P-FA3** — policy de
+> avatars quebrada desde o dia 1, fix só na BD viva (nunca capturado em migration).
+
+---
+
+## 🔍 Auditoria 2026-06-25 — Fases 6-7 (a atacar em breve)
+
+> Resultado da revisão independente de Fases 6-7 (fluxos de auth, ecrãs de
+> perfil de cliente e worker, SessionNotifier, RouterNotifier.redirect())
+> feita em 2026-06-25, imediatamente após 2 bugs reais terem sido encontrados
+> e corrigidos nestas mesmas áreas. Itens numerados com códigos estáveis
+> (P-67-1–P-67-6, A1–A3, M1–M4, B1–B4) para referência futura.
+>
+> ⚠️ **MAIS URGENTE: P-67-1** — `/worker/setup` ausente de `loadingExempt`,
+> mesma classe estrutural do Bug 2 corrigido hoje, com risco real de perda de
+> dados em produção (formulário apagado silenciosamente sem erro).
+
+### Problemas encontrados
+
+**P-67-1 — ⚠️ CRÍTICO: `/worker/setup` ausente de `loadingExempt` — mesma classe estrutural do Bug 2 corrigido hoje em `/choose-role`, mas com risco real de perda de dados em produção**
+
+`/worker/setup` não está em `loadingExempt`. Dois cenários:
+
+**(A) Flash cosmético sem perda de dados durante o fluxo normal de signup:**
+Após `ChooseRoleScreen` chamar `context.go('/worker/setup')`, o fire-and-forget `refresh()` em `auth_controller.dart:71` define `state = AsyncValue.loading()` no tick seguinte. `RouterNotifier.notifyListeners()` dispara → `redirect()` com `loc = '/worker/setup'`, `sessionAsync.isLoading = true` → não está em `loadingExempt` → redirect para `/loading` → nova instância vazia de `WorkerSetupScreen`. Sem perda de dados porque o formulário ainda está vazio (worker acabou de chegar).
+
+**(B) Perda REAL de dados se o token Supabase refrescar (a cada 60min por defeito) enquanto o worker está a meio do preenchimento do setup:**
+`SessionNotifier.build()` faz `ref.watch(authStateProvider)` — qualquer token refresh dispara um rebuild da provider → `AsyncValue.loading()` → `RouterNotifier.notifyListeners()` → `redirect()` com `loc = '/worker/setup'` → não está em `loadingExempt` → redirect para `/loading` → nova instância vazia de `WorkerSetupScreen`. Bio, serviços selecionados, raio, ferramentas — **tudo perdido silenciosamente, sem erro nenhum mostrado**.
+
+**Fix — uma linha em `app_router.dart`:**
+```dart
+// ANTES:
+const loadingExempt = ['/loading', '/choose-role'];
+
+// DEPOIS:
+const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
+```
+Seguro para isentar: quando a session resolve, os guards abaixo do bloco `isLoading` redirecionam corretamente se o estado mudou (e.g. `role == null` → `/choose-role`; `role == client` → `/client/home`).
+
+---
+
+**P-67-2 — `worker_service_types` sync não é atómico (DELETE + INSERT como 2 chamadas PostgREST separadas, sem transação). Se o INSERT falhar depois do DELETE ter sucesso, o worker fica com ZERO serviços permanentemente até reabrir e regravar manualmente.**
+
+`worker_repository.dart:88`:
+```dart
+Future<void> _syncServiceTypes(String workerId, List<String> serviceTypeIds) async {
+  await _client.from('worker_service_types').delete().eq('worker_id', workerId);
+  if (serviceTypeIds.isNotEmpty) {
+    await _client.from('worker_service_types').insert(
+      serviceTypeIds.map((id) => {'worker_id': workerId, 'service_type_id': id}).toList(),
+    );
+  }
+}
+```
+
+Duas chamadas PostgREST sem transação. Se o DELETE suceder e o INSERT falhar (erro de rede, connection reset, rate limit Supabase):
+
+- Para `updateProfile` (worker a editar perfil): worker fica com ZERO serviços. O utilizador vê o SnackBar "Ocorreu um erro inesperado." mas não sabe que os serviços foram apagados. Se navegar sem tentar de novo: invisível na descoberta, sem notificações de jobs, sem erro mostrado. Pode não notar durante dias.
+- Para `createProfile` (worker setup pela primeira vez): `hasProfile()` devolve `true` (worker_profiles upsertado com sucesso) → `workerProfileComplete = true` → worker chega a `/worker/home` com ZERO service types. Invisível na descoberta desde o primeiro instante, sem erro nenhum mostrado.
+
+PostgREST REST API não suporta transações multi-statement. O único fix correto é um RPC SECURITY DEFINER que envolve DELETE + INSERT numa transação PL/pgSQL única.
+
+---
+
+**P-67-3 — `client_profile_screen.dart` mostra texto de exceção em bruto no SnackBar de erro — única tela que não usa `friendlyError(e)`, todas as outras usam consistentemente.**
+
+```dart
+// client_profile_screen.dart:97 — em bruto:
+SnackBar(content: Text('Erro ao guardar: $e'), backgroundColor: Colors.red)
+
+// Todas as outras telas — correto:
+SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red)
+```
+
+Se `updateProfile` falhar, o utilizador vê texto como `"Erro ao guardar: PostgrestException(message: ERROR: null value in column..., code: 23502, details: ..., hint: ...)"`. `error_utils.dart` já está importado no mesmo ficheiro (via o handler `error:` em baixo).
+
+---
+
+**P-67-4 — Mesmo problema (P-67-3) no widget de erro de service types em `worker_setup_screen.dart` E `worker_profile_screen.dart`.**
+
+```dart
+// worker_setup_screen.dart:384
+error: (e, _) => Text('Erro ao carregar serviços: $e'),
+
+// worker_profile_screen.dart:452
+error: (e, _) => Text('Erro ao carregar serviços: $e'),
+```
+
+Texto de exceção em bruto no widget tree, visível inline no formulário se o fetch de `fetchServiceTypes` falhar. Ambos os ficheiros já importam `error_utils.dart`.
+
+---
+
+**P-67-5 — `worker_setup_screen.dart` usa `.single()` em vez de `.maybeSingle()` ao buscar o perfil — lança `PGRST116` se a linha `profiles` estiver ausente (signup parcialmente falhado). Também é o mesmo local do P8 da auditoria de Fases 0-3 (chamada Supabase direta no widget).**
+
+```dart
+// worker_setup_screen.dart:178
+final profileData = await ref
+    .read(supabaseClientProvider)
+    .from('profiles')
+    .select('full_name, phone')
+    .eq('id', currentUser.id)
+    .single();  // lança PGRST116 se não encontrar linha
+```
+
+`.single()` lança `PostgrestException` (PGRST116) se não encontrar linha. No fluxo normal não acontece, mas num signup parcialmente falhado (conta auth criada, INSERT em profiles falhou) o utilizador não consegue completar o setup e vê "Ocorreu um erro inesperado." sem indicação do que fazer. `.maybeSingle()` com null check dá uma mensagem acionável.
+
+---
+
+**P-67-6 — `_mapError` não trata o erro "email não confirmado" — não é bug agora (verificação de email está desativada para o MVP), mas é um bloqueador de pré-lançamento fácil de esquecer quando a verificação for reativada.**
+
+`decisions_log.md 2026-06-05`: *"Confirmação de email Supabase desativada para MVP — reativar antes do launch."*
+
+Quando a verificação for reativada, utilizadores que tentem fazer login antes de confirmar o email recebem um erro do Supabase (`email_not_confirmed`) que `_mapError` em `auth_controller.dart` não reconhece → fallback `"Ocorreu um erro. Tenta novamente."` sem indicar que devem verificar o email. `_mapError` também não trata `rate_limit_exceeded`.
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Adicionar `/worker/setup` a `loadingExempt` (resolve P-67-1, 2 min, risco zero)**
+
+```dart
+const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
+```
+
+Uma linha. Elimina o risco de perda de dados em produção e o flash cosmético no signup.
+
+**A2 — Corrigir SnackBar de `client_profile_screen.dart` para usar `friendlyError(e)` (resolve P-67-3, 2 min)**
+
+```dart
+// Antes (linha 99):
+content: Text('Erro ao guardar: $e'),
+
+// Depois:
+content: Text(friendlyError(e)),
+```
+
+`error_utils.dart` já está importado. Uma linha.
+
+**A3 — Criar RPC `sync_worker_service_types` (SECURITY DEFINER) para tornar o delete-then-insert atómico (resolve P-67-2, ~30 min)**
+
+```sql
+CREATE OR REPLACE FUNCTION sync_worker_service_types(
+  p_worker_id        uuid,
+  p_service_type_ids uuid[]
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM worker_service_types WHERE worker_id = p_worker_id;
+  IF array_length(p_service_type_ids, 1) IS NOT NULL
+     AND array_length(p_service_type_ids, 1) > 0 THEN
+    INSERT INTO worker_service_types (worker_id, service_type_id)
+    SELECT p_worker_id, unnest(p_service_type_ids);
+  END IF;
+END;
+$$;
+```
+
+Depois substituir `_syncServiceTypes` no `worker_repository.dart` por uma única chamada RPC. Todo o delete-then-insert passa a ser atómico ao nível da BD. Esforço: nova migration + alteração no repository Dart.
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Corrigir texto de erro em bruto nos 2 widgets de service types (resolve P-67-4, 2 linhas no total)**
+
+```dart
+// worker_setup_screen.dart:384 e worker_profile_screen.dart:452
+// Antes:
+error: (e, _) => Text('Erro ao carregar serviços: $e'),
+
+// Depois:
+error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
+```
+
+Ambos os ficheiros já importam `error_utils.dart`.
+
+**M2 — Adicionar tratamento de "email não confirmado" e "rate limit" a `_mapError` (resolve P-67-6, bloqueador de pré-lançamento, 5 min)**
+
+Adicionar antes do fallback genérico em `auth_controller.dart`:
+```dart
+if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+  return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
+}
+if (msg.contains('too many requests') || msg.contains('rate_limit') ||
+    msg.contains('over_request_rate_limit')) {
+  return 'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.';
+}
+```
+
+Necessário antes de reativar a verificação de email (pré-lançamento).
+
+**M3 — Substituir `.single()` por `.maybeSingle()` em `WorkerSetupScreen._save()` com mensagem de erro acionável (resolve P-67-5 parcialmente; fix completo é mover para o repository, ~30 min)**
+
+```dart
+// Antes:
+.single();
+final existingName = profileData['full_name'] as String;
+
+// Depois:
+.maybeSingle();
+if (profileData == null) {
+  throw Exception('Perfil de utilizador não encontrado. Tenta fazer login novamente.');
+}
+final existingName = profileData['full_name'] as String;
+```
+
+Fix completo: mover este fetch para `WorkerRepository.fetchBasicProfile(userId)` — resolve também P8 da auditoria de Fases 0-3 (chamada Supabase direta no widget).
+
+**M4 — `PendingSignupStateProvider` — `StateProvider<PendingSignupData?>` na camada de auth, substitui o uso de navigation extra para `fullName`/`phone` entre `SignupScreen` e `ChooseRoleScreen`. Resolve a CAUSA RAIZ de toda a classe de bugs "dados perdidos em redirect".**
+
+Os 2 bugs corrigidos hoje são instâncias da mesma classe: dados de aplicação guardados em `state.extra` do router em vez de estado Riverpod. `state.extra` é transitório por design e descartado em qualquer navegação iniciada pelo próprio router — o que acontece sempre em fluxos de auth.
+
+```dart
+// lib/features/auth/application/pending_signup_provider.dart
+@immutable
+class PendingSignupData {
+  final String fullName;
+  final String phone;
+  const PendingSignupData({required this.fullName, required this.phone});
+}
+
+final pendingSignupProvider = StateProvider<PendingSignupData?>((ref) => null);
+```
+
+`SignupScreen` escreve para o provider antes de `context.go('/choose-role')`. `ChooseRoleScreen` lê do provider em vez de `widget.fullName`/`widget.phone`. Após `createProfile` ter sucesso, o provider é reset para null.
+
+`loadingExempt` fica como otimização de UX (sem flash), não como requisito de correção. Qualquer ecrã de onboarding futuro está protegido automaticamente.
+
+**Esforço: ~1.5h** (novo provider + atualizar SignupScreen + atualizar ChooseRoleScreen + testar fluxo de signup).
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Validação de email com regex mínimo em vez de só `contains('@')`**
+
+Em `signup_screen.dart` e `login_screen.dart`, `!v.contains('@')` aceita `@`, `test@@`, `a@`. O Supabase rejeita emails inválidos ao nível do servidor, mas o feedback chega mais tarde. Substituir por:
+```dart
+if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
+  return 'Email inválido.';
+}
+```
+Sem pacotes adicionais. O servidor continua a ser a gate real.
+
+**B2 — Validação de tamanho mínimo no telefone (números inválidos quebram o link `wa.me` usado para contacto WhatsApp)**
+
+Todos os ecrãs de signup e perfil validam o telefone como "não vazio". Um valor como `"1"` ou `"abc"` passa e fica guardado. O link WhatsApp é construído com `wa.me/<número limpo>` — número inválido = link quebrado. Adicionar no mínimo:
+```dart
+final digits = v!.trim().replaceAll(RegExp(r'[\s\-\+\(\)]'), '');
+if (digits.length < 9) return 'Número de telefone inválido.';
+```
+
+**B3 — Indicador de loading específico para a fase de upload de avatar (separado do `_saving` genérico)**
+
+Ambos os ecrãs de perfil usam `_saving = true` para todo o ciclo save (upload avatar + update BD). O upload pode demorar 1-5s numa ligação móvel fraca. Sem indicação específica, utilizadores podem pensar que a app travou e tentar de novo. Um estado `_uploadingAvatar` separado com texto "A carregar foto..." melhora o feedback sem alterar a lógica de negócio.
+
+**B4 — Mesmo que M2, registado aqui como item de checklist de pré-lançamento**
+
+Antes de reativar a verificação de email Supabase (obrigatório pré-lançamento, ver `decisions_log.md 2026-06-05`): confirmar que M2 está implementado. Sem este item, utilizadores que tentem fazer login antes de confirmar o email veem "Ocorreu um erro. Tenta novamente." sem saber porquê.
+
+---
+
+### Nota da sessão
+
+Pergunta colocada no prompt original: existe uma mudança estrutural que previna esta CLASSE de bug? Resposta: sim — M4 (`PendingSignupStateProvider`).
+
+A causa raiz dos 2 bugs corrigidos hoje é guardar dados de aplicação em `state.extra` do router em vez de estado Riverpod. `state.extra` é transitório por design e descartado em qualquer navegação iniciada pelo próprio router — o que acontece sempre em fluxos de auth. M4 resolve isto de forma permanente para qualquer ecrã de onboarding futuro, não só os 2 já corrigidos.
+
+`loadingExempt` fica como otimização de UX (sem flash visível), não como requisito de correção — a distinção é importante para perceber o que é workaround vs. fix estrutural.
+
+---
+
+## 🔍 Auditoria 2026-06-25 — Fase 8 (a atacar em breve)
+
+> Resultado da revisão independente da Fase 8 (ciclo de vida de jobs e
+> propostas, remarcação, conclusão, timeline de estados, fotos, notificações)
+> feita em 2026-06-25, após a code review dedicada, o crosscheck BD/docs/código,
+> e as adições de cancellation handling já aplicadas. Itens numerados com
+> códigos estáveis (P-8-1–P-8-9, A1–A3, M1–M4, B1–B4) para referência futura.
+>
+> ⚠️ **MAIS GRAVE DE TODA A SÉRIE DE AUDITORIAS ATÉ HOJE: P-8-4** —
+> bypass de autorização real em 3 RPCs de remarcação em produção. Qualquer
+> utilizador autenticado que conheça o UUID de um job confirmado pode propor,
+> aceitar ou recusar remarcações nesse job. Contrasta com `mark_job_done` e
+> `confirm_job_completion`, que têm a verificação correta. Risco mitigado
+> pela RLS de `job_requests` (UUIDs não são fáceis de descobrir), mas é uma
+> falha de autorização real, não teórica.
+
+### Problemas encontrados
+
+**P-8-1 — Transição `open → no_response` NUNCA implementada — jobs sem propostas ficam abertos indefinidamente**
+
+`implementation_plan.md:84` tem este item **não marcado**:
+```
+- [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
+```
+
+A coluna `expires_at` existe na BD. A UI está pronta para este estado (`job_timeline.dart:25` renderiza "Sem resposta em 48h"; `client_jobs_screen.dart:44` inclui `JobStatus.noResponse` no histórico). Mas nenhum cron, trigger ou RPC em nenhuma migration (0001–0014) muda `status = 'no_response'` quando `expires_at` passa. Jobs sem propostas ficam `open` indefinidamente e continuam a aparecer em `get_jobs_in_radius`.
+
+Dois gaps ligados que disparam no momento em que o cron for adicionado, sem mais nenhuma mudança de código:
+
+1. `notification_handler.dart:48`: `case NotificationType.jobNoResponse: break;` — sem invalidação de providers, sem navegação. O cliente recebe a notificação mas a lista não atualiza e o tap não faz nada.
+2. `notification_providers.dart`: `case NotificationType.jobNoResponse: break;` — nenhum provider invalidado.
+
+---
+
+**P-8-2 — N+1 queries de nome de worker em `_ProposalCard` — confirmado ainda presente, nunca corrigido**
+
+`client_job_detail_screen.dart:914`:
+```dart
+class _ProposalCard extends ConsumerWidget {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workerNameAsync = ref.watch(workerNameProvider(proposal.workerId));
+```
+
+`workerNameProvider` é `FutureProvider.family<String, String>` — uma chamada `fetchWorkerName(workerId)` separada por proposta. Para N propostas de N workers diferentes: N round-trips. Item já catalogado em improvements.md (secção "Performance técnica"), confirmado ainda presente. As queries do lado do worker (`fetchPendingWorkerProposals`, `fetchScheduledWorkerProposals`, `fetchCompletedWorkerProposals`) já usam corretamente o padrão de embedded resources PostgREST (`.select('*, job_requests!...')`). O mesmo padrão não foi aplicado ao lado do cliente.
+
+---
+
+**P-8-3 — Compressão de fotos diverge da decisão registada (1280px/72% em vez de 800px/60%)**
+
+`decisions_log.md 2026-06-02`:
+> "Compressão obrigatória antes do upload: largura máxima **800px**, qualidade **60%**."
+
+`job_repository.dart:58`:
+```dart
+await FlutterImageCompress.compressWithFile(
+  file.absolute.path,
+  minWidth: 1280,   // ← decisão diz 800
+  minHeight: 1280,  // ← decisão diz 800
+  quality: 72,      // ← decisão diz 60
+  ...
+);
+```
+
+A decisão de 800px/60% foi tomada explicitamente por causa do limite de 50MB do Supabase Free Plan. A 1280px/72%, cada foto é ~4–8× maior que a 800px/60% (dependendo da imagem original). Com 2 fotos por job e jobs a acumular, o limite de storage esgota mais rapidamente do que o previsto.
+
+---
+
+**⚠️ P-8-4 — CRÍTICO: `propose_reschedule`, `accept_reschedule`, `reject_reschedule` SEM verificação de autorização do chamador — bypass real em RPCs de produção**
+
+Spot-check das 3 RPCs de remarcação contra os corpos em `0001_baseline.sql` (as únicas versões existentes — nenhuma migration posterior as tocou):
+
+**T9 — `propose_reschedule` (linha 916):** valida `status = 'confirmed'` ✅, sem remarcação pendente ✅, regra das 24h ✅. **Não valida:** `auth.uid() = v_job.client_id` OU `auth.uid() = worker_id da proposta aceite`. Qualquer utilizador autenticado pode chamar esta RPC num job confirmado que não lhe diz respeito.
+
+**T10 — `accept_reschedule` (linha 974):** valida `reschedule_status = 'pending'` ✅, caller não é o proponente ✅. **Não valida** que o caller é a outra parte do job. Qualquer utilizador que não seja o proponente pode aceitar.
+
+**T11 — `reject_reschedule` (linha 1017):** mesmo padrão que T10. ✅/❌
+
+Contraste com RPCs corretas: `mark_job_done` (linha 1077) tem `IF v_worker_id IS DISTINCT FROM auth.uid() THEN RAISE` ✅; `confirm_job_completion` (linha 1116) tem `IF v_job.client_id IS DISTINCT FROM auth.uid() THEN RAISE` ✅. O padrão correto já existe no codebase — não foi aplicado às 3 RPCs de remarcação.
+
+Risco prático limitado pela RLS de `job_requests` (utilizadores não conseguem facilmente descobrir UUIDs de jobs alheios via PostgREST sem acesso a dados da contraparte). Mas é um bypass real, não teórico — qualquer utilizador autenticado com o UUID pode agir.
+
+---
+
+**P-8-5 — `_acceptReschedule()` em `client_job_detail_screen.dart` deixa campos de remarcação obsoletos na cópia local `_job`**
+
+`client_job_detail_screen.dart:164`:
+```dart
+setState(() => _job = _job.copyWith(
+  confirmedDate: _job.rescheduleProposedDate,
+  confirmedTime: _job.rescheduleProposedTime,
+  confirmedFlexible: _job.rescheduleProposedFlexible ?? false,
+  rescheduleStatus: RescheduleStatus.accepted,
+  // rescheduleProposedDate, rescheduleProposedTime, rescheduleProposedBy
+  // NÃO são limpos — BD limpa corretamente (linhas 996-999 da RPC), memória não
+));
+```
+
+A BD limpa os campos propostos. A cópia local `_job` mantém os valores obsoletos até ao próximo re-fetch via `clientJobsProvider`. Impacto visual menor (campos propostos não são mostrados depois de aceitar), mas é uma inconsistência real. Limitação do Dart `copyWith` com `??` — campos nullable não podem ser limpos para `null` sem sentinelas ou re-fetch explícito.
+
+---
+
+**P-8-6 — `create_job_screen.dart:281` tem o mesmo padrão de exceção em bruto já visto em P-67-4 — 3.º ecrã, não 2.º**
+
+```dart
+error: (e, _) => Text('Erro ao carregar serviços: $e'),
+```
+
+A auditoria de Fases 6-7 (P-67-4) apanhou `worker_setup_screen.dart` e `worker_profile_screen.dart`. Este ecrã foi omitido. São 3 ecrãs no total com este problema, não 2. `error_utils.dart` já está importado em `create_job_screen.dart`.
+
+---
+
+**P-8-7 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente**
+
+`proposal_repository.dart:131`: busca todos os registos `status = 'accepted'` do worker, depois descarta no Dart tudo o que não seja `confirmed | awaiting_confirmation`. Um worker com 50 jobs concluídos transfere todos os 50 para mostrar 1 ou 2 na tab "Agendados". Já tinha um TODO comentado no código. Confirmado ainda presente.
+
+---
+
+**P-8-8 — Jobs cancelados em `open` (nunca confirmados) invisíveis no histórico do cliente — decisão de produto a confirmar**
+
+`client_jobs_screen.dart:45`:
+```dart
+(j.status == JobStatus.cancelled && j.acceptedProposalId != null)
+```
+
+Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = null`) não aparecem no histórico. Pode ser intencional (menos lixo no histórico) ou um descuido. Sem registo explícito da intenção no `decisions_log`.
+
+---
+
+**P-8-9 — Notificações de `job_cancelled`/`job_reopened`/reschedule/conclusão navegam para a lista de jobs, não para o job específico**
+
+`notification_handler.dart:28`: navega para `/client/jobs` ou `/worker/home` em vez do job concreto. O `related_id` está disponível mas não é usado para navegação. Ligado ao P6 da auditoria de Fases 0-3 (`state.extra!` impede deep-link às rotas de detalhe). Torna-se acionável após a implementação de A2 dessa auditoria (routing baseado em ID).
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Implementar o cron `auto_expire_jobs` — último item não marcado da Fase 8 original (resolve P-8-1)**
+
+Mesmo padrão do `auto_confirm_completed_jobs` já existente (migration 0014). Nova migration:
+
+```sql
+CREATE OR REPLACE FUNCTION auto_expire_jobs()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE job_requests
+  SET status = 'no_response',
+      updated_at = now()
+  WHERE status = 'open'
+    AND expires_at < now()
+    AND proposal_count = 0;
+END;
+$$;
+
+SELECT cron.schedule(
+  'auto-expire-jobs',
+  '0 */3 * * *',
+  'SELECT auto_expire_jobs()'
+);
+```
+
+Após aplicar à BD viva: `SELECT * FROM cron.job WHERE jobname = 'auto-expire-jobs';`
+
+Correção Dart em `notification_handler.dart`:
+```dart
+// ANTES:
+case NotificationType.jobNoResponse:
+  break;
+
+// DEPOIS:
+case NotificationType.jobNoResponse:
+  ref.invalidate(clientJobsProvider);
+  context.go('/client/jobs');
+```
+
+E em `notification_providers.dart`:
+```dart
+case NotificationType.jobNoResponse:
+  ref.invalidate(clientJobsProvider);
+```
+
+**Esforço: ~30 min** (migration + 3 linhas Dart).
+
+**A2 — Corrigir parâmetros de compressão de fotos para 800px/60% (resolve P-8-3)**
+
+```dart
+// job_repository.dart:58 — ANTES:
+minWidth: 1280,
+minHeight: 1280,
+quality: 72,
+
+// DEPOIS (matches decisions_log 2026-06-02):
+minWidth: 800,
+minHeight: 800,
+quality: 60,
+```
+
+3 linhas. Previne esgotamento prematuro do limite de 50MB do Free Plan. **Esforço: 2 min.**
+
+**A3 — Adicionar verificação de autorização às 3 RPCs de remarcação (resolve P-8-4 — CRÍTICO)**
+
+Nova migration que recria as 3 RPCs com o check adicional. Padrão já usado por `mark_job_done` e `confirm_job_completion`:
+
+```sql
+-- Adicionar em propose_reschedule, accept_reschedule e reject_reschedule
+-- após SELECT * INTO v_job e antes da lógica de negócio:
+DECLARE
+  v_accepted_worker_id uuid;
+BEGIN
+  ...
+  SELECT worker_id INTO v_accepted_worker_id
+  FROM   job_proposals WHERE id = v_job.accepted_proposal_id;
+
+  IF auth.uid() NOT IN (v_job.client_id, v_accepted_worker_id) THEN
+    RAISE EXCEPTION 'não autorizado: só o cliente ou o worker do job podem realizar esta ação.';
+  END IF;
+  ...
+```
+
+**Esforço: ~30 min** (nova migration com os 3 corpos completos das RPCs — mesmo padrão das migrations anteriores que reproduzem o corpo inteiro).
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Resolver N+1 com join de profile em `fetchPendingProposalsForJob` (resolve P-8-2)**
+
+Aplicar o mesmo padrão de embedded resources PostgREST que o lado do worker já usa:
+
+```dart
+// proposal_repository.dart:38 — ANTES:
+.select()
+
+// DEPOIS (confirmar nome exato da FK antes de implementar):
+.select('*, profiles!job_proposals_worker_id_fkey(full_name, id)')
+```
+
+Adicionar `workerName` ao modelo `JobProposal`. Atualizar `_ProposalCard` para usar `proposal.workerName` diretamente em vez de `ref.watch(workerNameProvider(proposal.workerId))`. N queries → 1 query. **Esforço: ~45 min** (modelo + repository + widget).
+
+**M2 — Corrigir exceção em bruto em `create_job_screen.dart:281` (resolve P-8-6)**
+
+```dart
+// ANTES:
+error: (e, _) => Text('Erro ao carregar serviços: $e'),
+
+// DEPOIS:
+error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
+```
+
+`error_utils.dart` já importado. 1 linha. Junto com as 2 linhas de P-67-4 (Fases 6-7): fix total de 3 linhas em 3 ficheiros.
+
+**M3 — Mover filtro de `fetchScheduledWorkerProposals` para a BD (resolve P-8-7)**
+
+Substituir o `.where()` client-side por filtro PostgREST no embedded resource. Mesmo racional do TODO já existente no código. Reduz dados transferidos para workers com histórico longo.
+
+**M4 — Timeline de estados (8E.5): decisão de "deixar até ao redesign" RE-CONFIRMADA com olhos frescos**
+
+Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos os estados documentados (incluindo reschedule pending/accepted e awaiting_confirmation). O único estado unreachable é `noResponse` (não implementado — P-8-1). Quando P-8-1 for corrigido, a timeline já o trata corretamente — sem mudanças necessárias.
+
+**Decisão re-confirmada: não investir em polish visual agora.** A lógica de derivação de estados (`job_timeline.dart`) provavelmente sobrevive ao redesign visual. O widget (`status_timeline.dart`) é onde o redesign vai acontecer — não tocar até lá.
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Deep-link de notificações para o job específico (resolve P-8-9, bloqueado por Fases 0-3 A2)**
+
+`related_id` disponível em todas as notificações de job. Navegação para o job concreto torna-se implementável após A2 da auditoria de Fases 0-3 (routing baseado em ID em vez de `state.extra`).
+
+**B2 — `RescheduleDialog`: confirmar se impede seleção de data passada/mesmo dia**
+
+A BD bloqueia via regra das 24h em `propose_reschedule`. Mas validação client-side com `firstDate: DateTime.now().add(Duration(days: 1))` no `showDatePicker` daria feedback imediato. Requer leitura de `reschedule_dialog.dart` para confirmar o estado atual.
+
+**B3 — `state_machine.md` omite `jobsInRadiusProvider` na linha `proposal_rejected`**
+
+O código em `notification_providers.dart:84` invalida corretamente `jobsInRadiusProvider` para `proposalRejected` (worker rejeitado pode ver o job novamente na descoberta). O documento `state_machine.md` não lista este provider na linha correspondente. Código correto; doc incompleto. Fix de documentação, não de código.
+
+**B4 — `workerProposalForJobProvider` não invalidado para o cliente após `proposalAccepted`**
+
+Edge case: nenhum ecrã atual do cliente depende deste provider diretamente após uma aceitação de proposta. Acionável se um futuro ecrã de cliente vier a observar este estado.
+
+---
+
+### Nota cross-cutting — invalidação de notificações
+
+Cross-check completo dos 12 tipos de notificação originais da Fase 8 contra `notification_providers.dart`:
+
+| Tipo | Providers no state_machine.md | Providers no código | Estado |
+|---|---|---|---|
+| `new_job_in_radius` | `jobsInRadiusProvider` | ✅ igual | ✅ |
+| `proposal_received` | 5 providers | ✅ igual | ✅ |
+| `proposal_withdrawn` | 4 providers | ✅ igual | ✅ |
+| `proposal_accepted` | 7 providers | ✅ igual | ✅ |
+| `proposal_rejected` | 4 providers | Código também invalida `jobsInRadiusProvider` (correto) | ✅ código correto, doc incompleto |
+| `job_cancelled` / `job_reopened` | 6 providers | ✅ igual | ✅ |
+| `reschedule_*` (3 tipos) | 5 providers cada | ✅ igual | ✅ |
+| `job_marked_done` | 2 providers | ✅ igual | ✅ |
+| `job_completed` | 3 providers | ✅ igual | ✅ |
+| `job_no_response` | *(ausente do SM)* | `break` — sem invalidação | ❌ ver P-8-1 |
+
+**Sem gaps de invalidação escondidos além do P-8-1.** Todas as notificações de remarcação, conclusão e propostas estão corretamente ligadas.
+
+---
+
+## 🔍 Auditoria 2026-06-25 — Fase 9, segunda passagem (a atacar em breve)
+
+> Segunda revisão independente da Fase 9 (lobby screen, "As minhas
+> candidaturas", factor 0.75, `created_post_confirmation`/`pending_approval`,
+> UX de descoberta), feita em 2026-06-25 após a code review dedicada e as
+> adições de cancellation handling. Itens numerados com códigos estáveis
+> (P-9-1–P-9-6, A1–A2, M1–M3, B1–B2) para referência futura.
+
+### Problemas encontrados
+
+**P-9-1 — ⚠️ Maior impacto desta auditoria: `accept_help_candidate` não auto-rejeita candidaturas pendentes restantes quando o `help_request` fica `filled`**
+
+Candidatos excedentes ficam "À espera de decisão" para sempre — nunca recebem `help_rejected`, o request desaparece da descoberta mas a candidatura continua activa em "As minhas candidaturas" indefinidamente, mesmo depois do job estar concluído. Pior experiência possível para um candidato: nunca sabe que não foi selecionado.
+
+`0004_help_acceptance_pending_status.sql:122-123`:
+```sql
+IF v_accepted_count >= v_slots_needed THEN
+  UPDATE help_requests SET status = 'filled' WHERE id = v_help_request_id;
+  -- Nada mais acontece aos outros pending candidatos
+END IF;
+```
+
+Fix: após o UPDATE que marca `filled`, adicionar loop de auto-rejeição com notificação:
+```sql
+FOR v_remaining_candidate IN
+  SELECT id, worker_id
+  FROM   help_acceptances
+  WHERE  help_request_id = v_help_request_id
+    AND  status = 'pending'
+    AND  id <> p_help_acceptance_id
+LOOP
+  UPDATE help_acceptances SET status = 'rejected' WHERE id = v_remaining_candidate.id;
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (v_remaining_candidate.worker_id, 'help_rejected',
+          'Candidatura não selecionada',
+          'Todas as vagas foram preenchidas.',
+          v_help_request_id, 'help_request');
+END LOOP;
+```
+
+Padrão já presente em `auto_confirm_completed_jobs` (0014). **Esforço: ~30 min** (migration com corpo completo do RPC).
+
+---
+
+**P-9-2 — Candidatos em overflow no lobby não são acionáveis — principal worker vê o avatar mas não pode geri-lo**
+
+`worker_help_requests_lobby_screen.dart:547-548`:
+```dart
+final isPendingActionable =
+    !slot.isOverflow && acceptance?.status == HelpAcceptanceStatus.pending;
+```
+
+Com `slots_needed = 2` e 3 candidatos pending: candidatos 1 e 2 (nos slots) são aceites/rejeitáveis; candidato 3 (overflow) não pode ser aceite (sem slot) nem rejeitado (botão X não aparece). Mitigado parcialmente por P-9-1/A1 (auto-rejeição no fill) mas não completamente — durante a fase de seleção, antes do fill, o overflow é inacessível.
+
+---
+
+**P-9-3 — `_appliedIds` é estado transiente do widget (reset em rebuild) — "Candidatar-me" reaparece ativo após navegar e voltar**
+
+`worker_help_requests_screen.dart:25`:
+```dart
+final Set<String> _appliedIds = {};
+```
+
+Após candidatura bem-sucedida e navegação/rebuild, `_appliedIds` está vazio. O help_request continua `open` (com 1 candidato pending), portanto regressar à lista mostra o botão "Candidatar-me" ativo. Um segundo toque falha silenciosamente por `UNIQUE (help_request_id, worker_id)` — sem corrupção de dados, mas confuso. O fix estrutural é A2 (excluir no RPC), não gestão de estado no widget.
+
+---
+
+**P-9-4 — Label "Preenchida" no slot card de candidato overflow é ambígua**
+
+`worker_help_requests_lobby_screen.dart:628-630`:
+```dart
+} else if (slot.isOverflow) {
+  caption = 'Preenchida';
+```
+
+O avatar do candidato excedente aparece com fundo cinzento e legenda "Preenchida". O resumo geral já usa "candidaturas excedentes" (correto); o card individual não. Label mais clara: "Excedente" ou "Sem vaga".
+
+---
+
+**P-9-5 — `pending_approval` UI: gap intencional RE-CONFIRMADO como correto. Infraestrutura toda verificada — nenhuma ação necessária até ao path de criação manual pelo worker principal existir na UI**
+
+Infraestrutura verificada e correta:
+- `approve_help_request` RPC (`0003:151`): valida `status = 'pending_approval'`, verifica `v_job_client_id = auth.uid()`, muda para `open`, notifica principal ✅
+- RLS policy "Cliente vê help requests pendentes de aprovação" (`0003:94`) ✅
+- `approveHelpRequest` em `help_request_repository.dart:125` ✅
+- `createHelpRequest` Dart escolhe `pendingApproval` vs `open` conforme `createdPostConfirmation` ✅
+
+O fluxo `accept_proposal` cria com `created_post_confirmation = false` → gap não afeta MVP principal.
+
+---
+
+**P-9-6 — `get_my_help_acceptances` sem paginação — aceitável a esta escala, anotar para Fase 11+**
+
+`0010_my_help_acceptances_rpc.sql:53`: `ORDER BY ha.created_at DESC` sem `LIMIT`/`OFFSET`. Para MVP scale (primeiros utilizadores, histórico curto) não é urgente. Para Fase 11+ quando o volume crescer: mesmo padrão de `fetchCompletedWorkerProposals` (limit/offset).
+
+---
+
+### Estado verificado como correto (12 itens confirmados nesta passagem)
+
+`UNIQUE (help_request_id, worker_id)` em `help_acceptances` ✅ · exclusão do próprio principal na descoberta (`jp.worker_id <> auth.uid()`) ✅ · filtros de status `open`/`cancelled`/`completed` em `get_help_requests_in_radius` ✅ · factor 0.75/0.70 documentado em `decisions_log.md 2026-06-24` com explicação do buffer intencional ✅ · lógica de `_buildSlots` (accepted → pending → overflow → empty padding) ✅ · validações de status em `accept/reject_help_candidate` ✅ · autorização em `withdraw_help_acceptance` ✅ · cascade de `cancel_job` para `help_requests`/`help_acceptances` ✅ · lógica do botão "Desistir" apenas para `accepted` ✅ · invalidação de providers no lobby após aceitar/rejeitar ✅ · CHECK constraint `agreed_rate > 0` para `status = 'accepted'` ✅ · `pending_approval` help_requests invisíveis na descoberta (filtro `status = 'open'`) ✅
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Auto-rejeitar candidatos pending quando `help_request` fica `filled` (resolve P-9-1)**
+
+Nova migration que recria `accept_help_candidate` com loop FOR de rejeição após o fill. Código SQL completo em P-9-1 acima. Padrão já presente em `auto_confirm_completed_jobs` (0014). **Esforço: ~30 min.**
+
+Após aplicar à BD viva: verificar que candidatos existentes com `status = 'pending'` em help_requests `filled` são migrados manualmente (se existirem):
+```sql
+SELECT ha.id, ha.worker_id, ha.help_request_id
+FROM   help_acceptances ha
+JOIN   help_requests    hr ON hr.id = ha.help_request_id
+WHERE  ha.status = 'pending'
+  AND  hr.status = 'filled';
+```
+
+**A2 — Excluir da descoberta help_requests onde o worker já tem candidatura ativa (resolve P-9-3, elimina `_appliedIds`)**
+
+Adicionar ao `get_help_requests_in_radius` (CREATE OR REPLACE — nova migration):
+```sql
+AND NOT EXISTS (
+  SELECT 1 FROM help_acceptances ha
+  WHERE  ha.help_request_id = hr.id
+    AND  ha.worker_id       = auth.uid()
+    AND  ha.status IN ('pending', 'accepted')
+)
+```
+
+Só migration, sem mudanças Dart. O `_appliedIds` torna-se irrelevante (pode ser removido ou mantido como micro-otimização para o instante entre o apply e o refresh da lista). **Esforço: ~15 min. Alto valor por esforço mínimo.**
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Permitir rejeição (não aceitação) de candidatos overflow no lobby (resolve P-9-2)**
+
+Separar `isPendingActionable` (aceitar + rejeitar, apenas non-overflow) de `isOverflowRejectable` (só rejeitar, apenas overflow):
+```dart
+final isOverflowRejectable =
+    slot.isOverflow && acceptance?.status == HelpAcceptanceStatus.pending;
+```
+
+Mostrar o botão X também para `isOverflowRejectable`. Aceitar continua impossível (sem slot). **Esforço: ~20 min.**
+
+**M2 — Corrigir label "Preenchida" → "Excedente" no slot card overflow (resolve P-9-4)**
+
+```dart
+// ANTES:
+} else if (slot.isOverflow) {
+  caption = 'Preenchida';
+
+// DEPOIS:
+} else if (slot.isOverflow) {
+  caption = 'Excedente';
+```
+
+1 linha. Consistente com `_summaryCaption` que já usa "candidaturas excedentes". **Esforço: trivial.**
+
+**M3 — Implementar UI de `pending_approval` quando a Fase 11+ introduzir criação manual de help_request pelo principal worker — não antes (resolve P-9-5)**
+
+Infraestrutura pronta; UI bloqueada por ausência do path de criação. Quando implementar: secção em `client_job_detail_screen.dart` listando `pending_approval` help_requests com botão "Aprovar" que chama `approveHelpRequest`.
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Paginação em `get_my_help_acceptances` (resolve P-9-6)**
+
+Mesmo padrão de `fetchCompletedWorkerProposals` (limit/offset). Adiar para quando o volume justificar — Fase 11+.
+
+**B2 — Documentar (ou impor via constraint) que um job deve ter um único `help_request` por design**
+
+O schema permite múltiplos `help_requests` por job (sem UNIQUE em `(job_id, proposal_id)`). A intenção do MVP é one-to-one (um help_request com `slots_needed = N`). Se a intenção é flexível (múltiplos por job para serviços diferentes), documentar. Se é one-to-one, adicionar constraint. Actualmente não está registado em nenhum dos dois sentidos.
+
+---
+
+### Nota da sessão
+
+P-9-1 é o achado mais impactante: é o único bug desta auditoria com impacto directo e silencioso na experiência do utilizador final — o candidato que aplicou nunca sabe que não foi seleccionado. A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.
+
+O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-24` — não é um problema. O gap de `pending_approval` está correctamente documentado como intencional em `implementation_plan.md` — não é um problema.
+
+---
+
 ## UX e fluxo
 
 ### Comparação lado-a-lado de propostas
