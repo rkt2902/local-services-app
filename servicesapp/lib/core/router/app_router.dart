@@ -151,7 +151,13 @@ class RouterNotifier extends ChangeNotifier {
     final loc = state.matchedLocation;
 
     if (sessionAsync.isLoading) {
-      return loc == '/loading' ? null : '/loading';
+      // Don't bounce /choose-role through /loading — the auth stream fires
+      // immediately after signUp() while the user is transitioning to role
+      // selection; the loading state is transient and /choose-role handles it
+      // visually fine on its own. Bouncing through /loading would discard the
+      // fullName/phone passed via navigation extra.
+      const loadingExempt = ['/loading', '/choose-role'];
+      return loadingExempt.contains(loc) ? null : '/loading';
     }
 
     final session = sessionAsync.asData?.value;

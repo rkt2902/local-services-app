@@ -807,3 +807,98 @@ para `'/'` (LandingScreen).
 - `lib/core/router/app_router.dart` — removido `'/loading'` de `publicRoutes`
 - `lib/features/auth/application/session_provider.dart` — removidos prints de diagnóstico
 - `lib/core/router/app_router.dart` — removidos prints de diagnóstico
+
+## 2026-06-25 — Dois bugs de redirect no RouterNotifier (signup flow)
+
+### Bug 1 — Utilizadores com `role=null` saltavam o ecrã `/choose-role`
+
+**Causa raiz:** o branch `!isAuthenticated` de `redirect()` tratava `/choose-role` como
+rota pública (estava na lista de `publicRoutes`). Quando a sessão resolvia para
+`isAuthenticated=true, role=null` (utilizador acabou de se registar, ainda sem perfil),
+nenhum branch tratava o caso — o código chegava ao bloco:
+
+```dart
+if (loc == '/' || loc == '/loading' || ... || loc == '/choose-role') {
+  return role?.value == 'worker' ? '/worker/setup' : '/client/home';
+}
+```
+
+`role == null`, por isso `role?.value == 'worker'` é `false` → redirecionava para
+`/client/home` sem o utilizador ter escolhido a sua role ou criado perfil.
+
+**Correção:** adicionado guard explícito antes do bloco de "landing pages":
+
+```dart
+// Authenticated but no profile yet (fresh signup, role not chosen)
+if (role == null) {
+  return loc == '/choose-role' ? null : '/choose-role';
+}
+```
+
+---
+
+### Bug 2 — A correção do Bug 1 introduziu uma regressão: `fullName`/`phone` chegavam vazios à BD
+
+**Sintoma:** contas criadas depois do Bug 1 ter sido corrigido tinham `full_name = ''`
+e `phone = ''` na tabela `profiles` (strings vazias, não null).
+
+**Causa raiz — sequência exata de eventos:**
+
+1. `signup_screen._submit()` chama `context.go('/choose-role', extra: {'fullName': 'João', 'phone': '912...'})`
+2. GoRouter constrói `ChooseRoleScreen(fullName: 'João', phone: '912...')` ✓
+3. O stream `onAuthStateChange` do Supabase dispara (na próxima iteração do event loop, após `signUp()` regressar)
+4. `authStateProvider` atualiza → `sessionStatusProvider.build()` re-executa → estado vai para `AsyncValue.loading()`
+5. `RouterNotifier.notifyListeners()` dispara → GoRouter avalia `redirect()`:
+   `sessionAsync.isLoading == true` → `loc == '/loading' ? null : '/loading'`
+   `loc = '/choose-role'` → **redireciona para `/loading`**, descartando a rota com `state.extra`
+6. `_fetchProfile()` resolve → `role == null` (ainda sem perfil na BD) → `sessionStatusProvider` resolve
+7. `redirect()` avalia de novo: `role == null`, `loc == '/loading'` → retorna `'/choose-role'`
+8. GoRouter navega para `/choose-role` — mas **este é um redirect iniciado pelo router, sem `extra`**
+9. Builder chamado com `state.extra = null` → `ChooseRoleScreen(fullName: '', phone: '')` ✗
+10. Utilizador escolhe role → `createProfile(fullName: '', phone: '', role: worker)` → strings vazias na BD
+
+O problema é a viagem de ida e volta `/choose-role` → `/loading` → `/choose-role`: na
+segunda chegada, o `state.extra` original já não existe porque o redirect é iniciado
+pelo router (um path string), não por `context.go` com `extra`.
+
+**Correção:** isentar `/choose-role` do redirect de loading, tal como `/loading` já era isento:
+
+```dart
+// ANTES (buggy após Bug 1 fix):
+if (sessionAsync.isLoading) {
+  return loc == '/loading' ? null : '/loading';
+}
+
+// DEPOIS (correcto):
+if (sessionAsync.isLoading) {
+  // Don't bounce /choose-role through /loading — the auth stream fires
+  // immediately after signUp() while the user is transitioning to role
+  // selection; the loading state is transient and /choose-role handles it
+  // visually fine on its own. Bouncing through /loading would discard the
+  // fullName/phone passed via navigation extra.
+  const loadingExempt = ['/loading', '/choose-role'];
+  return loadingExempt.contains(loc) ? null : '/loading';
+}
+```
+
+**Porquê é seguro:** `/choose-role` só é acessível a utilizadores autenticados sem
+perfil (o guard `role == null` logo abaixo trata qualquer caso onde alguém chegue aqui
+sem a sessão resolver para `role == null`). Manter o utilizador em `/choose-role`
+durante o estado loading transiente não cria nenhum gap de segurança.
+
+### Estado final dos branches `isLoading` e `role == null` em `redirect()`
+
+```dart
+if (sessionAsync.isLoading) {
+  const loadingExempt = ['/loading', '/choose-role'];
+  return loadingExempt.contains(loc) ? null : '/loading';
+}
+
+// ...
+
+if (role == null) {
+  return loc == '/choose-role' ? null : '/choose-role';
+}
+```
+
+**Ficheiro alterado:** `lib/core/router/app_router.dart` — branch `isLoading`
