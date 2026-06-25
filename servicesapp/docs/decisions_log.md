@@ -902,3 +902,95 @@ if (role == null) {
 ```
 
 **Ficheiro alterado:** `lib/core/router/app_router.dart` — branch `isLoading`
+
+## 2026-06-25 — Fase 10: regra das 24h adicionada ao cancelamento
+
+### Gap encontrado
+
+A regra das 24h existia em `propose_reschedule` (enforcement na BD) desde a Fase 8E.2,
+e estava documentada em `state_machine.md` sob "Regras de cancelamento" como especificação.
+No entanto, `cancel_job` nunca implementou esta restrição — o RPC e as UIs aceitavam
+cancelamentos com qualquer antecedência, mesmo a minutos do serviço.
+
+Descoberto na verificação da Fase 10 (2026-06-25).
+
+### Solução
+
+**Migration 0013 (`0013_cancel_24h_rule.sql`):**
+A verificação é inserida em `cancel_job` imediatamente após `v_is_worker` ser definido,
+antes de qualquer outra lógica:
+
+```sql
+IF v_job.status = 'confirmed'
+   AND v_job.confirmed_date IS NOT NULL
+   AND (v_job.confirmed_date - CURRENT_DATE) < 1 THEN
+  RAISE EXCEPTION 'O cancelamento requer pelo menos 24h de antecedência.';
+END IF;
+```
+
+- Aplica-se a cliente e worker simetricamente (antes do branch `IF v_is_worker THEN`)
+- Jobs com `confirmed_date IS NULL` (data flexível) estão isentos — igual ao comportamento de `propose_reschedule`
+- Jobs `open` nunca têm `confirmed_date`, por isso o check não os afeta
+
+**UI client-side:**
+Ambos os ecrãs de detalhe desativam o botão "Cancelar" e mostram uma mensagem
+explicativa quando `confirmedDate != null && confirmedDate.difference(DateTime.now()).inHours < 24`:
+
+- `lib/features/jobs/presentation/client_job_detail_screen.dart`
+- `lib/features/worker/presentation/worker_my_job_detail_screen.dart`
+
+Mensagem: `'Cancelamento disponível até 24h antes da data confirmada.'`
+
+O UI gate é redundante com o enforcement da BD mas melhora a UX — o utilizador
+percebe porque o botão está desativado em vez de receber um erro genérico.
+
+**Estado:** migration 0013 escrita localmente, **NÃO aplicada** à BD. Aplicar via SQL Editor.
+
+## 2026-06-25 — Fase 10: contacto do worker visível em awaiting_confirmation e completed
+
+O contacto do worker (nome + botão WhatsApp) só era mostrado ao cliente no estado
+`confirmed`. Nos estados `awaiting_confirmation` e `completed` o card desaparecia,
+deixando o cliente sem forma de contactar o prestador exactamente quando mais precisaria
+(para questões sobre o trabalho entregue ou para acompanhamento pós-conclusão).
+
+**Causa:** gap de UI — a condição `if (displayJob.status == JobStatus.confirmed)`
+limitava o card a um único estado.
+
+**RLS:** já suportava os três estados. A função `client_has_confirmed_job_with_worker`
+(usada pela política SELECT de `worker_profiles`) já incluía
+`('confirmed', 'awaiting_confirmation', 'completed')` — confirmado via `pg_get_functiondef`
+em 2026-06-25. Nenhuma alteração à BD necessária.
+
+**Fix:** `lib/features/jobs/presentation/client_job_detail_screen.dart`
+- Extraído `_workerContactCard(workerInfoAsync, theme)` — método privado que envolve
+  `workerInfoAsync.when(...)` e devolve o Card de contacto (loading / erro / dados)
+- Bloco `confirmed`: refatorado para chamar `_workerContactCard` em vez do Card inline;
+  os botões de cancelar/remarcar movidos para fora do `workerInfoAsync.when()` (não
+  dependem da info do worker)
+- Bloco `awaitingConfirmation`: `_workerContactCard` adicionado no topo da Column,
+  acima do card "O prestador marcou como concluído" e botões de confirmação
+- Novo bloco `completed`: `_workerContactCard` adicionado como item standalone
+
+**Worker screen (`worker_my_job_detail_screen.dart`):** sem alteração necessária — o
+card de contacto do cliente já estava gated em `liveStatus == ProposalStatus.accepted`,
+que cobre `confirmed`, `awaiting_confirmation` e `completed` (a proposta mantém-se
+`accepted` através de todos estes estados).
+
+## 2026-06-25 — Fase 10: auto-confirmação após 3 dias via pg_cron
+
+A extensão `pg_cron` foi activada manualmente neste projecto em 2026-06-25.
+
+**Nova função `auto_confirm_completed_jobs()`** — SECURITY DEFINER, sem verificação
+de `auth.uid()` (actua como o sistema). Segue o padrão estabelecido de "funções batch
+internas": a superfície pública `confirm_job_completion` fica intocada; a nova função
+é estritamente interna e não deve ser chamada pelo cliente Flutter.
+
+**Cron:** `0 */3 * * *` (cada 3 horas). Registo em `cron.job` via `cron.schedule()`
+na migration 0014 — este registo é diferente de DDL normal: só existe após a migration
+ser aplicada E o `cron.schedule()` ter corrido com sucesso. Verificar com:
+```sql
+SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';
+```
+
+**Estado:** migration 0014 escrita localmente, **NÃO aplicada** à BD. Aplicar via
+SQL Editor. Após aplicar, confirmar via query acima que o job aparece em `cron.job`.

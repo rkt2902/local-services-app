@@ -92,7 +92,11 @@
 ## Regras de cancelamento
 
 - Só jobs `open` ou `confirmed` podem ser cancelados
-- Jobs `confirmed`: regra das 24h (`confirmed_date` - hoje >= 1 dia)
+- Jobs `confirmed` com `confirmed_date` definida: regra das 24h simétrica — cliente
+  e worker não podem cancelar se `confirmed_date - CURRENT_DATE < 1` dia; enforcement
+  na BD via `cancel_job` (migration 0013) e UI client-side (botão desativado +
+  mensagem explicativa). Jobs com `confirmed_date IS NULL` (data flexível) estão
+  isentos desta restrição
 - Cliente: máx 1 reabertura por job
 - Worker: máx 2 reaberturas por job
 - Cancelamento cria novo job (novo id, `reopened_from` aponta para o original)
@@ -106,7 +110,7 @@
 ## Regras de remarcação
 
 - Só jobs `confirmed` podem ser remarcados
-- Regra das 24h (igual ao cancelamento)
+- Regra das 24h (idêntica à do cancelamento — ver acima; enforcement em `propose_reschedule`)
 - Só uma remarcação pendente por job de cada vez
 - Quem propõe não pode aceitar a própria remarcação (validado na BD)
 - Recusa mantém a data original

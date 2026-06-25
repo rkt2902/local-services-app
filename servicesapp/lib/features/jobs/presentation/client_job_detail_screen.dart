@@ -369,6 +369,67 @@ class _ClientJobDetailScreenState
     }
   }
 
+  Widget _workerContactCard(
+    AsyncValue<Map<String, dynamic>> workerInfoAsync,
+    ThemeData theme,
+  ) {
+    return workerInfoAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) =>
+          const Text('Não foi possível carregar o contacto.'),
+      data: (info) {
+        if (info.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final name = info['full_name'] ?? '';
+        final phone = info['phone'] ?? '';
+        return Card(
+          color: theme.colorScheme.primaryContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  const Icon(Icons.person_outlined),
+                  const SizedBox(width: 8),
+                  Text(name, style: theme.textTheme.titleMedium),
+                ]),
+                if (_job.confirmedDate != null) ...[
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.event_available_outlined),
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatConfirmedSchedule(_job),
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ]),
+                ],
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: phone.isEmpty
+                      ? null
+                      : () async {
+                          final clean =
+                              phone.replaceAll(RegExp(r'[\s\-]'), '');
+                          final uri = Uri.parse('https://wa.me/$clean');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          }
+                        },
+                  icon: const Icon(Icons.chat_outlined),
+                  label: const Text('Contactar via WhatsApp'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -670,145 +731,91 @@ class _ClientJobDetailScreenState
     // ── Confirmed status: contact + cancel/reschedule buttons ────────────────
 
     if (displayJob.status == JobStatus.confirmed) {
-      detailChildren.add(
-        workerInfoAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) =>
-              const Text('Não foi possível carregar o contacto.'),
-          data: (info) {
-            if (workerId.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (info.isEmpty) {
-              return const Text('Não foi possível carregar o contacto.');
-            }
-            final name = info['full_name'] ?? '';
-            final phone = info['phone'] ?? '';
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Serviço confirmado',
-                    style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Card(
-                  color: theme.colorScheme.primaryContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.person_outlined),
-                            const SizedBox(width: 8),
-                            Text(name, style: theme.textTheme.titleMedium),
-                          ],
-                        ),
-                        if (_job.confirmedDate != null) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.event_available_outlined),
-                              const SizedBox(width: 8),
-                              Text(
-                                _formatConfirmedSchedule(_job),
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: phone.isEmpty
-                              ? null
-                              : () async {
-                                  final clean = phone.replaceAll(
-                                      RegExp(r'[\s\-]'), '');
-                                  final uri =
-                                      Uri.parse('https://wa.me/$clean');
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri,
-                                        mode: LaunchMode
-                                            .externalApplication);
-                                  }
-                                },
-                          icon: const Icon(Icons.chat_outlined),
-                          label: const Text('Contactar via WhatsApp'),
-                        ),
-                      ],
-                    ),
-                  ),
+      detailChildren.add(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Serviço confirmado', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _workerContactCard(workerInfoAsync, theme),
+          const SizedBox(height: 16),
+          // Cancel + reschedule buttons
+          if (_job.rescheduleStatus == RescheduleStatus.pending) ...[
+            if (_job.rescheduleProposedBy == currentUserId)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 16),
-                // Cancel + reschedule buttons
-                if (_job.rescheduleStatus == RescheduleStatus.pending) ...[
-                  if (_job.rescheduleProposedBy == currentUserId)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.hourglass_top,
-                              color: theme.colorScheme.onSurfaceVariant,
-                              size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Aguarda resposta à remarcação que propuseste.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Aguarda resposta da remarcação',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                ],
-                Row(
+                child: Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: (_proposingReschedule ||
-                                _job.rescheduleStatus == RescheduleStatus.pending)
-                            ? null
-                            : _proposeReschedule,
-                        icon: const Icon(Icons.event_repeat),
-                        label: const Text('Remarcar'),
-                      ),
-                    ),
+                    Icon(Icons.hourglass_top,
+                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 18),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: (_saving ||
-                                _job.rescheduleStatus == RescheduleStatus.pending)
-                            ? null
-                            : _cancelJob,
-                        style: OutlinedButton.styleFrom(
-                            foregroundColor: theme.colorScheme.error),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Cancelar'),
+                      child: Text(
+                        'Aguarda resposta à remarcação que propuseste.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ),
                   ],
                 ),
-              ],
-            );
-          },
-        ),
-      );
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Aguarda resposta da remarcação',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (_proposingReschedule ||
+                          _job.rescheduleStatus == RescheduleStatus.pending)
+                      ? null
+                      : _proposeReschedule,
+                  icon: const Icon(Icons.event_repeat),
+                  label: const Text('Remarcar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (_saving ||
+                          _job.rescheduleStatus == RescheduleStatus.pending ||
+                          (_job.confirmedDate != null &&
+                           _job.confirmedDate!.difference(DateTime.now()).inHours < 24))
+                      ? null
+                      : _cancelJob,
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Cancelar'),
+                ),
+              ),
+            ],
+          ),
+          if (_job.confirmedDate != null &&
+              _job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Cancelamento disponível até 24h antes da data confirmada.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ));
     }
 
     // ── Awaiting confirmation: worker marked done, client confirms or reports ──
@@ -818,6 +825,8 @@ class _ClientJobDetailScreenState
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _workerContactCard(workerInfoAsync, theme),
+            const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -864,6 +873,10 @@ class _ClientJobDetailScreenState
           ],
         ),
       );
+    }
+
+    if (displayJob.status == JobStatus.completed) {
+      detailChildren.add(_workerContactCard(workerInfoAsync, theme));
     }
 
     return Scaffold(

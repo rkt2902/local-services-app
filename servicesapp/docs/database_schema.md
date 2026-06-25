@@ -302,6 +302,27 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `reject_help_candidate`      | Principal worker recusa candidato `pending` → `rejected`, notifica candidato (`help_rejected`) |
 | `withdraw_help_acceptance`   | Ajudante retira candidatura aceite → `cancelled`; reabre `help_request` se estava `filled`; notifica candidatos rejeitados (`help_request_reopened`) e principal (`help_withdrew`) |
 | `get_my_help_acceptances`    | Devolve todas as candidaturas do ajudante autenticado com contexto: `service_type_name`, `principal_name`, `job_status` — SECURITY DEFINER STABLE; two-hop FK (`job_proposals.worker_id → worker_profiles.profile_id → profiles.id`) inviabiliza PostgREST embedded join |
+| `auto_confirm_completed_jobs`| Batch function (sistema, sem `auth.uid()`): percorre jobs em `awaiting_confirmation` há mais de 3 dias e move-os para `completed`; notifica o worker via `job_completed`. Chamada pelo pg_cron a cada 3h (ver secção abaixo). |
+
+---
+
+## Jobs agendados (pg_cron)
+
+A extensão `pg_cron` foi activada manualmente neste projecto em 2026-06-25.
+
+| Jobname | Cron | Função | Descrição |
+|---|---|---|---|
+| `auto-confirm-completed-jobs` | `0 */3 * * *` (cada 3h) | `auto_confirm_completed_jobs()` | Confirma automaticamente jobs em `awaiting_confirmation` há mais de 3 dias; protege o worker de clientes que não respondem |
+
+**Verificar registo do cron após aplicar migration 0014:**
+```sql
+SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';
+```
+
+**Nota sobre `updated_at` como proxy temporal:** `awaiting_confirmation` é um estado
+terminal de escrita — não há nenhum UPDATE posterior até a confirmação. Logo `updated_at`
+reflecte fielmente "quando o job entrou neste estado" e é um proxy seguro para a janela
+de 3 dias.
 
 ---
 

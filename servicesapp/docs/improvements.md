@@ -350,17 +350,6 @@ resolution silenciosa. Confirmar (grep no código Dart) antes de fazer DROP.
 **Solução:** DROP FUNCTION da assinatura antiga em migration futura.
 **Prioridade:** Média-Alta — limpeza de segurança barata.
 
-### Auto-confirmação de conclusão após 3 dias
-**Contexto:** Decisão de planeamento (8E.4): se o cliente não confirmar a
-conclusão em 3 dias, o job deve passar automaticamente a `completed` —
-protege o worker de clientes que não respondem.
-**Estado:** NÃO implementado. Requer scheduled job (Supabase pg_cron ou
-Edge Function com cron trigger) que corre periodicamente e procura jobs
-em `awaiting_confirmation` há mais de 3 dias, chamando `confirm_job_completion`
-automaticamente (ou uma variante sem verificação de `auth.uid() = client_id`).
-**Prioridade:** Alta — foi uma decisão de produto explícita para o MVP,
-não é polish opcional.
-
 ---
 
 ## Como manter este ficheiro

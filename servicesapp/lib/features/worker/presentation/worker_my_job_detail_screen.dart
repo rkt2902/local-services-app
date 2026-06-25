@@ -574,7 +574,9 @@ class _WorkerMyJobDetailScreenState
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: (widget.job.rescheduleStatus == RescheduleStatus.pending ||
-                              _cancellingJob)
+                              _cancellingJob ||
+                              (widget.job.confirmedDate != null &&
+                               widget.job.confirmedDate!.difference(DateTime.now()).inHours < 24))
                           ? null
                           : _cancelJob,
                       style: OutlinedButton.styleFrom(
@@ -584,6 +586,16 @@ class _WorkerMyJobDetailScreenState
                     ),
                   ),
                 ]),
+                if (widget.job.confirmedDate != null &&
+                    widget.job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Cancelamento disponível até 24h antes da data confirmada.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 const SizedBox(height: 16),
               ],
               if (liveJobStatus == JobStatus.awaitingConfirmation)
