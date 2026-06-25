@@ -164,15 +164,21 @@ class RouterNotifier extends ChangeNotifier {
       return publicRoutes.contains(loc) ? null : '/';
     }
 
-    if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup') {
-      if (role?.value == 'worker') {
+    // Authenticated but no profile yet (fresh signup, role not chosen)
+    if (role == null) {
+      return loc == '/choose-role' ? null : '/choose-role';
+    }
+
+    if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||
+        loc == '/choose-role') {
+      if (role.value == 'worker') {
         if (workerProfileComplete) return '/worker/home';
         return '/worker/setup';
       }
       return '/client/home';
     }
 
-    if (role?.value == 'worker' && !workerProfileComplete) {
+    if (role.value == 'worker' && !workerProfileComplete) {
       if (loc == '/worker/setup') return null;
       return '/worker/setup';
     }
