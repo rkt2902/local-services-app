@@ -682,3 +682,66 @@ context.go('/worker/help-requests', extra: {'initialTabIndex': 1});
 
 Os comentários TODO foram removidos. O switch em `NotificationHandler` é agora
 exaustivo para todos os 19 tipos em `NotificationType` sem comentários de débito.
+
+## 2026-06-25 — Crosscheck BD viva vs docs vs Dart + migrations 0011–0012
+
+### Crosscheck três vias (snapshot DB 2026-06-25)
+
+Comparação sistemática entre o snapshot da BD viva (`docs/_db_snapshot_2026-06-25/`,
+4 CSV files) e todos os ficheiros de docs + código Dart (repositórios, modelos, enums).
+
+**Achado 1 — `get_jobs_in_radius` overload obsoleto ainda vivo (migration 0011)**
+O overload sem `p_worker_id` (`get_jobs_in_radius(numeric, numeric, integer)`) nunca
+foi dropado em 0008. Confirmado em `02_functions.csv`. O Dart sempre passa `p_worker_id`
+via named params, pelo que o overload obsoleto nunca é chamado pelo código da app —
+mas era invocável diretamente via SQL, retornando todos os jobs no raio sem filtrar o
+próprio worker. Corrigido em `0011_drop_obsolete_get_jobs_in_radius.sql`.
+
+**Achado 2 — CRITICAL 2 era falso alarme (get_help_requests_in_radius)**
+O relatório do crosscheck assinalou como CRÍTICO que a função em `0003_help_requests_team.sql`
+retornava `SETOF help_requests` (apenas colunas da própria tabela), mas `HelpRequestSummary`
+necessita de `location_lat`, `location_lng`, `service_type_id`, `principal_name`.
+Verificação via `pg_get_functiondef` na BD viva mostrou que a migration 0006 já tinha
+atualizado a função com `RETURNS TABLE(...)` e todos os JOINs necessários — incluindo
+a exclusão de jobs `cancelled`/`completed` e de help_requests onde o caller é o principal
+(fixes C2.3 + C7.4 do code review de 2026-06-24). O ficheiro `0003_help_requests_team.sql`
+tem o corpo desatualizado, mas é inofensivo: a BD viva tem a definição correcta de 0006.
+Sem SQL fix necessário.
+
+**Nota técnica:** `get_jobs_in_radius` usa `numeric` para lat/lng; `get_help_requests_in_radius`
+usa `double precision`. Inconsistência cosmética entre as duas variantes da fórmula de
+Haversine — ambas correctas. Uniformizar para `numeric` na próxima vez que uma das
+funções for alterada.
+
+**Achado 3 — Sem política SELECT para candidatos em `help_requests` (migration 0012, HIGH)**
+Workers candidatos não tinham nenhuma política SELECT em `help_requests`. A descoberta
+via RPC SECURITY DEFINER funcionava, mas qualquer fetch direto por um candidato
+(`fetchHelpRequestById`, `fetchHelpRequestsForJob`) retornava null/vazio silenciosamente.
+Adicionada política "Worker candidato vê help requests onde se candidatou" em 0012.
+
+**Achado 4 — Políticas duplicadas em `job_proposals` (migration 0012, MEDIUM)**
+Dois pares de políticas funcionalmente idênticas encontrados em `03_policies.csv`:
+- INSERT: "Worker envia proposta" e "Worker cria propostas"
+- SELECT: "Worker vê as suas propostas" (com acento) e "Worker ve as suas propostas" (sem acento)
+Criados por migrations separadas que não verificaram políticas pre-existentes.
+Duplicados dropados em 0012; variantes com nomes correctos mantidas.
+
+**Outros achados não bloqueantes (nenhuma alteração ao código):**
+- `help_acceptances.status` tem default `'accepted'` na BD mas a RLS de INSERT força
+  `status = 'pending'` — default nunca é usado via app. Cosmético.
+- `job_proposals.estimated_hours` (coluna legacy nullable) existe na BD mas não é mapeada
+  no `JobProposal.fromJson` — ignorada silenciosamente, sem risco.
+- `job_requests.confirmed_flexible`: nullable na BD; Dart usa `bool? ?? false`. Cosmético.
+- Todos os enums Dart estão em perfeito alinhamento com os CHECK constraints da BD.
+- Todas as assinaturas de RPC correspondem exactamente aos chamadores no Dart.
+
+### Docs actualizados
+
+- `database_schema.md`: corrigido `size_estimate` (sem CHECK na BD, só enum Dart);
+  corrigida secção RLS de `notifications` (sem política INSERT; inserts via SECURITY
+  DEFINER); adicionada nota sobre política de candidatos em `help_requests`.
+
+### Estado das migrations
+
+**0011** — escrita localmente, **NÃO aplicada** à BD. Aplicar via SQL Editor.
+**0012** — escrita localmente, **NÃO aplicada** à BD. Aplicar via SQL Editor após 0011.

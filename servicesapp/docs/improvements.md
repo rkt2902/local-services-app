@@ -334,24 +334,21 @@ que justifiquem (>50 items por tab).
 
 ## Bugs pendentes / melhorias técnicas
 
-### Limpar funções RPC obsoletas (overloads mortos)
+### Limpar funções RPC obsoletas (overload morto)
 **Contexto:** Descoberto durante a criação da migration baseline (2026-06-19).
-A BD viva tem versões antigas de funções que coexistem com as atuais via
-overload do Postgres (mesmo nome, assinatura diferente):
-- `cancel_job(job_id_param uuid)` — versão antiga, escreve status
-  `proposal_received`, que já não existe no CHECK constraint. Falharia se
-  chamada.
-- `create_proposal` — duas versões antigas (uma com `estimated_hours`
-  singular, outra com `estimated_hours_min/max` mas sem `scheduled_date`),
-  ambas escrevem o mesmo status inválido.
+A BD viva tinha versões antigas de funções que coexistiam com as atuais via
+overload do Postgres (mesmo nome, assinatura diferente).
+- ~~`cancel_job(job_id_param uuid)`~~ — **resolvido em migration 0008** (DROP FUNCTION aplicado).
+- ~~`create_proposal` overloads antigos~~ — **resolvidos em migration 0008** (ambas as assinaturas antigas removidas).
 - `get_jobs_in_radius(worker_lat, worker_lng, radius_km)` sem `p_worker_id`
-  — esta ainda funciona, só ficou substituída.
-**Risco:** se alguma chamada esquecida no código ainda usar a assinatura
-antiga, falha de forma confusa (overload resolution silenciosa).
-**Solução:** DROP FUNCTION das assinaturas antigas, após confirmar (grep no
-código Dart) que nenhuma chamada usa essas assinaturas.
-**Prioridade:** Média-Alta — não é urgente (as antigas já falhariam se
-chamadas), mas é limpeza de segurança barata.
+  — **ainda por remover**: esta versão não foi incluída no DROP da migration
+  0008 (confirmado por inspeção do SQL). Ainda funciona mas ficou substituída
+  pela versão com `p_worker_id`.
+**Risco restante:** se alguma chamada esquecida no código ainda usar a
+assinatura sem `p_worker_id`, corre sem filtrar o worker — overload
+resolution silenciosa. Confirmar (grep no código Dart) antes de fazer DROP.
+**Solução:** DROP FUNCTION da assinatura antiga em migration futura.
+**Prioridade:** Média-Alta — limpeza de segurança barata.
 
 ### Auto-confirmação de conclusão após 3 dias
 **Contexto:** Decisão de planeamento (8E.4): se o cliente não confirmar a

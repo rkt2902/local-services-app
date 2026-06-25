@@ -1,0 +1,120 @@
+table_name,column_name,data_type,is_nullable,column_default
+help_acceptances,id,uuid,NO,uuid_generate_v4()
+help_acceptances,help_request_id,uuid,NO,null
+help_acceptances,worker_id,uuid,NO,null
+help_acceptances,status,text,NO,'accepted'::text
+help_acceptances,created_at,timestamp with time zone,NO,now()
+help_acceptances,agreed_rate,numeric,NO,0
+help_acceptances,brought_equipment,boolean,NO,false
+help_requests,id,uuid,NO,uuid_generate_v4()
+help_requests,job_id,uuid,NO,null
+help_requests,proposal_id,uuid,NO,null
+help_requests,slots_needed,integer,NO,1
+help_requests,status,text,NO,'open'::text
+help_requests,created_at,timestamp with time zone,NO,now()
+help_requests,equipment_required,boolean,NO,false
+help_requests,created_post_confirmation,boolean,NO,false
+job_photos,id,uuid,NO,uuid_generate_v4()
+job_photos,job_id,uuid,NO,null
+job_photos,storage_path,text,NO,null
+job_photos,created_at,timestamp with time zone,NO,now()
+job_proposals,id,uuid,NO,uuid_generate_v4()
+job_proposals,job_id,uuid,NO,null
+job_proposals,worker_id,uuid,NO,null
+job_proposals,hourly_rate,numeric,NO,null
+job_proposals,estimated_hours,numeric,YES,null
+job_proposals,people_needed,integer,NO,1
+job_proposals,notes,text,YES,null
+job_proposals,status,text,NO,'pending'::text
+job_proposals,created_at,timestamp with time zone,NO,now()
+job_proposals,updated_at,timestamp with time zone,NO,now()
+job_proposals,estimated_hours_min,numeric,YES,null
+job_proposals,estimated_hours_max,numeric,YES,null
+job_proposals,scheduled_date,date,YES,null
+job_proposals,scheduled_time,time without time zone,YES,null
+job_proposals,scheduled_flexible,boolean,NO,false
+job_proposals,helpers_equipment_required,boolean,NO,false
+job_reports,id,uuid,NO,uuid_generate_v4()
+job_reports,job_id,uuid,NO,null
+job_reports,reporter_id,uuid,NO,null
+job_reports,description,text,NO,null
+job_reports,created_at,timestamp with time zone,NO,now()
+job_requests,id,uuid,NO,uuid_generate_v4()
+job_requests,client_id,uuid,NO,null
+job_requests,service_type_id,uuid,NO,null
+job_requests,address_text,text,NO,null
+job_requests,location_lat,numeric,NO,null
+job_requests,location_lng,numeric,NO,null
+job_requests,preferred_date,date,YES,null
+job_requests,urgency,text,YES,null
+job_requests,size_estimate,text,YES,null
+job_requests,description,text,NO,null
+job_requests,status,text,NO,'open'::text
+job_requests,accepted_proposal_id,uuid,YES,null
+job_requests,expires_at,timestamp with time zone,NO,(now() + '48:00:00'::interval)
+job_requests,created_at,timestamp with time zone,NO,now()
+job_requests,updated_at,timestamp with time zone,NO,now()
+job_requests,date_mode,text,NO,'flexible'::text
+job_requests,availability_text,text,YES,null
+job_requests,confirmed_date,date,YES,null
+job_requests,confirmed_time,time without time zone,YES,null
+job_requests,confirmed_flexible,boolean,YES,null
+job_requests,reschedule_proposed_date,date,YES,null
+job_requests,reschedule_proposed_time,time without time zone,YES,null
+job_requests,reschedule_proposed_flexible,boolean,YES,null
+job_requests,reschedule_proposed_by,uuid,YES,null
+job_requests,reschedule_status,text,YES,null
+job_requests,proposal_count,integer,NO,0
+job_requests,cancelled_by,uuid,YES,null
+job_requests,cancel_reason,text,YES,null
+job_requests,cancel_reason_detail,text,YES,null
+job_requests,reopened_from,uuid,YES,null
+job_requests,reopen_count_client,integer,NO,0
+job_requests,reopen_count_worker,integer,NO,0
+job_requests,cancelled_worker_id,uuid,YES,null
+job_requests,excluded_worker_ids,ARRAY,NO,'{}'::uuid[]
+notifications,id,uuid,NO,uuid_generate_v4()
+notifications,user_id,uuid,NO,null
+notifications,type,text,NO,null
+notifications,title,text,NO,null
+notifications,body,text,NO,null
+notifications,related_id,uuid,YES,null
+notifications,related_type,text,YES,null
+notifications,read,boolean,NO,false
+notifications,created_at,timestamp with time zone,NO,now()
+profiles,id,uuid,NO,null
+profiles,role,text,NO,null
+profiles,full_name,text,NO,null
+profiles,phone,text,YES,null
+profiles,avatar_url,text,YES,null
+profiles,created_at,timestamp with time zone,NO,now()
+profiles,updated_at,timestamp with time zone,NO,now()
+ratings,id,uuid,NO,uuid_generate_v4()
+ratings,job_id,uuid,NO,null
+ratings,rater_id,uuid,NO,null
+ratings,ratee_id,uuid,NO,null
+ratings,stars,integer,NO,null
+ratings,comment,text,YES,null
+ratings,created_at,timestamp with time zone,NO,now()
+service_categories,id,uuid,NO,uuid_generate_v4()
+service_categories,slug,text,NO,null
+service_categories,name,text,NO,null
+service_categories,icon,text,YES,null
+service_categories,active,boolean,NO,true
+service_types,id,uuid,NO,uuid_generate_v4()
+service_types,category_id,uuid,NO,null
+service_types,slug,text,NO,null
+service_types,name,text,NO,null
+service_types,active,boolean,NO,true
+worker_profiles,profile_id,uuid,NO,null
+worker_profiles,bio,text,YES,null
+worker_profiles,default_hourly_rate,numeric,YES,null
+worker_profiles,radius_km,integer,NO,10
+worker_profiles,base_lat,numeric,NO,null
+worker_profiles,base_lng,numeric,NO,null
+worker_profiles,tools,ARRAY,NO,'{}'::text[]
+worker_profiles,photos,ARRAY,NO,'{}'::text[]
+worker_profiles,created_at,timestamp with time zone,NO,now()
+worker_profiles,updated_at,timestamp with time zone,NO,now()
+worker_service_types,worker_id,uuid,NO,null
+worker_service_types,service_type_id,uuid,NO,null

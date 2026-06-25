@@ -1,0 +1,24 @@
+proname,args,prosecdef
+accept_help_candidate,"p_help_acceptance_id uuid, p_agreed_rate numeric",true
+accept_proposal,"p_proposal_id uuid, p_job_id uuid",true
+accept_reschedule,p_job_id uuid,true
+approve_help_request,p_help_request_id uuid,true
+cancel_job,"p_job_id uuid, p_reason text, p_reason_detail text",true
+client_has_confirmed_job_with_worker,worker_id uuid,true
+confirm_job_completion,p_job_id uuid,true
+create_proposal,"p_job_id uuid, p_worker_id uuid, p_hourly_rate numeric, p_estimated_hours_min numeric, p_estimated_hours_max numeric, p_people_needed integer, p_notes text, p_scheduled_date date, p_scheduled_time text, p_scheduled_flexible boolean, p_helpers_equipment_required boolean",true
+create_user_profile,"user_id uuid, full_name text, phone text, user_role text",true
+get_help_requests_in_radius,"worker_lat double precision, worker_lng double precision, radius_km integer",true
+get_jobs_in_radius,"worker_lat numeric, worker_lng numeric, radius_km integer, p_worker_id uuid",true
+get_jobs_in_radius,"worker_lat numeric, worker_lng numeric, radius_km integer",true
+get_my_help_acceptances,,true
+is_principal_worker_for_help_request,p_help_request_id uuid,true
+mark_job_done,p_job_id uuid,true
+notify_workers_new_job,,true
+propose_reschedule,"p_job_id uuid, p_new_date date, p_new_time time without time zone, p_new_flexible boolean",true
+reject_help_candidate,p_help_acceptance_id uuid,true
+reject_proposal,"p_proposal_id uuid, p_job_id uuid",true
+reject_reschedule,p_job_id uuid,true
+withdraw_help_acceptance,p_help_acceptance_id uuid,true
+withdraw_proposal,"p_proposal_id uuid, p_job_id uuid",true
+worker_has_proposal_for_job,job_id uuid,true

@@ -134,7 +134,7 @@ Pedidos criados por clientes.
 | preferred_date            | date        | nullable — preenchida quando date_mode = `fixed`             |
 | availability_text         | text        | nullable — preenchida quando date_mode = `availability`      |
 | urgency                   | text        | nullable, CHECK in (`normal`,`urgent`)                       |
-| size_estimate             | text        | nullable, CHECK in (`small`,`medium`,`large`)                |
+| size_estimate             | text        | nullable — sem CHECK na BD viva; `SizeEstimate` enum no Dart é o único enforcement (adicionar CHECK numa migration futura se necessário)                |
 | description               | text        |                                                              |
 | status                    | text        | CHECK in job_status                                          |
 | accepted_proposal_id      | uuid        | nullable, FK → `job_proposals.id`                           |
@@ -320,8 +320,8 @@ A RLS é definida em detalhe nas migrations. Princípios:
 - `service_categories` / `service_types`: SELECT público; INSERT/UPDATE só admin.
 - `job_requests`: client vê os seus; worker vê jobs `open` + jobs em que tem proposta.
 - `job_proposals`: client vê propostas dos seus jobs; worker vê só as suas.
-- `notifications`: cada user vê e gere só as suas.
-- `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites.
+- `notifications`: cada user vê e gere só as suas; sem política INSERT — todas as inserções acontecem dentro de funções SECURITY DEFINER (que contornam RLS). Não existe uma política "Sistema insere notificações" na BD viva.
+- `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites. SELECT em `help_requests` para candidatos adicionado em migration 0012 (sem esta política, `fetchHelpRequestById` retornava null para workers que aplicaram mas não são o principal).
 - `ratings`: SELECT público (para reputação); INSERT só pelo `rater_id` autenticado.
 - `job_reports`: INSERT pelo próprio reporter; SELECT só dos seus próprios reports (sem acesso a reports de outros — moderação é feita via Studio/service role).
 
@@ -348,3 +348,7 @@ deve vir acompanhada de um novo ficheiro de migration numerado sequencialmente
 > `decisions_log.md` (entradas "2026-06-24 — Code review da Fase 9" e seguintes)
 > para o histórico completo: as migrations 0002–0007 nunca tinham sido aplicadas
 > antes dessa data; 0009 e 0010 confirmadas via probe REST API (HTTP 400 / 200).
+
+> **0011–0012 escritas localmente — NÃO aplicadas à BD.** Aplicar via SQL Editor
+> pela ordem numérica. A migration 0012 é necessária antes de usar fetchHelpRequestById
+> em contexto de candidato.

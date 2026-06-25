@@ -87,7 +87,8 @@
 - [x] Schema: `help_requests`, `help_acceptances`, `helpers_equipment_required` em
       `job_proposals` (migrations 0003–0007).
 - [x] RPCs: `approve_help_request`, `accept_help_candidate`, `reject_help_candidate`,
-      `get_help_requests_in_radius` (com joins de contexto via migration 0006).
+      `get_help_requests_in_radius` (com joins de contexto via migration 0006),
+      `withdraw_help_acceptance`, `get_my_help_acceptances` (migrations 0009–0010).
 - [x] `cancel_job` faz cascade para `help_requests`/`help_acceptances` (migration 0007).
 - [x] RLS completo e auditado: INSERT restrito a candidaturas pending; UPDATE restrito
       a retirada (status='cancelled'); INSERT em `help_requests` apenas para propostas
@@ -98,19 +99,29 @@
       de contexto; botão de candidatura; estado local de candidaturas enviadas.
 - [x] Estimativa de custo de equipa no detalhe da proposta (cliente), factor 0.75 para
       display vs 0.70 para taxa real.
-- [x] Notificações: `help_request_approved`, `help_accepted`, `help_rejected` (handler
-      + sync provider + 3 constantes em notification_types.dart).
+- [x] Notificações: `help_request_approved`, `help_accepted`, `help_rejected`,
+      `help_job_cancelled`, `help_request_reopened`, `help_withdrew` (handler
+      + sync provider + constantes em notification_types.dart).
 - [x] `agreed_rate` CHECK constraint na BD: `status <> 'accepted' OR agreed_rate > 0`.
 - [x] Validação client-side da taxa no lobby antes de chamar `accept_help_candidate`.
 - [x] `FilledButton` de aceitação de proposta mostra estilo desativado durante loading.
+- [x] Cancelamento em cascade para `help_requests`/`help_acceptances` com notificações
+      `help_job_cancelled` ao ser cancelado o job (migration 0009).
+- [x] RPC `withdraw_help_acceptance` — ajudante retira candidatura aceite; reabre a
+      vaga (`help_request` volta a `open`) e notifica o worker principal com
+      `help_withdrew`; notificação `help_request_reopened` ao próprio se reaberto
+      (migration 0009).
+- [x] RPC `get_my_help_acceptances` + `myHelpAcceptancesProvider` (migration 0010).
+- [x] Tab "As minhas candidaturas" na discovery screen do worker candidato.
 
 **Gap intencional de MVP (infraestrutura pronta, sem UI):**
-A aprovação pelo cliente de help_requests criados pós-confirmação (`created_post_confirmation
-= true`, estado `pending_approval`) tem toda a infraestrutura de dados pronta — RPC
-`approve_help_request`, política RLS de SELECT para o cliente, método `approveHelpRequest`
-no repository — mas nenhum ecrã de UI foi construído para este fluxo. O `accept_proposal`
-auto-cria sempre com `created_post_confirmation = false` (aprovação implícita), por isso
-este gap não afeta o fluxo MVP principal.
+O único gap de UI que resta é a aprovação pelo cliente de help_requests criados
+pós-confirmação (`created_post_confirmation = true`, estado `pending_approval`). Toda a
+infraestrutura está pronta — RPC `approve_help_request`, política RLS de SELECT para o
+cliente, método `approveHelpRequest` no repository — mas nenhum ecrã de UI foi construído
+para este fluxo. O `accept_proposal` auto-cria sempre com `created_post_confirmation = false`
+(aprovação implícita), por isso este gap não afeta o fluxo MVP principal. A visibilidade
+dos helpers (tab "As minhas candidaturas") já está implementada e não é mais um gap.
 
 ### Fase 10 — Contactos e conclusão
 - [ ] Mostrar contactos (WhatsApp/tel) só após `confirmed`.

@@ -1,0 +1,54 @@
+tablename,policyname,cmd,qual,with_check
+help_acceptances,Worker cancela ajuda,UPDATE,(auth.uid() = worker_id),((auth.uid() = worker_id) AND (status = 'cancelled'::text))
+help_acceptances,Worker candidata-se a help_request,INSERT,null,((worker_id = auth.uid()) AND (status = 'pending'::text))
+help_acceptances,Worker principal decide candidatos,UPDATE,is_principal_worker_for_help_request(help_request_id),null
+help_acceptances,Worker principal vê candidatos,SELECT,is_principal_worker_for_help_request(help_request_id),null
+help_acceptances,Worker vê as suas candidaturas,SELECT,(worker_id = auth.uid()),null
+help_requests,Cliente vê help requests pendentes de aprovação,SELECT,"((status = 'pending_approval'::text) AND (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = help_requests.job_id) AND (job_requests.client_id = auth.uid())))))",null
+help_requests,Worker principal cria help requests,INSERT,null,"(EXISTS ( SELECT 1
+   FROM job_proposals
+  WHERE ((job_proposals.id = help_requests.proposal_id) AND (job_proposals.worker_id = auth.uid()) AND (job_proposals.status = 'accepted'::text))))"
+job_photos,Cliente adiciona fotos aos seus jobs,INSERT,null,"(EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_photos.job_id) AND (job_requests.client_id = auth.uid()))))"
+job_photos,Ver fotos de jobs proprios ou abertos,SELECT,"(EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_photos.job_id) AND ((job_requests.client_id = auth.uid()) OR (job_requests.status = 'open'::text)))))",null
+job_proposals,Client vê propostas dos seus jobs,SELECT,"(EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_proposals.job_id) AND (job_requests.client_id = auth.uid()))))",null
+job_proposals,Worker atualiza as suas propostas,UPDATE,(auth.uid() = worker_id),null
+job_proposals,Worker cria propostas,INSERT,null,(auth.uid() = worker_id)
+job_proposals,Worker envia proposta,INSERT,null,(auth.uid() = worker_id)
+job_proposals,Worker ve as suas propostas,SELECT,(auth.uid() = worker_id),null
+job_proposals,Worker vê as suas propostas,SELECT,(auth.uid() = worker_id),null
+job_reports,Utilizador cria o seu report,INSERT,null,(auth.uid() = reporter_id)
+job_reports,Utilizador vê os seus reports,SELECT,(auth.uid() = reporter_id),null
+job_requests,Client atualiza os seus jobs,UPDATE,(auth.uid() = client_id),null
+job_requests,Client cria jobs,INSERT,null,(auth.uid() = client_id)
+job_requests,Client vê os seus jobs,SELECT,(auth.uid() = client_id),null
+job_requests,Cliente cancela os seus jobs,UPDATE,(auth.uid() = client_id),null
+job_requests,Worker ve jobs onde tem proposta,SELECT,worker_has_proposal_for_job(id),null
+job_requests,Worker vê jobs abertos,SELECT,((status = 'open'::text) AND (auth.role() = 'authenticated'::text)),null
+notifications,Utilizador marca as suas notificações como lidas,UPDATE,(auth.uid() = user_id),null
+notifications,Utilizador vê as suas notificações,SELECT,(auth.uid() = user_id),null
+profiles,Cliente ve perfil de worker com job confirmado,SELECT,((role = 'worker'::text) AND client_has_confirmed_job_with_worker(id)),null
+profiles,Utilizador atualiza o seu perfil,UPDATE,(auth.uid() = id),null
+profiles,Utilizador cria o seu perfil,INSERT,null,(auth.uid() = id)
+profiles,Utilizador vê o seu perfil,SELECT,(auth.uid() = id),null
+profiles,Worker ve perfil de cliente com job confirmado,SELECT,"(EXISTS ( SELECT 1
+   FROM (job_proposals jp
+     JOIN job_requests jr ON ((jr.id = jp.job_id)))
+  WHERE ((jp.worker_id = auth.uid()) AND (jr.client_id = profiles.id) AND (jp.status = 'accepted'::text))))",null
+ratings,Leitura pública de avaliações,SELECT,true,null
+ratings,Utilizador cria a sua avaliação,INSERT,null,(auth.uid() = rater_id)
+service_categories,Leitura pública de categorias,SELECT,true,null
+service_types,Leitura pública de tipos de serviço,SELECT,true,null
+worker_profiles,Cliente ve worker_profile com job confirmado,SELECT,client_has_confirmed_job_with_worker(profile_id),null
+worker_profiles,Qualquer autenticado vê worker profiles,SELECT,(auth.role() = 'authenticated'::text),null
+worker_profiles,Worker atualiza o seu perfil,UPDATE,(auth.uid() = profile_id),null
+worker_profiles,Worker cria o seu perfil,INSERT,null,(auth.uid() = profile_id)
+worker_service_types,Qualquer autenticado vê serviços de workers,SELECT,(auth.role() = 'authenticated'::text),null
+worker_service_types,Worker gere os seus serviços,ALL,(auth.uid() = worker_id),null

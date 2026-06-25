@@ -1,0 +1,11 @@
+table_name,conname,pg_get_constraintdef
+profiles,profiles_role_check,"CHECK ((role = ANY (ARRAY['client'::text, 'worker'::text])))"
+job_requests,job_requests_urgency_check,"CHECK ((urgency = ANY (ARRAY['normal'::text, 'urgent'::text])))"
+job_proposals,job_proposals_status_check,"CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'superseded'::text])))"
+ratings,ratings_stars_check,CHECK (((stars >= 1) AND (stars <= 5)))
+job_requests,job_requests_date_mode_check,"CHECK ((date_mode = ANY (ARRAY['fixed'::text, 'flexible'::text, 'availability'::text])))"
+job_requests,job_requests_reschedule_status_check,"CHECK ((reschedule_status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text])))"
+help_requests,help_requests_status_check,"CHECK ((status = ANY (ARRAY['pending_approval'::text, 'open'::text, 'filled'::text, 'cancelled'::text])))"
+help_acceptances,help_acceptances_status_check,"CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'cancelled'::text])))"
+job_requests,job_requests_status_check,"CHECK ((status = ANY (ARRAY['open'::text, 'confirmed'::text, 'awaiting_confirmation'::text, 'completed'::text, 'no_response'::text, 'cancelled'::text])))"
+help_acceptances,check_agreed_rate,CHECK (((status <> 'accepted'::text) OR (agreed_rate > (0)::numeric)))

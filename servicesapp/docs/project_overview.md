@@ -40,6 +40,11 @@ o código e a base de dados são genéricos para suportar futuras categorias
 - Preço/hora não é obrigatório no perfil; pode ser definido por proposta.
 - Numa equipa, todos trabalham ao preço/hora definido pelo worker principal.
 - Ajudantes veem o contacto do worker principal, não o do client (no MVP).
+  > **Implementação parcial:** o nome do worker principal já é mostrado aos
+  > ajudantes (via `HelpAcceptanceSummary`, tab "As minhas candidaturas"), mas
+  > o contacto (telefone/WhatsApp) do worker principal ainda não é surfacado
+  > em nenhum ecrã. A regra de negócio (QUEM deve ser visível) está correta;
+  > a exibição do contacto é um detalhe de implementação por terminar.
 - Avaliações simples (estrelas + comentário opcional).
 - Máximo 2 fotos por pedido. Fotos são comprimidas antes do upload (máx. 800px, qualidade 60%).
 
