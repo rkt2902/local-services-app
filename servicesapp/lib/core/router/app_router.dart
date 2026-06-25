@@ -160,7 +160,7 @@ class RouterNotifier extends ChangeNotifier {
     final workerProfileComplete = session?.workerProfileComplete ?? false;
 
     if (!isAuthenticated) {
-      const publicRoutes = ['/', '/login', '/signup', '/loading'];
+      const publicRoutes = ['/', '/login', '/signup'];
       return publicRoutes.contains(loc) ? null : '/';
     }
 

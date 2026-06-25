@@ -745,3 +745,65 @@ Duplicados dropados em 0012; variantes com nomes correctos mantidas.
 
 **0011** — escrita localmente, **NÃO aplicada** à BD. Aplicar via SQL Editor.
 **0012** — escrita localmente, **NÃO aplicada** à BD. Aplicar via SQL Editor após 0011.
+
+---
+
+## 2026-06-25 — Bug de loading infinito no arranque a frio — causa raiz e correção
+
+### Contexto
+
+Em arranques a frio sem sessão cacheada (utilizador desligado / primeira instalação),
+a app ficava indefinidamente no ecrã `/loading` sem crash, sem exceção, sem redirect.
+Utilizadores com sessão cacheada (fast path em `SessionNotifier.build()`) não eram
+afectados — o bug nunca foi capturado em testes manuais durante o desenvolvimento
+porque os developers têm sempre sessão persistida.
+
+### Diagnóstico
+
+Adicionados `debugPrint` temporários a `SessionNotifier` e `RouterNotifier` para
+rastrear o fluxo de estado. Os logs confirmaram:
+
+1. `SessionNotifier.build()` resolvia correctamente e depressa: `currentSession=NULL`
+   → slow path → stream emitiu `session=NULL` → retornou `SessionStatus.unauthenticated`.
+2. `ref.listen(sessionStatusProvider, ...)` disparava (Riverpod 3.x notifica na
+   transição `AsyncLoading → AsyncData`, incluindo a primeira resolução do `build()`).
+3. `notifyListeners()` era chamado → GoRouter re-avaliava `redirect()`.
+4. `redirect()` era chamado com `loc=/loading`, `isAuthenticated=false` →
+   entrava no branch `!isAuthenticated` → `publicRoutes.contains('/loading') == true`
+   → **retornava `null` (ficar)**.
+
+### Causa raiz
+
+`'/loading'` estava incorrectamente incluído em `publicRoutes` no branch
+`!isAuthenticated` de `RouterNotifier.redirect()`:
+
+```dart
+// ANTES (buggy):
+const publicRoutes = ['/', '/login', '/signup', '/loading'];
+return publicRoutes.contains(loc) ? null : '/';
+```
+
+O branch `isLoading` acima já trata a espera inicial (enquanto `build()` está a correr,
+fica em `/loading`). Uma vez que a sessão resolve — mesmo para `unauthenticated` —
+`/loading` nunca deve ser um destino válido. Ao incluí-lo em `publicRoutes`, o router
+interpretava-o como "ecrã público seguro para não-autenticados" e nunca redirecionava
+o utilizador.
+
+### Correção
+
+Removido `'/loading'` de `publicRoutes`:
+
+```dart
+// DEPOIS (correcto):
+const publicRoutes = ['/', '/login', '/signup'];
+return publicRoutes.contains(loc) ? null : '/';
+```
+
+Um utilizador não-autenticado em `/loading` (sessão resolvida) é agora redirecionado
+para `'/'` (LandingScreen).
+
+### Ficheiros alterados
+
+- `lib/core/router/app_router.dart` — removido `'/loading'` de `publicRoutes`
+- `lib/features/auth/application/session_provider.dart` — removidos prints de diagnóstico
+- `lib/core/router/app_router.dart` — removidos prints de diagnóstico
