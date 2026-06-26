@@ -5,8 +5,8 @@
 
 ## Estado atual
 **Passo concluído:** Fase 10 — Contactos e conclusão. Implementada e verificada em 2026-06-25.
-Migrations 0001–0010 aplicadas à BD viva; 0011–0014 escritas localmente, ainda não aplicadas.
-Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25 (ver decisions_log.md).
+Migrations **0001–0014 todas aplicadas à BD viva** (confirmado via snapshot directo 2026-06-26; ver decisions_log.md entrada 2026-06-26).
+Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25.
 **Próximo passo:** Fase 11 — Avaliações.
 
 ## Testes manuais pendentes — 8E.4
@@ -55,9 +55,9 @@ Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25 (ver de
 
 ### Fase 5 — Supabase: schema + RLS ✅
 - [x] Criar tabelas conforme `database_schema.md` (migrations em `supabase/migrations/`;
-      baseline `0001_baseline.sql` — migrations 0001–0010 aplicadas à BD viva).
+      baseline `0001_baseline.sql` — migrations 0001–0014 todas aplicadas à BD viva, confirmado 2026-06-26).
 - [x] Ativar RLS e criar políticas (RLS habilitado em todas as 13 tabelas base em 0001;
-      políticas expandidas em migrations 0003–0012 — confirmado 2026-06-25).
+      políticas expandidas em migrations 0003–0012 — confirmado 2026-06-26).
 - [x] Criar buckets de Storage (`job-photos`, `worker-photos`, `avatars` — definidos em 0001).
 - [x] Seed mínimo: 1 `service_category` "Jardinagem" + 3 `service_types` ("Corte de relva",
       "Poda", "Limpeza de jardim") — confirmados via query live 2026-06-25.
@@ -132,9 +132,9 @@ dos helpers (tab "As minhas candidaturas") já está implementada e não é mais
       `confirmed`, `awaiting_confirmation` e `completed`; ao worker em todos os estados
       `accepted` da proposta. RLS confirmado via `client_has_confirmed_job_with_worker`.
 - [x] Marcar job como `completed` — `mark_job_done` + `confirm_job_completion` RPCs
-      existentes; auto-confirmação após 3 dias via pg_cron (migration 0014, não aplicada).
+      existentes; auto-confirmação após 3 dias via pg_cron (migration 0014 — aplicada, confirmado 2026-06-26).
 - [x] Cancelamento até 24h antes (client e worker) — regra na BD via `cancel_job`
-      (migration 0013, não aplicada) e UI client-side (botão desativado + mensagem).
+      (migration 0013 — aplicada, confirmado 2026-06-26) e UI client-side (botão desativado + mensagem).
 
 ### Fase 11 — Avaliações
 - [ ] Feature `ratings/`: client avalia worker principal; worker avalia ajudantes.

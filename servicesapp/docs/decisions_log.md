@@ -3,6 +3,107 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-26 — Sincronização total via schema snapshot direto da BD viva
+
+### Método
+Query SQL única (UNION ALL 7 secções) executada directamente no SQL Editor do Supabase e gravada em `schema_snapshot_2026-06-26.csv`. Resultado: 1 339 linhas cobrindo tabelas, constraints, índices, funções (corpos completos), políticas RLS, triggers, storage buckets e cron jobs. Ficheiro apagado após sync (era artefacto temporário).
+
+### Achado crítico — migrations 0011–0014 confirmadas todas aplicadas
+
+Anteriormente os docs diziam que 0011–0014 estavam apenas escritas localmente. A BD viva prova o contrário:
+
+| Migration | Evidência no snapshot |
+|---|---|
+| 0011 | `get_jobs_in_radius` só existe na versão de 4 parâmetros; overload antigo de 3 parâmetros ausente |
+| 0012 | políticas de `job_proposals` sem duplicados; política SELECT "Worker candidato vê help requests onde se candidatou" presente |
+| 0013 | corpo de `cancel_job` contém a regra das 24h (`IF v_job.status = 'confirmed' AND v_job.confirmed_date IS NOT NULL AND (v_job.confirmed_date - CURRENT_DATE) < 1 THEN RAISE EXCEPTION '...'`) |
+| 0014 | função `auto_confirm_completed_jobs` presente; registo `auto-confirm-completed-jobs` activo em `cron.job` com schedule `0 */3 * * *` |
+
+Todos os docs actualizados para reflectir estado real: `database_schema.md`, `implementation_plan.md`.
+
+### Overloads — nenhum encontrado
+
+23 funções no schema público, todas com exactamente uma versão. Não há `⚠ OVERLOAD` no snapshot. Histórico de overloads limpo.
+
+### Correcção de correcção — size_estimate CHECK
+
+A entrada de 2026-06-25 neste log registou: "migration 0001 inclui CHECK (size_estimate IN ('small', 'medium', 'large')). Corrigido." Essa correcção estava **errada**: o snapshot directo da BD mostra claramente que `job_requests` não tem nenhuma constraint CHECK sobre `size_estimate`. A validação é exclusivamente do lado do Dart via enum `SizeEstimate`. `database_schema.md` corrigido novamente para dizer "sem CHECK na BD viva".
+
+### P-8-4 (auth bypass em reschedule RPCs) — estado definitivo
+
+| Função | Estado |
+|---|---|
+| `propose_reschedule` | **Corrigido na BD viva** — corpo tem verificação completa `v_is_client` / `v_is_worker` / `not (v_is_client or v_is_worker) → RAISE`. `p_new_time` é `time without time zone` (não `text` como em 0001_baseline.sql). Ambas as alterações foram feitas interactivamente na BD, sem migration registada. |
+| `accept_reschedule` | **Corrigido na BD viva** — mesmo padrão de verificação de autorização. |
+| `reject_reschedule` | **Ainda vulnerável** — só verifica `reschedule_proposed_by = auth.uid()` (quem propôs não pode rejeitar). Não verifica se o caller é o cliente ou o worker do job. Qualquer utilizador autenticado que conheça o `job_id` pode rejeitar uma remarcação pendente. Flagged em `database_schema.md` para triage. |
+
+### P-FA4 (job_proposals UPDATE sem WITH CHECK) — ainda aberto
+
+A política `[UPDATE] Worker atualiza as suas propostas` tem `check=[ — ]` (sem WITH CHECK). Confirmado no snapshot. Não foi corrigido. Flagged em `database_schema.md`.
+
+### P-10-1 — falso alarme confirmado definitivamente
+
+`client_has_confirmed_job_with_worker` corpo live:
+```sql
+select exists (
+  select 1 from public.job_requests jr
+  join public.job_proposals jp on jp.id = jr.accepted_proposal_id
+  where jr.client_id = auth.uid()
+  and jp.worker_id = client_has_confirmed_job_with_worker.worker_id
+  and jr.status in ('confirmed', 'awaiting_confirmation', 'completed')
+);
+```
+Inclui os três estados. O card de contacto do worker funciona correctamente em todos eles. P-10-1 é falso alarme confirmado — fechar no triage.
+
+### Outros achados documentados
+
+- `profiles.phone` é `nullable` na BD viva (não estava documentado) — corrigido em `database_schema.md`.
+- `worker_profiles.base_lat` / `base_lng` são NOT NULL — adicionado à doc.
+- `confirmed_flexible` não tem default de coluna (só COALESCE na RPC) — corrigido.
+- `worker-photos` storage bucket: **zero políticas RLS** — bucket existe mas upload via API falha. Bucket criado como stub para fotos de trabalho do worker (pós-MVP). Documentado em `database_schema.md`.
+- Trigger `on_job_created` (AFTER INSERT em `job_requests` → `notify_workers_new_job()`) adicionado ao `database_schema.md` numa nova secção Triggers.
+- Funções internas `client_has_confirmed_job_with_worker`, `is_principal_worker_for_help_request`, `notify_workers_new_job` documentadas em `database_schema.md`.
+- Gap C3.2 ainda aberto: worker principal e cliente não têm política SELECT para `help_requests` em estado `open`/`filled`. Documentado em RLS section.
+
+---
+
+## 2026-06-26 — P-8-4 e P-FA4 corrigidos (migration 0016)
+
+### Contexto
+
+Dois gaps de segurança confirmados via corpo exacto de cada função no snapshot directo da BD (`schema_snapshot_2026-06-26.csv` — `pg_get_functiondef`), não inferidos de ficheiros de migration.
+
+### P-8-4 — `reject_reschedule` sem verificação de autorização
+
+`propose_reschedule` e `accept_reschedule` já tinham a verificação completa de que o caller é o cliente ou o worker aceite do job (padrão `v_is_client` / `v_is_worker` / `if not (v_is_client or v_is_worker) then raise exception 'Não autorizado'`). Estas foram provavelmente corrigidas interactivamente na BD numa sessão anterior não registada explicitamente neste log.
+
+`reject_reschedule` não tinha essa verificação — apenas bloqueava o próprio proponente (`if v_job.reschedule_proposed_by = v_user_id then raise`). Qualquer utilizador autenticado que conhecesse o `job_id` e não fosse o proponente podia rejeitar remarcações alheias.
+
+**Correcção (migration 0016):** corpo de `reject_reschedule` substituído por `CREATE OR REPLACE FUNCTION` copiando o padrão de `accept_reschedule` — adiciona as duas variáveis `v_is_client` / `v_is_worker` e o bloco `if not (v_is_client or v_is_worker) then raise exception 'Não autorizado'` antes de qualquer efeito na BD.
+
+### P-FA4 — `job_proposals` UPDATE sem `WITH CHECK`
+
+A política `"Worker atualiza as suas propostas"` tinha `USING (auth.uid() = worker_id)` mas nenhum `WITH CHECK`. Um worker podia fazer UPDATE directo via REST API em qualquer coluna da sua proposta (incluindo `status = 'accepted'`, `status = 'rejected'`, `hourly_rate`, etc.), contornando completamente as RPCs e toda a lógica de negócio associada.
+
+**Correcção (migration 0016):** política recriada com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. O único estado que o worker pode escrever directamente via REST é `superseded` (retirada de proposta). Todas as outras transições (`accepted`, `rejected`) são feitas por RPCs `SECURITY DEFINER` que contornam RLS — ficam inalteradas.
+
+### Estado
+
+**migration 0016 criada localmente — NÃO aplicada à BD. Aplicar manualmente via SQL Editor.**
+
+Após aplicar, verificar:
+```sql
+-- Confirmar corpo de reject_reschedule tem ambas as variáveis v_is_client/v_is_worker
+SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'reject_reschedule';
+
+-- Confirmar WITH CHECK na nova política
+SELECT policyname, cmd, qual, with_check
+FROM pg_policies
+WHERE tablename = 'job_proposals' AND cmd = 'UPDATE';
+```
+
+---
+
 ## 2026-06-25 — Verificação retroativa das Fases 0–7
 
 Verificação completa e independente das Fases 0–7 (marcadas `[x]` no plano mas nunca

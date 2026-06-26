@@ -64,7 +64,7 @@ Dados base de qualquer utilizador. 1:1 com `auth.users`.
 | id           | uuid PK     | FK → `auth.users.id`                      |
 | role         | text        | CHECK in (`client`,`worker`)              |
 | full_name    | text        |                                           |
-| phone        | text        | usado para contacto pós-confirmação       |
+| phone        | text        | nullable, usado para contacto pós-confirmação |
 | avatar_url   | text        | nullable                                  |
 | created_at   | timestamptz | default `now()`                           |
 | updated_at   | timestamptz | default `now()`                           |
@@ -78,8 +78,8 @@ Dados específicos de quem presta serviço. 1:1 com `profiles` (apenas role=work
 | bio                 | text        | nullable                                     |
 | default_hourly_rate | numeric     | nullable (pode ser definido por proposta)    |
 | radius_km           | int         | raio de atuação                              |
-| base_lat            | numeric     | latitude da base                             |
-| base_lng            | numeric     | longitude da base                            |
+| base_lat            | numeric     | NOT NULL, latitude da base                   |
+| base_lng            | numeric     | NOT NULL, longitude da base                  |
 | tools               | text[]      | lista de ferramentas                         |
 | photos              | text[]      | URLs de trabalhos anteriores (Storage)       |
 | created_at          | timestamptz |                                              |
@@ -134,14 +134,14 @@ Pedidos criados por clientes.
 | preferred_date            | date        | nullable — preenchida quando date_mode = `fixed`             |
 | availability_text         | text        | nullable — preenchida quando date_mode = `availability`      |
 | urgency                   | text        | nullable, CHECK in (`normal`,`urgent`)                       |
-| size_estimate             | text        | nullable — CHECK in (`small`,`medium`,`large`) presente na BD viva (migration 0001); espelhado pelo enum `SizeEstimate` no Dart |
+| size_estimate             | text        | nullable — **sem CHECK na BD viva** (verificado via snapshot direto 2026-06-26; a correção de 2026-06-25 estava errada); validação só via enum `SizeEstimate` no Dart |
 | description               | text        |                                                              |
 | status                    | text        | CHECK in job_status                                          |
 | accepted_proposal_id      | uuid        | nullable, FK → `job_proposals.id`                           |
 | proposal_count            | int         | default 0 — contagem de propostas pending                    |
 | confirmed_date            | date        | nullable — copiado de scheduled_date ao aceitar proposta     |
 | confirmed_time            | time        | nullable                                                     |
-| confirmed_flexible        | boolean     | nullable, default false                                      |
+| confirmed_flexible        | boolean     | nullable — sem default de coluna; definido via `COALESCE(scheduled_flexible, false)` em `accept_proposal` |
 | cancelled_by              | uuid        | nullable, FK → `profiles.id`                                |
 | cancel_reason             | text        | nullable                                                     |
 | cancel_reason_detail      | text        | nullable                                                     |
@@ -304,6 +304,20 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 | `get_my_help_acceptances`    | Devolve todas as candidaturas do ajudante autenticado com contexto: `service_type_name`, `principal_name`, `job_status` — SECURITY DEFINER STABLE; two-hop FK (`job_proposals.worker_id → worker_profiles.profile_id → profiles.id`) inviabiliza PostgREST embedded join |
 | `auto_confirm_completed_jobs`| Batch function (sistema, sem `auth.uid()`): percorre jobs em `awaiting_confirmation` há mais de 3 dias e move-os para `completed`; notifica o worker via `job_completed`. Chamada pelo pg_cron a cada 3h (ver secção abaixo). |
 
+### Funções internas (não chamadas directamente pelo Flutter)
+
+| Função                                     | Tipo       | Descrição |
+|--------------------------------------------|------------|-----------|
+| `client_has_confirmed_job_with_worker(uuid)` | RLS helper | Devolve `true` se o `auth.uid()` (cliente) tem um job `confirmed`, `awaiting_confirmation` ou `completed` com o worker passado. Usado nas políticas SELECT de `profiles` e `worker_profiles`. Confirmado via snapshot 2026-06-26: inclui os três estados. |
+| `is_principal_worker_for_help_request(uuid)` | RLS helper | Devolve `true` se o `auth.uid()` é o worker principal do `help_request` dado. Usado em políticas de `help_acceptances`. |
+| `notify_workers_new_job()`                   | Trigger fn | Trigger AFTER INSERT em `job_requests`; notifica todos os workers dentro do raio via `new_job_in_radius`. Chamada pelo trigger `on_job_created`, nunca directamente pelo Flutter. |
+
+> **Nota sobre `propose_reschedule`:** a assinatura live tem `p_new_time time without time zone DEFAULT NULL` (não `text` como em 0001_baseline.sql — alterado interactivamente na BD). O corpo também foi actualizado com verificação completa de autorização (v_is_client / v_is_worker). Ver decisions_log 2026-06-26.
+>
+> **Nota sobre `accept_reschedule`:** corpo igualmente actualizado com verificação completa de autorização. Ver decisions_log 2026-06-26.
+>
+> **Nota sobre `reject_reschedule`:** corrigida em migration 0016 com o mesmo padrão `v_is_client` / `v_is_worker` de `accept_reschedule`. Migration escrita, **NÃO aplicada** — ver decisions_log 2026-06-26.
+
 ---
 
 ## Jobs agendados (pg_cron)
@@ -331,6 +345,18 @@ de 3 dias.
 - `idx_one_proposal_per_worker_per_job` — UNIQUE PARTIAL on `job_proposals(job_id, worker_id)` WHERE `status = 'pending'`
   Garante que um worker só tem uma proposta pending por job.
 
+Todas as tabelas têm índices `_pkey` gerados automaticamente pelas constraints PRIMARY KEY (e índices UNIQUE para constraints UNIQUE). O único índice explícito criado manualmente é o acima.
+
+---
+
+## Triggers
+
+| Trigger | Tabela | Evento | Função |
+|---|---|---|---|
+| `on_job_created` | `job_requests` | AFTER INSERT FOR EACH ROW | `notify_workers_new_job()` |
+
+O trigger `on_job_created` percorre todos os `worker_profiles` dentro do raio Haversine do novo job e insere uma notificação `new_job_in_radius` para cada um.
+
 ---
 
 ## Row Level Security (resumo)
@@ -342,16 +368,25 @@ A RLS é definida em detalhe nas migrations. Princípios:
 - `job_requests`: client vê os seus; worker vê jobs `open` + jobs em que tem proposta.
 - `job_proposals`: client vê propostas dos seus jobs; worker vê só as suas.
 - `notifications`: cada user vê e gere só as suas; sem política INSERT — todas as inserções acontecem dentro de funções SECURITY DEFINER (que contornam RLS). Não existe uma política "Sistema insere notificações" na BD viva.
-- `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites. SELECT em `help_requests` para candidatos adicionado em migration 0012 (sem esta política, `fetchHelpRequestById` retornava null para workers que aplicaram mas não são o principal).
+- `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites. SELECT em `help_requests` para candidatos adicionado em migration 0012 (sem esta política, `fetchHelpRequestById` retornava null para workers que aplicaram mas não são o principal). **Gap aberto:** o worker principal não tem política SELECT directa em `help_requests` (só INSERT); o cliente também só vê `pending_approval`. SELECT de `open`/`filled` pelo principal/cliente é backlog (C3.2 — não bloqueante para o MVP actual).
 - `ratings`: SELECT público (para reputação); INSERT só pelo `rater_id` autenticado.
 - `job_reports`: INSERT pelo próprio reporter; SELECT só dos seus próprios reports (sem acesso a reports de outros — moderação é feita via Studio/service role).
+
+**Gaps de segurança — estado após migration 0016 (escrita, NÃO aplicada):**
+- `job_proposals` UPDATE: política recriada em 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. (P-FA4 — aguarda aplicação manual)
+- `reject_reschedule` RPC: corrigida em 0016 com verificação explícita de `v_is_client` / `v_is_worker`. (P-8-4 — aguarda aplicação manual)
 
 ---
 
 ## Storage
-- Bucket `job-photos` (público de leitura, escrita autenticada, máx. 2 fotos por job).
-- Bucket `worker-photos` (público de leitura, escrita só pelo dono).
-- Bucket `avatars` (público de leitura, escrita só pelo dono).
+
+Todos os buckets têm `public = true` e sem limite de tamanho ou restrição de MIME type ao nível do bucket (confirmado via snapshot 2026-06-26). As restrições de negócio (máx. 2 fotos, compressão) são aplicadas no cliente Flutter.
+
+| Bucket | public | Políticas RLS activas |
+|---|---|---|
+| `job-photos` | true | SELECT público; INSERT por utilizadores autenticados |
+| `avatars` | true | SELECT público; INSERT por utilizadores autenticados; UPDATE pelo próprio (via `storage.foldername`) |
+| `worker-photos` | true | **Nenhuma política RLS activa** — bucket criado mas upload via API bloqueado; funcionalidade de fotos de trabalho do worker deixada para pós-MVP |
 
 ---
 
@@ -365,11 +400,10 @@ contra um `pg_dump` live antes de usar num réplica de produção.
 deve vir acompanhada de um novo ficheiro de migration numerado sequencialmente
 (`0002_...sql`, `0003_...sql`, etc.). Nunca alterar o `0001_baseline.sql` após o primeiro deploy.
 
-> **0001–0010 todas confirmadas como aplicadas à BD viva em 2026-06-24.** Ver
-> `decisions_log.md` (entradas "2026-06-24 — Code review da Fase 9" e seguintes)
-> para o histórico completo: as migrations 0002–0007 nunca tinham sido aplicadas
-> antes dessa data; 0009 e 0010 confirmadas via probe REST API (HTTP 400 / 200).
-
-> **0011–0012 escritas localmente — NÃO aplicadas à BD.** Aplicar via SQL Editor
-> pela ordem numérica. A migration 0012 é necessária antes de usar fetchHelpRequestById
-> em contexto de candidato.
+> **0001–0014 todas confirmadas como aplicadas à BD viva.** Verificação definitiva
+> via snapshot directo da BD em 2026-06-26 (ver `decisions_log.md` entrada 2026-06-26).
+> Evidências por migration:
+> - 0011: `get_jobs_in_radius` existe apenas na versão de 4 parâmetros (overload antigo ausente)
+> - 0012: políticas de `job_proposals` sem duplicados; política SELECT para candidatos em `help_requests` presente
+> - 0013: corpo de `cancel_job` inclui a regra das 24h
+> - 0014: função `auto_confirm_completed_jobs` presente; job `auto-confirm-completed-jobs` activo em `cron.job`

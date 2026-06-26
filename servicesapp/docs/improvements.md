@@ -1266,6 +1266,272 @@ O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-2
 
 ---
 
+## 🔍 Auditoria 2026-06-26 — Fase 10 (Contactos e conclusão)
+
+> Revisão independente da Fase 10 (visibilidade de contactos após confirmação,
+> fluxo de conclusão de dois lados, regra das 24h no cancelamento, reports,
+> auto-confirmação por cron, ratings, notificações de conclusão) feita em
+> 2026-06-26. Itens numerados com códigos estáveis (P-10-1–P-10-7, A1–A2,
+> M1–M3, B1–B3) para referência futura.
+>
+> ⚠️ **MAIS URGENTE: P-10-1** — UI do contacto estendida para
+> `awaiting_confirmation` e `completed`, mas a função RLS
+> `client_has_confirmed_job_with_worker` não foi atualizada — o card renderiza
+> mas mostra nome `'—'` e WhatsApp desativado nesses dois estados.
+
+### Problemas encontrados
+
+**P-10-1 — ⚠️ ALTA: `client_has_confirmed_job_with_worker` provavelmente só cobre `status = 'confirmed'` — contact card renderiza vazio em `awaiting_confirmation` e `completed`**
+
+`_workerContactCard()` é agora chamado em três ramos de `client_job_detail_screen.dart`:
+- `confirmed` (linha 739) ✓
+- `awaitingConfirmation` (linha 828) ← extensão nova
+- `completed` (linha 879) ← extensão nova
+
+A extensão da UI está correta. Mas a função PostgreSQL `client_has_confirmed_job_with_worker` — que gatea a policy RLS `"Cliente ve perfil de worker com job confirmado"` em `profiles` — não aparece em nenhuma das migrations 0001–0014 (ver P-FA1, auditoria Fases 4-5). Nenhuma migration entre 0001 e 0014 a redefine nem atualiza. O corpo mais provável (baseado no nome e no contexto pré-migration) é:
+
+```sql
+SELECT EXISTS (
+  SELECT 1 FROM job_requests jr
+  JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
+  WHERE  jr.client_id = auth.uid()
+    AND  jp.worker_id = p_worker_id
+    AND  jr.status = 'confirmed'     -- ← só 'confirmed'
+)
+```
+
+Se confirmado: `fetchWorkerBasicInfo()` retorna `null` quando `jr.status ∈ {'awaiting_confirmation', 'completed'}` → `phone = ''` → botão WhatsApp desativado, nome mostra `'—'`. O card renderiza mas parece quebrado — a UI foi estendida mas a camada de dados não.
+
+**Query de diagnóstico (Supabase Studio):**
+```sql
+SELECT pg_get_functiondef(oid)
+FROM   pg_proc
+WHERE  proname = 'client_has_confirmed_job_with_worker';
+```
+
+Fix: na migration nova, alterar `jr.status = 'confirmed'` para `jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`.
+
+Contraste revelador: a RLS de contacto do lado do worker (`"Worker ve perfil de cliente com job confirmado"`) usa `jp.status = 'accepted'` — a proposta mantém `accepted` para sempre após aceitação, cobrindo automaticamente todos os estados pós-confirmação ✓. A assimetria entre as duas políticas é a raiz do problema.
+
+---
+
+**P-10-2 — Contacto do worker principal não visível ao ajudante — gap documentado em `project_overview.md`**
+
+`project_overview.md` especifica: *"Ajudantes veem o contacto do worker principal, não o do client (no MVP)."* A nota imediatamente a seguir regista a implementação parcial: nome do principal já mostrado, contacto ainda não.
+
+Confirmado no código:
+- `HelpAcceptanceSummary.principalName` e `HelpAcceptanceDetails.principalName` existem — mostrados em 4 locais em `worker_help_requests_screen.dart` (linhas 386, 467, 539, 638)
+- `principalPhone` — campo **não existe** em nenhum dos dois modelos
+- Sem botão WhatsApp em qualquer ecrã para o ajudante contactar o principal
+
+Não é uma regressão — está documentado como intencionalmente parcial em `project_overview.md`. Registado aqui para tracking até à implementação completa.
+
+---
+
+**P-10-3 — `auto_confirm_completed_jobs()` não notifica o cliente — só o worker recebe `job_completed`**
+
+Em `0014_auto_confirm_cron.sql:49-58`:
+```sql
+IF v_worker_id IS NOT NULL THEN
+  INSERT INTO notifications (...) VALUES (v_worker_id, 'job_completed', ...);
+END IF;
+-- Sem INSERT para v_job.client_id
+```
+
+Para confirmação manual (`confirm_job_completion`), o cliente não precisa de notificação — foi ele que confirmou. Para auto-confirmação por cron, o cliente não sabe que o estado mudou até reabrir a app e ver a lista. Consequências:
+1. Se o cliente estava à espera para tomar uma decisão informada, a app decide por ele sem aviso.
+2. `clientJobsProvider` não é invalidado quando `job_completed` chega via `notificationSyncProvider` — para o worker invalida `scheduledWorkerProposalsProvider` + `completedWorkerProposalsProvider(0)` + `jobByIdProvider`; para o cliente, nada. Se o cliente estiver ativo na app quando o cron disparar, a lista não atualiza em tempo real.
+
+Fix: adicionar INSERT para `v_job.client_id` com tipo `job_completed` (e/ou novo tipo `job_auto_confirmed`) + invalidar `clientJobsProvider` no `notificationSyncProvider` para este tipo.
+
+---
+
+**P-10-4 — `job_reports` é efetivamente write-only — infraestrutura de moderação inexistente, mensagem UI prometendo revisão sem suporte**
+
+O fluxo de "Reportar problema":
+- UI: formulário com validação mínima (≥10 chars), tratamento de erros correto ✓
+- RLS: INSERT (`reporter_id = auth.uid()`) ✓; SELECT para o próprio reporter ✓ (migration 0002) ✓
+
+Mas após o INSERT:
+- Sem policy SELECT para admins → invisível fora do Studio com service_role
+- Sem trigger, webhook ou notificação para nenhum elemento da equipa
+- O worker não sabe que um report foi enviado
+- O job mantém-se em `awaiting_confirmation` até o cliente confirmar manualmente ou o auto-confirm disparar (3 dias)
+- Sem mecanismo de disputa, escalada ou resolução dentro da app
+
+A mensagem UI *"A nossa equipa vai rever o caso."* é uma garantia sem infraestrutura de suporte. Após o report, o cliente é perguntado se quer confirmar na mesma — a única via de saída prática dentro do prazo de 3 dias é confirmar. O report não altera o estado do job nem notifica ninguém.
+
+Adicionalmente, `reportJobProblem()` está semanticamente mal colocado em `proposal_repository.dart:212` — não tem relação com propostas; deveria estar em `job_repository.dart`.
+
+---
+
+**P-10-5 — Estado de aplicação das migrations 0013 e 0014 não verificável localmente**
+
+O `implementation_plan.md` confirma: migrations 0001–0010 aplicadas. Em 2026-06-25, 0011–0012 eram conhecidamente não aplicadas. Migrations 0013 e 0014 foram escritas como parte do trabalho de Fase 10 mas o estado de aplicação à BD viva não é verificável a partir de ficheiros locais.
+
+Consequências se não aplicadas:
+- **0013 não aplicada:** a regra das 24h de cancelamento existe só na UI (botão desativado); a BD aceita `cancel_job` dentro de 24h sem erro. Segurança por múltiplas camadas quebrada — qualquer chamada direta ao RPC bypassa a regra.
+- **0014 não aplicada:** `auto_confirm_completed_jobs()` não existe na BD; o cron não está registado (`cron.job` não tem a entrada); jobs em `awaiting_confirmation` podem ficar presos indefinidamente se o cliente não responder.
+
+**Queries de verificação (Supabase Studio):**
+```sql
+-- 24h rule ativa? (deve conter 'CURRENT_DATE' na definição):
+SELECT pg_get_functiondef(oid)
+FROM   pg_proc WHERE proname = 'cancel_job' ORDER BY oid DESC LIMIT 1;
+
+-- Cron registado:
+SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';
+
+-- Função de auto-confirm existe:
+SELECT proname FROM pg_proc WHERE proname = 'auto_confirm_completed_jobs';
+```
+
+---
+
+**P-10-6 — `reportJobProblem()` semanticamente mal colocado em `proposal_repository.dart`**
+
+`proposal_repository.dart:212` contém um método que insere em `job_reports` — sem qualquer relação com propostas. Deveria estar em `job_repository.dart` ou num futuro `report_repository.dart`. Sem impacto runtime; código organizacionalmente incorreto.
+
+---
+
+**P-10-7 — Bloco `rejected` no worker screen faz fetch desnecessário de perfil de cliente que RLS sempre bloqueia**
+
+`worker_my_job_detail_screen.dart:653`: no bloco `ProposalStatus.rejected`, `clientInfoAsync.when(...)` é observado. Mas a RLS `"Worker ve perfil de cliente com job confirmado"` exige `jp.status = 'accepted'` — para um worker com proposta rejeitada, `jp.status = 'rejected'`, logo a query retorna sempre vazio. A guarda `if (phone.isEmpty) return const SizedBox.shrink()` (linha 658) evita qualquer renderização incorreta, mas o fetch de rede é desnecessário e nunca produz resultado.
+
+---
+
+### Melhorias — Alta prioridade
+
+**A1 — Atualizar `client_has_confirmed_job_with_worker` para cobrir os 3 estados pós-confirmação (resolve P-10-1)**
+
+Após confirmar o corpo atual via query de diagnóstico de P-10-1, criar migration nova:
+
+```sql
+-- ex: 0015_fix_contact_rls_function.sql
+CREATE OR REPLACE FUNCTION client_has_confirmed_job_with_worker(p_worker_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM   job_requests  jr
+    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
+    WHERE  jr.client_id = auth.uid()
+      AND  jp.worker_id = p_worker_id
+      AND  jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')
+  )
+$$;
+```
+
+Se o corpo atual já cobrir esses estados → sem ação necessária. Verificar antes de criar a migration.
+
+Esta migration resolve simultaneamente P-FA1 (função ausente das migrations), tornando a BD reproduzível a partir de ficheiros locais. **Esforço: ~10 min.**
+
+**A2 — Aplicar e verificar migrations 0011–0014 à BD viva (resolve P-10-5)**
+
+Sequência no Supabase Studio SQL Editor, pela ordem:
+1. Aplicar 0011, 0012, 0013, 0014 (um de cada vez; confirmar sucesso antes do seguinte)
+2. Verificar 0013: correr `SELECT pg_get_functiondef(...)` para `cancel_job` e confirmar presença de `CURRENT_DATE` na definição
+3. Verificar 0014: `SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs'`
+4. Atualizar `implementation_plan.md`: "Migrations 0001–0014 todas aplicadas à BD viva"
+
+Sem este passo, a regra das 24h e o auto-confirm existem só em ficheiros locais, não em produção. **Esforço: ~15 min.**
+
+---
+
+### Melhorias — Média prioridade
+
+**M1 — Adicionar notificação ao cliente na auto-confirmação (resolve P-10-3)**
+
+Nova migration que recria o corpo de `auto_confirm_completed_jobs()` com INSERT adicional:
+```sql
+-- Após o INSERT existente para o worker:
+INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+VALUES (
+  v_job.client_id,
+  'job_completed',
+  'Trabalho concluído automaticamente',
+  'Passaram 3 dias sem confirmação. O trabalho foi concluído automaticamente.',
+  v_job.id,
+  'job_request'
+);
+```
+
+E em `notification_providers.dart`, adicionar `clientJobsProvider` ao caso `jobCompleted`:
+```dart
+case NotificationType.jobCompleted:
+  ref.invalidate(scheduledWorkerProposalsProvider);
+  ref.invalidate(completedWorkerProposalsProvider(0));
+  ref.invalidate(jobByIdProvider);
+  ref.invalidate(clientJobsProvider);  // ← novo
+```
+
+Safe: para confirmação manual, o cliente faz `ref.invalidate(clientJobsProvider)` diretamente em `_confirmJobCompletion()` — o double-invalidate é inócuo.
+
+**Esforço: ~20 min** (migration nova com corpo completo + 1 linha Dart).
+
+**M2 — Implementar contacto do worker principal para ajudantes (resolve P-10-2)**
+
+1. Atualizar `get_my_help_acceptances` RPC para incluir `p.phone AS principal_phone` (JOIN `profiles p ON p.id = jp.worker_id`)
+2. Adicionar `principalPhone: String` a `HelpAcceptanceSummary` e `HelpAcceptanceDetails`
+3. Adicionar botão WhatsApp nos cards de candidatura `accepted` em `worker_help_requests_screen.dart`
+
+Verificar primeiro se a RLS de `profiles` para worker→worker está coberta por alguma policy existente (possivelmente `"Utilizador vê o seu perfil"` não cobre terceiros; pode ser necessária uma nova policy ou mover o campo para o RPC SECURITY DEFINER onde RLS é bypassed).
+
+**Esforço: ~1.5h** (migration de RPC + modelo Dart + UI).
+
+**M3 — Corrigir mensagem UI de `job_reports` para não fazer promessas sem infraestrutura (resolve P-10-4 parcialmente)**
+
+Caminho mínimo (sem infraestrutura de moderação):
+
+```dart
+// ANTES — em client_job_detail_screen.dart:263:
+'Descreve o que aconteceu. A nossa equipa vai rever o caso.'
+
+// DEPOIS:
+'Descreve o que aconteceu. O teu relato fica registado para referência futura.'
+```
+
+Remove a garantia falsa. O path completo (notificação real à equipa) requer Edge Function ou trigger com webhook para Slack/email — decidir quando a moderação for prioridade.
+
+**Esforço: 1 linha. Trivial.**
+
+---
+
+### Melhorias — Baixa prioridade
+
+**B1 — Mover `reportJobProblem()` para `job_repository.dart` (resolve P-10-6)**
+
+Mover o método e atualizar o `import` em `client_job_detail_screen.dart`. Sem impacto runtime. **Esforço: ~15 min.**
+
+**B2 — Remover fetch de perfil de cliente no bloco `rejected` do worker screen (resolve P-10-7)**
+
+O `clientInfoAsync` (observado com `ref.watch`) é sempre-vazio para `liveStatus == ProposalStatus.rejected`. Condicionar o `ref.watch` a `liveStatus != ProposalStatus.rejected`, ou remover o bloco de contacto do ecrã de rejected inteiramente (o botão WhatsApp nunca renderiza). **Esforço: trivial.**
+
+**B3 — Cross-reference: validação de data em `mark_job_done` — decisão de produto pendente**
+
+O worker pode marcar como concluído antes da data confirmada — a BD não valida `confirmed_date`. Já documentado na secção "Confiança e segurança" deste ficheiro. Registado aqui como cross-reference para garantir que o item é considerado em Fase 11 quando as avaliações forem implementadas (uma avaliação imediata antes da data faz menos sentido).
+
+---
+
+### Estado verificado como correto
+
+`mark_job_done` auth check (`v_worker_id IS DISTINCT FROM auth.uid()`) ✅ — não partilha o bug P-8-4 das 3 RPCs de remarcação · `confirm_job_completion` auth check (`v_job.client_id IS DISTINCT FROM auth.uid()`) ✅ · `cancel_job` bloqueia `awaiting_confirmation` explicitamente (`status NOT IN ('open', 'confirmed')` → RAISE) ✅ · UI sem botão cancelar em `awaiting_confirmation` (cliente nem worker) ✅ · `auto_confirm_completed_jobs()` localmente: `FOR UPDATE SKIP LOCKED` ✅, `SECURITY DEFINER` sem `auth.uid()` ✅, idempotente ✅, título distinto do confirm manual ✅ · `notification_providers.dart` — `jobMarkedDone`: invalida `clientJobsProvider` + `jobByIdProvider` ✅; `jobCompleted`: invalida `scheduledWorkerProposalsProvider` + `completedWorkerProposalsProvider(0)` + `jobByIdProvider` ✅ · RLS worker→cliente: usa `jp.status = 'accepted'` (não `jr.status`) — cobre todos os estados pós-aceitação sem necessidade de atualização ✅ · Fotos de jobs — policy SELECT: `client_id = auth.uid()` sem restrição de estado → cliente mantém acesso em qualquer estado pós-confirmação ✅ · Ratings: zero referências Dart à tabela `ratings`; único placeholder é `enabled: false` com tooltip em `client_job_detail_screen.dart:671` — Fase 11 genuinamente não iniciada ✅ · `job_reports` RLS INSERT (`reporter_id = auth.uid()`) ✅; SELECT para o próprio reporter ✅ (migration 0002) · `notification_handler.dart`: switch exaustivo sem wildcard; `jobMarkedDone` e `jobCompleted` navegam para a lista — mesma limitação de P-8-9 (deep-link bloqueado por P6 Fases 0-3), não nova nesta fase ✅
+
+---
+
+> **Nota:** Esta é a última auditoria da série Fases 0-10.
+> Itens mais urgentes por resolver após toda a série (por criticidade):
+> **P-8-4** — 3 RPCs de remarcação sem auth em produção (CRÍTICO);
+> **P-FA3** — policy de avatars quebrada desde dia 1 (CRÍTICO);
+> **P-10-1** — RLS de contacto incompleto (ALTA, UI já pronta);
+> **P-10-5** — aplicar migrations 0011–0014 à BD viva (ALTA, pré-requisito de P-10-1 e P-10-3).
+
+---
+
 ## UX e fluxo
 
 ### Comparação lado-a-lado de propostas
