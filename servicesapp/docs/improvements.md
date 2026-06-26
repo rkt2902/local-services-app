@@ -8,6 +8,10 @@
 
 ---
 
+> **Revalidação 2026-06-26 (atualizado sessão 3):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migration 0016 (P-8-4 parcial + P-FA4) e migration 0017 (P-9-1 + reestruturação lobby). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 25** (28 após sessão 2 → −3: P-9-1, P-9-2, P-9-4).
+
+---
+
 ## 🔍 Auditoria 2026-06-25 — Fases 0-3 (a atacar em breve)
 
 > Resultado da revisão independente de Fases 0-3 feita em 2026-06-25.
@@ -43,17 +47,6 @@ String get _statusLabel => switch (acceptance.status) {
 };
 ```
 Hoje está seguro porque o filtro upstream (linha 280-281) só envia `rejected | cancelled` para o separador de histórico. Mas o wildcard significa: (a) se o filtro mudar, `pending`/`accepted` mostram `'—'` sem aviso de compilação; (b) um novo valor no enum também cairia silenciosamente no wildcard.
-
-**⚠️ P5 — Sem guard cross-role no router (CRÍTICO)**
-O `redirect()` em `lib/core/router/app_router.dart:149` guarda:
-- Não autenticado → rotas públicas
-- `role == null` → `/choose-role`
-- `worker && !profileComplete` → `/worker/setup`
-- Autenticado em rota pública → home da role
-
-**Não guarda:** cliente a navegar para `/worker/home`, `/worker/jobs`, `/worker/profile`, `/worker/help-requests` (sem `extra` obrigatório), nem worker a navegar para `/client/jobs`, `/client/profile`, etc. O redirect retorna `null` para qualquer utilizador autenticado em qualquer rota não-pública, independentemente da role.
-
-Resultado: um cliente que aceda `/worker/home` vê o ecrã de worker a ler dados com o UID do cliente → estado vazio silencioso, sem redirect, sem mensagem de erro. Não é um crash — é pior, é um estado incorreto silencioso.
 
 **⚠️ P6 — 4 rotas crasham em navegação direta por usarem `state.extra!` sem fallback (CRÍTICO — bloqueia deep linking)**
 Estas rotas fazem `state.extra!` (null assertion) no builder:
@@ -121,14 +114,6 @@ Resolve P3. Nenhuma nova cor precisa de ser definida — o Material 3 já as cal
 **M2 — Expor `AppTheme.seed` como `static const` e referenciar em `app_router.dart` (resolve P2)**
 Mudar `_seed` para `seed` em `AppTheme` (torná-lo público) e substituir `Color(0xFF2E7D32)` em `app_router.dart:44` por `AppTheme.seed`. Um ficheiro, uma linha, elimina a divergência de P2.
 
-**M3 — Guard cross-role no redirect do router (resolve P5; nota de sequência importante)**
-Adicionar ao `redirect()` após estabelecer role:
-```dart
-if (role == UserRole.client && loc.startsWith('/worker/')) return '/client/home';
-if (role == UserRole.worker && loc.startsWith('/client/')) return '/worker/home';
-```
-**Nota de sequência:** este guard fica *mais* importante depois de A2 ser implementado. Hoje, o acesso cross-role às rotas com `state.extra!` resulta em crash antes de chegar ao ecrã (P6). Após A2, as rotas passam a aceitar navegação direta e renderizam o ecrã — mas com dados do UID errado, resultando num estado vazio ainda mais silencioso. M3 deve ser implementado em conjunto ou imediatamente a seguir a A2.
-
 **M4 — Constantes de border radius no AppTheme**
 Três valores aparecem repetidamente: `8` (~8 ocorrências), `12` (~12 ocorrências), `16` (~4 ocorrências). Adicionar:
 ```dart
@@ -193,29 +178,11 @@ Mover o `from('profiles').select('full_name, phone')` de `worker_setup_screen.da
 
 ### Problemas encontrados
 
-**P-FA1 — `client_has_confirmed_job_with_worker` existe na BD viva mas ausente de todas as 14 migrations**
+**P-FA1 — `client_has_confirmed_job_with_worker` existe na BD viva mas ausente de todas as migrations**
 
-A função existe na BD viva (confirmado via `pg_get_functiondef` em 2026-06-25, sessão de revisão da Fase 10). Predata o sistema de migrations — o mesmo padrão do `cancel_job(uuid)` e dos overloads do `create_proposal`, limpos na migration 0008. Nenhuma migration posterior a 0008 a resolveu.
+A função existe na BD viva com corpo correto (`jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`) — confirmado via snapshot 2026-06-26 (`pg_get_functiondef`). A policy `"Cliente ve perfil de worker com job confirmado"` em `worker_profiles` referencia-a — também confirmada presente via snapshot. Nenhuma das migrations 0001–0014 contém a função nem a policy.
 
-A função é referenciada numa policy SELECT de `worker_profiles` (restringe visibilidade de contactos). Mas as policies de `worker_profiles` em 0001_baseline são `USING(true)` (completamente abertas) — a policy que usa a função não existe em nenhuma migration. Uma BD nova construída só a partir de migrations NÃO teria nem a função nem a policy associada.
-
-**Query de diagnóstico para correr na BD viva:**
-```sql
--- Confirmar existência e definição:
-SELECT proname,
-       pg_get_function_identity_arguments(oid) AS args,
-       pg_get_functiondef(oid)                 AS def
-FROM   pg_proc
-WHERE  proname = 'client_has_confirmed_job_with_worker';
-
--- Confirmar se alguma policy a referencia:
-SELECT polname, tablename, pg_get_expr(polqual, polrelid) AS using_expr
-FROM   pg_policies
-WHERE  pg_get_expr(polqual, polrelid) LIKE '%client_has_confirmed_job_with_worker%';
-```
-
-Se nenhuma policy a referencia → DROP numa nova migration.
-Se alguma policy a referencia → adicionar função + policy a uma migration.
+**Acção necessária:** criar migration nova com a definição da função + a policy (ver A1 desta auditoria). Sem este fix, uma BD nova a partir das migrations não teria nem a função nem a policy — contactos de worker ficariam sempre invisíveis ao cliente.
 
 ---
 
@@ -254,9 +221,9 @@ WITH CHECK (
 
 `storage.foldername('abc-uuid.jpg')` num ficheiro root-level devolve `{}` ou array vazio; `[1]` é NULL. `auth.uid()::text = NULL` avalia a NULL (falso em PostgreSQL). **A policy de INSERT do 0001 bloqueia todos os uploads de avatar.**
 
-A BD viva tem uma versão corrigida (fix interativo de 2026-06-15) mas o fix nunca foi capturado numa migration. Uma BD nova a partir de migrations 0001-0014 teria uploads de avatar quebrados desde o dia 1.
+A BD viva tem uma versão corrigida (fix interativo de 2026-06-15) — **confirmada funcional via snapshot 2026-06-26** (policies de avatars presentes e corretas na BD viva; ver `database_schema.md` secção Storage). O fix nunca foi capturado numa migration — uma BD nova a partir de migrations 0001–0014 continuaria a ter uploads de avatar quebrados. Para criar a migration: correr a query abaixo para obter o texto exacto das policies actuais.
 
-**Query de diagnóstico — correr na BD viva para ver as policies atuais:**
+**Query de diagnóstico (necessária para criar a migration):**
 ```sql
 SELECT polname,
        pg_get_expr(polqual,      polrelid) AS using_expr,
@@ -266,30 +233,6 @@ WHERE  tablename  = 'objects'
   AND  schemaname = 'storage'
   AND  polname    LIKE 'avatars%';
 ```
-
----
-
-**P-FA4 — `job_proposals` UPDATE policy sem `WITH CHECK` — worker pode auto-aceitar a própria proposta via SQL direto**
-
-Policy em 0001:
-```sql
-CREATE POLICY "Worker atualiza as suas propostas"
-  ON job_proposals FOR UPDATE TO authenticated
-  USING (auth.uid() = worker_id);
-```
-
-Sem `WITH CHECK`, o worker pode fazer `UPDATE job_proposals SET status = 'accepted' WHERE id = ? AND worker_id = auth.uid()` via qualquer canal SQL direto (Supabase Studio, psql, HTTP direto ao PostgREST). Isso bypassa o RPC `accept_proposal` que atualiza `job_requests.status → 'confirmed'`, define `accepted_proposal_id`, rejeita as outras propostas e envia notificações. Resultado: proposta mostra `accepted` mas job fica `open` — estado inconsistente silencioso. Não exploitável via a app Dart (todos os mutations de propostas usam RPCs). Exploitável via acesso direto à BD.
-
-Fix correto:
-```sql
-DROP POLICY IF EXISTS "Worker atualiza as suas propostas" ON job_proposals;
-CREATE POLICY "Worker atualiza as suas propostas"
-  ON job_proposals FOR UPDATE TO authenticated
-  USING  (auth.uid() = worker_id)
-  WITH CHECK (auth.uid() = worker_id AND status = 'superseded');
-```
-
-O RPC `withdraw_proposal` é SECURITY DEFINER (bypassa RLS de qualquer forma) — a alteração não afeta o fluxo normal da app.
 
 ---
 
@@ -337,9 +280,9 @@ O corpo completo de `cancel_job` aparece em 0001, 0007, 0009 e 0013. As versões
 
 **A1 — Adicionar `client_has_confirmed_job_with_worker` a uma migration (resolve P-FA1)**
 
-Após correr a query de diagnóstico de P-FA1:
-- Se nenhuma policy a referencia → criar migration 0015 com `DROP FUNCTION IF EXISTS client_has_confirmed_job_with_worker(...)` (mesmo padrão da 0008)
-- Se alguma policy a referencia → criar migration 0015 com a definição da função + a(s) policy(ies) associadas
+Confirmado via snapshot 2026-06-26: a policy `"Cliente ve perfil de worker com job confirmado"` em `worker_profiles` referencia a função. Criar migration 0015 com:
+1. `CREATE OR REPLACE FUNCTION client_has_confirmed_job_with_worker(p_worker_id uuid) RETURNS boolean...` — corpo completo em `database_schema.md` secção "Funções internas"
+2. `DROP POLICY IF EXISTS "Cliente ve perfil de worker com job confirmado" ON worker_profiles; CREATE POLICY...` — texto actual da policy em `database_schema.md` secção RLS
 
 Sem este fix, a BD não é reproduzível a partir das migrations.
 
@@ -372,18 +315,6 @@ CREATE POLICY "Client apaga fotos do seu job"
 ```
 
 Opção B (mudar a policy para usar subquery) requer JOIN entre `storage.objects` e `public.job_requests`, o que não é suportado nativamente em storage policies — descartada.
-
-**A4 — Adicionar `WITH CHECK` à policy de UPDATE de `job_proposals` (resolve P-FA4)**
-
-```sql
-DROP POLICY IF EXISTS "Worker atualiza as suas propostas" ON job_proposals;
-CREATE POLICY "Worker atualiza as suas propostas"
-  ON job_proposals FOR UPDATE TO authenticated
-  USING  (auth.uid() = worker_id)
-  WITH CHECK (auth.uid() = worker_id AND status = 'superseded');
-```
-
-Não afeta RPCs (todos são SECURITY DEFINER e bypassam RLS). Só restringe SQL direto.
 
 ---
 
@@ -516,28 +447,6 @@ Usar `>= 0` (não `> 0`) para permitir "negociar no local" como sinal explícito
 
 ### Problemas encontrados
 
-**P-67-1 — ⚠️ CRÍTICO: `/worker/setup` ausente de `loadingExempt` — mesma classe estrutural do Bug 2 corrigido hoje em `/choose-role`, mas com risco real de perda de dados em produção**
-
-`/worker/setup` não está em `loadingExempt`. Dois cenários:
-
-**(A) Flash cosmético sem perda de dados durante o fluxo normal de signup:**
-Após `ChooseRoleScreen` chamar `context.go('/worker/setup')`, o fire-and-forget `refresh()` em `auth_controller.dart:71` define `state = AsyncValue.loading()` no tick seguinte. `RouterNotifier.notifyListeners()` dispara → `redirect()` com `loc = '/worker/setup'`, `sessionAsync.isLoading = true` → não está em `loadingExempt` → redirect para `/loading` → nova instância vazia de `WorkerSetupScreen`. Sem perda de dados porque o formulário ainda está vazio (worker acabou de chegar).
-
-**(B) Perda REAL de dados se o token Supabase refrescar (a cada 60min por defeito) enquanto o worker está a meio do preenchimento do setup:**
-`SessionNotifier.build()` faz `ref.watch(authStateProvider)` — qualquer token refresh dispara um rebuild da provider → `AsyncValue.loading()` → `RouterNotifier.notifyListeners()` → `redirect()` com `loc = '/worker/setup'` → não está em `loadingExempt` → redirect para `/loading` → nova instância vazia de `WorkerSetupScreen`. Bio, serviços selecionados, raio, ferramentas — **tudo perdido silenciosamente, sem erro nenhum mostrado**.
-
-**Fix — uma linha em `app_router.dart`:**
-```dart
-// ANTES:
-const loadingExempt = ['/loading', '/choose-role'];
-
-// DEPOIS:
-const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
-```
-Seguro para isentar: quando a session resolve, os guards abaixo do bloco `isLoading` redirecionam corretamente se o estado mudou (e.g. `role == null` → `/choose-role`; `role == client` → `/client/home`).
-
----
-
 **P-67-2 — `worker_service_types` sync não é atómico (DELETE + INSERT como 2 chamadas PostgREST separadas, sem transação). Se o INSERT falhar depois do DELETE ter sucesso, o worker fica com ZERO serviços permanentemente até reabrir e regravar manualmente.**
 
 `worker_repository.dart:88`:
@@ -614,14 +523,6 @@ Quando a verificação for reativada, utilizadores que tentem fazer login antes 
 ---
 
 ### Melhorias — Alta prioridade
-
-**A1 — Adicionar `/worker/setup` a `loadingExempt` (resolve P-67-1, 2 min, risco zero)**
-
-```dart
-const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
-```
-
-Uma linha. Elimina o risco de perda de dados em produção e o flash cosmético no signup.
 
 **A2 — Corrigir SnackBar de `client_profile_screen.dart` para usar `friendlyError(e)` (resolve P-67-3, 2 min)**
 
@@ -780,14 +681,6 @@ A causa raiz dos 2 bugs corrigidos hoje é guardar dados de aplicação em `stat
 > feita em 2026-06-25, após a code review dedicada, o crosscheck BD/docs/código,
 > e as adições de cancellation handling já aplicadas. Itens numerados com
 > códigos estáveis (P-8-1–P-8-9, A1–A3, M1–M4, B1–B4) para referência futura.
->
-> ⚠️ **MAIS GRAVE DE TODA A SÉRIE DE AUDITORIAS ATÉ HOJE: P-8-4** —
-> bypass de autorização real em 3 RPCs de remarcação em produção. Qualquer
-> utilizador autenticado que conheça o UUID de um job confirmado pode propor,
-> aceitar ou recusar remarcações nesse job. Contrasta com `mark_job_done` e
-> `confirm_job_completion`, que têm a verificação correta. Risco mitigado
-> pela RLS de `job_requests` (UUIDs não são fáceis de descobrir), mas é uma
-> falha de autorização real, não teórica.
 
 ### Problemas encontrados
 
@@ -837,22 +730,6 @@ await FlutterImageCompress.compressWithFile(
 ```
 
 A decisão de 800px/60% foi tomada explicitamente por causa do limite de 50MB do Supabase Free Plan. A 1280px/72%, cada foto é ~4–8× maior que a 800px/60% (dependendo da imagem original). Com 2 fotos por job e jobs a acumular, o limite de storage esgota mais rapidamente do que o previsto.
-
----
-
-**⚠️ P-8-4 — CRÍTICO: `propose_reschedule`, `accept_reschedule`, `reject_reschedule` SEM verificação de autorização do chamador — bypass real em RPCs de produção**
-
-Spot-check das 3 RPCs de remarcação contra os corpos em `0001_baseline.sql` (as únicas versões existentes — nenhuma migration posterior as tocou):
-
-**T9 — `propose_reschedule` (linha 916):** valida `status = 'confirmed'` ✅, sem remarcação pendente ✅, regra das 24h ✅. **Não valida:** `auth.uid() = v_job.client_id` OU `auth.uid() = worker_id da proposta aceite`. Qualquer utilizador autenticado pode chamar esta RPC num job confirmado que não lhe diz respeito.
-
-**T10 — `accept_reschedule` (linha 974):** valida `reschedule_status = 'pending'` ✅, caller não é o proponente ✅. **Não valida** que o caller é a outra parte do job. Qualquer utilizador que não seja o proponente pode aceitar.
-
-**T11 — `reject_reschedule` (linha 1017):** mesmo padrão que T10. ✅/❌
-
-Contraste com RPCs corretas: `mark_job_done` (linha 1077) tem `IF v_worker_id IS DISTINCT FROM auth.uid() THEN RAISE` ✅; `confirm_job_completion` (linha 1116) tem `IF v_job.client_id IS DISTINCT FROM auth.uid() THEN RAISE` ✅. O padrão correto já existe no codebase — não foi aplicado às 3 RPCs de remarcação.
-
-Risco prático limitado pela RLS de `job_requests` (utilizadores não conseguem facilmente descobrir UUIDs de jobs alheios via PostgREST sem acesso a dados da contraparte). Mas é um bypass real, não teórico — qualquer utilizador autenticado com o UUID pode agir.
 
 ---
 
@@ -975,28 +852,6 @@ quality: 60,
 
 3 linhas. Previne esgotamento prematuro do limite de 50MB do Free Plan. **Esforço: 2 min.**
 
-**A3 — Adicionar verificação de autorização às 3 RPCs de remarcação (resolve P-8-4 — CRÍTICO)**
-
-Nova migration que recria as 3 RPCs com o check adicional. Padrão já usado por `mark_job_done` e `confirm_job_completion`:
-
-```sql
--- Adicionar em propose_reschedule, accept_reschedule e reject_reschedule
--- após SELECT * INTO v_job e antes da lógica de negócio:
-DECLARE
-  v_accepted_worker_id uuid;
-BEGIN
-  ...
-  SELECT worker_id INTO v_accepted_worker_id
-  FROM   job_proposals WHERE id = v_job.accepted_proposal_id;
-
-  IF auth.uid() NOT IN (v_job.client_id, v_accepted_worker_id) THEN
-    RAISE EXCEPTION 'não autorizado: só o cliente ou o worker do job podem realizar esta ação.';
-  END IF;
-  ...
-```
-
-**Esforço: ~30 min** (nova migration com os 3 corpos completos das RPCs — mesmo padrão das migrations anteriores que reproduzem o corpo inteiro).
-
 ---
 
 ### Melhorias — Média prioridade
@@ -1090,51 +945,6 @@ Cross-check completo dos 12 tipos de notificação originais da Fase 8 contra `n
 
 ### Problemas encontrados
 
-**P-9-1 — ⚠️ Maior impacto desta auditoria: `accept_help_candidate` não auto-rejeita candidaturas pendentes restantes quando o `help_request` fica `filled`**
-
-Candidatos excedentes ficam "À espera de decisão" para sempre — nunca recebem `help_rejected`, o request desaparece da descoberta mas a candidatura continua activa em "As minhas candidaturas" indefinidamente, mesmo depois do job estar concluído. Pior experiência possível para um candidato: nunca sabe que não foi selecionado.
-
-`0004_help_acceptance_pending_status.sql:122-123`:
-```sql
-IF v_accepted_count >= v_slots_needed THEN
-  UPDATE help_requests SET status = 'filled' WHERE id = v_help_request_id;
-  -- Nada mais acontece aos outros pending candidatos
-END IF;
-```
-
-Fix: após o UPDATE que marca `filled`, adicionar loop de auto-rejeição com notificação:
-```sql
-FOR v_remaining_candidate IN
-  SELECT id, worker_id
-  FROM   help_acceptances
-  WHERE  help_request_id = v_help_request_id
-    AND  status = 'pending'
-    AND  id <> p_help_acceptance_id
-LOOP
-  UPDATE help_acceptances SET status = 'rejected' WHERE id = v_remaining_candidate.id;
-  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
-  VALUES (v_remaining_candidate.worker_id, 'help_rejected',
-          'Candidatura não selecionada',
-          'Todas as vagas foram preenchidas.',
-          v_help_request_id, 'help_request');
-END LOOP;
-```
-
-Padrão já presente em `auto_confirm_completed_jobs` (0014). **Esforço: ~30 min** (migration com corpo completo do RPC).
-
----
-
-**P-9-2 — Candidatos em overflow no lobby não são acionáveis — principal worker vê o avatar mas não pode geri-lo**
-
-`worker_help_requests_lobby_screen.dart:547-548`:
-```dart
-final isPendingActionable =
-    !slot.isOverflow && acceptance?.status == HelpAcceptanceStatus.pending;
-```
-
-Com `slots_needed = 2` e 3 candidatos pending: candidatos 1 e 2 (nos slots) são aceites/rejeitáveis; candidato 3 (overflow) não pode ser aceite (sem slot) nem rejeitado (botão X não aparece). Mitigado parcialmente por P-9-1/A1 (auto-rejeição no fill) mas não completamente — durante a fase de seleção, antes do fill, o overflow é inacessível.
-
----
 
 **P-9-3 — `_appliedIds` é estado transiente do widget (reset em rebuild) — "Candidatar-me" reaparece ativo após navegar e voltar**
 
@@ -1144,18 +954,6 @@ final Set<String> _appliedIds = {};
 ```
 
 Após candidatura bem-sucedida e navegação/rebuild, `_appliedIds` está vazio. O help_request continua `open` (com 1 candidato pending), portanto regressar à lista mostra o botão "Candidatar-me" ativo. Um segundo toque falha silenciosamente por `UNIQUE (help_request_id, worker_id)` — sem corrupção de dados, mas confuso. O fix estrutural é A2 (excluir no RPC), não gestão de estado no widget.
-
----
-
-**P-9-4 — Label "Preenchida" no slot card de candidato overflow é ambígua**
-
-`worker_help_requests_lobby_screen.dart:628-630`:
-```dart
-} else if (slot.isOverflow) {
-  caption = 'Preenchida';
-```
-
-O avatar do candidato excedente aparece com fundo cinzento e legenda "Preenchida". O resumo geral já usa "candidaturas excedentes" (correto); o card individual não. Label mais clara: "Excedente" ou "Sem vaga".
 
 ---
 
@@ -1185,19 +983,6 @@ O fluxo `accept_proposal` cria com `created_post_confirmation = false` → gap n
 
 ### Melhorias — Alta prioridade
 
-**A1 — Auto-rejeitar candidatos pending quando `help_request` fica `filled` (resolve P-9-1)**
-
-Nova migration que recria `accept_help_candidate` com loop FOR de rejeição após o fill. Código SQL completo em P-9-1 acima. Padrão já presente em `auto_confirm_completed_jobs` (0014). **Esforço: ~30 min.**
-
-Após aplicar à BD viva: verificar que candidatos existentes com `status = 'pending'` em help_requests `filled` são migrados manualmente (se existirem):
-```sql
-SELECT ha.id, ha.worker_id, ha.help_request_id
-FROM   help_acceptances ha
-JOIN   help_requests    hr ON hr.id = ha.help_request_id
-WHERE  ha.status = 'pending'
-  AND  hr.status = 'filled';
-```
-
 **A2 — Excluir da descoberta help_requests onde o worker já tem candidatura ativa (resolve P-9-3, elimina `_appliedIds`)**
 
 Adicionar ao `get_help_requests_in_radius` (CREATE OR REPLACE — nova migration):
@@ -1215,30 +1000,6 @@ Só migration, sem mudanças Dart. O `_appliedIds` torna-se irrelevante (pode se
 ---
 
 ### Melhorias — Média prioridade
-
-**M1 — Permitir rejeição (não aceitação) de candidatos overflow no lobby (resolve P-9-2)**
-
-Separar `isPendingActionable` (aceitar + rejeitar, apenas non-overflow) de `isOverflowRejectable` (só rejeitar, apenas overflow):
-```dart
-final isOverflowRejectable =
-    slot.isOverflow && acceptance?.status == HelpAcceptanceStatus.pending;
-```
-
-Mostrar o botão X também para `isOverflowRejectable`. Aceitar continua impossível (sem slot). **Esforço: ~20 min.**
-
-**M2 — Corrigir label "Preenchida" → "Excedente" no slot card overflow (resolve P-9-4)**
-
-```dart
-// ANTES:
-} else if (slot.isOverflow) {
-  caption = 'Preenchida';
-
-// DEPOIS:
-} else if (slot.isOverflow) {
-  caption = 'Excedente';
-```
-
-1 linha. Consistente com `_summaryCaption` que já usa "candidaturas excedentes". **Esforço: trivial.**
 
 **M3 — Implementar UI de `pending_approval` quando a Fase 11+ introduzir criação manual de help_request pelo principal worker — não antes (resolve P-9-5)**
 
@@ -1260,7 +1021,7 @@ O schema permite múltiplos `help_requests` por job (sem UNIQUE em `(job_id, pro
 
 ### Nota da sessão
 
-P-9-1 é o achado mais impactante: é o único bug desta auditoria com impacto directo e silencioso na experiência do utilizador final — o candidato que aplicou nunca sabe que não foi seleccionado. A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.
+A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.
 
 O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-24` — não é um problema. O gap de `pending_approval` está correctamente documentado como intencional em `implementation_plan.md` — não é um problema.
 
@@ -1273,47 +1034,8 @@ O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-2
 > auto-confirmação por cron, ratings, notificações de conclusão) feita em
 > 2026-06-26. Itens numerados com códigos estáveis (P-10-1–P-10-7, A1–A2,
 > M1–M3, B1–B3) para referência futura.
->
-> ⚠️ **MAIS URGENTE: P-10-1** — UI do contacto estendida para
-> `awaiting_confirmation` e `completed`, mas a função RLS
-> `client_has_confirmed_job_with_worker` não foi atualizada — o card renderiza
-> mas mostra nome `'—'` e WhatsApp desativado nesses dois estados.
 
 ### Problemas encontrados
-
-**P-10-1 — ⚠️ ALTA: `client_has_confirmed_job_with_worker` provavelmente só cobre `status = 'confirmed'` — contact card renderiza vazio em `awaiting_confirmation` e `completed`**
-
-`_workerContactCard()` é agora chamado em três ramos de `client_job_detail_screen.dart`:
-- `confirmed` (linha 739) ✓
-- `awaitingConfirmation` (linha 828) ← extensão nova
-- `completed` (linha 879) ← extensão nova
-
-A extensão da UI está correta. Mas a função PostgreSQL `client_has_confirmed_job_with_worker` — que gatea a policy RLS `"Cliente ve perfil de worker com job confirmado"` em `profiles` — não aparece em nenhuma das migrations 0001–0014 (ver P-FA1, auditoria Fases 4-5). Nenhuma migration entre 0001 e 0014 a redefine nem atualiza. O corpo mais provável (baseado no nome e no contexto pré-migration) é:
-
-```sql
-SELECT EXISTS (
-  SELECT 1 FROM job_requests jr
-  JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
-  WHERE  jr.client_id = auth.uid()
-    AND  jp.worker_id = p_worker_id
-    AND  jr.status = 'confirmed'     -- ← só 'confirmed'
-)
-```
-
-Se confirmado: `fetchWorkerBasicInfo()` retorna `null` quando `jr.status ∈ {'awaiting_confirmation', 'completed'}` → `phone = ''` → botão WhatsApp desativado, nome mostra `'—'`. O card renderiza mas parece quebrado — a UI foi estendida mas a camada de dados não.
-
-**Query de diagnóstico (Supabase Studio):**
-```sql
-SELECT pg_get_functiondef(oid)
-FROM   pg_proc
-WHERE  proname = 'client_has_confirmed_job_with_worker';
-```
-
-Fix: na migration nova, alterar `jr.status = 'confirmed'` para `jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`.
-
-Contraste revelador: a RLS de contacto do lado do worker (`"Worker ve perfil de cliente com job confirmado"`) usa `jp.status = 'accepted'` — a proposta mantém `accepted` para sempre após aceitação, cobrindo automaticamente todos os estados pós-confirmação ✓. A assimetria entre as duas políticas é a raiz do problema.
-
----
 
 **P-10-2 — Contacto do worker principal não visível ao ajudante — gap documentado em `project_overview.md`**
 
@@ -1365,29 +1087,6 @@ Adicionalmente, `reportJobProblem()` está semanticamente mal colocado em `propo
 
 ---
 
-**P-10-5 — Estado de aplicação das migrations 0013 e 0014 não verificável localmente**
-
-O `implementation_plan.md` confirma: migrations 0001–0010 aplicadas. Em 2026-06-25, 0011–0012 eram conhecidamente não aplicadas. Migrations 0013 e 0014 foram escritas como parte do trabalho de Fase 10 mas o estado de aplicação à BD viva não é verificável a partir de ficheiros locais.
-
-Consequências se não aplicadas:
-- **0013 não aplicada:** a regra das 24h de cancelamento existe só na UI (botão desativado); a BD aceita `cancel_job` dentro de 24h sem erro. Segurança por múltiplas camadas quebrada — qualquer chamada direta ao RPC bypassa a regra.
-- **0014 não aplicada:** `auto_confirm_completed_jobs()` não existe na BD; o cron não está registado (`cron.job` não tem a entrada); jobs em `awaiting_confirmation` podem ficar presos indefinidamente se o cliente não responder.
-
-**Queries de verificação (Supabase Studio):**
-```sql
--- 24h rule ativa? (deve conter 'CURRENT_DATE' na definição):
-SELECT pg_get_functiondef(oid)
-FROM   pg_proc WHERE proname = 'cancel_job' ORDER BY oid DESC LIMIT 1;
-
--- Cron registado:
-SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';
-
--- Função de auto-confirm existe:
-SELECT proname FROM pg_proc WHERE proname = 'auto_confirm_completed_jobs';
-```
-
----
-
 **P-10-6 — `reportJobProblem()` semanticamente mal colocado em `proposal_repository.dart`**
 
 `proposal_repository.dart:212` contém um método que insere em `job_reports` — sem qualquer relação com propostas. Deveria estar em `job_repository.dart` ou num futuro `report_repository.dart`. Sem impacto runtime; código organizacionalmente incorreto.
@@ -1397,48 +1096,6 @@ SELECT proname FROM pg_proc WHERE proname = 'auto_confirm_completed_jobs';
 **P-10-7 — Bloco `rejected` no worker screen faz fetch desnecessário de perfil de cliente que RLS sempre bloqueia**
 
 `worker_my_job_detail_screen.dart:653`: no bloco `ProposalStatus.rejected`, `clientInfoAsync.when(...)` é observado. Mas a RLS `"Worker ve perfil de cliente com job confirmado"` exige `jp.status = 'accepted'` — para um worker com proposta rejeitada, `jp.status = 'rejected'`, logo a query retorna sempre vazio. A guarda `if (phone.isEmpty) return const SizedBox.shrink()` (linha 658) evita qualquer renderização incorreta, mas o fetch de rede é desnecessário e nunca produz resultado.
-
----
-
-### Melhorias — Alta prioridade
-
-**A1 — Atualizar `client_has_confirmed_job_with_worker` para cobrir os 3 estados pós-confirmação (resolve P-10-1)**
-
-Após confirmar o corpo atual via query de diagnóstico de P-10-1, criar migration nova:
-
-```sql
--- ex: 0015_fix_contact_rls_function.sql
-CREATE OR REPLACE FUNCTION client_has_confirmed_job_with_worker(p_worker_id uuid)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM   job_requests  jr
-    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
-    WHERE  jr.client_id = auth.uid()
-      AND  jp.worker_id = p_worker_id
-      AND  jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')
-  )
-$$;
-```
-
-Se o corpo atual já cobrir esses estados → sem ação necessária. Verificar antes de criar a migration.
-
-Esta migration resolve simultaneamente P-FA1 (função ausente das migrations), tornando a BD reproduzível a partir de ficheiros locais. **Esforço: ~10 min.**
-
-**A2 — Aplicar e verificar migrations 0011–0014 à BD viva (resolve P-10-5)**
-
-Sequência no Supabase Studio SQL Editor, pela ordem:
-1. Aplicar 0011, 0012, 0013, 0014 (um de cada vez; confirmar sucesso antes do seguinte)
-2. Verificar 0013: correr `SELECT pg_get_functiondef(...)` para `cancel_job` e confirmar presença de `CURRENT_DATE` na definição
-3. Verificar 0014: `SELECT * FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs'`
-4. Atualizar `implementation_plan.md`: "Migrations 0001–0014 todas aplicadas à BD viva"
-
-Sem este passo, a regra das 24h e o auto-confirm existem só em ficheiros locais, não em produção. **Esforço: ~15 min.**
 
 ---
 
@@ -1523,12 +1180,40 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 ---
 
-> **Nota:** Esta é a última auditoria da série Fases 0-10.
-> Itens mais urgentes por resolver após toda a série (por criticidade):
-> **P-8-4** — 3 RPCs de remarcação sem auth em produção (CRÍTICO);
-> **P-FA3** — policy de avatars quebrada desde dia 1 (CRÍTICO);
-> **P-10-1** — RLS de contacto incompleto (ALTA, UI já pronta);
-> **P-10-5** — aplicar migrations 0011–0014 à BD viva (ALTA, pré-requisito de P-10-1 e P-10-3).
+> **Nota:** Esta é a última auditoria da série Fases 0-10 (revalidada 2026-06-26 — ver apêndice de itens resolvidos/descartados).
+> Itens mais urgentes por resolver após revalidação (por criticidade):
+> **P-FA3** — fix de avatars nunca capturado em migration — BD não reproduzível sem ela (CRÍTICO);
+> **P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de migrations (ALTA).
+
+---
+
+## Auditoria — Itens resolvidos/descartados (revalidação 2026-06-26)
+
+> Revalidados contra `schema_snapshot_2026-06-26.csv` (snapshot direto da BD viva, 2026-06-26, já apagado) e migration 0016 (confirmada aplicada por Henrique via `pg_get_functiondef` e `pg_get_expr`).
+
+### Totalmente resolvidos em código
+
+- **P-67-1** *(Fases 6-7)* — `/worker/setup` ausente de `loadingExempt`: adicionado em `app_router.dart` (2026-06-26). Elimina perda silenciosa do formulário de setup após token refresh do Supabase (60 min).
+- **P5** *(Fases 0-3)* — Sem guard cross-role no router: guard adicionado em `app_router.dart` após o bloco `role == null` (2026-06-26). **Mitigação parcial** — actualmente o acesso cross-role já causava crash (P6, `state.extra!`), pelo que o guard intercepta antes do crash. Após P6 ser corrigido (routing baseado em ID), o guard torna-se a protecção primária contra estado vazio silencioso com dados do UID errado. P6 continua aberto.
+
+### Totalmente resolvidos por migration
+
+- **P-FA4** *(Fases 4-5)* — `job_proposals` UPDATE policy sem `WITH CHECK`: corrigida em migration 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. Confirmada aplicada.
+
+### Parcialmente verdadeiros → totalmente resolvidos
+
+- **P-8-4** *(Fase 8)* — Bypass de autorização nas 3 RPCs de remarcação: **parcialmente verdadeiro**. Snapshot confirmou que `propose_reschedule` e `accept_reschedule` já tinham verificação correta na BD viva (corrigidas interactivamente numa sessão anterior não registada). Só `reject_reschedule` tinha o gap real — corrigido em migration 0016. **Lição:** findings multi-parte podem ser parcialmente verdadeiros; verificar cada componente contra a BD viva independentemente, não apenas contra ficheiros de migration.
+
+### Totalmente resolvidos por migration + reestruturação de UI
+
+- **P-9-1** *(Fase 9)* — `accept_help_candidate` não auto-rejeitava candidatos pending restantes quando `help_request` ficava `filled`: resolvido em migration 0017. Loop FOR adicionado após o UPDATE de fill — rejeita e notifica todos os outros pending imediatamente (2026-06-26).
+- **P-9-2** *(Fase 9)* — Candidatos overflow não acionáveis no lobby (sem botão aceitar nem rejeitar): **fechado por mudança estrutural**. O modelo de "grelha de N vagas com isOverflow" foi eliminado — o lobby passa a mostrar todos os candidatos pending como lista plana, cada um acionável. O conceito de overflow não existe no novo modelo.
+- **P-9-4** *(Fase 9)* — Label "Preenchida" ambígua no card de candidato overflow: **fechado por mudança estrutural** (igual a P-9-2 — não há cards de overflow no novo modelo de lista).
+
+### Falsos alarmes confirmados por snapshot
+
+- **P-10-1** *(Fase 10)* — `client_has_confirmed_job_with_worker` provavelmente só cobre `confirmed`: **falso alarme**. `pg_get_functiondef` confirmou que o corpo live já inclui `jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`. **Lição:** leitura de `0001_baseline.sql` (que não reflecte alterações interactivas posteriores) levou à suposição errada sobre o estado live — sempre verificar `pg_get_functiondef` contra funções críticas de RLS antes de reportar um bug.
+- **P-10-5** *(Fase 10)* — Estado das migrations 0013–0014 não verificável localmente: **resolvido**. Snapshot confirmou migrations 0001–0014 todas aplicadas (evidência: corpo de `cancel_job` com regra 24h; `auto_confirm_completed_jobs` + cron `auto-confirm-completed-jobs` presentes na BD viva).
 
 ---
 

@@ -156,7 +156,7 @@ class RouterNotifier extends ChangeNotifier {
       // selection; the loading state is transient and /choose-role handles it
       // visually fine on its own. Bouncing through /loading would discard the
       // fullName/phone passed via navigation extra.
-      const loadingExempt = ['/loading', '/choose-role'];
+      const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
       return loadingExempt.contains(loc) ? null : '/loading';
     }
 
@@ -173,6 +173,17 @@ class RouterNotifier extends ChangeNotifier {
     // Authenticated but no profile yet (fresh signup, role not chosen)
     if (role == null) {
       return loc == '/choose-role' ? null : '/choose-role';
+    }
+
+    // Cross-role guard: prevent client accessing worker routes and vice versa.
+    // P6 (state.extra! crash on direct nav) means cross-role access currently
+    // crashes before rendering — after P6 is fixed (ID-based routing) this
+    // guard becomes the primary protection against silent wrong-role data.
+    if (role.value == 'client' && loc.startsWith('/worker/')) {
+      return '/client/home';
+    }
+    if (role.value == 'worker' && loc.startsWith('/client/')) {
+      return '/worker/home';
     }
 
     if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||

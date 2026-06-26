@@ -9,54 +9,7 @@ import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
 
-// ── View model ─────────────────────────────────────────────────────────────────
-
-class _SlotVM {
-  const _SlotVM({
-    required this.helpRequest,
-    this.acceptance,
-    this.isOverflow = false,
-  });
-  final HelpRequest helpRequest;
-  final HelpAcceptance? acceptance;
-  final bool isOverflow; // pending beyond slots_needed — informational only
-}
-
-// ── Pure helpers ───────────────────────────────────────────────────────────────
-
-List<_SlotVM> _buildSlots(
-  List<HelpRequest> helpRequests,
-  Map<String, List<HelpAcceptance>> candidatesByHr,
-) {
-  final slots = <_SlotVM>[];
-  for (final hr in helpRequests) {
-    final all = List<HelpAcceptance>.from(candidatesByHr[hr.id] ?? [])
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    final accepted =
-        all.where((c) => c.status == HelpAcceptanceStatus.accepted).toList();
-    final pending =
-        all.where((c) => c.status == HelpAcceptanceStatus.pending).toList();
-
-    final filled = <_SlotVM>[];
-    for (final a in accepted) {
-      if (filled.length < hr.slotsNeeded) {
-        filled.add(_SlotVM(helpRequest: hr, acceptance: a));
-      }
-    }
-    for (final p in pending) {
-      if (filled.length < hr.slotsNeeded) {
-        filled.add(_SlotVM(helpRequest: hr, acceptance: p));
-      } else {
-        filled.add(_SlotVM(helpRequest: hr, acceptance: p, isOverflow: true));
-      }
-    }
-    while (filled.length < hr.slotsNeeded) {
-      filled.add(_SlotVM(helpRequest: hr));
-    }
-    slots.addAll(filled);
-  }
-  return slots;
-}
+// ── Pure helper ────────────────────────────────────────────────────────────────
 
 double _suggestedRate(
     HelpRequest hr, HelpAcceptance candidate, JobProposal proposal) {
@@ -64,49 +17,6 @@ double _suggestedRate(
   return candidate.broughtEquipment
       ? proposal.hourlyRate
       : proposal.hourlyRate * 0.7;
-}
-
-String _summaryCaption(List<_SlotVM> slots) {
-  final accepted = slots
-      .where((s) => s.acceptance?.status == HelpAcceptanceStatus.accepted)
-      .length;
-  final pending = slots
-      .where((s) =>
-          !s.isOverflow &&
-          s.acceptance?.status == HelpAcceptanceStatus.pending)
-      .length;
-  final empty = slots
-      .where((s) =>
-          !s.isOverflow &&
-          s.acceptance == null &&
-          s.helpRequest.status != HelpRequestStatus.pendingApproval)
-      .length;
-  final locked = slots
-      .where((s) =>
-          !s.isOverflow &&
-          s.helpRequest.status == HelpRequestStatus.pendingApproval)
-      .length;
-  final overflow = slots.where((s) => s.isOverflow).length;
-
-  final parts = <String>[];
-  if (accepted > 0) {
-    parts.add('$accepted selecionad${accepted == 1 ? 'o' : 'os'}');
-  }
-  if (pending > 0) {
-    parts.add('$pending candidato${pending == 1 ? '' : 's'} por decidir');
-  }
-  if (empty > 0) {
-    parts.add('$empty vaga${empty == 1 ? '' : 's'} à espera de candidatos');
-  }
-  if (locked > 0) {
-    parts.add(
-        '$locked vaga${locked == 1 ? '' : 's'} à espera de aprovação do cliente');
-  }
-  if (overflow > 0) {
-    parts.add(
-        '$overflow candidatur${overflow == 1 ? 'a' : 'as'} excedente${overflow == 1 ? '' : 's'}');
-  }
-  return parts.isEmpty ? 'Sem vagas abertas' : parts.join(' · ');
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -131,12 +41,11 @@ class _WorkerHelpRequestsLobbyScreenState
   final Map<String, bool> _actingOn = {};
 
   Future<void> _showAcceptSheet(
-    _SlotVM slot,
+    HelpRequest hr,
+    HelpAcceptance acceptance,
     String candidateName,
   ) async {
-    final acceptance = slot.acceptance!;
-    final suggested =
-        _suggestedRate(slot.helpRequest, acceptance, widget.proposal);
+    final suggested = _suggestedRate(hr, acceptance, widget.proposal);
     final controller =
         TextEditingController(text: suggested.toStringAsFixed(2));
     bool submitting = false;
@@ -247,16 +156,16 @@ class _WorkerHelpRequestsLobbyScreenState
 
     controller.dispose();
     if (confirmed == true) {
-      ref.invalidate(candidatesForHelpRequestProvider(slot.helpRequest.id));
+      ref.invalidate(candidatesForHelpRequestProvider(hr.id));
       ref.invalidate(helpRequestsForJobProvider(widget.job.id));
     }
   }
 
   Future<void> _confirmReject(
-    _SlotVM slot,
+    HelpRequest hr,
+    HelpAcceptance acceptance,
     String candidateName,
   ) async {
-    final acceptance = slot.acceptance!;
     final scaffold = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
@@ -285,7 +194,7 @@ class _WorkerHelpRequestsLobbyScreenState
       await ref
           .read(helpRequestRepositoryProvider)
           .rejectHelpCandidate(acceptance.id);
-      ref.invalidate(candidatesForHelpRequestProvider(slot.helpRequest.id));
+      ref.invalidate(candidatesForHelpRequestProvider(hr.id));
       ref.invalidate(helpRequestsForJobProvider(widget.job.id));
     } catch (e) {
       if (mounted) {
@@ -319,16 +228,15 @@ class _WorkerHelpRequestsLobbyScreenState
       candidatesByHr[hr.id] = cAsync.asData?.value ?? [];
     }
 
-    final slots = _buildSlots(helpRequests, candidatesByHr);
-
     // Profile summaries — non-blocking; renders with initials while loading
     final profileSummaries = <String, Map<String, String?>>{};
     final seenWorkerIds = <String>{};
-    for (final slot in slots) {
-      final workerId = slot.acceptance?.workerId;
-      if (workerId != null && seenWorkerIds.add(workerId)) {
-        final sAsync = ref.watch(profileSummaryProvider(workerId));
-        profileSummaries[workerId] = sAsync.asData?.value ?? {};
+    for (final hr in helpRequests) {
+      for (final c in candidatesByHr[hr.id] ?? []) {
+        if (seenWorkerIds.add(c.workerId)) {
+          final sAsync = ref.watch(profileSummaryProvider(c.workerId));
+          profileSummaries[c.workerId] = sAsync.asData?.value ?? {};
+        }
       }
     }
 
@@ -352,7 +260,109 @@ class _WorkerHelpRequestsLobbyScreenState
     }
 
     final workerProfile = workerAsync.asData?.value;
-    final caption = _summaryCaption(slots);
+
+    // Build per-HR section widgets
+    final sectionWidgets = <Widget>[];
+    for (final hr in helpRequests) {
+      final all = List<HelpAcceptance>.from(candidatesByHr[hr.id] ?? [])
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final accepted =
+          all.where((c) => c.status == HelpAcceptanceStatus.accepted).toList();
+      final pending =
+          all.where((c) => c.status == HelpAcceptanceStatus.pending).toList();
+      // Defensive client-side guard: if accepted_count >= slots_needed the
+      // backend (migration 0017) will have already auto-rejected remaining
+      // pending candidates. The guard prevents accept-button rendering in the
+      // brief window between the action and the provider invalidation/refetch.
+      final isFilled = accepted.length >= hr.slotsNeeded;
+
+      String nameOf(HelpAcceptance c) =>
+          profileSummaries[c.workerId]?['full_name'] ?? '—';
+      String? avatarOf(HelpAcceptance c) =>
+          profileSummaries[c.workerId]?['avatar_url'];
+
+      sectionWidgets.add(Padding(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Slot count summary
+            Text(
+              '${accepted.length} de ${hr.slotsNeeded} '
+              'vaga${hr.slotsNeeded == 1 ? '' : 's'} '
+              'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
+              style: theme.textTheme.titleMedium,
+            ),
+
+            if (hr.status == HelpRequestStatus.pendingApproval) ...[
+              const SizedBox(height: 6),
+              Text(
+                'A aguardar aprovação do cliente.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+
+            // Accepted candidates
+            if (accepted.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Aceites',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 8),
+              ...accepted.map((c) => _CandidateCard(
+                    acceptance: c,
+                    candidateName: nameOf(c),
+                    candidateAvatarUrl: avatarOf(c),
+                    isActing: _actingOn[c.id] == true,
+                    isAccepted: true,
+                    isActionable: false,
+                    onAccept: null,
+                    onReject: null,
+                  )),
+            ],
+
+            // Pending candidates — all shown as individual actionable list items.
+            // Any candidate with status = pending is acceptable as long as
+            // accepted_count < slots_needed; arrival order does not matter.
+            if (pending.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Por decidir',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 8),
+              ...pending.map((c) {
+                final isActing = _actingOn[c.id] == true;
+                final isActionable = !isFilled && !isActing;
+                return _CandidateCard(
+                  acceptance: c,
+                  candidateName: nameOf(c),
+                  candidateAvatarUrl: avatarOf(c),
+                  isActing: isActing,
+                  isAccepted: false,
+                  isActionable: isActionable,
+                  onAccept: isActionable
+                      ? () => _showAcceptSheet(hr, c, nameOf(c))
+                      : null,
+                  // Reject remains available regardless of slot status.
+                  onReject:
+                      !isActing ? () => _confirmReject(hr, c, nameOf(c)) : null,
+                );
+              }),
+            ],
+
+            if (accepted.isEmpty && pending.isEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Sem candidatos ainda.',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ],
+        ),
+      ));
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Equipa')),
@@ -373,7 +383,7 @@ class _WorkerHelpRequestsLobbyScreenState
               ),
             ),
 
-            if (slots.isEmpty)
+            if (helpRequests.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -388,57 +398,13 @@ class _WorkerHelpRequestsLobbyScreenState
                   ),
                 ),
               )
-            else ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                  child: Text('Vagas', style: theme.textTheme.titleMedium),
-                ),
+            else
+              SliverList(
+                delegate: SliverChildListDelegate([
+                  ...sectionWidgets,
+                  const SizedBox(height: 40),
+                ]),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverToBoxAdapter(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 20,
-                    children: slots.map((slot) {
-                      final workerId = slot.acceptance?.workerId;
-                      final summary = workerId != null
-                          ? (profileSummaries[workerId] ?? <String, String?>{})
-                          : <String, String?>{};
-                      final candidateName = summary['full_name'] ?? '—';
-                      final candidateAvatarUrl = summary['avatar_url'];
-                      final isActing =
-                          _actingOn[slot.acceptance?.id] == true;
-
-                      return _SlotCard(
-                        slot: slot,
-                        candidateName: candidateName,
-                        candidateAvatarUrl: candidateAvatarUrl,
-                        isActing: isActing,
-                        proposal: widget.proposal,
-                        onTapAccept: () =>
-                            _showAcceptSheet(slot, candidateName),
-                        onReject: () =>
-                            _confirmReject(slot, candidateName),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ],
-
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
-                child: Text(
-                  caption,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -516,219 +482,155 @@ class _PrincipalHeader extends StatelessWidget {
   }
 }
 
-// ── Slot card ─────────────────────────────────────────────────────────────────
+// ── Candidate card ─────────────────────────────────────────────────────────────
 
-class _SlotCard extends StatelessWidget {
-  const _SlotCard({
-    required this.slot,
+class _CandidateCard extends StatelessWidget {
+  const _CandidateCard({
+    required this.acceptance,
     required this.candidateName,
     this.candidateAvatarUrl,
     required this.isActing,
-    required this.proposal,
-    required this.onTapAccept,
+    required this.isAccepted,
+    required this.isActionable,
+    required this.onAccept,
     required this.onReject,
   });
 
-  final _SlotVM slot;
+  final HelpAcceptance acceptance;
   final String candidateName;
   final String? candidateAvatarUrl;
   final bool isActing;
-  final JobProposal proposal;
-  final VoidCallback onTapAccept;
-  final VoidCallback onReject;
+  final bool isAccepted;
+  final bool isActionable;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hr = slot.helpRequest;
-    final acceptance = slot.acceptance;
 
-    final isLocked = hr.status == HelpRequestStatus.pendingApproval;
-    final isPendingActionable =
-        !slot.isOverflow && acceptance?.status == HelpAcceptanceStatus.pending;
-    final isAccepted = acceptance?.status == HelpAcceptanceStatus.accepted;
-    final isEmpty = acceptance == null && !isLocked;
+    final hasAvatar =
+        candidateAvatarUrl != null && candidateAvatarUrl!.isNotEmpty;
+    final initial = candidateName.isNotEmpty
+        ? candidateName.trim()[0].toUpperCase()
+        : '?';
 
-    // Circle background color
-    final Color circleColor;
-    if (isActing || isLocked || isEmpty || slot.isOverflow) {
-      circleColor = theme.colorScheme.surfaceContainerHighest;
-    } else if (isAccepted) {
-      circleColor = Colors.green.shade100;
-    } else {
-      circleColor = Colors.orange.shade100;
-    }
+    final Color avatarBg = isActing
+        ? theme.colorScheme.surfaceContainerHighest
+        : isAccepted
+            ? Colors.green.shade100
+            : Colors.orange.shade100;
 
-    // Circle content
-    final Widget circleContent;
-    if (isActing) {
-      circleContent = Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: theme.colorScheme.primary),
-        ),
-      );
-    } else if (isLocked) {
-      circleContent = Center(
-        child: Icon(Icons.lock_outline,
-            size: 26,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.5)),
-      );
-    } else if (isEmpty) {
-      circleContent = Center(
-        child: Icon(Icons.person_outline,
-            size: 26,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.5)),
-      );
-    } else {
-      final hasAvatar =
-          candidateAvatarUrl != null && candidateAvatarUrl!.isNotEmpty;
-      if (hasAvatar) {
-        circleContent = Image.network(
-          candidateAvatarUrl!,
-          fit: BoxFit.cover,
-          width: 60,
-          height: 60,
-        );
-      } else {
-        final initial = candidateName.isNotEmpty
-            ? candidateName.trim()[0].toUpperCase()
-            : '?';
-        circleContent = Center(
-          child: Text(
-            initial,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: isAccepted
-                  ? Colors.green.shade700
-                  : slot.isOverflow
-                      ? theme.colorScheme.onSurfaceVariant
-                      : Colors.orange.shade700,
-            ),
-          ),
-        );
-      }
-    }
+    final Color avatarFg =
+        isAccepted ? Colors.green.shade700 : Colors.orange.shade700;
 
-    // Caption
-    final String caption;
-    final Color captionColor;
-    if (isLocked) {
-      caption = 'Bloqueada';
-      captionColor = theme.colorScheme.onSurfaceVariant;
-    } else if (isEmpty) {
-      caption = 'Disponível';
-      captionColor = theme.colorScheme.onSurfaceVariant;
-    } else if (slot.isOverflow) {
-      caption = 'Preenchida';
-      captionColor = theme.colorScheme.onSurfaceVariant;
-    } else if (isAccepted) {
-      final rate = acceptance!.agreedRate;
-      caption = rate > 0
-          ? '€${rate.toStringAsFixed(0)}/h'
-          : candidateName.split(' ').first;
-      captionColor = Colors.green.shade700;
-    } else {
-      caption = candidateName.split(' ').first;
-      captionColor = theme.colorScheme.onSurface;
-    }
-
-    // 60×60 circle
-    final circleWidget = Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: circleColor,
-        border: (isEmpty || isLocked)
-            ? Border.all(
-                color: theme.colorScheme.outlineVariant, width: 1.5)
-            : null,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: circleContent,
+    Widget avatar = CircleAvatar(
+      radius: 22,
+      backgroundColor: avatarBg,
+      backgroundImage:
+          hasAvatar && !isActing ? NetworkImage(candidateAvatarUrl!) : null,
+      child: isActing
+          ? SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: theme.colorScheme.primary),
+            )
+          : hasAvatar
+              ? null
+              : Text(
+                  initial,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: avatarFg),
+                ),
     );
 
-    // 68×68 stack: circle centred + optional badges
-    // Equipment badge: bottom-right; reject button: top-right
-    final circleStack = SizedBox(
-      width: 68,
-      height: 68,
-      child: Stack(
+    if (acceptance.broughtEquipment) {
+      avatar = Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned(left: 4, top: 4, child: circleWidget),
-          if (hr.equipmentRequired)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.colorScheme.primary,
-                ),
-                child:
-                    const Icon(Icons.build, size: 10, color: Colors.white),
+          avatar,
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.primary,
               ),
+              child: const Icon(Icons.build, size: 8, color: Colors.white),
             ),
-          if (isPendingActionable && !isActing)
-            Positioned(
-              top: 0,
-              right: 0,
-              // Inner GestureDetector wins the gesture arena over the outer one
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onReject,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.error,
-                  ),
-                  child: const Icon(Icons.close,
-                      size: 12, color: Colors.white),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-
-    Widget content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        circleStack,
-        const SizedBox(height: 6),
-        SizedBox(
-          width: 72,
-          child: Text(
-            caption,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(color: captionColor),
           ),
-        ),
-      ],
-    );
-
-    if (isPendingActionable && !isActing) {
-      content = GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTapAccept,
-        child: content,
+        ],
       );
     }
 
-    return SizedBox(width: 88, child: content);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            avatar,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    candidateName,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    acceptance.broughtEquipment
+                        ? 'Traz equipamento'
+                        : 'Sem equipamento',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  if (isAccepted && acceptance.agreedRate > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        '€${acceptance.agreedRate.toStringAsFixed(2)}/hora',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (isAccepted)
+              Icon(Icons.check_circle,
+                  color: Colors.green.shade600, size: 22),
+            if (!isAccepted && !isActing) ...[
+              if (onAccept != null)
+                TextButton(
+                  onPressed: onAccept,
+                  child: const Text('Aceitar'),
+                ),
+              if (onReject != null)
+                IconButton(
+                  onPressed: onReject,
+                  icon: Icon(Icons.close,
+                      color: theme.colorScheme.error, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

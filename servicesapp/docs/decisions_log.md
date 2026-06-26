@@ -104,6 +104,62 @@ WHERE tablename = 'job_proposals' AND cmd = 'UPDATE';
 
 ---
 
+## 2026-06-26 — Sessão 3: lobby de ajudantes reestruturado; P-9-1 implementado (migration 0017)
+
+### Bug real confirmado por Henrique — candidatos além da contagem visível não podiam ser aceites
+
+O lobby usava um modelo de "grelha de N vagas fixas": cada vaga era mapeada a um candidato por ordem de chegada. Candidatos além do `slots_needed` ficavam marcados como `isOverflow = true` e eram não acionáveis — o botão de aceitar não aparecia. Isto era ERRADO: com 3 vagas e 5 candidatos pending, o principal só podia aceitar os primeiros 3. Os candidatos 4 e 5 ficavam invisíveis ao processo de seleção, mesmo com vagas abertas.
+
+**Decisão de produto confirmada:** o principal pode escolher QUAIS candidatos aceitar entre TODOS os pending, não por ordem de chegada. Exemplo: 3 vagas, 5 candidatos — pode aceitar o 1.º, 4.º e 5.º especificamente, rejeitando o 2.º e 3.º.
+
+### Mudança na UI: de "grelha de N vagas" para "lista de candidatos"
+
+Lobby reestruturado em `worker_help_requests_lobby_screen.dart`:
+- Removido `_SlotVM`, `_buildSlots()`, `_summaryCaption()`, `_SlotCard` e o conceito `isOverflow`
+- Adicionado `_CandidateCard` — card tipo ListTile com avatar, nome, equipamento, taxa (se aceite), e botões de aceitar/rejeitar
+- Cabeçalho por help_request: `"X de Y vagas preenchidas"` (conta real, não grid)
+- Secção "Aceites" — candidatos aceites com taxa e checkmark, não acionáveis
+- Secção "Por decidir" — TODOS os candidatos pending, cada um com botão "Aceitar" ativo e botão X de rejeição
+- Guarda client-side: se `accepted_count >= slots_needed` (cache stale antes de refetch), o botão "Aceitar" é desativado; X permanece ativo independentemente do estado
+
+### P-9-1 implementado (migration 0017)
+
+`accept_help_candidate` recriado com loop FOR após o UPDATE que marca `help_request.status = 'filled'`:
+- Rejeita todos os pending restantes (`status → 'rejected'`) excluindo o candidato recém-aceite
+- Insere notificação `help_rejected` com corpo `'Todas as vagas foram preenchidas.'` para cada um
+- Idêntico ao padrão de `auto_confirm_completed_jobs` (migration 0014)
+
+Migration inclui também um DO block de cleanup único: rejeita + notifica todos os `help_acceptances` com `status = 'pending'` cujo `help_request` já está `'filled'` (órfãos de antes desta migration). Idempotente se count = 0. Count de órfãos na BD viva: desconhecido — correr `SELECT COUNT(*) FROM help_acceptances ha JOIN help_requests hr ON hr.id = ha.help_request_id WHERE ha.status = 'pending' AND hr.status = 'filled';` antes de aplicar.
+
+### P-9-2 e P-9-4 fechados por mudança estrutural
+
+P-9-2 ("candidatos overflow não acionáveis") e P-9-4 ("label 'Preenchida' ambígua no card overflow") tornaram-se moot: o modelo de overflow não existe. Não houve fix dirigido — a reestruturação para lista elimina a classe de problema inteiramente.
+
+---
+
+## 2026-06-26 — Sessão 2 da triagem pós-auditoria: P-67-1 e P5 corrigidos em `app_router.dart`
+
+### P-67-1 — `/worker/setup` adicionado a `loadingExempt`
+
+`loadingExempt` passou de `['/loading', '/choose-role']` para `['/loading', '/choose-role', '/worker/setup']`.
+
+**Motivo:** o token Supabase é refrescado automaticamente a cada 60 minutos. Cada refresh dispara `SessionNotifier.build()` → `AsyncValue.loading()` → `RouterNotifier.notifyListeners()` → `redirect()` com `sessionAsync.isLoading = true`. Sem `/worker/setup` na lista de excepções, o redirect enviava o worker para `/loading` e de volta a uma nova instância vazia de `WorkerSetupScreen` — bio, serviços, raio, ferramentas todos perdidos silenciosamente, sem erro nenhum mostrado.
+
+### P5 — Guard cross-role adicionado ao `redirect()`
+
+Adicionado imediatamente após o bloco `role == null`:
+
+```dart
+if (role.value == 'client' && loc.startsWith('/worker/')) return '/client/home';
+if (role.value == 'worker' && loc.startsWith('/client/')) return '/worker/home';
+```
+
+Usa `role.value` string comparison (padrão já existente no ficheiro, não enum identity). Colocado antes dos redirects de "rota pública → home" para evitar duplo redirect.
+
+**Nota de scope:** este guard é uma mitigação parcial. Actualmente (P6 ainda aberto), acesso cross-role às rotas com `state.extra!` causa crash antes de chegar ao ecrã — o guard intercepta antes desse crash. Após P6 ser corrigido (routing baseado em ID), o guard passa a ser a protecção primária contra estado vazio silencioso com dados do UID errado.
+
+---
+
 ## 2026-06-25 — Verificação retroativa das Fases 0–7
 
 Verificação completa e independente das Fases 0–7 (marcadas `[x]` no plano mas nunca
