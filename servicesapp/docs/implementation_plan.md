@@ -81,7 +81,7 @@ Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25.
 - [x] Upload de fotos para `job-photos`.
 - [x] Feature `proposals/`: enviar proposta (worker), ver proposta (client),
       aceitar/recusar (client).
-- [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
+- [x] Estado expira_at + job `no_response` após 48h — `auto_expire_jobs()` + cron `'auto-expire-jobs'` em migration 0020 (não aplicada à BD viva).
 
 ### Fase 9 — Equipa e ajudantes ✅
 > Implementada e aplicada à BD de produção em 2026-06-24.

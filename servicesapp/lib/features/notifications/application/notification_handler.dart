@@ -45,7 +45,8 @@ class NotificationHandler {
           context.go('/worker/home');
         }
       case NotificationType.jobNoResponse:
-        break;
+        ref.invalidate(clientJobsProvider);
+        context.go('/client/jobs');
       case NotificationType.helpRequestApproved:
         // related_id = help_request_id (set by approve_help_request RPC).
         // The lobby route needs job + proposal objects, so we fetch the

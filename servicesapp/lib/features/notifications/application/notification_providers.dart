@@ -110,8 +110,10 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(jobByIdProvider);
+          ref.invalidate(clientJobsProvider);
         case NotificationType.jobNoResponse:
-          break;
+          debugPrint('notificationSync: invalidating for type=${notification.type}');
+          ref.invalidate(clientJobsProvider);
         case NotificationType.helpRequestApproved:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           // Principal worker's help_request moved from pending_approval → open.

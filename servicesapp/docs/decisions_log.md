@@ -3,6 +3,33 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-26 — P-8-1 + P-10-3 corrigidos (migration 0020, não aplicada)
+
+Confirmado via live query directo por Henrique: `auto_confirm_completed_jobs` existe e está
+agendado de 3h em 3h, mas só notificava o worker. `auto_expire_jobs` não existia.
+
+**Migration 0020** criada localmente (`0020_no_response_cron_and_client_notify.sql`):
+- `auto_expire_jobs()` — novo função SECURITY DEFINER com `FOR UPDATE SKIP LOCKED`,
+  transição `open → no_response` quando `expires_at < now()` e `proposal_count = 0`,
+  notificação `job_no_response` ao cliente. Cron job `'auto-expire-jobs'` com schedule `0 */3 * * *`.
+- `auto_confirm_completed_jobs()` — recreada com second INSERT para `v_job.client_id`
+  com tipo `job_completed` e body distinto ("sem resposta" vs "sem confirmação" para o worker).
+
+**Dart:**
+- `notification_handler.dart` — `jobNoResponse`: invalida `clientJobsProvider`, navega `/client/jobs`.
+- `notification_providers.dart` — `jobNoResponse`: invalida `clientJobsProvider`.
+- `notification_providers.dart` — `jobCompleted`: adicionado `clientJobsProvider` (necessário
+  pois o cliente agora recebe `job_completed` via cron; o double-invalidate para confirmação
+  manual é inócuo).
+
+**NÃO aplicada à BD viva.** Aplicar via SQL Editor. Verificar após aplicar:
+```sql
+SELECT jobname, schedule, active FROM cron.job
+WHERE jobname IN ('auto-expire-jobs', 'auto-confirm-completed-jobs');
+```
+
+---
+
 ## 2026-06-26 — Sincronização total via schema snapshot direto da BD viva
 
 ### Método

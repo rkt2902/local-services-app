@@ -138,7 +138,8 @@
 | `reschedule_accepted` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 | `reschedule_rejected` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
 | `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
-| `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
+| `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider`, `clientJobsProvider` |
+| `job_no_response` | `clientJobsProvider` |
 | `help_request_approved` | `helpRequestsForJobProvider` |
 | `help_accepted` | `jobByIdProvider`, `myHelpAcceptancesProvider` |
 | `help_rejected` | `myHelpAcceptancesProvider` |

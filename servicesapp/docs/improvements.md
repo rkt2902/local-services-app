@@ -8,7 +8,7 @@
 
 ---
 
-> **Revalidação 2026-06-26 (atualizado sessão 5):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 22** (24 após sessão 4 → −2: P-FA2, P-FA7).
+> **Revalidação 2026-06-26 (atualizado sessão 6):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 20** (24 após sessão 4 → −2: P-FA2, P-FA7; 22 após sessão 5 → −2: P-8-1, P-10-3).
 
 ---
 
@@ -592,22 +592,6 @@ A causa raiz dos 2 bugs corrigidos hoje é guardar dados de aplicação em `stat
 
 ### Problemas encontrados
 
-**P-8-1 — Transição `open → no_response` NUNCA implementada — jobs sem propostas ficam abertos indefinidamente**
-
-`implementation_plan.md:84` tem este item **não marcado**:
-```
-- [ ] Estado expira_at + job `no_response` após 48h (cron Supabase ou função).
-```
-
-A coluna `expires_at` existe na BD. A UI está pronta para este estado (`job_timeline.dart:25` renderiza "Sem resposta em 48h"; `client_jobs_screen.dart:44` inclui `JobStatus.noResponse` no histórico). Mas nenhum cron, trigger ou RPC em nenhuma migration (0001–0014) muda `status = 'no_response'` quando `expires_at` passa. Jobs sem propostas ficam `open` indefinidamente e continuam a aparecer em `get_jobs_in_radius`.
-
-Dois gaps ligados que disparam no momento em que o cron for adicionado, sem mais nenhuma mudança de código:
-
-1. `notification_handler.dart:48`: `case NotificationType.jobNoResponse: break;` — sem invalidação de providers, sem navegação. O cliente recebe a notificação mas a lista não atualiza e o tap não faz nada.
-2. `notification_providers.dart`: `case NotificationType.jobNoResponse: break;` — nenhum provider invalidado.
-
----
-
 **P-8-2 — N+1 queries de nome de worker em `_ProposalCard` — confirmado ainda presente, nunca corrigido**
 
 `client_job_detail_screen.dart:914`:
@@ -694,56 +678,6 @@ Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = nul
 
 ### Melhorias — Alta prioridade
 
-**A1 — Implementar o cron `auto_expire_jobs` — último item não marcado da Fase 8 original (resolve P-8-1)**
-
-Mesmo padrão do `auto_confirm_completed_jobs` já existente (migration 0014). Nova migration:
-
-```sql
-CREATE OR REPLACE FUNCTION auto_expire_jobs()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  UPDATE job_requests
-  SET status = 'no_response',
-      updated_at = now()
-  WHERE status = 'open'
-    AND expires_at < now()
-    AND proposal_count = 0;
-END;
-$$;
-
-SELECT cron.schedule(
-  'auto-expire-jobs',
-  '0 */3 * * *',
-  'SELECT auto_expire_jobs()'
-);
-```
-
-Após aplicar à BD viva: `SELECT * FROM cron.job WHERE jobname = 'auto-expire-jobs';`
-
-Correção Dart em `notification_handler.dart`:
-```dart
-// ANTES:
-case NotificationType.jobNoResponse:
-  break;
-
-// DEPOIS:
-case NotificationType.jobNoResponse:
-  ref.invalidate(clientJobsProvider);
-  context.go('/client/jobs');
-```
-
-E em `notification_providers.dart`:
-```dart
-case NotificationType.jobNoResponse:
-  ref.invalidate(clientJobsProvider);
-```
-
-**Esforço: ~30 min** (migration + 3 linhas Dart).
-
 **A2 — Corrigir parâmetros de compressão de fotos para 800px/60% (resolve P-8-3)**
 
 ```dart
@@ -796,7 +730,7 @@ Substituir o `.where()` client-side por filtro PostgREST no embedded resource. M
 
 **M4 — Timeline de estados (8E.5): decisão de "deixar até ao redesign" RE-CONFIRMADA com olhos frescos**
 
-Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos os estados documentados (incluindo reschedule pending/accepted e awaiting_confirmation). O único estado unreachable é `noResponse` (não implementado — P-8-1). Quando P-8-1 for corrigido, a timeline já o trata corretamente — sem mudanças necessárias.
+Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos os estados documentados (incluindo reschedule pending/accepted e awaiting_confirmation). O estado `noResponse` tem agora cron implementado (migration 0020) e a timeline já o tratava corretamente — sem mudanças necessárias.
 
 **Decisão re-confirmada: não investir em polish visual agora.** A lógica de derivação de estados (`job_timeline.dart`) provavelmente sobrevive ao redesign visual. O widget (`status_timeline.dart`) é onde o redesign vai acontecer — não tocar até lá.
 
@@ -836,10 +770,10 @@ Cross-check completo dos 12 tipos de notificação originais da Fase 8 contra `n
 | `job_cancelled` / `job_reopened` | 6 providers | ✅ igual | ✅ |
 | `reschedule_*` (3 tipos) | 5 providers cada | ✅ igual | ✅ |
 | `job_marked_done` | 2 providers | ✅ igual | ✅ |
-| `job_completed` | 3 providers | ✅ igual | ✅ |
-| `job_no_response` | *(ausente do SM)* | `break` — sem invalidação | ❌ ver P-8-1 |
+| `job_completed` | 3 providers | ✅ + `clientJobsProvider` adicionado (P-10-3) | ✅ |
+| `job_no_response` | *(ausente do SM)* | `clientJobsProvider` + navegação (P-8-1) | ✅ |
 
-**Sem gaps de invalidação escondidos além do P-8-1.** Todas as notificações de remarcação, conclusão e propostas estão corretamente ligadas.
+**Sem gaps de invalidação escondidos.** Todas as notificações de remarcação, conclusão e propostas estão corretamente ligadas.
 
 ---
 
@@ -958,24 +892,6 @@ Não é uma regressão — está documentado como intencionalmente parcial em `p
 
 ---
 
-**P-10-3 — `auto_confirm_completed_jobs()` não notifica o cliente — só o worker recebe `job_completed`**
-
-Em `0014_auto_confirm_cron.sql:49-58`:
-```sql
-IF v_worker_id IS NOT NULL THEN
-  INSERT INTO notifications (...) VALUES (v_worker_id, 'job_completed', ...);
-END IF;
--- Sem INSERT para v_job.client_id
-```
-
-Para confirmação manual (`confirm_job_completion`), o cliente não precisa de notificação — foi ele que confirmou. Para auto-confirmação por cron, o cliente não sabe que o estado mudou até reabrir a app e ver a lista. Consequências:
-1. Se o cliente estava à espera para tomar uma decisão informada, a app decide por ele sem aviso.
-2. `clientJobsProvider` não é invalidado quando `job_completed` chega via `notificationSyncProvider` — para o worker invalida `scheduledWorkerProposalsProvider` + `completedWorkerProposalsProvider(0)` + `jobByIdProvider`; para o cliente, nada. Se o cliente estiver ativo na app quando o cron disparar, a lista não atualiza em tempo real.
-
-Fix: adicionar INSERT para `v_job.client_id` com tipo `job_completed` (e/ou novo tipo `job_auto_confirmed`) + invalidar `clientJobsProvider` no `notificationSyncProvider` para este tipo.
-
----
-
 **P-10-4 — `job_reports` é efetivamente write-only — infraestrutura de moderação inexistente, mensagem UI prometendo revisão sem suporte**
 
 O fluxo de "Reportar problema":
@@ -1008,35 +924,6 @@ Adicionalmente, `reportJobProblem()` está semanticamente mal colocado em `propo
 ---
 
 ### Melhorias — Média prioridade
-
-**M1 — Adicionar notificação ao cliente na auto-confirmação (resolve P-10-3)**
-
-Nova migration que recria o corpo de `auto_confirm_completed_jobs()` com INSERT adicional:
-```sql
--- Após o INSERT existente para o worker:
-INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
-VALUES (
-  v_job.client_id,
-  'job_completed',
-  'Trabalho concluído automaticamente',
-  'Passaram 3 dias sem confirmação. O trabalho foi concluído automaticamente.',
-  v_job.id,
-  'job_request'
-);
-```
-
-E em `notification_providers.dart`, adicionar `clientJobsProvider` ao caso `jobCompleted`:
-```dart
-case NotificationType.jobCompleted:
-  ref.invalidate(scheduledWorkerProposalsProvider);
-  ref.invalidate(completedWorkerProposalsProvider(0));
-  ref.invalidate(jobByIdProvider);
-  ref.invalidate(clientJobsProvider);  // ← novo
-```
-
-Safe: para confirmação manual, o cliente faz `ref.invalidate(clientJobsProvider)` diretamente em `_confirmJobCompletion()` — o double-invalidate é inócuo.
-
-**Esforço: ~20 min** (migration nova com corpo completo + 1 linha Dart).
 
 **M2 — Implementar contacto do worker principal para ajudantes (resolve P-10-2)**
 
@@ -1109,6 +996,8 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 - **P-FA3** *(Fases 4-5, CRÍTICO)* — Policy de UPDATE de avatars usava `storage.foldername(name)[1]`, que devolve NULL para paths root-level `$userId.jpg`. Confirmado via `pg_policy` query 2026-06-26 que a policy viva ainda tinha a lógica quebrada (o fix interativo de 2026-06-15 corrigiu apenas INSERT, não UPDATE). Resultado prático: qualquer re-upload de avatar (2.º upload em diante) falha silenciosamente — `FileOptions(upsert: true)` passa pelo UPDATE policy quando o ficheiro já existe. Adicionada também DELETE policy (confirmada ausente via `pg_policy`). Corrigido em migration 0018 com `regexp_replace(storage.filename(name), '\.[^.]+$', '')`. Severidade confirmada elevada: de "gap teórico nunca capturado em migration" para "bug real em produção" (2026-06-26).
 - **P-FA2** *(Fases 4-5)* — Storage DELETE policy para `job-photos` ausente da BD viva (confirmado via `pg_policy` 2026-06-26 — diagnóstico original "não-funcional" era menos preciso: estava simplesmente ausente). Correcção dependia de mudar o path de upload primeiro: com o path antigo `$jobId/<ts>.jpg`, `foldername(name)[1]` = `job_id` ≠ `auth.uid()`, logo qualquer DELETE policy seria inútil. Path alterado para `$clientId/$jobId/<ts>.jpg` em `job_repository.dart` + nova DELETE policy criada em migration 0019. **Caveat:** fotos anteriores (path antigo) continuam não-apagáveis — sem impacto, não existe UI de apagamento (2026-06-26).
 - **P-FA7** *(Fases 4-5)* — Nenhuma DELETE policy existia na tabela `job_photos` (confirmado via `pg_policy` 2026-06-26). Resolvido em conjunto com P-FA2 em migration 0019: nova policy `"Client apaga fotos do seu job"` com EXISTS subquery em `job_requests` para verificar ownership. Mesmos caveats de P-FA2 aplicam-se às linhas com storage_path no formato antigo (2026-06-26).
+- **P-8-1** *(Fase 8)* — Transição `open → no_response` nunca implementada: corrigido em migration 0020. `auto_expire_jobs()` com `FOR UPDATE SKIP LOCKED`, notificação `job_no_response` ao cliente. Cron `'auto-expire-jobs'` a `0 */3 * * *`. Dart: `notification_handler.dart` invalida `clientJobsProvider` e navega `/client/jobs`; `notification_providers.dart` invalida `clientJobsProvider` em `jobNoResponse` (migration não aplicada à BD viva — aplicar via SQL Editor; 2026-06-26).
+- **P-10-3** *(Fase 10)* — `auto_confirm_completed_jobs()` não notificava o cliente: corrigido em migration 0020. Segundo INSERT para `v_job.client_id` com tipo `job_completed` e body "Passaram 3 dias sem resposta." (vs "sem confirmação" para o worker). `clientJobsProvider` adicionado ao caso `jobCompleted` em `notification_providers.dart` (migration não aplicada à BD viva; 2026-06-26).
 
 ### Parcialmente verdadeiros → totalmente resolvidos
 
