@@ -53,6 +53,7 @@ class JobRepository {
 
   Future<String> uploadJobPhoto({
     required String jobId,
+    required String clientId,
     required File file,
   }) async {
     final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
@@ -67,7 +68,7 @@ class JobRepository {
       throw Exception('Image compression failed for ${file.path}');
     }
 
-    final storagePath = '$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
 
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,

@@ -187,7 +187,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       );
 
       for (final photo in _photos) {
-        await repo.uploadJobPhoto(jobId: jobId, file: photo);
+        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
       }
 
       ref.invalidate(clientJobsProvider);

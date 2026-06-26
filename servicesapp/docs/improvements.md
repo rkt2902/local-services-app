@@ -8,7 +8,7 @@
 
 ---
 
-> **Revalidação 2026-06-26 (atualizado sessão 4):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migration 0016 (P-8-4 parcial + P-FA4), migration 0017 (P-9-1 + reestruturação lobby) e migration 0018 (P-FA3 — avatar UPDATE/DELETE policies). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 24** (25 após sessão 3 → −1: P-FA3).
+> **Revalidação 2026-06-26 (atualizado sessão 5):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 22** (24 após sessão 4 → −2: P-FA2, P-FA7).
 
 ---
 
@@ -184,24 +184,6 @@ A função existe na BD viva com corpo correto (`jr.status IN ('confirmed', 'awa
 
 ---
 
-**P-FA2 — Storage DELETE policy de `job-photos` é não-funcional**
-
-Policy em 0001:
-```sql
-CREATE POLICY "job-photos: delete pelo dono"
-  ON storage.objects FOR DELETE TO authenticated
-  USING (
-    bucket_id = 'job-photos'
-    AND auth.uid()::text = (storage.foldername(name))[1]
-  );
-```
-
-Path de upload em `job_repository.dart:70`: `'$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg'`
-
-`storage.foldername(name)[1]` extrai o primeiro componente do path, que é o `job_id` (UUID) — não o `auth.uid()` (também UUID mas diferente). `auth.uid()::text = job_id::text` é sempre falso. Ninguém consegue apagar fotos de jobs via esta policy. A app não tem feature de apagamento de fotos → sem impacto runtime, mas é dead code de segurança que documenta uma garantia que não cumpre.
-
----
-
 **P-FA5 — Índices em falta em `help_requests` e `help_acceptances`**
 
 Nenhum índice existe em:
@@ -226,16 +208,6 @@ Qualquer INSERT que omita `status` recebe o default `'accepted'`, o que falha im
 
 ---
 
-**P-FA7 — `job_photos` (tabela) sem policy de DELETE — dois bloqueios separados para a mesma feature futura**
-
-A tabela `job_photos` tem INSERT e SELECT mas sem DELETE policy. O bucket `storage.objects` tem uma DELETE policy (quebrada — P-FA2). Se a feature de apagamento de fotos for alguma vez implementada, existem dois bloqueios independentes:
-1. Storage: DELETE policy não-funcional (job_id em vez de auth.uid() — P-FA2)
-2. Tabela: sem DELETE policy — linha da tabela fica órfã mesmo que o ficheiro fosse removido do storage
-
-Não é bug ativo (a app não apaga fotos). Flag para garantir que ambos são resolvidos juntos quando esta feature for implementada.
-
----
-
 **P-FA8 — `cancel_job` reproduzido por completo em 4 migrations sem a 24h rule nas 3 mais antigas**
 
 O corpo completo de `cancel_job` aparece em 0001, 0007, 0009 e 0013. As versões 0001/0007/0009 não têm a 24h rule (introduzida em 0013) — correto por design (cada migration só reproduz o estado daquele momento). A versão autoritativa é sempre a última (0013). Mas um leitor que leia 0007 antes de 0013 pode perder as mudanças de 0009 (loop de notificações `help_job_cancelled`). É um comprehension hazard crescente, não um bug runtime.
@@ -251,32 +223,6 @@ Confirmado via snapshot 2026-06-26: a policy `"Cliente ve perfil de worker com j
 2. `DROP POLICY IF EXISTS "Cliente ve perfil de worker com job confirmado" ON worker_profiles; CREATE POLICY...` — texto actual da policy em `database_schema.md` secção RLS
 
 Sem este fix, a BD não é reproduzível a partir das migrations.
-
-**A3 — Corrigir path de storage de `job-photos` e policy de DELETE (resolve P-FA2 + P-FA7)**
-
-Opção A (recomendada — mais simples que alterar a policy):
-Alterar o path em `job_repository.dart:70` de:
-```dart
-final storagePath = '$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-```
-para:
-```dart
-final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-```
-Com este path, `storage.foldername(name)[1]` = `clientId`, e a policy de storage já funciona. Adicionar também uma DELETE policy na tabela `job_photos`:
-```sql
-CREATE POLICY "Client apaga fotos do seu job"
-  ON job_photos FOR DELETE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM job_requests
-      WHERE id = job_photos.job_id
-        AND client_id = auth.uid()
-    )
-  );
-```
-
-Opção B (mudar a policy para usar subquery) requer JOIN entre `storage.objects` e `public.job_requests`, o que não é suportado nativamente em storage policies — descartada.
 
 ---
 
@@ -1161,6 +1107,8 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 - **P-FA4** *(Fases 4-5)* — `job_proposals` UPDATE policy sem `WITH CHECK`: corrigida em migration 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. Confirmada aplicada.
 - **P-FA3** *(Fases 4-5, CRÍTICO)* — Policy de UPDATE de avatars usava `storage.foldername(name)[1]`, que devolve NULL para paths root-level `$userId.jpg`. Confirmado via `pg_policy` query 2026-06-26 que a policy viva ainda tinha a lógica quebrada (o fix interativo de 2026-06-15 corrigiu apenas INSERT, não UPDATE). Resultado prático: qualquer re-upload de avatar (2.º upload em diante) falha silenciosamente — `FileOptions(upsert: true)` passa pelo UPDATE policy quando o ficheiro já existe. Adicionada também DELETE policy (confirmada ausente via `pg_policy`). Corrigido em migration 0018 com `regexp_replace(storage.filename(name), '\.[^.]+$', '')`. Severidade confirmada elevada: de "gap teórico nunca capturado em migration" para "bug real em produção" (2026-06-26).
+- **P-FA2** *(Fases 4-5)* — Storage DELETE policy para `job-photos` ausente da BD viva (confirmado via `pg_policy` 2026-06-26 — diagnóstico original "não-funcional" era menos preciso: estava simplesmente ausente). Correcção dependia de mudar o path de upload primeiro: com o path antigo `$jobId/<ts>.jpg`, `foldername(name)[1]` = `job_id` ≠ `auth.uid()`, logo qualquer DELETE policy seria inútil. Path alterado para `$clientId/$jobId/<ts>.jpg` em `job_repository.dart` + nova DELETE policy criada em migration 0019. **Caveat:** fotos anteriores (path antigo) continuam não-apagáveis — sem impacto, não existe UI de apagamento (2026-06-26).
+- **P-FA7** *(Fases 4-5)* — Nenhuma DELETE policy existia na tabela `job_photos` (confirmado via `pg_policy` 2026-06-26). Resolvido em conjunto com P-FA2 em migration 0019: nova policy `"Client apaga fotos do seu job"` com EXISTS subquery em `job_requests` para verificar ownership. Mesmos caveats de P-FA2 aplicam-se às linhas com storage_path no formato antigo (2026-06-26).
 
 ### Parcialmente verdadeiros → totalmente resolvidos
 

@@ -104,6 +104,44 @@ WHERE tablename = 'job_proposals' AND cmd = 'UPDATE';
 
 ---
 
+## 2026-06-26 — P-FA2 + P-FA7 corrigidos via migration 0019 + Dart
+
+### Confirmação via live query
+
+Query directa ao `pg_policy` (2026-06-26) confirmou que **não existe nenhuma DELETE policy** em `storage.objects` para o bucket `job-photos`. A auditoria original (P-FA2) diagnosticou a policy de 0001 como "não-funcional" — o diagnóstico mais exacto é "ausente": a policy do 0001 nunca chegou a existir na BD viva, ou foi dropada em algum momento sem registo. Igualmente, **nenhuma DELETE policy existe na tabela `job_photos`** (P-FA7 confirmado).
+
+### Causa-raiz: path incompatível com auth.uid()
+
+Com o path de upload antigo `$jobId/<timestamp>.jpg`, `storage.foldername(name)[1]` extrai o `job_id` (UUID do job), não o `auth.uid()` (UUID do cliente). Mesmo que a storage DELETE policy tivesse existido, nunca poderia funcionar com este path.
+
+### Correcção
+
+**Dart — `job_repository.dart`:** `uploadJobPhoto` recebe agora `required String clientId`. Path de upload alterado de:
+```
+$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg
+```
+para:
+```
+$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg
+```
+Com o novo path, `storage.foldername(name)[1]` extrai `clientId` = `auth.uid()` para o cliente que criou o job.
+
+**`create_job_screen.dart:190`:** call site actualizado para passar `clientId: user.id` (variável já em scope na mesma função).
+
+**Migration 0019:** cria dois blocos em simultâneo:
+1. Storage DELETE policy `"job-photos: delete pelo dono"` usando `foldername(name)[1]` — agora correcto com o novo path.
+2. Table DELETE policy `"Client apaga fotos do seu job"` em `job_photos` — verifica ownership via EXISTS subquery em `job_requests`.
+
+### Caveat: fotos anteriores
+
+Fotos já existentes na BD têm o path antigo (`$jobId/<timestamp>.jpg`). Para essas, `foldername(name)[1]` continua a extrair o `job_id` — não o `client_id` — e a nova storage DELETE policy não as abrange. Sem impacto: a app não tem ainda UI de apagamento de fotos.
+
+### Estado
+
+**Migration 0019 criada localmente — NÃO aplicada à BD. Aplicar manualmente via SQL Editor.**
+
+---
+
 ## 2026-06-26 — P-FA3 (CRÍTICO) corrigido via migration 0018
 
 ### Confirmação do bug via pg_policy
