@@ -1121,16 +1121,20 @@ Relação criada automaticamente após primeiro job completed entre os dois.
 
 ---
 
-## Avaliações (Fase 11 já planeada, mas notas)
+## Avaliações (Fase 11 — implementada em 2026-06-26)
 
-### Avaliações bilaterais
-Cliente avalia worker, worker avalia cliente. Visíveis no perfil de ambos.
+As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021 — aplicar manualmente). Ver `decisions_log.md` entrada 2026-06-26 para detalhes.
+
+### Itens pós-Fase 11 (Fase 12+)
+
+### Exibir média de estrelas no perfil do worker
+`fetchRatingsForProfile` já existe em `RatingRepository`. Falta calcular a média e exibi-la no `worker_profile_screen.dart` e nos cards de propostas.
 
 ### Resposta a avaliações
-Worker pode responder publicamente a uma avaliação ("Obrigado!", ou explicar contexto se for negativa).
+Worker pode responder publicamente a uma avaliação. Requer nova coluna `reply_text` na tabela `ratings` e UI dedicada.
 
 ### Avaliação só com transação concluída
-Só permitir avaliar jobs `completed`. Evita avaliações falsas.
+Já garantido pelos RPCs: todos validam `v_job.status = 'completed'` antes de inserir.
 
 ---
 

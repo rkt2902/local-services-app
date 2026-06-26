@@ -7,7 +7,8 @@
 **Passo concluído:** Fase 10 — Contactos e conclusão. Implementada e verificada em 2026-06-25.
 Migrations **0001–0014 todas aplicadas à BD viva** (confirmado via snapshot directo 2026-06-26; ver decisions_log.md entrada 2026-06-26).
 Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25.
-**Próximo passo:** Fase 11 — Avaliações.
+**Passo concluído:** Fase 11 — Avaliações. Migration 0021 criada; **aplicar manualmente antes de testar**.
+**Próximo passo:** Fase 12 — Integração UI Playground / exibir médias de estrelas no perfil.
 
 ## Testes manuais pendentes — 8E.4
 - [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)
@@ -136,9 +137,16 @@ dos helpers (tab "As minhas candidaturas") já está implementada e não é mais
 - [x] Cancelamento até 24h antes (client e worker) — regra na BD via `cancel_job`
       (migration 0013 — aplicada, confirmado 2026-06-26) e UI client-side (botão desativado + mensagem).
 
-### Fase 11 — Avaliações
-- [ ] Feature `ratings/`: client avalia worker principal; worker avalia ajudantes.
-- [ ] Exibir média de estrelas no perfil do worker.
+### Fase 11 — Avaliações ✅
+- [x] Migration 0021 criada (`0021_ratings_hardening.sql`) — **aplicar manualmente via Supabase SQL Editor**.
+- [x] `ratings/data/`: `rating_model.dart`, `rating_repository.dart`.
+- [x] `ratings/application/rating_providers.dart` — `myRatingForJobProvider`, `myRatingForJobAndRateeProvider`, `acceptedHelpersForJobProvider`.
+- [x] `ratings/presentation/rating_sheet.dart` — `showRatingSheet()` partilhado.
+- [x] Client UI — bloco "Avaliar o trabalho" em `client_job_detail_screen.dart` (estado completed).
+- [x] Principal UI — bloco "Deixa a tua avaliação" em `worker_my_job_detail_screen.dart` (cliente + cada ajudante).
+- [x] Helper UI — `_AcceptedCard` atualizado em `worker_help_requests_screen.dart` (estado completed).
+- [x] `HelpAcceptanceSummary` atualizado com `jobId` + `principalWorkerId` (retrocompatível).
+- [ ] Exibir média de estrelas no perfil do worker (Fase 12+).
 
 ### Fase 12 — Integração da UI do Playground
 - Ao longo das Fases 6–11, à medida que os ecrãs vão saindo do UI Playground,

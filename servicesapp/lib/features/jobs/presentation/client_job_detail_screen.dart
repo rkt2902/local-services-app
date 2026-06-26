@@ -12,8 +12,11 @@ import '../data/job_model.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../application/job_timeline.dart';
+import '../../ratings/application/rating_providers.dart';
+import '../../ratings/presentation/rating_sheet.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
 
@@ -449,6 +452,8 @@ class _ClientJobDetailScreenState
     final displayJob =
         ref.watch(jobByIdProvider(_job.id)).asData?.value ?? _job;
 
+    final ratingAsync = ref.watch(myRatingForJobProvider(displayJob.id));
+
     final (statusLabel, statusColor) =
         _statusInfo(displayJob.status, displayJob.proposalCount);
 
@@ -480,13 +485,21 @@ class _ClientJobDetailScreenState
                 scrollDirection: Axis.horizontal,
                 itemCount: urls.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    urls[i],
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.cover,
+                itemBuilder: (_, i) => GestureDetector(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => PhotoViewerScreen(
+                      photoUrls: urls,
+                      initialIndex: i,
+                    ),
+                  )),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      urls[i],
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -877,6 +890,8 @@ class _ClientJobDetailScreenState
 
     if (displayJob.status == JobStatus.completed) {
       detailChildren.add(_workerContactCard(workerInfoAsync, theme));
+      detailChildren.add(const SizedBox(height: 16));
+      detailChildren.add(_buildClientRatingSection(theme, ratingAsync));
     }
 
     return Scaffold(
@@ -891,6 +906,95 @@ class _ClientJobDetailScreenState
         ),
       ),
     );
+  }
+
+  Widget _buildClientRatingSection(
+      ThemeData theme, AsyncValue<Rating?> ratingAsync) {
+    return ratingAsync.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (existing) {
+        if (existing != null) {
+          return Card(
+            color: theme.colorScheme.primaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(Icons.check_circle,
+                        color: theme.colorScheme.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Trabalho avaliado',
+                        style: theme.textTheme.titleSmall),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < existing.stars
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        size: 18,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Avaliar o trabalho',
+                    style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(
+                  'Partilha a tua experiência com o prestador e ajudantes.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.tonal(
+                  onPressed: _showClientRatingSheet,
+                  child: const Text('Avaliar agora'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showClientRatingSheet() async {
+    final submitted = await showRatingSheet(
+      context: context,
+      title: 'Avaliar o trabalho',
+      subtitle:
+          'A nota é partilhada com o prestador e ajudantes. O comentário aparece no perfil do prestador.',
+      onSubmit: (stars, comment) async {
+        await ref.read(ratingRepositoryProvider).submitClientRating(
+              jobId: _job.id,
+              stars: stars,
+              comment: comment,
+            );
+      },
+    );
+    if (submitted != true || !mounted) return;
+    ref.invalidate(myRatingForJobProvider(_job.id));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text(
+          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.'),
+    ));
   }
 }
 

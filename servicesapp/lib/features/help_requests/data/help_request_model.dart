@@ -111,6 +111,9 @@ class HelpAcceptanceSummary {
   final String serviceTypeName;
   final String principalName;
   final String jobStatus;
+  // Added by migration 0021 — empty string when RPC has not yet been updated.
+  final String jobId;
+  final String principalWorkerId;
 
   const HelpAcceptanceSummary({
     required this.id,
@@ -122,6 +125,8 @@ class HelpAcceptanceSummary {
     required this.serviceTypeName,
     required this.principalName,
     required this.jobStatus,
+    this.jobId = '',
+    this.principalWorkerId = '',
   });
 
   factory HelpAcceptanceSummary.fromJson(Map<String, dynamic> json) =>
@@ -135,6 +140,8 @@ class HelpAcceptanceSummary {
         serviceTypeName: json['service_type_name'] as String? ?? '—',
         principalName: json['principal_name'] as String? ?? '—',
         jobStatus: json['job_status'] as String? ?? '',
+        jobId: json['job_id'] as String? ?? '',
+        principalWorkerId: json['principal_worker_id'] as String? ?? '',
       );
 }
 

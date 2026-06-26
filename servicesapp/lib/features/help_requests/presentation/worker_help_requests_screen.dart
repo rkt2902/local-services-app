@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../worker/application/worker_providers.dart';
+import '../../ratings/application/rating_providers.dart';
+import '../../ratings/presentation/rating_sheet.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
 
@@ -416,7 +418,7 @@ class _PendingCard extends StatelessWidget {
   }
 }
 
-class _AcceptedCard extends StatelessWidget {
+class _AcceptedCard extends ConsumerStatefulWidget {
   const _AcceptedCard({
     required this.acceptance,
     required this.isWithdrawing,
@@ -427,9 +429,22 @@ class _AcceptedCard extends StatelessWidget {
   final VoidCallback onWithdraw;
 
   @override
+  ConsumerState<_AcceptedCard> createState() => _AcceptedCardState();
+}
+
+class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (jobLabel, jobColor) = _jobStatusDisplay(acceptance.jobStatus);
+    final (jobLabel, jobColor) =
+        _jobStatusDisplay(widget.acceptance.jobStatus);
+    final isCompleted = widget.acceptance.jobStatus == 'completed';
+    final jobId = widget.acceptance.jobId;
+
+    final ratingAsync = jobId.isNotEmpty
+        ? ref.watch(myRatingForJobProvider(jobId))
+        : const AsyncData<Rating?>(null);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -441,7 +456,7 @@ class _AcceptedCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    acceptance.serviceTypeName,
+                    widget.acceptance.serviceTypeName,
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
@@ -455,8 +470,8 @@ class _AcceptedCard extends StatelessWidget {
                   ),
                   child: Text(
                     jobLabel,
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: jobColor, fontWeight: FontWeight.w600),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                        color: jobColor, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -464,41 +479,99 @@ class _AcceptedCard extends StatelessWidget {
             const SizedBox(height: 6),
             _Meta(
               icon: Icons.person_outline,
-              label: 'Principal: ${acceptance.principalName}',
+              label: 'Principal: ${widget.acceptance.principalName}',
             ),
-            if (acceptance.agreedRate > 0) ...[
+            if (widget.acceptance.agreedRate > 0) ...[
               const SizedBox(height: 4),
               _Meta(
                 icon: Icons.euro_outlined,
                 label:
-                    '${acceptance.agreedRate.toStringAsFixed(2).replaceAll('.', ',')} €/h acordado',
+                    '${widget.acceptance.agreedRate.toStringAsFixed(2).replaceAll('.', ',')} €/h acordado',
               ),
             ],
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: isWithdrawing ? null : onWithdraw,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.error,
-                  side: BorderSide(color: theme.colorScheme.error),
-                ),
-                child: isWithdrawing
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: theme.colorScheme.error,
+            if (isCompleted && jobId.isNotEmpty)
+              ratingAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (existing) {
+                  if (existing != null) {
+                    return Row(children: [
+                      Icon(Icons.check_circle,
+                          color: theme.colorScheme.primary, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Prestador avaliado',
+                          style: theme.textTheme.bodySmall),
+                      const Spacer(),
+                      Row(
+                        children: List.generate(
+                          5,
+                          (i) => Icon(
+                            i < existing.stars
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: 16,
+                            color: Colors.amber,
+                          ),
                         ),
-                      )
-                    : const Text('Desistir'),
+                      ),
+                    ]);
+                  }
+                  return SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonal(
+                      onPressed: _showHelperRatingSheet,
+                      child: const Text('Avaliar o prestador'),
+                    ),
+                  );
+                },
+              )
+            else if (!isCompleted)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: widget.isWithdrawing ? null : widget.onWithdraw,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(color: theme.colorScheme.error),
+                  ),
+                  child: widget.isWithdrawing
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.colorScheme.error,
+                          ),
+                        )
+                      : const Text('Desistir'),
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showHelperRatingSheet() async {
+    final jobId = widget.acceptance.jobId;
+    final submitted = await showRatingSheet(
+      context: context,
+      title: 'Avaliar o prestador principal',
+      subtitle: widget.acceptance.principalName,
+      onSubmit: (stars, comment) async {
+        await ref.read(ratingRepositoryProvider).submitHelperRating(
+              jobId: jobId,
+              stars: stars,
+              comment: comment,
+            );
+      },
+    );
+    if (submitted != true || !mounted) return;
+    ref.invalidate(myRatingForJobProvider(jobId));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Avaliação enviada!')));
   }
 }
 

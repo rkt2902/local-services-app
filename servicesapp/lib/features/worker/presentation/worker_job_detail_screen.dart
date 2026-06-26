@@ -12,6 +12,7 @@ import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
+import '../../../core/widgets/photo_viewer_screen.dart';
 
 class WorkerJobDetailScreen extends ConsumerStatefulWidget {
   final JobRequest job;
@@ -234,13 +235,23 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                         itemCount: photos.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(width: 8),
-                        itemBuilder: (_, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            photos[i],
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PhotoViewerScreen(
+                                photoUrls: photos,
+                                initialIndex: i,
+                              ),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              photos[i],
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),

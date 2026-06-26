@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_timeline.dart';
@@ -16,6 +17,8 @@ import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
+import '../../ratings/application/rating_providers.dart';
+import '../../ratings/presentation/rating_sheet.dart';
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
   const WorkerMyJobDetailScreen({
@@ -251,6 +254,9 @@ class _WorkerMyJobDetailScreenState
         .watch(jobByIdProvider(widget.job.id))
         .asData?.value?.status ?? widget.job.status;
 
+    final helpersForRatingAsync =
+        ref.watch(acceptedHelpersForJobProvider(widget.job.id));
+
     final (statusLabel, statusColor) = _proposalStatusInfo(liveStatus);
 
     final estimate = _formatEstimate(
@@ -331,13 +337,23 @@ class _WorkerMyJobDetailScreenState
                         itemCount: photos.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(width: 8),
-                        itemBuilder: (_, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            photos[i],
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PhotoViewerScreen(
+                                photoUrls: photos,
+                                initialIndex: i,
+                              ),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              photos[i],
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
@@ -630,7 +646,9 @@ class _WorkerMyJobDetailScreenState
                           )
                         : const Text('Marcar como concluído'),
                   ),
-                ),
+                )
+              else if (liveJobStatus == JobStatus.completed)
+                _buildCompletedSection(theme, helpersForRatingAsync),
             ],
 
             // === REJECTED ===
@@ -737,6 +755,166 @@ class _WorkerMyJobDetailScreenState
         ),
       ),
     );
+  }
+
+  Widget _buildCompletedSection(
+    ThemeData theme,
+    AsyncValue<List<AcceptedHelper>> helpersAsync,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Card(
+          color: theme.colorScheme.primaryContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              Icon(Icons.task_alt, color: theme.colorScheme.primary),
+              const SizedBox(width: 12),
+              const Expanded(
+                  child: Text('Trabalho concluído. Obrigado pelo teu trabalho!')),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('Deixa a tua avaliação', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _PrincipalRatingCard(
+          jobId: widget.job.id,
+          rateeId: widget.job.clientId,
+          title: 'Avaliar o cliente',
+          submittedLabel: 'Cliente avaliado ✓',
+          onSubmit: (stars, comment) =>
+              ref.read(ratingRepositoryProvider).submitPrincipalRating(
+                    jobId: widget.job.id,
+                    rateeId: widget.job.clientId,
+                    stars: stars,
+                    comment: comment,
+                  ),
+        ),
+        ...helpersAsync.when(
+          loading: () =>
+              [const SizedBox(height: 8, child: LinearProgressIndicator())],
+          error: (_, _) => <Widget>[],
+          data: (helpers) => [
+            for (final h in helpers)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _PrincipalRatingCard(
+                  jobId: widget.job.id,
+                  rateeId: h.workerId,
+                  title: 'Avaliar: ${h.fullName}',
+                  submittedLabel: '${h.fullName} avaliado ✓',
+                  onSubmit: (stars, comment) =>
+                      ref.read(ratingRepositoryProvider).submitPrincipalRating(
+                            jobId: widget.job.id,
+                            rateeId: h.workerId,
+                            stars: stars,
+                            comment: comment,
+                          ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── _PrincipalRatingCard ──────────────────────────────────────────────────────
+
+class _PrincipalRatingCard extends ConsumerStatefulWidget {
+  const _PrincipalRatingCard({
+    required this.jobId,
+    required this.rateeId,
+    required this.title,
+    required this.submittedLabel,
+    required this.onSubmit,
+  });
+
+  final String jobId;
+  final String rateeId;
+  final String title;
+  final String submittedLabel;
+  final Future<void> Function(int stars, String? comment) onSubmit;
+
+  @override
+  ConsumerState<_PrincipalRatingCard> createState() =>
+      _PrincipalRatingCardState();
+}
+
+class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ratingAsync = ref.watch(
+        myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)));
+
+    return ratingAsync.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (existing) {
+        if (existing != null) {
+          return Card(
+            color: theme.colorScheme.primaryContainer,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(children: [
+                Icon(Icons.check_circle,
+                    color: theme.colorScheme.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(widget.submittedLabel,
+                        style: theme.textTheme.bodyMedium)),
+                Row(
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < existing.stars
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      size: 16,
+                      color: Colors.amber,
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        }
+        return Card(
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(children: [
+              Expanded(
+                  child: Text(widget.title,
+                      style: theme.textTheme.bodyMedium)),
+              FilledButton.tonal(
+                onPressed: _showSheet,
+                child: const Text('Avaliar'),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showSheet() async {
+    final submitted = await showRatingSheet(
+      context: context,
+      title: widget.title,
+      onSubmit: widget.onSubmit,
+    );
+    if (submitted != true || !mounted) return;
+    ref.invalidate(
+        myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Avaliação enviada!')));
   }
 }
 

@@ -3,6 +3,40 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-26 — Fase 11 (Avaliações): design e implementação
+
+### Quatro relações de avaliação
+
+| Quem avalia | Quem é avaliado | RPC | Notas |
+|---|---|---|---|
+| Cliente | Prestador principal | `submit_client_rating` | Nota propaga-se também a cada ajudante; comentário fica só no registo do principal |
+| Cliente | Cada ajudante aceite | `submit_client_rating` (propagação automática) | Sem comentário; idempotente via ON CONFLICT DO NOTHING |
+| Prestador principal | Cliente | `submit_principal_rating` | `p_ratee_id` = `client_id` |
+| Prestador principal | Cada ajudante | `submit_principal_rating` | `p_ratee_id` = `worker_id` do ajudante |
+| Ajudante | Prestador principal | `submit_helper_rating` | Principal auto-resolvido a partir de `accepted_proposal_id` |
+
+### Decisão UX: Option A — inline, sem popup, sem novo tipo de notificação
+
+Rejeitadas: notificação `rating_reminder` (custo de infra + noise) e popup automático (padrão intrusivo). A UI de avaliação é um card persistente no bloco "completed" de cada ecrã. O utilizador vê o prompt sempre que abre o detalhe de um trabalho concluído até avaliar.
+
+### Constraint nova: `check_rater_not_ratee`
+
+`ALTER TABLE ratings ADD CONSTRAINT check_rater_not_ratee CHECK (rater_id <> ratee_id)` — adicionado em migration 0021 para impedir auto-avaliação que os RPCs SECURITY DEFINER já proibiam por lógica mas não por constraint.
+
+### `get_my_help_acceptances` atualizado (migration 0021)
+
+Adicionadas colunas `job_id` e `principal_worker_id` ao resultado do RPC. Necessário para que `_AcceptedCard` consiga chamar `submit_helper_rating(p_job_id)` sem round-trip extra. `HelpAcceptanceSummary` tratado como retrocompatível: novos campos têm default `''` quando o RPC antigo não os devolve.
+
+### Novo RPC `get_accepted_helpers_for_job(p_job_id)`
+
+Usado pelo ecrã do prestador principal para listar ajudantes aceites com nome, para mostrar um card de avaliação individual por ajudante. Só retorna resultados se `jp.worker_id = auth.uid()` (caller é o principal).
+
+### Provider para multi-ratee: `myRatingForJobAndRateeProvider((String, String))`
+
+Chave é record Dart 3 `(jobId, rateeId)`. Necessário porque o principal tem múltiplos ratees por job (cliente + N ajudantes), cada um com estado de avaliação independente. Os rating cards do principal são `ConsumerStatefulWidget` privados que fazem o seu próprio watch.
+
+---
+
 ## 2026-06-26 — Sessão 7 (quick wins): friendlyError, foto compressão, maybeSingle, _mapError
 
 ### Grupo 1 — friendlyError em 4 ecrãs (P-67-3, P-67-4, P-8-6)
