@@ -178,7 +178,10 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
           .from('profiles')
           .select('full_name, phone')
           .eq('id', currentUser.id)
-          .single();
+          .maybeSingle();
+      if (profileData == null) {
+        throw Exception('Perfil de utilizador não encontrado. Tenta fazer login novamente.');
+      }
       final existingName = profileData['full_name'] as String;
       final existingPhone = profileData['phone'] as String? ?? '';
       final repo = ref.read(workerRepositoryProvider);
@@ -381,7 +384,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
               const SizedBox(height: 8),
               serviceTypesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Erro ao carregar serviços: $e'),
+                error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
                 data: (types) => Wrap(
                   spacing: 8,
                   children: types.map((t) {

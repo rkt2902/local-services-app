@@ -98,7 +98,7 @@ class _ClientProfileScreenState extends ConsumerState<ClientProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao guardar: $e'),
+            content: Text(friendlyError(e)),
             backgroundColor: Colors.red,
           ),
         );

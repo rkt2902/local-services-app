@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-26 — Sessão 7 (quick wins): friendlyError, foto compressão, maybeSingle, _mapError
+
+### Grupo 1 — friendlyError em 4 ecrãs (P-67-3, P-67-4, P-8-6)
+
+`client_profile_screen.dart:97` — SnackBar de erro mostrava exceção em bruto; substituído por `friendlyError(e)`.
+`worker_setup_screen.dart:384`, `worker_profile_screen.dart:452`, `create_job_screen.dart:281` — mesmo fix no widget `error:` de `serviceTypesAsync.when`.
+
+### Grupo 2 — Compressão de fotos (P-8-3)
+
+`job_repository.dart:58` — `minWidth`/`minHeight` 1280 → 800, `quality` 72 → 60. Alinhado com decisão de 2026-06-02 (limite 50MB do Free Plan).
+
+### Grupo 3 — Auth UX pré-lançamento (P-67-5, P-67-6)
+
+`worker_setup_screen.dart:178` — `.single()` → `.maybeSingle()` + null check com mensagem acionável "Perfil de utilizador não encontrado. Tenta fazer login novamente." (evita PGRST116 opaco em signup parcialmente falhado).
+`auth_controller.dart:_mapError` — adicionados handlers para `email_not_confirmed` e `rate_limit`/`over_request_rate_limit` antes do fallback genérico. Necessário antes de reativar verificação de email para o launch.
+
+---
+
 ## 2026-06-26 — P-8-1 + P-10-3 corrigidos (migration 0020, não aplicada)
 
 Confirmado via live query directo por Henrique: `auto_confirm_completed_jobs` existe e está

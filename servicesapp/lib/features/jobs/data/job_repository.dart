@@ -58,9 +58,9 @@ class JobRepository {
   }) async {
     final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
       file.absolute.path,
-      minWidth: 1280,
-      minHeight: 1280,
-      quality: 72,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 60,
       format: CompressFormat.jpeg,
     );
 

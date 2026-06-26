@@ -277,7 +277,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
               serviceTypesAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Erro ao carregar serviços: $e'),
+                error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
                 data: (types) => DropdownButtonFormField<String>(
                   initialValue: _selectedServiceTypeId,
                   decoration: const InputDecoration(

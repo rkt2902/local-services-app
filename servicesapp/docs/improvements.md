@@ -8,7 +8,7 @@
 
 ---
 
-> **Revalidação 2026-06-26 (atualizado sessão 6):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 20** (24 após sessão 4 → −2: P-FA2, P-FA7; 22 após sessão 5 → −2: P-8-1, P-10-3).
+> **Revalidação 2026-06-26 (atualizado sessão 7):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 14** (24 após sessão 4 → −2: P-FA2, P-FA7; 22 após sessão 5 → −2: P-8-1, P-10-3; 20 após sessão 6 → −6: P-67-3, P-67-4, P-67-5, P-67-6, P-8-3, P-8-6).
 
 ---
 
@@ -378,71 +378,7 @@ PostgREST REST API não suporta transações multi-statement. O único fix corre
 
 ---
 
-**P-67-3 — `client_profile_screen.dart` mostra texto de exceção em bruto no SnackBar de erro — única tela que não usa `friendlyError(e)`, todas as outras usam consistentemente.**
-
-```dart
-// client_profile_screen.dart:97 — em bruto:
-SnackBar(content: Text('Erro ao guardar: $e'), backgroundColor: Colors.red)
-
-// Todas as outras telas — correto:
-SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red)
-```
-
-Se `updateProfile` falhar, o utilizador vê texto como `"Erro ao guardar: PostgrestException(message: ERROR: null value in column..., code: 23502, details: ..., hint: ...)"`. `error_utils.dart` já está importado no mesmo ficheiro (via o handler `error:` em baixo).
-
----
-
-**P-67-4 — Mesmo problema (P-67-3) no widget de erro de service types em `worker_setup_screen.dart` E `worker_profile_screen.dart`.**
-
-```dart
-// worker_setup_screen.dart:384
-error: (e, _) => Text('Erro ao carregar serviços: $e'),
-
-// worker_profile_screen.dart:452
-error: (e, _) => Text('Erro ao carregar serviços: $e'),
-```
-
-Texto de exceção em bruto no widget tree, visível inline no formulário se o fetch de `fetchServiceTypes` falhar. Ambos os ficheiros já importam `error_utils.dart`.
-
----
-
-**P-67-5 — `worker_setup_screen.dart` usa `.single()` em vez de `.maybeSingle()` ao buscar o perfil — lança `PGRST116` se a linha `profiles` estiver ausente (signup parcialmente falhado). Também é o mesmo local do P8 da auditoria de Fases 0-3 (chamada Supabase direta no widget).**
-
-```dart
-// worker_setup_screen.dart:178
-final profileData = await ref
-    .read(supabaseClientProvider)
-    .from('profiles')
-    .select('full_name, phone')
-    .eq('id', currentUser.id)
-    .single();  // lança PGRST116 se não encontrar linha
-```
-
-`.single()` lança `PostgrestException` (PGRST116) se não encontrar linha. No fluxo normal não acontece, mas num signup parcialmente falhado (conta auth criada, INSERT em profiles falhou) o utilizador não consegue completar o setup e vê "Ocorreu um erro inesperado." sem indicação do que fazer. `.maybeSingle()` com null check dá uma mensagem acionável.
-
----
-
-**P-67-6 — `_mapError` não trata o erro "email não confirmado" — não é bug agora (verificação de email está desativada para o MVP), mas é um bloqueador de pré-lançamento fácil de esquecer quando a verificação for reativada.**
-
-`decisions_log.md 2026-06-05`: *"Confirmação de email Supabase desativada para MVP — reativar antes do launch."*
-
-Quando a verificação for reativada, utilizadores que tentem fazer login antes de confirmar o email recebem um erro do Supabase (`email_not_confirmed`) que `_mapError` em `auth_controller.dart` não reconhece → fallback `"Ocorreu um erro. Tenta novamente."` sem indicar que devem verificar o email. `_mapError` também não trata `rate_limit_exceeded`.
-
----
-
 ### Melhorias — Alta prioridade
-
-**A2 — Corrigir SnackBar de `client_profile_screen.dart` para usar `friendlyError(e)` (resolve P-67-3, 2 min)**
-
-```dart
-// Antes (linha 99):
-content: Text('Erro ao guardar: $e'),
-
-// Depois:
-content: Text(friendlyError(e)),
-```
-
-`error_utils.dart` já está importado. Uma linha.
 
 **A3 — Criar RPC `sync_worker_service_types` (SECURITY DEFINER) para tornar o delete-then-insert atómico (resolve P-67-2, ~30 min)**
 
@@ -472,51 +408,6 @@ Depois substituir `_syncServiceTypes` no `worker_repository.dart` por uma única
 ---
 
 ### Melhorias — Média prioridade
-
-**M1 — Corrigir texto de erro em bruto nos 2 widgets de service types (resolve P-67-4, 2 linhas no total)**
-
-```dart
-// worker_setup_screen.dart:384 e worker_profile_screen.dart:452
-// Antes:
-error: (e, _) => Text('Erro ao carregar serviços: $e'),
-
-// Depois:
-error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
-```
-
-Ambos os ficheiros já importam `error_utils.dart`.
-
-**M2 — Adicionar tratamento de "email não confirmado" e "rate limit" a `_mapError` (resolve P-67-6, bloqueador de pré-lançamento, 5 min)**
-
-Adicionar antes do fallback genérico em `auth_controller.dart`:
-```dart
-if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
-  return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
-}
-if (msg.contains('too many requests') || msg.contains('rate_limit') ||
-    msg.contains('over_request_rate_limit')) {
-  return 'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.';
-}
-```
-
-Necessário antes de reativar a verificação de email (pré-lançamento).
-
-**M3 — Substituir `.single()` por `.maybeSingle()` em `WorkerSetupScreen._save()` com mensagem de erro acionável (resolve P-67-5 parcialmente; fix completo é mover para o repository, ~30 min)**
-
-```dart
-// Antes:
-.single();
-final existingName = profileData['full_name'] as String;
-
-// Depois:
-.maybeSingle();
-if (profileData == null) {
-  throw Exception('Perfil de utilizador não encontrado. Tenta fazer login novamente.');
-}
-final existingName = profileData['full_name'] as String;
-```
-
-Fix completo: mover este fetch para `WorkerRepository.fetchBasicProfile(userId)` — resolve também P8 da auditoria de Fases 0-3 (chamada Supabase direta no widget).
 
 **M4 — `PendingSignupStateProvider` — `StateProvider<PendingSignupData?>` na camada de auth, substitui o uso de navigation extra para `fullName`/`phone` entre `SignupScreen` e `ChooseRoleScreen`. Resolve a CAUSA RAIZ de toda a classe de bugs "dados perdidos em redirect".**
 
@@ -566,10 +457,6 @@ if (digits.length < 9) return 'Número de telefone inválido.';
 
 Ambos os ecrãs de perfil usam `_saving = true` para todo o ciclo save (upload avatar + update BD). O upload pode demorar 1-5s numa ligação móvel fraca. Sem indicação específica, utilizadores podem pensar que a app travou e tentar de novo. Um estado `_uploadingAvatar` separado com texto "A carregar foto..." melhora o feedback sem alterar a lógica de negócio.
 
-**B4 — Mesmo que M2, registado aqui como item de checklist de pré-lançamento**
-
-Antes de reativar a verificação de email Supabase (obrigatório pré-lançamento, ver `decisions_log.md 2026-06-05`): confirmar que M2 está implementado. Sem este item, utilizadores que tentem fazer login antes de confirmar o email veem "Ocorreu um erro. Tenta novamente." sem saber porquê.
-
 ---
 
 ### Nota da sessão
@@ -605,26 +492,6 @@ class _ProposalCard extends ConsumerWidget {
 
 ---
 
-**P-8-3 — Compressão de fotos diverge da decisão registada (1280px/72% em vez de 800px/60%)**
-
-`decisions_log.md 2026-06-02`:
-> "Compressão obrigatória antes do upload: largura máxima **800px**, qualidade **60%**."
-
-`job_repository.dart:58`:
-```dart
-await FlutterImageCompress.compressWithFile(
-  file.absolute.path,
-  minWidth: 1280,   // ← decisão diz 800
-  minHeight: 1280,  // ← decisão diz 800
-  quality: 72,      // ← decisão diz 60
-  ...
-);
-```
-
-A decisão de 800px/60% foi tomada explicitamente por causa do limite de 50MB do Supabase Free Plan. A 1280px/72%, cada foto é ~4–8× maior que a 800px/60% (dependendo da imagem original). Com 2 fotos por job e jobs a acumular, o limite de storage esgota mais rapidamente do que o previsto.
-
----
-
 **P-8-5 — `_acceptReschedule()` em `client_job_detail_screen.dart` deixa campos de remarcação obsoletos na cópia local `_job`**
 
 `client_job_detail_screen.dart:164`:
@@ -640,16 +507,6 @@ setState(() => _job = _job.copyWith(
 ```
 
 A BD limpa os campos propostos. A cópia local `_job` mantém os valores obsoletos até ao próximo re-fetch via `clientJobsProvider`. Impacto visual menor (campos propostos não são mostrados depois de aceitar), mas é uma inconsistência real. Limitação do Dart `copyWith` com `??` — campos nullable não podem ser limpos para `null` sem sentinelas ou re-fetch explícito.
-
----
-
-**P-8-6 — `create_job_screen.dart:281` tem o mesmo padrão de exceção em bruto já visto em P-67-4 — 3.º ecrã, não 2.º**
-
-```dart
-error: (e, _) => Text('Erro ao carregar serviços: $e'),
-```
-
-A auditoria de Fases 6-7 (P-67-4) apanhou `worker_setup_screen.dart` e `worker_profile_screen.dart`. Este ecrã foi omitido. São 3 ecrãs no total com este problema, não 2. `error_utils.dart` já está importado em `create_job_screen.dart`.
 
 ---
 
@@ -676,26 +533,6 @@ Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = nul
 
 ---
 
-### Melhorias — Alta prioridade
-
-**A2 — Corrigir parâmetros de compressão de fotos para 800px/60% (resolve P-8-3)**
-
-```dart
-// job_repository.dart:58 — ANTES:
-minWidth: 1280,
-minHeight: 1280,
-quality: 72,
-
-// DEPOIS (matches decisions_log 2026-06-02):
-minWidth: 800,
-minHeight: 800,
-quality: 60,
-```
-
-3 linhas. Previne esgotamento prematuro do limite de 50MB do Free Plan. **Esforço: 2 min.**
-
----
-
 ### Melhorias — Média prioridade
 
 **M1 — Resolver N+1 com join de profile em `fetchPendingProposalsForJob` (resolve P-8-2)**
@@ -711,18 +548,6 @@ Aplicar o mesmo padrão de embedded resources PostgREST que o lado do worker já
 ```
 
 Adicionar `workerName` ao modelo `JobProposal`. Atualizar `_ProposalCard` para usar `proposal.workerName` diretamente em vez de `ref.watch(workerNameProvider(proposal.workerId))`. N queries → 1 query. **Esforço: ~45 min** (modelo + repository + widget).
-
-**M2 — Corrigir exceção em bruto em `create_job_screen.dart:281` (resolve P-8-6)**
-
-```dart
-// ANTES:
-error: (e, _) => Text('Erro ao carregar serviços: $e'),
-
-// DEPOIS:
-error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
-```
-
-`error_utils.dart` já importado. 1 linha. Junto com as 2 linhas de P-67-4 (Fases 6-7): fix total de 3 linhas em 3 ficheiros.
 
 **M3 — Mover filtro de `fetchScheduledWorkerProposals` para a BD (resolve P-8-7)**
 
@@ -989,6 +814,12 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 - **P-67-1** *(Fases 6-7)* — `/worker/setup` ausente de `loadingExempt`: adicionado em `app_router.dart` (2026-06-26). Elimina perda silenciosa do formulário de setup após token refresh do Supabase (60 min).
 - **P5** *(Fases 0-3)* — Sem guard cross-role no router: guard adicionado em `app_router.dart` após o bloco `role == null` (2026-06-26). **Mitigação parcial** — actualmente o acesso cross-role já causava crash (P6, `state.extra!`), pelo que o guard intercepta antes do crash. Após P6 ser corrigido (routing baseado em ID), o guard torna-se a protecção primária contra estado vazio silencioso com dados do UID errado. P6 continua aberto.
+- **P-67-3** *(Fases 6-7)* — SnackBar de erro de `client_profile_screen.dart` mostrava exceção em bruto: substituído por `friendlyError(e)` (2026-06-26).
+- **P-67-4** *(Fases 6-7)* — Widget `error:` de service types em `worker_setup_screen.dart` e `worker_profile_screen.dart` mostrava exceção em bruto: substituído por `${friendlyError(e)}` em ambos (2026-06-26).
+- **P-67-5** *(Fases 6-7)* — `worker_setup_screen.dart:178` usava `.single()` que lançava PGRST116 em signup parcialmente falhado: substituído por `.maybeSingle()` com null check e mensagem acionável (2026-06-26).
+- **P-67-6** *(Fases 6-7)* — `_mapError` em `auth_controller.dart` não tratava `email_not_confirmed` nem `rate_limit`: handlers adicionados antes do fallback genérico — bloqueador de pré-lançamento resolvido (2026-06-26).
+- **P-8-3** *(Fase 8)* — Compressão de fotos usava 1280px/72% em vez da decisão registada de 800px/60%: `job_repository.dart` corrigido (2026-06-26). Previne esgotamento prematuro do limite de 50MB do Free Plan.
+- **P-8-6** *(Fase 8)* — `create_job_screen.dart:281` mostrava exceção em bruto no widget de service types: substituído por `${friendlyError(e)}` (2026-06-26).
 
 ### Totalmente resolvidos por migration
 

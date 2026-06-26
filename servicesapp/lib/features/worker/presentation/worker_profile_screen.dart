@@ -450,7 +450,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) =>
-                        Text('Erro ao carregar serviços: $e'),
+                        Text('Erro ao carregar serviços: ${friendlyError(e)}'),
                     data: (types) => Wrap(
                       spacing: 8,
                       children: types.map((t) {

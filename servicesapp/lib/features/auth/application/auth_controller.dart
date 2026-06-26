@@ -107,6 +107,13 @@ class AuthController extends Notifier<AuthControllerState> {
     if (msg.contains('email already')) return 'Este email já está registado.';
     if (msg.contains('password')) return 'A password deve ter pelo menos 6 caracteres.';
     if (msg.contains('network') || msg.contains('socket')) return 'Sem ligação à internet.';
+    if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+      return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
+    }
+    if (msg.contains('too many requests') || msg.contains('rate_limit') ||
+        msg.contains('over_request_rate_limit')) {
+      return 'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.';
+    }
     debugPrint('AUTH ERROR FULL: $e');
     return 'Ocorreu um erro. Tenta novamente.';
   }
