@@ -104,6 +104,55 @@ WHERE tablename = 'job_proposals' AND cmd = 'UPDATE';
 
 ---
 
+## 2026-06-26 — P-FA3 (CRÍTICO) corrigido via migration 0018
+
+### Confirmação do bug via pg_policy
+
+Query directa ao `pg_policy` (2026-06-26) confirmou que a policy de UPDATE de avatars (`"Update avatar pelo próprio utilizador"`) usava `(storage.foldername(name))[1]` — incompatível com o path real `$userId.jpg` (ficheiro no root do bucket, sem subpasta) usado pelo app em `worker_repository.dart:142` e `client_repository.dart:24`.
+
+`storage.foldername('abc-uuid.jpg')` num ficheiro root-level devolve `{}` (array vazio); `[1]` é NULL; `auth.uid()::text = NULL` avalia a NULL (falso em PostgreSQL). A policy bloqueia silenciosamente todos os re-uploads.
+
+O fix interativo de 2026-06-15 corrigiu **apenas a policy de INSERT** (primeiro upload de avatar) — a policy de UPDATE ficou por corrigir, o que significa que qualquer re-upload de avatar (mudança de foto de perfil após a primeira) estava a falhar silenciosamente em produção.
+
+A policy de DELETE foi confirmada **totalmente ausente** da BD viva via pg_policy.
+
+### Step 1 — Diagnóstico de impacto em utilizadores reais
+
+Query de diagnóstico (requer acesso directo à BD — assistente não pode executar):
+```sql
+SELECT id, avatar_url, updated_at
+FROM   profiles
+WHERE  avatar_url IS NOT NULL
+ORDER  BY updated_at DESC
+LIMIT  10;
+```
+**Resultado: pendente** — executar manualmente para determinar se algum avatar foi actualizado com sucesso após o primeiro upload. Se `updated_at` de alguma linha for significativamente posterior a `created_at`, indica que o UPDATE path funcionou (ou que o utilizador re-fez upload e o INSERT policy foi avaliado porque o ficheiro não existia por outra razão). Se todos os avatars mostram `updated_at ≈ created_at`, é provável que nenhum utilizador alguma vez conseguiu mudar a foto de perfil com sucesso.
+
+### Correcção (migration 0018)
+
+- DROP de `"Update avatar pelo próprio utilizador"` (nome confirmado via pg_policy) e de `"avatars: update pelo dono"` (nome do 0001) por idempotência.
+- CREATE policy de UPDATE com `regexp_replace(storage.filename(name), '\.[^.]+$', '')` — extrai UUID do filename sem extensão.
+- CREATE policy de DELETE com a mesma lógica (DROP precautório de ambas as denominações possíveis).
+- `storage.filename()` escolhido por ser sibling function de `storage.foldername()` (já confirmada funcional na BD viva pela sua presença nas policies existentes).
+
+### Estado
+
+**migration 0018 criada localmente — NÃO aplicada à BD. Aplicar manualmente via SQL Editor.**
+
+Após aplicar, verificar:
+```sql
+SELECT polname, cmd,
+       pg_get_expr(polqual,      polrelid) AS using_expr,
+       pg_get_expr(polwithcheck, polrelid) AS withcheck_expr
+FROM   pg_policy
+WHERE  polrelid = 'storage.objects'::regclass
+  AND  polname  LIKE 'avatars%'
+ORDER  BY polname;
+```
+Confirmar que `"avatars: update pelo próprio utilizador"` e `"avatars: delete pelo próprio utilizador"` aparecem com `regexp_replace(storage.filename(name)...)` nas expressões USING/WITH CHECK, e que `"Update avatar pelo próprio utilizador"` e `"avatars: update pelo dono"` desapareceram.
+
+---
+
 ## 2026-06-26 — Sessão 3: lobby de ajudantes reestruturado; P-9-1 implementado (migration 0017)
 
 ### Bug real confirmado por Henrique — candidatos além da contagem visível não podiam ser aceites

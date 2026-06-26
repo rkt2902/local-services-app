@@ -8,7 +8,7 @@
 
 ---
 
-> **Revalidação 2026-06-26 (atualizado sessão 3):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migration 0016 (P-8-4 parcial + P-FA4) e migration 0017 (P-9-1 + reestruturação lobby). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 25** (28 após sessão 2 → −3: P-9-1, P-9-2, P-9-4).
+> **Revalidação 2026-06-26 (atualizado sessão 4):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migration 0016 (P-8-4 parcial + P-FA4), migration 0017 (P-9-1 + reestruturação lobby) e migration 0018 (P-FA3 — avatar UPDATE/DELETE policies). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 24** (25 após sessão 3 → −1: P-FA3).
 
 ---
 
@@ -172,9 +172,7 @@ Mover o `from('profiles').select('full_name, phone')` de `worker_setup_screen.da
 > em 2026-06-25. Itens numerados com códigos estáveis (P-FA1–P-FA8, A1–A4,
 > M1–M6, B1–B4) para referência futura sem re-derivar a análise.
 >
-> ⚠️ **MAIS URGENTE DESTA AUDITORIA: P-FA3** — policy de avatars quebrada desde
-> o dia 1, fix só na BD viva (nunca capturado em migration). Uma BD nova a partir
-> das migrations teria uploads de avatar bloqueados permanentemente.
+> ⚠️ **MAIS URGENTE DESTA AUDITORIA: P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de todas as migrations. BD não reproduzível sem ela. (P-FA3 resolvido em migration 0018 — 2026-06-26.)
 
 ### Problemas encontrados
 
@@ -201,38 +199,6 @@ CREATE POLICY "job-photos: delete pelo dono"
 Path de upload em `job_repository.dart:70`: `'$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg'`
 
 `storage.foldername(name)[1]` extrai o primeiro componente do path, que é o `job_id` (UUID) — não o `auth.uid()` (também UUID mas diferente). `auth.uid()::text = job_id::text` é sempre falso. Ninguém consegue apagar fotos de jobs via esta policy. A app não tem feature de apagamento de fotos → sem impacto runtime, mas é dead code de segurança que documenta uma garantia que não cumpre.
-
----
-
-**⚠️ P-FA3 — CRÍTICO: policy de avatars no 0001 está QUEBRADA desde o dia 1 (fix só na BD viva, nunca capturado em migration)**
-
-Decisions log 2026-06-15: *"Storage RLS para avatars corrigida (Bug 1 — feito na BD)."*
-
-Path de upload em `worker_repository.dart:143` e `client_repository.dart:24`: `'$userId.jpg'` (ficheiro no root, sem subfolder).
-
-Policy em 0001:
-```sql
--- Para INSERT:
-WITH CHECK (
-  bucket_id = 'avatars'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-)
-```
-
-`storage.foldername('abc-uuid.jpg')` num ficheiro root-level devolve `{}` ou array vazio; `[1]` é NULL. `auth.uid()::text = NULL` avalia a NULL (falso em PostgreSQL). **A policy de INSERT do 0001 bloqueia todos os uploads de avatar.**
-
-A BD viva tem uma versão corrigida (fix interativo de 2026-06-15) — **confirmada funcional via snapshot 2026-06-26** (policies de avatars presentes e corretas na BD viva; ver `database_schema.md` secção Storage). O fix nunca foi capturado numa migration — uma BD nova a partir de migrations 0001–0014 continuaria a ter uploads de avatar quebrados. Para criar a migration: correr a query abaixo para obter o texto exacto das policies actuais.
-
-**Query de diagnóstico (necessária para criar a migration):**
-```sql
-SELECT polname,
-       pg_get_expr(polqual,      polrelid) AS using_expr,
-       pg_get_expr(polwithcheck, polrelid) AS withcheck_expr
-FROM   pg_policies
-WHERE  tablename  = 'objects'
-  AND  schemaname = 'storage'
-  AND  polname    LIKE 'avatars%';
-```
 
 ---
 
@@ -285,10 +251,6 @@ Confirmado via snapshot 2026-06-26: a policy `"Cliente ve perfil de worker com j
 2. `DROP POLICY IF EXISTS "Cliente ve perfil de worker com job confirmado" ON worker_profiles; CREATE POLICY...` — texto actual da policy em `database_schema.md` secção RLS
 
 Sem este fix, a BD não é reproduzível a partir das migrations.
-
-**A2 — Corrigir policy de avatars numa migration (resolve P-FA3 — CRÍTICO)**
-
-Após correr a query de diagnóstico de P-FA3 para ver a versão atual na BD viva, criar uma migration que faz DROP das policies quebradas do 0001 e ADD das policies corretas. A versão correta provavelmente usa `storage.filename(name)` em vez de `storage.foldername(name)[1]`, ou o path foi alterado para incluir `$userId/` como prefixo.
 
 **A3 — Corrigir path de storage de `job-photos` e policy de DELETE (resolve P-FA2 + P-FA7)**
 
@@ -1182,8 +1144,7 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 > **Nota:** Esta é a última auditoria da série Fases 0-10 (revalidada 2026-06-26 — ver apêndice de itens resolvidos/descartados).
 > Itens mais urgentes por resolver após revalidação (por criticidade):
-> **P-FA3** — fix de avatars nunca capturado em migration — BD não reproduzível sem ela (CRÍTICO);
-> **P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de migrations (ALTA).
+> **P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de migrations (ALTA). (P-FA3 resolvido em migration 0018 — 2026-06-26.)
 
 ---
 
@@ -1199,6 +1160,7 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 ### Totalmente resolvidos por migration
 
 - **P-FA4** *(Fases 4-5)* — `job_proposals` UPDATE policy sem `WITH CHECK`: corrigida em migration 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. Confirmada aplicada.
+- **P-FA3** *(Fases 4-5, CRÍTICO)* — Policy de UPDATE de avatars usava `storage.foldername(name)[1]`, que devolve NULL para paths root-level `$userId.jpg`. Confirmado via `pg_policy` query 2026-06-26 que a policy viva ainda tinha a lógica quebrada (o fix interativo de 2026-06-15 corrigiu apenas INSERT, não UPDATE). Resultado prático: qualquer re-upload de avatar (2.º upload em diante) falha silenciosamente — `FileOptions(upsert: true)` passa pelo UPDATE policy quando o ficheiro já existe. Adicionada também DELETE policy (confirmada ausente via `pg_policy`). Corrigido em migration 0018 com `regexp_replace(storage.filename(name), '\.[^.]+$', '')`. Severidade confirmada elevada: de "gap teórico nunca capturado em migration" para "bug real em produção" (2026-06-26).
 
 ### Parcialmente verdadeiros → totalmente resolvidos
 
