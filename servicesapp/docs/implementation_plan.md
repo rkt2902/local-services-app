@@ -3,12 +3,20 @@
 > Ordem de trabalho e estado atual. Atualizar à medida que se avança.
 > O Claude Code lê este ficheiro para saber em que passo está.
 
-## Estado atual
-**Passo concluído:** Fase 10 — Contactos e conclusão. Implementada e verificada em 2026-06-25.
-Migrations **0001–0014 todas aplicadas à BD viva** (confirmado via snapshot directo 2026-06-26; ver decisions_log.md entrada 2026-06-26).
-Fases 0–10 verificadas e confirmadas na BD de produção em 2026-06-25.
-**Passo concluído:** Fase 11 — Avaliações. Migration 0021 criada; **aplicar manualmente antes de testar**.
-**Próximo passo:** Fase 12 — Integração UI Playground / exibir médias de estrelas no perfil.
+## Estado atual — MVP feature-complete (2026-06-27)
+
+**Fases 0–11 todas implementadas.** O feature set do MVP está completo.
+O projeto está agora na fase de **hardening e polish** — não de construção de features.
+
+| Migrations | Estado |
+|---|---|
+| 0001–0014 | Aplicadas à BD viva (confirmado via snapshot directo 2026-06-26) |
+| 0016–0021 | Criadas localmente — **aplicar manualmente via Supabase SQL Editor** |
+
+> Nota: não existe ficheiro 0015 (número saltado em sessão anterior).
+
+**Itens de melhoria abertos:** 14 (detalhados em `improvements.md`). Nenhum bloqueia o lançamento.
+**Próximo:** Hardening — fechar os 14 itens abertos, completar checklist de testes manuais abaixo, decidir data de lançamento.
 
 ## Testes manuais pendentes — 8E.4
 - [ ] Tab "Agendados" — jobs confirmados aparecem corretamente (filtro client-side)
@@ -137,20 +145,70 @@ dos helpers (tab "As minhas candidaturas") já está implementada e não é mais
 - [x] Cancelamento até 24h antes (client e worker) — regra na BD via `cancel_job`
       (migration 0013 — aplicada, confirmado 2026-06-26) e UI client-side (botão desativado + mensagem).
 
-### Fase 11 — Avaliações ✅
-- [x] Migration 0021 criada (`0021_ratings_hardening.sql`) — **aplicar manualmente via Supabase SQL Editor**.
-- [x] `ratings/data/`: `rating_model.dart`, `rating_repository.dart`.
-- [x] `ratings/application/rating_providers.dart` — `myRatingForJobProvider`, `myRatingForJobAndRateeProvider`, `acceptedHelpersForJobProvider`.
-- [x] `ratings/presentation/rating_sheet.dart` — `showRatingSheet()` partilhado.
-- [x] Client UI — bloco "Avaliar o trabalho" em `client_job_detail_screen.dart` (estado completed).
-- [x] Principal UI — bloco "Deixa a tua avaliação" em `worker_my_job_detail_screen.dart` (cliente + cada ajudante).
-- [x] Helper UI — `_AcceptedCard` atualizado em `worker_help_requests_screen.dart` (estado completed).
-- [x] `HelpAcceptanceSummary` atualizado com `jobId` + `principalWorkerId` (retrocompatível).
-- [ ] Exibir média de estrelas no perfil do worker (Fase 12+).
+### Fase 11 — Avaliações ✅ (2026-06-27)
 
-### Fase 12 — Integração da UI do Playground
-- Ao longo das Fases 6–11, à medida que os ecrãs vão saindo do UI Playground,
-  o Tech Lead integra-os refatorando para usar Riverpod e repositories.
+**Migration:** `0021_ratings_hardening.sql` — aplicar manualmente antes de testar.
+
+**4 relações de avaliação implementadas:**
+
+| Rater | Ratee | RPC | Notas |
+|---|---|---|---|
+| Cliente | Prestador principal | `submit_client_rating` | Mesmas estrelas propagam; comentário guardado aqui |
+| Cliente | Cada ajudante aceite | `submit_client_rating` (auto) | Mesmas estrelas, sem comentário |
+| Prestador | Cliente | `submit_principal_rating` | `p_ratee_id = job.client_id` |
+| Prestador | Cada ajudante | `submit_principal_rating` | `p_ratee_id = helper.worker_id` |
+| Ajudante | Prestador | `submit_helper_rating` | Principal auto-resolvido da `accepted_proposal_id` |
+
+**Decisões de design (2026-06-26):**
+- **UX Option A (inline):** sem popup, sem novo tipo de notificação. Card persistente no
+  bloco `completed` de cada ecrã de detalhe; o utilizador vê o prompt sempre que volta ao
+  trabalho concluído, até avaliar.
+- **Propagação do cliente:** uma única ação aplica a mesma nota ao prestador e a cada
+  ajudante; o comentário fica só na linha do prestador. `submit_client_rating` itera sobre
+  `help_acceptances` em PL/pgSQL — sem round-trips do cliente.
+- **Unicidade:** `UNIQUE (job_id, rater_id, ratee_id)` preexistente + novo
+  `CHECK (rater_id <> ratee_id)` adicionado em 0021. `ON CONFLICT DO NOTHING` garante
+  idempotência (resubmissão não duplica).
+- **Sem novo enum:** `NotificationType` não foi alterado; avaliações não geram notificação.
+- **`get_accepted_helpers_for_job(p_job_id)`:** novo RPC em 0021 para o prestador principal
+  listar ajudantes com nome — usado no card de avaliação por ajudante.
+- **`get_my_help_acceptances` atualizado:** adicionadas colunas `job_id` e
+  `principal_worker_id`; `HelpAcceptanceSummary` é retrocompatível (default `''` quando
+  RPC antigo). Requer `DROP FUNCTION` antes de `CREATE` (não `CREATE OR REPLACE`) por
+  mudança de shape do `RETURNS TABLE` — ver nota no ficheiro 0021.
+
+**Dart adicionado:**
+
+| Ficheiro | Conteúdo |
+|---|---|
+| `ratings/data/rating_model.dart` | `Rating` + `AcceptedHelper` |
+| `ratings/data/rating_repository.dart` | 7 métodos: fetch, submit×3, helpers, profile |
+| `ratings/application/rating_providers.dart` | `myRatingForJobProvider` (`family<Rating?, String>`), `myRatingForJobAndRateeProvider` (`family<Rating?, (String, String)>` — Dart 3 record), `acceptedHelpersForJobProvider` |
+| `ratings/presentation/rating_sheet.dart` | `showRatingSheet()` partilhado (estrelas + comentário opcional) |
+
+**UI por ecrã:**
+- [x] `client_job_detail_screen.dart` — bloco `completed`: card "Avaliar o trabalho" →
+      bottom sheet → `submit_client_rating` → invalida `myRatingForJobProvider`
+- [x] `worker_my_job_detail_screen.dart` — bloco `completed`: banner de conclusão + um
+      `_PrincipalRatingCard` (ConsumerStatefulWidget) por ratee — cliente e cada ajudante
+      (lista via `acceptedHelpersForJobProvider`)
+- [x] `worker_help_requests_screen.dart` — `_AcceptedCard` convertido para
+      `ConsumerStatefulWidget`; quando `jobStatus == 'completed'`, mostra
+      "Avaliar o prestador" em vez de "Desistir"
+
+**Deferred — pós-MVP (Fase 12+):**
+- [ ] Exibir média de estrelas no perfil do worker — `fetchRatingsForProfile` já existe no
+      repositório; falta calcular e mostrar no `worker_profile_screen.dart` e nos cards de proposta
+- [ ] Ordenação de propostas por rating — `ButtonSegment` desativado em
+      `client_job_detail_screen.dart` aguarda dados de avaliação suficientes
+- [ ] Resposta pública do worker a uma avaliação — requer nova coluna `reply_text` em
+      `ratings` e UI dedicada
+
+### Fase 12 — Integração da UI do Playground / polish pós-MVP
+- Integração dos ecrãs do UI Playground (refatoração para Riverpod e repositories).
+- Exibição de média de estrelas no perfil do worker.
+- Fechar os 14 itens abertos em `improvements.md`.
+- Preparação para lançamento público (nome, logo, store listings).
 
 ## Regras de execução
 - Passos pequenos. Nunca implementar várias fases ao mesmo tempo.

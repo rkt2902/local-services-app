@@ -114,6 +114,13 @@ class HelpAcceptanceSummary {
   // Added by migration 0021 — empty string when RPC has not yet been updated.
   final String jobId;
   final String principalWorkerId;
+  // Added by migration 0022 — null/empty when RPC has not yet been updated.
+  final DateTime? confirmedDate;
+  final String? confirmedTime; // "HH:MM:SS" from DB
+  final String addressText;
+  final double locationLat;
+  final double locationLng;
+  final String principalPhone;
 
   const HelpAcceptanceSummary({
     required this.id,
@@ -127,6 +134,12 @@ class HelpAcceptanceSummary {
     required this.jobStatus,
     this.jobId = '',
     this.principalWorkerId = '',
+    this.confirmedDate,
+    this.confirmedTime,
+    this.addressText = '',
+    this.locationLat = 0.0,
+    this.locationLng = 0.0,
+    this.principalPhone = '',
   });
 
   factory HelpAcceptanceSummary.fromJson(Map<String, dynamic> json) =>
@@ -142,6 +155,14 @@ class HelpAcceptanceSummary {
         jobStatus: json['job_status'] as String? ?? '',
         jobId: json['job_id'] as String? ?? '',
         principalWorkerId: json['principal_worker_id'] as String? ?? '',
+        confirmedDate: json['confirmed_date'] != null
+            ? DateTime.parse(json['confirmed_date'] as String)
+            : null,
+        confirmedTime: json['confirmed_time'] as String?,
+        addressText: json['address_text'] as String? ?? '',
+        locationLat: (json['location_lat'] as num?)?.toDouble() ?? 0.0,
+        locationLng: (json['location_lng'] as num?)?.toDouble() ?? 0.0,
+        principalPhone: json['principal_phone'] as String? ?? '',
       );
 }
 

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
+import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
 
@@ -433,6 +437,12 @@ class _AcceptedCard extends ConsumerStatefulWidget {
 }
 
 class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
+  Future<void> _openWhatsApp(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
+    final uri = Uri.parse('https://wa.me/$clean');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -444,6 +454,10 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
     final ratingAsync = jobId.isNotEmpty
         ? ref.watch(myRatingForJobProvider(jobId))
         : const AsyncData<Rating?>(null);
+    final principalId = widget.acceptance.principalWorkerId;
+    final principalRatingSummary = principalId.isNotEmpty
+        ? ref.watch(ratingSummaryProvider(principalId)).asData?.value
+        : null;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -477,9 +491,38 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
               ],
             ),
             const SizedBox(height: 6),
-            _Meta(
-              icon: Icons.person_outline,
-              label: 'Principal: ${widget.acceptance.principalName}',
+            Row(
+              children: [
+                Expanded(
+                  child: _Meta(
+                    icon: Icons.person_outline,
+                    label: 'Principal: ${widget.acceptance.principalName}',
+                  ),
+                ),
+                if (principalRatingSummary != null &&
+                    principalRatingSummary.ratingCount > 0)
+                  GestureDetector(
+                    onTap: () => showRatingsSheet(
+                      context,
+                      workerId: principalId,
+                      workerName: widget.acceptance.principalName,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            size: 12, color: Colors.amber),
+                        const SizedBox(width: 2),
+                        Text(
+                          principalRatingSummary.avgRating.toStringAsFixed(1),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             if (widget.acceptance.agreedRate > 0) ...[
               const SizedBox(height: 4),
@@ -487,6 +530,38 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 icon: Icons.euro_outlined,
                 label:
                     '${widget.acceptance.agreedRate.toStringAsFixed(2).replaceAll('.', ',')} €/h acordado',
+              ),
+            ],
+            if (widget.acceptance.confirmedDate != null) ...[
+              const SizedBox(height: 4),
+              _Meta(
+                icon: Icons.event_available_outlined,
+                label: _scheduleLabel(
+                  widget.acceptance.confirmedDate!,
+                  widget.acceptance.confirmedTime,
+                ),
+              ),
+            ],
+            if (widget.acceptance.addressText.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              AddressMapLink(
+                address: widget.acceptance.addressText,
+                lat: widget.acceptance.locationLat,
+                lng: widget.acceptance.locationLng,
+              ),
+            ],
+            if (widget.acceptance.principalPhone.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _openWhatsApp(widget.acceptance.principalPhone),
+                icon: const Icon(Icons.chat_outlined, size: 18),
+                label: const Text('Contactar principal via WhatsApp'),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  textStyle: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
             const SizedBox(height: 12),
@@ -778,4 +853,11 @@ class _Meta extends StatelessWidget {
       ],
     );
   }
+}
+
+String _scheduleLabel(DateTime date, String? time) {
+  final dateStr = DateFormat('dd/MM/yyyy').format(date);
+  if (time == null) return dateStr;
+  final timeStr = time.length >= 5 ? time.substring(0, 5) : time;
+  return '$dateStr às $timeStr';
 }

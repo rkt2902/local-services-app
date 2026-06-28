@@ -17,6 +17,7 @@ import '../../../core/widgets/status_timeline.dart';
 import '../application/job_timeline.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
+import '../../ratings/presentation/ratings_sheet.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
 
@@ -263,7 +264,7 @@ class _ClientJobDetailScreenState
                       style: Theme.of(ctx).textTheme.titleLarge),
                   const SizedBox(height: 8),
                   Text(
-                    'Descreve o que aconteceu. A nossa equipa vai rever o caso.',
+                    'Descreve o que aconteceu. O teu relato fica registado para referência futura.',
                     style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   ),
@@ -1019,6 +1020,8 @@ class _ProposalCard extends ConsumerWidget {
     final workerName = workerNameAsync.asData?.value.isNotEmpty == true
         ? workerNameAsync.asData!.value
         : '—';
+    final ratingSummary =
+        ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
 
     final estimateStr = _formatEstimate(
         proposal.hourlyRate,
@@ -1042,6 +1045,29 @@ class _ProposalCard extends ConsumerWidget {
               Expanded(
                 child: Text(workerName, style: theme.textTheme.titleMedium),
               ),
+              if (ratingSummary != null && ratingSummary.ratingCount > 0)
+                GestureDetector(
+                  onTap: () => showRatingsSheet(
+                    context,
+                    workerId: proposal.workerId,
+                    workerName: workerName,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded,
+                          size: 14, color: Colors.amber),
+                      const SizedBox(width: 2),
+                      Text(
+                        ratingSummary.avgRating.toStringAsFixed(1),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ]),
             const Divider(height: 20),
             _cardRow(context, Icons.euro_outlined,

@@ -847,6 +847,152 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 ---
 
+## Revisão conceptual 2026-06-27
+
+> Revisão de produto de nível conceptual — avalia se o sistema como um todo é coerente, não
+> audita código linha a linha. Cobre: coerência da máquina de estados, interações
+> entre Fase 9 (equipa) e Fase 11 (avaliações), completude de notificações, lacunas
+> conceptuais e pontos de confusão para novos utilizadores.
+>
+> Itens com código **RCB** são bugs de engenharia sem ambiguidade de produto — corrigir
+> diretamente. Itens com código **RC** requerem uma decisão de produto de Henrique antes
+> de qualquer alteração de código.
+
+---
+
+### Bugs claros (sem ambiguidade de produto — corrigir diretamente)
+
+**RCB1 — `withdraw_help_acceptance` não valida o estado do job ✅ RESOLVIDO 2026-06-27**
+
+Guarda adicionada em migration 0023: SELECT `job_requests.status` via `help_requests.job_id`;
+RAISE EXCEPTION se o job não estiver em `'confirmed'` ou `'awaiting_confirmation'`.
+Ver `decisions_log.md` — entrada 2026-06-27.
+
+---
+
+**RCB2 — `cancel_job` não move ajudantes aceites para um estado terminal ✅ RESOLVIDO 2026-06-27**
+
+`cancel_job` estendido em migration 0023: novo `UPDATE help_acceptances SET status = 'cancelled'
+WHERE status = 'accepted'`, colocado depois do INSERT de notificações `help_job_cancelled`
+(para preservar a sequência de notification → status change). RC1 desbloqueado: Henrique
+confirmou reutilizar `'cancelled'`. Ver `decisions_log.md` — entrada 2026-06-27.
+
+---
+
+**RCB3 — Texto enganoso em `job_reports` ✅ RESOLVIDO 2026-06-27**
+
+`client_job_detail_screen.dart:266` — texto substituído por
+`'Descreve o que aconteceu. O teu relato fica registado para referência futura.'`
+Ver `decisions_log.md` — entrada 2026-06-27.
+
+---
+
+### Decisões de produto pendentes (RC — aguardam input de Henrique)
+
+**RC1 — Qual o estado de um ajudante aceite quando o job é cancelado? ✅ RESOLVIDO 2026-06-27**
+
+Henrique decidiu: reutilizar `'cancelled'` existente. *"Foi só cancelado é info
+suficiente."* Sem novo status, sem migration de enum. Desbloqueou RCB2 (ver acima).
+
+---
+
+**RC2 — O cliente deve ver a composição da equipa?**
+
+Hoje, um cliente que contratou um trabalho para 3 pessoas vê exatamente o mesmo que
+um cliente com um trabalho solo: o nome e contacto do prestador principal. Não há
+visibilidade sobre:
+- Quantas vagas de ajudante existem
+- Quantas foram preenchidas
+- Quem são os ajudantes
+- Se um ajudante desistiu antes do trabalho
+
+A infraestrutura está pronta (RLS fix C3.2 pendente, dados existem), mas nenhuma
+UI de cliente foi planeada para isto.
+
+**O que precisa de decidir:** a transparência da equipa para o cliente é uma feature
+do MVP ou é deliberadamente opaca por design (o cliente contrata o principal, o
+principal gere a equipa)?
+
+---
+
+**RC3 — O ajudante deve ver a logística do job na app? ✅ RESOLVIDO 2026-06-27**
+
+Resolvido via migration 0022 + `AddressMapLink` widget. O ajudante aceite passa a ver
+em `_AcceptedCard`: data/hora confirmada, endereço tappable (abre Google Maps),
+e botão WhatsApp para o prestador principal. Ver `decisions_log.md` — entrada
+2026-06-27.
+
+---
+
+**RC4 — O cliente deve ser avisado que a sua avaliação se propaga a todos os
+ajudantes?**
+
+`submit_client_rating` aplica as mesmas estrelas ao prestador principal e a cada
+ajudante aceite, com uma única ação. O utilizador vê "Avaliar o trabalho" — sem
+menção de que esta avaliação também afeta 2 ou 3 outras pessoas que podem ter
+tido desempenhos distintos.
+
+**O que precisa de decidir:** 
+a) Manter como está (propagação silenciosa, simplicidade máxima)
+b) Acrescentar uma linha explicativa no sheet de avaliação: "Esta avaliação aplica-se
+   ao prestador e à equipa" — sem alterar o fluxo, só cópia
+c) Mostrar os nomes dos ajudantes no sheet para o cliente ter consciência de quem está
+   a avaliar
+
+---
+
+**RC5 — O cliente deve receber orientação quando um job expira sem propostas?**
+
+Quando um job expira para `no_response` após 48h, o cliente recebe uma notificação
+e o job fica em estado terminal. Não há indicação sobre porquê (zona sem cobertura?
+preço abaixo do mercado? serviço não disponível?) nem sugestão de o que fazer a seguir.
+
+O app sabe factos potencialmente úteis (nº de workers no raio quando o job foi criado,
+via trigger `on_job_created`). Com 0 workers notificados: a zona não tem cobertura. Com
+workers notificados e 0 propostas: pode ser preço ou urgência.
+
+**O que precisa de decidir:** simplificação máxima (sem guidance, o cliente recria do
+zero) vs. uma mensagem contextual mínima no ecrã de job expirado?
+
+---
+
+**RC6 — A janela de 3 dias para auto-confirmação deve ser visível na UI?**
+
+Após o worker marcar um job como concluído (`awaiting_confirmation`), o job é
+automaticamente confirmado ao fim de 3 dias se o cliente não responder. Nem o worker
+nem o cliente veem este prazo em lado nenhum — para o worker, parece que está a esperar
+indefinidamente; para o cliente, não há urgência percetível.
+
+**O que precisa de decidir:** mostrar contagem decrescente ("Confirmar nos próximos
+2 dias", calculado de `jobs.updated_at + 3 dias`) ou deixar sem indicação explícita?
+
+---
+
+### Notas de registo (sem decisão necessária, sem código para escrever)
+
+- **Notificação de equipa completa ausente:** quando `help_request.status` passa a
+  `filled` (todas as vagas preenchidas), o cliente não recebe nenhuma notificação.
+  Relacionado com RC2 — relevante só se RC2 decidir que o cliente tem visibilidade
+  da equipa.
+
+- **Workers com proposta pending não são notificados quando o cliente cancela um job
+  em `open`:** o job desaparece silenciosamente da lista deles. Não é um bug crítico
+  (o job genuinamente já não existe) mas é uma experiência confusa para um worker novo
+  que não sabe se o job foi aceite por outro, cancelado ou expirou.
+
+- **Horas reais trabalhadas nunca são capturadas:** o sistema sabe o que foi estimado
+  e acordado, mas não o que foi efetivamente trabalhado. Bloqueia qualquer dashboard de
+  ganhos preciso ("Quanto fiz este mês?") e qualquer lógica de faturação futura. A janela
+  para adicionar um campo `actual_hours_worked` é agora (junto à conclusão do job), não
+  depois de haver dados acumulados sem ele.
+
+- **`excluded_worker_ids` é opaco para o worker:** o worker excluído simplesmente vê o
+  job desaparecer da sua lista de descoberta, sem qualquer indicação de que foi excluído.
+  Sem mecanismo de recurso. Aceitável para MVP mas a registar para quando houver casos
+  reais de exclusão injusta.
+
+---
+
 ## UX e fluxo
 
 ### Comparação lado-a-lado de propostas

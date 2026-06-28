@@ -3,6 +3,97 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-27 — RCB1 + RCB2 + RCB3 (migration 0023 + 1-line Dart fix)
+
+### RCB1 — `withdraw_help_acceptance`: guarda de job-status adicionada
+
+A função não validava o estado do job pai — um ajudante podia "desistir" de um job
+já `completed` ou `cancelled`, o que enviava notificações `help_request_reopened`
+para uma vaga que já não existia.
+
+**Fix (migration 0023):** adicionado `v_job_status text` ao DECLARE e, depois das
+validações de propriedade e status da candidatura, um SELECT que lê
+`job_requests.status` via `help_requests.job_id`. Se o job não estiver em
+`'confirmed'` ou `'awaiting_confirmation'`, a função lança exceção antes de qualquer
+UPDATE ou notificação.
+
+### RCB2 — `cancel_job`: ajudantes aceites passam para `'cancelled'`
+
+A cascata de `cancel_job` (desde migration 0007) rejeitava apenas candidaturas
+`pending`, deixando as `accepted` no estado `'accepted'` indefinidamente após o
+job cancelar.
+
+**Decisão RC1 (Henrique):** reutilizar `'cancelled'` existente — *"foi só cancelado
+é info suficiente"*. Nenhum novo status necessário.
+
+**Fix (migration 0023):** um segundo `UPDATE help_acceptances SET status = 'cancelled'
+WHERE status = 'accepted'` adicionado **depois** do INSERT de notificações
+`help_job_cancelled` (que faz SELECT WHERE ha.status = 'accepted'). A ordem é
+intencional: a notificação precisa de encontrar os helpers ainda em `'accepted'`
+antes de os mover.
+
+### RCB3 — Texto de `job_reports` corrigido
+
+`client_job_detail_screen.dart:266` — substituído:
+> "Descreve o que aconteceu. A nossa equipa vai rever o caso."
+
+por:
+> "Descreve o que aconteceu. O teu relato fica registado para referência futura."
+
+`job_reports` é write-only (sem trigger, sem webhook, sem notificação). A promessa
+de revisão era falsa e poderia criar expectativas erradas nos utilizadores.
+
+---
+
+## 2026-06-27 — RC3 fix: ajudantes passam a ver logística do job (migration 0022)
+
+### Contexto
+
+Revisão conceptual 2026-06-27 (RC3 em `improvements.md`) identificou que um ajudante
+aceite não via dentro da app: data/hora confirmada, endereço do trabalho, nem contacto
+do prestador principal. Tinha de obter essa informação fora da app.
+
+### Extensão de `get_my_help_acceptances` (migration 0022)
+
+Mesmo padrão DROP + CREATE de migration 0021 (mudança de shape de RETURNS TABLE).
+Novos campos adicionados ao SELECT existente — o JOIN com `profiles p` já existia
+(para `principal_name`), bastou acrescentar `p.phone` e os campos de `job_requests`:
+
+| Coluna nova | Fonte | Notas |
+|---|---|---|
+| `confirmed_date` | `jr.confirmed_date` | nullable — null até job confirmado |
+| `confirmed_time` | `jr.confirmed_time` | nullable — "HH:MM:SS" do PostgreSQL |
+| `address_text` | `jr.address_text` | string vazia se não preenchida |
+| `location_lat` | `jr.location_lat` | numeric |
+| `location_lng` | `jr.location_lng` | numeric |
+| `principal_phone` | `p.phone` | nullable — string vazia se null |
+
+`HelpAcceptanceSummary` (Dart) extendido com 6 campos retrocompatíveis (defaults
+seguros: `null` para datas, `''` para strings, `0.0` para coords).
+
+### Widget reutilizável: `AddressMapLink`
+
+`lib/core/widgets/address_map_link.dart` — `StatelessWidget` que:
+- Recebe `address` (String), `lat` (double), `lng` (double)
+- Renderiza uma linha tappable (ícone de mapa + texto sublinhado + seta de abertura)
+- Abre `https://www.google.com/maps/search/?api=1&query=lat,lng` via `url_launcher`
+  (`LaunchMode.externalApplication` — mesmo modo usado para WhatsApp)
+- Padding idêntico ao `_infoRow` existente (6px vertical) para manter consistência visual
+
+Aplicado em dois locais:
+- `worker_help_requests_screen.dart` — `_AcceptedCard`: ajudante vê data agendada,
+  link de mapa e botão WhatsApp para o principal (todos condicionais: só renderiza se
+  o campo não for null/vazio)
+- `worker_my_job_detail_screen.dart` — prestador principal: endereço do job passa de
+  `_infoRow` estático para `AddressMapLink` tappable
+
+### Cliente explicitamente excluído
+
+`AddressMapLink` não é adicionado a nenhum ecrã de cliente. O cliente criou o job e
+conhece o endereço — não precisa de direções para o seu próprio local.
+
+---
+
 ## 2026-06-26 — Fase 11 (Avaliações): design e implementação
 
 ### Quatro relações de avaliação

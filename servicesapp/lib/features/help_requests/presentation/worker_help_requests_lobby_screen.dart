@@ -5,6 +5,8 @@ import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/data/proposal_model.dart';
+import '../../ratings/application/rating_providers.dart';
+import '../../ratings/presentation/ratings_sheet.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
@@ -484,7 +486,7 @@ class _PrincipalHeader extends StatelessWidget {
 
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
-class _CandidateCard extends StatelessWidget {
+class _CandidateCard extends ConsumerWidget {
   const _CandidateCard({
     required this.acceptance,
     required this.candidateName,
@@ -506,8 +508,10 @@ class _CandidateCard extends StatelessWidget {
   final VoidCallback? onReject;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final ratingSummary =
+        ref.watch(ratingSummaryProvider(acceptance.workerId)).asData?.value;
 
     final hasAvatar =
         candidateAvatarUrl != null && candidateAvatarUrl!.isNotEmpty;
@@ -586,6 +590,28 @@ class _CandidateCard extends StatelessWidget {
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
+                  if (ratingSummary != null && ratingSummary.ratingCount > 0)
+                    GestureDetector(
+                      onTap: () => showRatingsSheet(
+                        context,
+                        workerId: acceptance.workerId,
+                        workerName: candidateName,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              size: 12, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            ratingSummary.avgRating.toStringAsFixed(1),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 2),
                   Text(
                     acceptance.broughtEquipment

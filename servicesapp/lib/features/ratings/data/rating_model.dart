@@ -6,6 +6,8 @@ class Rating {
   final int stars;
   final String? comment;
   final DateTime createdAt;
+  // Populated only when fetched via fetchRatingsWithRaterNames
+  final String? raterName;
 
   const Rating({
     required this.id,
@@ -15,6 +17,7 @@ class Rating {
     required this.stars,
     this.comment,
     required this.createdAt,
+    this.raterName,
   });
 
   factory Rating.fromJson(Map<String, dynamic> json) => Rating(
@@ -25,8 +28,12 @@ class Rating {
         stars: json['stars'] as int,
         comment: json['comment'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
+        raterName: (json['rater'] as Map<String, dynamic>?)?['full_name']
+            as String?,
       );
 }
+
+typedef RatingSummary = ({double avgRating, int ratingCount});
 
 class AcceptedHelper {
   final String workerId;

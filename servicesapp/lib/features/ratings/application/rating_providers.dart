@@ -7,6 +7,20 @@ import '../data/rating_repository.dart';
 export '../data/rating_model.dart';
 export '../data/rating_repository.dart';
 
+/// Aggregated rating stats for a worker (avg + count), keyed by workerId.
+final ratingSummaryProvider =
+    FutureProvider.family<RatingSummary, String>((ref, workerId) {
+  return ref.read(ratingRepositoryProvider).fetchRatingSummary(workerId);
+});
+
+/// All ratings for a worker with rater name joined, keyed by workerId.
+final ratingsWithNamesProvider =
+    FutureProvider.family<List<Rating>, String>((ref, workerId) {
+  return ref
+      .read(ratingRepositoryProvider)
+      .fetchRatingsWithRaterNames(workerId);
+});
+
 final ratingRepositoryProvider = Provider<RatingRepository>(
   (ref) => RatingRepository(ref.watch(supabaseClientProvider)),
 );

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/worker_providers.dart';
 import '../data/worker_profile_model.dart';
 
@@ -503,6 +504,24 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 32),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final userId = ref
+                          .read(supabaseClientProvider)
+                          .auth
+                          .currentUser
+                          ?.id;
+                      if (userId == null) return;
+                      showRatingsSheet(
+                        context,
+                        workerId: userId,
+                        workerName: 'As minhas avaliações',
+                      );
+                    },
+                    icon: const Icon(Icons.star_outline_rounded),
+                    label: const Text('Ver as minhas avaliações'),
+                  ),
+                  const SizedBox(height: 12),
                   FilledButton(
                     onPressed: _saving ? null : () => _save(profile),
                     child: _saving

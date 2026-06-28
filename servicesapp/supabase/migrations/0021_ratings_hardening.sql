@@ -1,16 +1,31 @@
 -- ============================================================
 -- 0021_ratings_hardening.sql  — Fase 11 (Avaliações)
 -- Apply manually via Supabase SQL Editor.
+-- Corrected: DROP FUNCTION before changing get_my_help_acceptances'
+-- return shape (CREATE OR REPLACE cannot alter OUT-parameter columns).
+-- Section 1 uses IF NOT EXISTS-safe pattern in case it already applied
+-- from a prior partial run.
 -- ============================================================
 
 -- 1. Schema hardening: rater cannot be the same person as ratee
-ALTER TABLE ratings
-  ADD CONSTRAINT check_rater_not_ratee CHECK (rater_id <> ratee_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'ratings'::regclass AND conname = 'check_rater_not_ratee'
+  ) THEN
+    ALTER TABLE ratings
+      ADD CONSTRAINT check_rater_not_ratee CHECK (rater_id <> ratee_id);
+  END IF;
+END $$;
 
 
 -- 2. Update get_my_help_acceptances to expose job_id + principal_worker_id
 --    (needed so the helper card can call submit_helper_rating without extra round-trips)
-CREATE OR REPLACE FUNCTION get_my_help_acceptances()
+--    Must DROP first: CREATE OR REPLACE cannot change the RETURNS TABLE column set.
+DROP FUNCTION IF EXISTS get_my_help_acceptances();
+
+CREATE FUNCTION get_my_help_acceptances()
 RETURNS TABLE(
   id                  uuid,
   help_request_id     uuid,
@@ -55,7 +70,10 @@ $$;
 -- 3. get_accepted_helpers_for_job
 --    Returns the worker_id + full_name of each accepted helper for a job.
 --    Only succeeds when the caller is the principal (accepted proposal worker).
-CREATE OR REPLACE FUNCTION get_accepted_helpers_for_job(p_job_id uuid)
+--    New function — no prior overload, DROP IF EXISTS is precautionary only.
+DROP FUNCTION IF EXISTS get_accepted_helpers_for_job(uuid);
+
+CREATE FUNCTION get_accepted_helpers_for_job(p_job_id uuid)
 RETURNS TABLE(
   worker_id  uuid,
   full_name  text

@@ -94,4 +94,28 @@ class RatingRepository {
         .map((e) => Rating.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<RatingSummary> fetchRatingSummary(String workerId) async {
+    final data = await _client
+        .from('worker_rating_summary')
+        .select()
+        .eq('worker_id', workerId)
+        .maybeSingle();
+    if (data == null) return (avgRating: 0.0, ratingCount: 0);
+    return (
+      avgRating: (data['avg_rating'] as num).toDouble(),
+      ratingCount: (data['rating_count'] as num).toInt(),
+    );
+  }
+
+  Future<List<Rating>> fetchRatingsWithRaterNames(String workerId) async {
+    final data = await _client
+        .from('ratings')
+        .select('*, rater:profiles!rater_id(full_name)')
+        .eq('ratee_id', workerId)
+        .order('created_at', ascending: false);
+    return (data as List)
+        .map((e) => Rating.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }

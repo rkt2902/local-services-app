@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
@@ -297,8 +298,11 @@ class _WorkerMyJobDetailScreenState
               _infoRow(context, Icons.calendar_today_outlined, 'Data',
                   _formatDate(widget.job.preferredDate)),
               if (widget.job.addressText.isNotEmpty)
-                _infoRow(context, Icons.place_outlined, 'Localização',
-                    widget.job.addressText),
+                AddressMapLink(
+                  address: widget.job.addressText,
+                  lat: widget.job.locationLat,
+                  lng: widget.job.locationLng,
+                ),
               _infoRow(
                   context,
                   Icons.bolt_outlined,
