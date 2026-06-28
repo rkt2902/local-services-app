@@ -16,6 +16,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
+import '../../help_requests/application/help_request_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -184,6 +185,115 @@ class _WorkerMyJobDetailScreenState
     final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
     final uri = Uri.parse('https://wa.me/$clean');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _showAddHelperSheet() async {
+    int slotsNeeded = 1;
+    bool equipmentRequired = false;
+    bool loading = false;
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              24, 24, 24,
+              24 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Adicionar ajudante',
+                  style: Theme.of(sheetCtx).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Quantos ajudantes precisas?',
+                        style: Theme.of(sheetCtx).textTheme.bodyMedium,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.remove),
+                      onPressed: slotsNeeded <= 1
+                          ? null
+                          : () => setSheetState(() => slotsNeeded--),
+                    ),
+                    Text(
+                      '$slotsNeeded',
+                      style: Theme.of(sheetCtx).textTheme.titleMedium,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => setSheetState(() => slotsNeeded++),
+                    ),
+                  ],
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Exigir equipamento próprio'),
+                  value: equipmentRequired,
+                  onChanged: loading
+                      ? null
+                      : (v) =>
+                          setSheetState(() => equipmentRequired = v ?? false),
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: loading
+                      ? null
+                      : () async {
+                          setSheetState(() => loading = true);
+                          final scaffold = ScaffoldMessenger.of(context);
+                          try {
+                            await ref
+                                .read(helpRequestRepositoryProvider)
+                                .createHelpRequest(
+                                  jobId: widget.job.id,
+                                  proposalId: widget.proposal.id,
+                                  slotsNeeded: slotsNeeded,
+                                  equipmentRequired: equipmentRequired,
+                                  createdPostConfirmation: true,
+                                );
+                            ref.invalidate(
+                                helpRequestsForJobProvider(widget.job.id));
+                            if (mounted) Navigator.of(context).pop();
+                            scaffold.showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Pedido de ajuda enviado para aprovação do cliente.'),
+                            ));
+                          } catch (e) {
+                            scaffold.showSnackBar(SnackBar(
+                              content: Text(friendlyError(e)),
+                              backgroundColor: Colors.red,
+                            ));
+                            setSheetState(() => loading = false);
+                          }
+                        },
+                  child: loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enviar pedido'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _markCompleted() async {
@@ -546,29 +656,17 @@ class _WorkerMyJobDetailScreenState
                 },
               ),
               const SizedBox(height: 16),
-              if (widget.proposal.peopleNeeded > 1) ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Icon(Icons.info_outline,
-                          color: theme.colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Este trabalho requer '
-                          '${widget.proposal.peopleNeeded} pessoas. '
-                          'A funcionalidade de equipa estará disponível em breve.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ]),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
               // Cancel + reschedule buttons — only when job is live-confirmed
               if (liveJobStatus == JobStatus.confirmed) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _showAddHelperSheet,
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: const Text('Adicionar ajudante'),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (widget.job.rescheduleStatus == RescheduleStatus.pending)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),

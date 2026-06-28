@@ -15,6 +15,8 @@ import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../application/job_timeline.dart';
+import '../../help_requests/application/help_request_providers.dart';
+import '../../help_requests/data/help_request_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
 import '../../ratings/presentation/ratings_sheet.dart';
@@ -38,6 +40,7 @@ class _ClientJobDetailScreenState
   bool _proposingReschedule = false;
   bool _confirming = false;
   final Map<String, bool> _accepting = {};
+  final Set<String> _approvingHelp = {};
   String _sortBy = 'price';
 
   @override
@@ -434,6 +437,27 @@ class _ClientJobDetailScreenState
     );
   }
 
+  Future<void> _approveHelpRequest(String helpRequestId) async {
+    setState(() => _approvingHelp.add(helpRequestId));
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(helpRequestRepositoryProvider)
+          .approveHelpRequest(helpRequestId);
+      ref.invalidate(helpRequestsForJobProvider(_job.id));
+      scaffold.showSnackBar(const SnackBar(
+        content: Text('Equipa aprovada! O prestador pode agora procurar ajudantes.'),
+      ));
+    } catch (e) {
+      scaffold.showSnackBar(SnackBar(
+        content: Text(friendlyError(e)),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) setState(() => _approvingHelp.remove(helpRequestId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -454,6 +478,13 @@ class _ClientJobDetailScreenState
         ref.watch(jobByIdProvider(_job.id)).asData?.value ?? _job;
 
     final ratingAsync = ref.watch(myRatingForJobProvider(displayJob.id));
+    final pendingHelpRequests = (ref
+            .watch(helpRequestsForJobProvider(_job.id))
+            .asData
+            ?.value ??
+        [])
+        .where((hr) => hr.status == HelpRequestStatus.pendingApproval)
+        .toList();
 
     final (statusLabel, statusColor) =
         _statusInfo(displayJob.status, displayJob.proposalCount);
@@ -752,6 +783,15 @@ class _ClientJobDetailScreenState
           const SizedBox(height: 8),
           _workerContactCard(workerInfoAsync, theme),
           const SizedBox(height: 16),
+          // Pending-approval help requests — worker asked for extra team, client must approve
+          if (pendingHelpRequests.isNotEmpty) ...[
+            ...pendingHelpRequests.map((hr) => _PendingHelpRequestCard(
+                  helpRequest: hr,
+                  approving: _approvingHelp.contains(hr.id),
+                  onApprove: () => _approveHelpRequest(hr.id),
+                )),
+            const SizedBox(height: 8),
+          ],
           // Cancel + reschedule buttons
           if (_job.rescheduleStatus == RescheduleStatus.pending) ...[
             if (_job.rescheduleProposedBy == currentUserId)
@@ -1240,6 +1280,67 @@ class _DetailSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Column(children: children),
+      ),
+    );
+  }
+}
+
+class _PendingHelpRequestCard extends StatelessWidget {
+  const _PendingHelpRequestCard({
+    required this.helpRequest,
+    required this.approving,
+    required this.onApprove,
+  });
+
+  final HelpRequest helpRequest;
+  final bool approving;
+  final VoidCallback onApprove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.secondaryContainer,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Icon(Icons.group_add_outlined,
+                  color: theme.colorScheme.onSecondaryContainer, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'O prestador pediu ajuda extra para este trabalho',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Text(
+              '${helpRequest.slotsNeeded} '
+              'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
+              '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: approving ? null : onApprove,
+              child: approving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Aprovar equipa'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -624,15 +624,9 @@ Após candidatura bem-sucedida e navegação/rebuild, `_appliedIds` está vazio.
 
 ---
 
-**P-9-5 — `pending_approval` UI: gap intencional RE-CONFIRMADO como correto. Infraestrutura toda verificada — nenhuma ação necessária até ao path de criação manual pelo worker principal existir na UI**
+**P-9-5 — ~~`pending_approval` UI: gap intencional~~ RESOLVIDO 2026-06-28**
 
-Infraestrutura verificada e correta:
-- `approve_help_request` RPC (`0003:151`): valida `status = 'pending_approval'`, verifica `v_job_client_id = auth.uid()`, muda para `open`, notifica principal ✅
-- RLS policy "Cliente vê help requests pendentes de aprovação" (`0003:94`) ✅
-- `approveHelpRequest` em `help_request_repository.dart:125` ✅
-- `createHelpRequest` Dart escolhe `pendingApproval` vs `open` conforme `createdPostConfirmation` ✅
-
-O fluxo `accept_proposal` cria com `created_post_confirmation = false` → gap não afeta MVP principal.
+Botão "Adicionar ajudante" adicionado em `worker_my_job_detail_screen.dart` (bloco `liveJobStatus == confirmed`); card "Aprovar equipa" adicionado em `client_job_detail_screen.dart` (secção confirmed). Fluxo completo de ponta a ponta: principal cria → cliente aprova → `helpRequestApproved` notifica principal → lobby de candidatos. Ver `decisions_log.md 2026-06-28`.
 
 ---
 
@@ -668,9 +662,7 @@ Só migration, sem mudanças Dart. O `_appliedIds` torna-se irrelevante (pode se
 
 ### Melhorias — Média prioridade
 
-**M3 — Implementar UI de `pending_approval` quando a Fase 11+ introduzir criação manual de help_request pelo principal worker — não antes (resolve P-9-5)**
-
-Infraestrutura pronta; UI bloqueada por ausência do path de criação. Quando implementar: secção em `client_job_detail_screen.dart` listando `pending_approval` help_requests com botão "Aprovar" que chama `approveHelpRequest`.
+**~~M3 — Implementar UI de `pending_approval`~~ RESOLVIDO 2026-06-28 (ver P-9-5 acima)**
 
 ---
 

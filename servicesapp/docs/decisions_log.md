@@ -3,6 +3,34 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-28 — Desbloqueado fluxo `pending_approval` (inventário backend-sem-UI)
+
+Dois pontos de entrada de UI adicionados para o fluxo de expansão de equipa pós-confirmação, identificado no inventário de 2026-06-28 como "backend completo, zero UI".
+
+### Lado do principal (`worker_my_job_detail_screen.dart`)
+
+Botão **"Adicionar ajudante"** (`OutlinedButton.icon`, ícone `group_add_outlined`) dentro do bloco `liveJobStatus == JobStatus.confirmed`. Toca abre um `showModalBottomSheet` com `StatefulBuilder`:
+- Stepper de quantidade (mín. 1) — `slotsNeeded`
+- `CheckboxListTile` "Exigir equipamento próprio" — `equipmentRequired`
+- Botão "Enviar pedido" chama `createHelpRequest(createdPostConfirmation: true)` → cria `help_request` com status `pending_approval`
+- Sucesso: SnackBar "Pedido de ajuda enviado para aprovação do cliente." + invalida `helpRequestsForJobProvider`
+- Removido o card placeholder "A funcionalidade de equipa estará disponível em breve." (já não necessário)
+
+### Lado do cliente (`client_job_detail_screen.dart`)
+
+Card **`_PendingHelpRequestCard`** (widget privado, cor `secondaryContainer`) injetado na secção `confirmed` logo após o `_workerContactCard`. Aparece para cada `help_request` com `status == pending_approval` (RLS já filtra — clientes só veem `pending_approval`):
+- Ícone + texto "O prestador pediu ajuda extra para este trabalho"
+- Linha de detalhe: nº de ajudantes + indicador de equipamento
+- Botão "Aprovar equipa" chama `approveHelpRequest(helpRequestId)` → muda para `open`, notifica principal
+- Sucesso: SnackBar "Equipa aprovada! O prestador pode agora procurar ajudantes." + invalida `helpRequestsForJobProvider`
+- Se não houver `pending_approval` para o job, nada é renderizado (sem clutter de estado vazio)
+
+### Notificação `helpRequestApproved` — sem alteração necessária
+
+`notification_handler.dart` já encaminha `helpRequestApproved` para o lobby do principal com job + proposal objects resolvidos (`/worker/job/{jobId}/help-requests`). O fluxo de ponta a ponta está completo sem alteração no handler.
+
+---
+
 ## 2026-06-27 — RCB1 + RCB2 + RCB3 (migration 0023 + 1-line Dart fix)
 
 ### RCB1 — `withdraw_help_acceptance`: guarda de job-status adicionada
