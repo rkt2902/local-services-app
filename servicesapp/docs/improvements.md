@@ -60,6 +60,8 @@ Estas rotas fazem `state.extra!` (null assertion) no builder:
 
 Navegação direta (deep link, back/forward do sistema, ou acesso cross-role de P5) lança `Null check operator used on a null value` antes de o ecrã renderizar. Deep links para qualquer job individual são impossíveis enquanto este padrão persistir.
 
+> **⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.** T1 (desync de propostas — snapshot stale passado em `state.extra` diverge do estado real da BD) e T3 (red screen `Null check operator` durante navegação na área de jobs) são sintomas diretos confirmados em teste real em dispositivo. Tratar como Tier 0/1, não mais como melhoria diferida. Ver secção "Sessão de testes manuais — 2026-06-29".
+
 **P7 — `architecture.md` tem diagrama de pastas obsoleto**
 O diagrama em `docs/architecture.md` lista `ratings/` (não existe — Fase 11 por implementar) mas omite `notifications/` (totalmente implementado, com estrutura própria `data/`, `application/`, `presentation/`). Um novo developer que leia o diagrama vai à procura de uma pasta inexistente e não encontra a que existe.
 
@@ -531,6 +533,8 @@ Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = nul
 
 `notification_handler.dart:28`: navega para `/client/jobs` ou `/worker/home` em vez do job concreto. O `related_id` está disponível mas não é usado para navegação. Ligado ao P6 da auditoria de Fases 0-3 (`state.extra!` impede deep-link às rotas de detalhe). Torna-se acionável após a implementação de A2 dessa auditoria (routing baseado em ID).
 
+> **⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.** T1 (desync de propostas causado por snapshot stale em `state.extra` em vez de fetch reativo por ID) e T6 (Henrique confirmou explicitamente que cada notificação deve navegar para o item exato a que se refere) confirmam impacto real em produção. Tratar como Tier 0/1 em conjunto com P6. Ver secção "Sessão de testes manuais — 2026-06-29".
+
 ---
 
 ### Melhorias — Média prioridade
@@ -563,9 +567,9 @@ Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos
 
 ### Melhorias — Baixa prioridade
 
-**B1 — Deep-link de notificações para o job específico (resolve P-8-9, bloqueado por Fases 0-3 A2)**
+**B1 — Deep-link de notificações para o job específico (resolve P-8-9, bloqueado por Fases 0-3 A2) — ⚠️ RE-PRIORIZADO TIER 0/1 em 2026-06-29**
 
-`related_id` disponível em todas as notificações de job. Navegação para o job concreto torna-se implementável após A2 da auditoria de Fases 0-3 (routing baseado em ID em vez de `state.extra`).
+`related_id` disponível em todas as notificações de job. Navegação para o job concreto torna-se implementável após A2 da auditoria de Fases 0-3 (routing baseado em ID em vez de `state.extra`). Este item deixou de ser diferido — T1, T3 e T6 da sessão de testes 2026-06-29 confirmam impacto real em produção. Bloqueia a resolução de T1 e T3.
 
 **B2 — `RescheduleDialog`: confirmar se impede seleção de data passada/mesmo dia**
 
@@ -804,7 +808,7 @@ O worker pode marcar como concluído antes da data confirmada — a BD não vali
 
 ### Totalmente resolvidos em código
 
-- **P-67-1** *(Fases 6-7)* — `/worker/setup` ausente de `loadingExempt`: adicionado em `app_router.dart` (2026-06-26). Elimina perda silenciosa do formulário de setup após token refresh do Supabase (60 min).
+- **P-67-1** *(Fases 6-7)* — `/worker/setup` ausente de `loadingExempt`: adicionado em `app_router.dart` (2026-06-26). Elimina perda silenciosa do formulário de setup após token refresh do Supabase (60 min). **Seguimento (2026-06-28):** fix original necessária mas não suficiente — confirmado via bug real que `/worker/profile`, `/client/profile` e `/client/create-job` tinham a mesma vulnerabilidade (ImagePicker + Geolocator disparam o mesmo redirect). Todas adicionadas a `loadingExempt` em `app_router.dart` (2026-06-28). Ver `decisions_log.md` 2026-06-28.
 - **P5** *(Fases 0-3)* — Sem guard cross-role no router: guard adicionado em `app_router.dart` após o bloco `role == null` (2026-06-26). **Mitigação parcial** — actualmente o acesso cross-role já causava crash (P6, `state.extra!`), pelo que o guard intercepta antes do crash. Após P6 ser corrigido (routing baseado em ID), o guard torna-se a protecção primária contra estado vazio silencioso com dados do UID errado. P6 continua aberto.
 - **P-67-3** *(Fases 6-7)* — SnackBar de erro de `client_profile_screen.dart` mostrava exceção em bruto: substituído por `friendlyError(e)` (2026-06-26).
 - **P-67-4** *(Fases 6-7)* — Widget `error:` de service types em `worker_setup_screen.dart` e `worker_profile_screen.dart` mostrava exceção em bruto: substituído por `${friendlyError(e)}` em ambos (2026-06-26).
@@ -982,6 +986,111 @@ indefinidamente; para o cliente, não há urgência percetível.
   job desaparecer da sua lista de descoberta, sem qualquer indicação de que foi excluído.
   Sem mecanismo de recurso. Aceitável para MVP mas a registar para quando houver casos
   reais de exclusão injusta.
+
+---
+
+## Sessão de testes manuais — 2026-06-29
+
+> Testes manuais em dispositivo físico por Henrique. 6 screenshots capturados como evidência (Henrique tem os originais). Todos os findings foram observados diretamente — não inferidos de análise estática.
+>
+> Itens com código **T1–T6** estável para referência cruzada. Nenhum ficheiro `.dart` ou `.sql` foi alterado nesta sessão — só documentação. Findings T1 e T3 confirmam impacto real de P6 e P-8-9 (ver notas de re-priorização nessas entradas).
+
+---
+
+### Bugs confirmados
+
+**T1 — Desync de estado de propostas (screenshots 1-2, severidade: ALTA)**
+
+O card de job na home do cliente mostra badge **"1 proposta"**. Ao abrir o detalhe desse mesmo job:
+- A pill de status no topo mostra **"À espera de proposta"** (implica `proposal_count = 0`)
+- O header da tab no mesmo ecrã mostra **"Propostas (1)"** (confirma 1 proposta existente)
+
+Dois elementos de UI no mesmo ecrã apresentam estados contraditórios sobre o mesmo job. Resolvido por força-close e reabertura da app — confirma que o estado in-memory divergiu do estado real da BD, não que a BD esteja inconsistente.
+
+**Causa provável:** o ecrã de detalhe recebe o `JobRequest` via `state.extra` — uma snapshot estática capturada no momento da navegação a partir de `clientJobsProvider`. Se a notificação de `proposal_received` chegou e `ref.invalidate(clientJobsProvider)` foi chamado, mas a re-build do card na lista ainda não completou quando o utilizador tocou para abrir o detalhe, o `state.extra` contém o snapshot com `proposal_count = 0`. O ecrã de detalhe renderiza esse snapshot obsoleto enquanto a tab "Propostas (1)" vem de uma query separada que já reflete o estado atual. Este é um sintoma direto do padrão `state.extra` (P6) — ecrãs ID-based resolveriam via provider reativo e nunca teriam snapshot stale.
+
+**Relacionado:** P6 (Fases 0-3), P-8-9 (Fase 8), T3, T6. Ver notas de re-priorização em P6 e P-8-9.
+
+---
+
+**T2 — Overflow de renderização no card de contacto do worker (screenshot 3, severidade: MÉDIA)**
+
+Banner de debug visível **"OVERFLOWED BY 52 PIXELS"** no card de contacto do worker no ecrã de detalhe do cliente (`client_job_detail_screen.dart`), bordo direito, para jobs em estado `confirmed`.
+
+**Causa provável:** o `_workerContactCard()` usa uma `Row` com elementos de texto (nome do worker) e um botão WhatsApp. Se o nome for suficientemente longo, o texto não faz wrap porque não está dentro de `Expanded` ou `Flexible` — empurra o botão para fora dos limites da linha. O overflow de 52px é consistente com um botão de ação deslocado para a direita.
+
+**Ficheiro:** `lib/features/jobs/presentation/client_job_detail_screen.dart` — método `_workerContactCard()` (introduzido em 2026-06-25 para estender o card a `awaitingConfirmation` e `completed`).
+
+**Fix indicado:** envolver o widget de texto do nome em `Expanded` ou `Flexible` com `overflow: TextOverflow.ellipsis`.
+
+---
+
+**T3 — Red screen: `Null check operator used on a null value` (screenshot 4, severidade: CRÍTICA)**
+
+Crash com ecrã vermelho durante navegação na área de lista de jobs. Henrique não confirmou a ação exata que o desencadeou.
+
+**Causa provável:** alta correlação com P6. Quatro rotas fazem `state.extra!` (null assertion) no builder sem fallback:
+
+| Rota | Ficheiro |
+|---|---|
+| `/client/job/:id` | `app_router.dart:73` |
+| `/worker/job/:id` | `app_router.dart:92` |
+| `/worker/my-job/:id` | `app_router.dart:104` |
+| `/worker/job/:id/help-requests` | `app_router.dart:113` |
+
+Se qualquer mecanismo de navegação atingir uma destas rotas sem `state.extra` preenchido (notificação com `context.go('/client/job/$id')` sem extra, navegação após redirect do router que descartou o extra, back/forward do sistema), o `state.extra!` lança antes de o ecrã renderizar. O fix estrutural é A2 da auditoria de Fases 0-3 (routing baseado em ID: receber `jobId` via path parameter e fazer fetch via provider).
+
+**Relacionado:** P6 (Fases 0-3), T1, T6.
+
+---
+
+**T4 — Red screen: `'_dependents.isEmpty': is not true` — reproduzido 2× (screenshots 5-6, severidade: CRÍTICA)**
+
+Assertion do framework Flutter (`ChangeNotifier`), reproduzida em duas sessões diferentes e sempre no mesmo contexto: fluxo de "Confirmar conclusão?" no ecrã de detalhe do worker (`worker_my_job_detail_screen.dart`).
+
+Esta assertion é lançada quando `notifyListeners()` é chamado num `ChangeNotifier` que ainda tem listeners registados que já foram descartados (disposed). Significa que um widget ficou subscrito a um notificador e foi destruído, mas o notificador continuou a disparar notificações para ele.
+
+**Causa provável:** o `AlertDialog` de confirmação de conclusão é aberto via `showDialog()`. Quando confirma (ou cancela), o diálogo fecha e o seu State é descartado. Nesse momento, se:
+- O `RouterNotifier` (que chama `notifyListeners()` em cada tick de auth/token-refresh) disparar durante o dispose do diálogo, **ou**
+- O callback de sucesso do RPC (`ref.invalidate(...)`) desencadear uma rebuild que tenta notificar um listener já removido do diálogo
+
+...a assertion é lançada. O fix do `loadingExempt` → `return null` reduz a frequência de ticks do RouterNotifier durante navegação, mas não elimina completamente o risco se o timing for desfavorável durante o dispose.
+
+**Candidatos específicos a investigar:**
+1. `_markDone()` em `worker_my_job_detail_screen.dart`: após sucesso do RPC, `ref.invalidate(...)` é chamado — verificar se há `if (!mounted) return` antes do invalidate.
+2. `showDialog()` + `await`: se o `State` pai for descartado enquanto o `await` do diálogo está pendente, o callback de success tenta executar num `ref` inválido.
+
+**Ficheiro:** `lib/features/worker/presentation/worker_my_job_detail_screen.dart` — método `_markDone()` e o `AlertDialog` associado.
+
+**Severidade:** Crítica — hard crash consistentemente reproduzível. Bug de maior urgência da sessão.
+
+---
+
+**~~T5~~ — Lógica de cancelamento invertida — ✅ RESOLVIDO 2026-06-29 (migration 0025)**
+
+Quando o **cliente** cancela um job `confirmed`, a app recriava automaticamente um novo job sem pedir consentimento ao cliente. Este comportamento foi explicitamente desenhado para quando o **worker** cancela — nesse caso faz sentido encontrar um worker substituto enquanto o cliente ainda quer o trabalho feito.
+
+**Correção via inspeção direta do SQL (0013):** o `array_append` de `excluded_worker_ids` já estava dentro de `IF v_is_worker THEN` — o worker nunca era excluído no path do cliente. O único problema real era a reabertura automática sem consentimento.
+
+**Resolução (2026-06-29):**
+- `supabase/migrations/0025_cancel_job_client_reopen_choice.sql` — novo parâmetro `p_client_wants_reopen boolean DEFAULT NULL`. Worker call sites omitem o parâmetro (DEFAULT NULL → branch worker inalterado). Client call sites passam `true`/`false` explicitamente.
+- `lib/features/jobs/presentation/client_job_detail_screen.dart` — após o picker de razão, segundo dialog "Voltar a publicar?" (Sim/Não). Resposta enviada como `clientWantsReopen` para o RPC.
+- `lib/features/jobs/data/job_repository.dart` — `cancelJob()` aceita `bool? clientWantsReopen`, só passa ao RPC quando não null.
+- **Worker path: completamente inalterado.** Auto-reabre sempre (dentro do limite de 2), exclui sempre o worker que cancelou.
+
+---
+
+**T6 — Routing de notificações: gap estrutural elevado a prioridade Tier 0/1**
+
+Henrique confirmou explicitamente (2026-06-29): *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*
+
+Este é o mesmo gap já documentado em **P-8-9** (notificações navegam para lista genérica, não para o item específico) e **P6** (padrão `state.extra!` impede deep-link a rotas de detalhe). Os findings T1 e T3 desta sessão são sintomas diretos desta lacuna:
+- **T1**: o snapshot stale em `state.extra` só existe porque a navegação não usa ID-based routing — com routing por ID, o ecrã faria fetch reativo e nunca mostraria dados obsoletos.
+- **T3**: o crash por `state.extra!` null só acontece porque as rotas de detalhe exigem o objeto completo via extra em vez de receber apenas o ID e fazer fetch.
+
+**Este item não acrescenta um problema novo** — é a elevação de prioridade de P6 + P-8-9 de "melhoria diferida" para Tier 0/1. O fix estrutural é **A2 da auditoria de Fases 0-3** (routing baseado em ID: path param `jobId` + `jobByIdProvider` reativo). Após A2 implementado, B1 da auditoria da Fase 8 (deep-link de notificações) fica desbloqueado com esforço mínimo.
+
+**Ver entradas re-priorizadas:** P6 (Fases 0-3) e P-8-9 / B1 (Fase 8).
 
 ---
 

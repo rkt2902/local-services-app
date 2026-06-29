@@ -96,9 +96,30 @@ class _ClientJobDetailScreenState
       return;
     }
 
-    // Confirmed jobs — show reason picker
+    // Confirmed jobs — step 1: reason picker
     final result = await CancelJobDialog.show(context, isClient: true);
     if (result == null || !mounted) return;
+
+    // Step 2: ask if client wants to republish for a new worker
+    final wantsReopen = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Voltar a publicar?'),
+        content: const Text(
+            'Queres voltar a publicar este pedido para encontrar outro prestador?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Não'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sim'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
 
     setState(() => _saving = true);
     final scaffold = ScaffoldMessenger.of(context);
@@ -108,17 +129,18 @@ class _ClientJobDetailScreenState
             jobId: _job.id,
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
+            clientWantsReopen: wantsReopen ?? false,
           );
       ref.invalidate(clientJobsProvider);
       ref.invalidate(pendingProposalsForJobProvider(_job.id));
       if (newJobId != null) {
         scaffold.showSnackBar(
-          const SnackBar(content: Text('Pedido reaberto automaticamente.')),
+          const SnackBar(
+              content: Text(
+                  'Pedido cancelado e reaberto para encontrar outro prestador.')),
         );
       } else {
-        scaffold.showSnackBar(
-          const SnackBar(content: Text('Pedido cancelado.')),
-        );
+        scaffold.showSnackBar(const SnackBar(content: Text('Pedido cancelado.')));
       }
       router.go('/client/jobs');
     } catch (e) {

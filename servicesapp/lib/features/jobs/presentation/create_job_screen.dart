@@ -170,6 +170,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       final user = ref.read(currentUserProvider)!;
       final repo = ref.read(jobRepositoryProvider);
 
+      debugPrint('[CREATE_JOB] Starting createJob. photos=${_photos.length} mounted=$mounted');
       final jobId = await repo.createJob(
         clientId: user.id,
         serviceTypeId: _selectedServiceTypeId!,
@@ -185,12 +186,17 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         sizeEstimate: _sizeEstimate,
         description: _descriptionController.text.trim(),
       );
+      debugPrint('[CREATE_JOB] createJob done. jobId=$jobId mounted=$mounted');
 
-      for (final photo in _photos) {
-        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
+      for (int i = 0; i < _photos.length; i++) {
+        debugPrint('[CREATE_JOB] uploadJobPhoto[$i] starting. mounted=$mounted');
+        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: _photos[i]);
+        debugPrint('[CREATE_JOB] uploadJobPhoto[$i] done. mounted=$mounted');
       }
 
+      debugPrint('[CREATE_JOB] All photos done. About to invalidate. mounted=$mounted');
       ref.invalidate(clientJobsProvider);
+      debugPrint('[CREATE_JOB] Invalidated. About to navigate. mounted=$mounted');
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -198,7 +204,8 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       messenger.showSnackBar(
         const SnackBar(content: Text('Pedido publicado com sucesso!')),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[CREATE_JOB] CATCH error=$e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),

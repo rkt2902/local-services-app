@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -56,6 +56,7 @@ class JobRepository {
     required String clientId,
     required File file,
   }) async {
+    debugPrint('[UPLOAD_PHOTO] Compressing. path=${file.path}');
     final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
       file.absolute.path,
       minWidth: 800,
@@ -63,12 +64,14 @@ class JobRepository {
       quality: 60,
       format: CompressFormat.jpeg,
     );
+    debugPrint('[UPLOAD_PHOTO] Compressed. bytes=${compressed?.length}');
 
     if (compressed == null) {
       throw Exception('Image compression failed for ${file.path}');
     }
 
     final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
+    debugPrint('[UPLOAD_PHOTO] Uploading to storage. storagePath=$storagePath');
 
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,
@@ -78,11 +81,13 @@ class JobRepository {
             upsert: true,
           ),
         );
+    debugPrint('[UPLOAD_PHOTO] Storage upload done. Inserting job_photos row.');
 
     await _client.from('job_photos').insert({
       'job_id': jobId,
       'storage_path': storagePath,
     });
+    debugPrint('[UPLOAD_PHOTO] job_photos row inserted.');
 
     return _client.storage.from('job-photos').getPublicUrl(storagePath);
   }
@@ -115,12 +120,17 @@ class JobRepository {
     required String jobId,
     required String reason,
     String? reasonDetail,
+    bool? clientWantsReopen,
   }) async {
-    final result = await _client.rpc('cancel_job', params: {
+    final params = <String, dynamic>{
       'p_job_id': jobId,
       'p_reason': reason,
       'p_reason_detail': reasonDetail,
-    });
+    };
+    if (clientWantsReopen != null) {
+      params['p_client_wants_reopen'] = clientWantsReopen;
+    }
+    final result = await _client.rpc('cancel_job', params: params);
     return result as String?;
   }
 

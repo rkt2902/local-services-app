@@ -151,13 +151,15 @@ class RouterNotifier extends ChangeNotifier {
     final loc = state.matchedLocation;
 
     if (sessionAsync.isLoading) {
-      // Don't bounce /choose-role through /loading — the auth stream fires
-      // immediately after signUp() while the user is transitioning to role
-      // selection; the loading state is transient and /choose-role handles it
-      // visually fine on its own. Bouncing through /loading would discard the
-      // fullName/phone passed via navigation extra.
-      const loadingExempt = ['/loading', '/choose-role', '/worker/setup'];
-      return loadingExempt.contains(loc) ? null : '/loading';
+      // Return null unconditionally — stay on the current route.
+      // Cold start: loc is '/loading', spinner stays while session resolves.
+      // Mid-session: any token-refresh tick leaves the user exactly where they are.
+      // Redirecting to /loading on a transient tick tears down the current widget
+      // tree mid-flight (e.g. while ImagePicker or a network request is awaiting),
+      // causing silent data loss with no error shown. An allowlist (loadingExempt)
+      // is the wrong fix because it must be grown every time a new route adds an
+      // OS async interaction — this unconditional null eliminates the class of bug.
+      return null;
     }
 
     final session = sessionAsync.asData?.value;

@@ -3,6 +3,87 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-29 — T5: cancelamento de job confirmado pelo cliente agora opt-in (migration 0025)
+
+**Problema confirmado:** `cancel_job` RPC aplicava reabertura automática ao path do cliente (quando `reopen_count_client < 1`) sem pedir consentimento. Comportamento correto apenas para o worker — quando o worker cancela, faz sentido encontrar um substituto; quando o cliente cancela, não.
+
+**Inspeção direta do SQL (0013) revelou:** o `array_append` de `excluded_worker_ids` já estava dentro de `IF v_is_worker THEN` — a exclusão do worker nunca se aplicava ao path do cliente. O único problema real era a reabertura sem consentimento.
+
+**Decisão de produto (2026-06-29):** cancelamento de job confirmado pelo cliente mostra dois diálogos sequenciais:
+1. `CancelJobDialog` — picker de razão (existente, inalterado)
+2. Novo dialog — "Voltar a publicar? Queres voltar a publicar este pedido para encontrar outro prestador?" (Sim/Não)
+
+A reabertura só acontece se o cliente carregar em Sim E `reopen_count_client < 1`. Sem exclusão de workers no path do cliente — a exclusão é uma medida de responsabilização do worker, não se aplica aqui.
+
+**Worker path completamente inalterado:** auto-reabre sempre (dentro do limite de 2), exclui sempre o worker que cancelou, notifica o cliente com `job_reopened`.
+
+**Ficheiros alterados:**
+- `supabase/migrations/0025_cancel_job_client_reopen_choice.sql` — DROP overload antigo + CREATE com `p_client_wants_reopen boolean DEFAULT NULL`. **NÃO aplicado — aplicar manualmente via Supabase SQL Editor.**
+- `lib/features/jobs/data/job_repository.dart` — `cancelJob()` aceita `bool? clientWantsReopen`, só passa ao RPC quando não null.
+- `lib/features/jobs/presentation/client_job_detail_screen.dart` — segundo dialog após CancelJobDialog; passa `clientWantsReopen` ao repository.
+
+---
+
+## 2026-06-29 — Sessão de testes manuais extensa: 6 bugs reais encontrados (T1-T6)
+
+Henrique testou a app em dispositivo físico. 6 findings confirmados por observação direta (screenshots 1-6). Documentados em `improvements.md` — secção "Sessão de testes manuais — 2026-06-29" com códigos T1-T6.
+
+**Resumo dos findings:**
+- **T1** — Desync de estado de propostas: home mostra "1 proposta", detalhe do mesmo job mostra "À espera de proposta". Resolvido por force-close; confirma divergência entre snapshot stale em `state.extra` e estado real da BD.
+- **T2** — Overflow de renderização no card de contacto do worker (`client_job_detail_screen.dart`, método `_workerContactCard`): "OVERFLOWED BY 52 PIXELS" na borda direita.
+- **T3** — Red screen: `Null check operator used on a null value` durante navegação na área de lista de jobs. Alta correlação com P6 (`state.extra!` sem fallback em 4 rotas).
+- **T4** — Red screen: `'_dependents.isEmpty': is not true` — assertion Flutter de ChangeNotifier/InheritedWidget, reproduzido duas vezes no fluxo de "Confirmar conclusão?" em `worker_my_job_detail_screen.dart`. Bug mais crítico da sessão por ser hard crash consistentemente reproduzível.
+- **T5** — Lógica de cancelamento invertida: quando o **cliente** cancela, o RPC `cancel_job` recria o job e exclui o worker — comportamento desenhado para quando é o **worker** que cancela. O branch de reopen+exclusão não distingue o caller.
+- **T6** — Gap de routing de notificações elevado a prioridade alta. Henrique confirmou explicitamente: *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."* T1 e T3 são provavelmente sintomas diretos desta lacuna. P6 e P-8-9 re-priorizados de gap diferido para Tier 0/1 em `improvements.md`.
+
+**Nenhum ficheiro `.dart` ou `.sql` foi alterado nesta sessão — só documentação.**
+
+---
+
+## 2026-06-28 — Substituído loadingExempt por fix estrutural no redirect()
+
+`loadingExempt` (allowlist de rotas imunes ao redirect `/loading`) eliminado de `app_router.dart`. Substituído por `return null` incondicional no bloco `if (sessionAsync.isLoading)`.
+
+**Motivo:** a allowlist era uma correção sintomática — crescia sintoma a sintoma (`/worker/setup` → depois três rotas adicionais) sem atacar a causa raiz. A causa raiz: `redirect()` nunca devia redirecionar para `/loading` quando o utilizador já está numa rota estabelecida. Um tick transitório de `isLoading` (ex: refresh de token a cada 60 min) não representa um estado desconhecido — representa uma sessão já resolvida a renovar o seu token. Redirecionar para `/loading` neste momento destrói o widget tree corrente mid-flight (ImagePicker a aguardar, upload em curso, etc.) e descarta trabalho silenciosamente.
+
+**Comportamento correto com `return null`:**
+- Arranque a frio (`loc == '/loading'`, `isLoading == true`): fica no spinner — correto.
+- Tick mid-session em qualquer rota autenticada: fica onde está — correto.
+- `/choose-role` com `extra` após signUp: fica onde está, preserva `fullName`/`phone` — correto.
+
+**Backcompatibility com fixes anteriores:**
+- P-67-1: coberto (caso geral inclui o caso específico).
+- `/choose-role` extra loss: coberto (return null ≡ allowlist para esta rota).
+- `role == null` skip, cross-role guard, worker profile complete: só são alcançados após `!isLoading` — inalterados.
+- `loadingExempt` era uma `const List<String>` file-local sem outros usos — removida sem rastos.
+
+**Hipótese:** resolve também o bug de criação de job com foto (mesma causa raiz — tick de token-refresh a meio do submit, entre `createJob` e `uploadJobPhoto`, destrói `_CreateJobScreenState` enquanto a sequência de upload está a aguardar). Diagnostic logging em `job_repository.dart`/`create_job_screen.dart` **mantido propositadamente** até confirmação por teste real — remover só depois.
+
+---
+
+## 2026-06-28 — loadingExempt expandido: P-67-1 era instância de classe de bug mais ampla
+
+Confirmado via bug real reportado por Henrique (logcat + reprodução): qualquer rota com `ImagePicker` (ou outro `await` sobre interação OS assíncrona longa) está vulnerável ao mesmo redirect `/loading` → home que destrói silenciosamente a foto em curso. O guard `if (!mounted) return;` é defensivo mas o dano já está feito antes de disparar — o `State` foi descartado pelo router antes do picker retornar.
+
+A fix original de P-67-1 (2026-06-26) adicionou apenas `/worker/setup` a `loadingExempt`. A investigação de 2026-06-28 confirmou que mais três rotas com `ImagePicker` estavam desprotegidas:
+
+| Rota | Interação OS | Resultado sem fix |
+|---|---|---|
+| `/worker/profile` | `ImagePicker` + `Geolocator.requestPermission` / `getCurrentPosition` | Avatar não muda; picker retorna com `!mounted` |
+| `/client/profile` | `ImagePicker` | Avatar não muda; picker retorna com `!mounted` |
+| `/client/create-job` | `ImagePicker` + `Geolocator.requestPermission` / `getCurrentPosition` | Foto descartada; picker retorna com `!mounted` |
+
+Todas três adicionadas a `loadingExempt` em `app_router.dart` (mesmo ficheiro, mesma lista, mesma fix class que P-67-1).
+
+**Outras interações OS encontradas — não adicionadas:**
+- `launchUrl(LaunchMode.externalApplication)` em `worker_my_job_detail_screen.dart`, `client_job_detail_screen.dart`, `worker_help_requests_screen.dart`, `address_map_link.dart` (widget reutilizável): abre WhatsApp/Maps. O `await` retorna imediatamente (basta iniciar o intent), não aguarda o utilizador regressar. Quando regressa, o tick de auth pode disparar, causando navegação para home — incómodo mas sem perda de dados. Não adicionado a `loadingExempt` por agora (diferente mecanismo, sem in-flight async ao regressar).
+- `showDatePicker` / `showTimePicker`: dialogs Flutter in-app, não atividades Android. Não backgroundam o engine, não disparam tick de auth. Seguros.
+- `Geolocator.distanceBetween()`: síncrono, sem interação OS. Seguro.
+
+**Lição:** ao corrigir este tipo de bug no futuro, verificar TODAS as rotas com interações OS assíncronas de uma vez, não rota a rota.
+
+---
+
 ## 2026-06-28 — Desbloqueado fluxo `pending_approval` (inventário backend-sem-UI)
 
 Dois pontos de entrada de UI adicionados para o fluxo de expansão de equipa pós-confirmação, identificado no inventário de 2026-06-28 como "backend completo, zero UI".
