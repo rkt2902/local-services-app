@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-29 — 3 bugs reais na área de ajudantes corrigidos via migration 0026
+
+Investigação completa de 3 bugs confirmados em `help_requests`. Causa raiz identificada em todos os 3; migration `0026_helper_lobby_fixes.sql` criada — **NÃO aplicada, aplicar manualmente via Supabase SQL Editor.**
+
+**(1+2) Policy SELECT em falta para o worker principal em `help_requests` (gap C3.2)** — causava dois comportamentos distintos:
+- `createHelpRequest()` lançava exceção em Dart: o INSERT tem WITH CHECK correto e passa (proposta accepted verificada), mas o `.select('id').single()` encadeado usa `RETURNING id` internamente (PostgREST `Prefer: return=representation`). O `RETURNING` está sujeito a RLS SELECT — sem policy SELECT para o principal, devolve 0 rows e `.single()` lança. A row **fica na BD**; Dart vê exceção. Fix: `CREATE POLICY "Worker principal vê os seus help requests" ON help_requests FOR SELECT USING (EXISTS (SELECT 1 FROM job_proposals WHERE id = proposal_id AND worker_id = auth.uid()))`.
+- Lobby vazio (`WorkerHelpRequestsLobbyScreen`): `fetchHelpRequestsForJob()` é um SELECT PostgREST direto em `help_requests`; sem policy SELECT, o principal obtém sempre 0 rows mesmo havendo rows na BD. Fix: mesma policy.
+
+**(3) Exclusão `NOT EXISTS` em falta em `get_help_requests_in_radius`** — depois de se candidatar a um help_request, o worker continuava a vê-lo na lista de descoberta porque a função não exclui help_requests onde o caller já tem uma `help_acceptance`. Item catalogado como A2/cluster η nas melhorias da Fase 9 (improvements.md) desde a auditoria original — nunca implementado em nenhuma migration subsequente (0008–0025), não era uma regressão. Fix: `AND NOT EXISTS (SELECT 1 FROM help_acceptances ha WHERE ha.help_request_id = hr.id AND ha.worker_id = auth.uid())` adicionado ao WHERE da função.
+
+**Lição geral registada:** qualquer `.insert().select().single()` está sujeito a RLS SELECT no `RETURNING`, não só a RLS INSERT. Verificar SEMPRE que existe policy SELECT correspondente antes de assumir que um INSERT funcional implica leitura funcional.
+
+---
+
 ## 2026-06-29 — A2 Prompt B: /worker/my-job/:id e /worker/job/:id/help-requests convertidos para ID-based routing
 
 Route `/worker/my-job/:id` usa query param `?jobId=` para carregamento paralelo (decisão 2026-06-29, evita cascade sequencial proposta→job). `WorkerMyJobDetailScreen` reescrito com `required this.proposalId, required this.jobId` (ambos String): ambos os providers observados em paralelo no topo de `build()`, `liveStatus`/`liveJobStatus` simplificados — providers são a única fonte, fallback para widget eliminado. Route `/worker/job/:id/help-requests` simplificada para só `jobId`; `WorkerHelpRequestsLobbyScreen` usa `acceptedProposalForJobProvider(widget.jobId)` para obter proposta, `_suggestedRate()` aceita `JobProposal?` nulo, degrada para taxa 0 com validação existente `> 0` no sheet. `notification_handler.dart` simplificado nos dois casos de help_request (`helpRequestApproved`, `helpWithdrew`): pre-fetch manual de job+proposal removido — o fetch do `help_request` permanece apenas para resolver `job_id` a partir do `help_request_id` (confirmed: `related_id` IS `help_request_id`). `flutter analyze` limpo. Completa A2 — fecha P6 (todas as 4 rotas convertidas), resolve T1/T3 nestes 2 ecrãs finais, desbloqueia T6.

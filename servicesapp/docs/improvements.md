@@ -272,9 +272,9 @@ ALTER TABLE help_requests
   ADD CONSTRAINT check_slots_needed CHECK (slots_needed >= 1);
 ```
 
-**M5 — Policy SELECT mais ampla para o cliente em `help_requests` (fecha C3.2 do backlog da Fase 9)**
+**M5 — Policy SELECT mais ampla para o cliente em `help_requests` (gap C3.2 — parcialmente fechado)**
 
-Atualmente só `pending_approval` rows são visíveis ao cliente (policy da migration 0003). Qualquer ecrã futuro "ver equipa" (help_requests em `open`/`filled`) retornaria vazio silenciosamente. Fix proactivo:
+> **Nota 2026-06-29:** o gap C3.2 está parcialmente fechado. A policy SELECT para o **worker principal** foi adicionada em migration 0026 (corrigiu bugs P1+P2 da sessão). O gap que permanece aqui é só do lado do **cliente**: atualmente só `pending_approval` rows são visíveis ao cliente (policy da migration 0003). Qualquer ecrã futuro "ver equipa" (help_requests em `open`/`filled`) retornaria vazio silenciosamente. Fix proactivo:
 ```sql
 -- Dropar a policy narrow de pending_approval:
 DROP POLICY IF EXISTS "Cliente vê help requests pendentes de aprovação" ON help_requests;
@@ -635,19 +635,9 @@ Botão "Adicionar ajudante" adicionado em `worker_my_job_detail_screen.dart` (bl
 
 ### Melhorias — Alta prioridade
 
-**A2 — Excluir da descoberta help_requests onde o worker já tem candidatura ativa (resolve P-9-3, elimina `_appliedIds`)**
+**~~A2 — Excluir da descoberta help_requests onde o worker já tem candidatura ativa (resolve P-9-3, elimina `_appliedIds`)~~ RESOLVIDO 2026-06-29 (migration 0026)**
 
-Adicionar ao `get_help_requests_in_radius` (CREATE OR REPLACE — nova migration):
-```sql
-AND NOT EXISTS (
-  SELECT 1 FROM help_acceptances ha
-  WHERE  ha.help_request_id = hr.id
-    AND  ha.worker_id       = auth.uid()
-    AND  ha.status IN ('pending', 'accepted')
-)
-```
-
-Só migration, sem mudanças Dart. O `_appliedIds` torna-se irrelevante (pode ser removido ou mantido como micro-otimização para o instante entre o apply e o refresh da lista). **Esforço: ~15 min. Alto valor por esforço mínimo.**
+`NOT EXISTS` clause adicionada ao WHERE de `get_help_requests_in_radius`. Só migration, sem mudanças Dart. Item nunca implementado nas migrations 0008–0025 — não era regressão, era omissão original.
 
 ---
 
@@ -671,9 +661,12 @@ O schema permite múltiplos `help_requests` por job (sem UNIQUE em `(job_id, pro
 
 ### Nota da sessão
 
-A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.
+~~A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.~~ (A2 resolvido — 2026-06-29, migration 0026.)
 
 O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-24` — não é um problema. O gap de `pending_approval` está correctamente documentado como intencional em `implementation_plan.md` — não é um problema.
+
+**Lição de RLS — aplicável a todo o codebase (registada 2026-06-29):**
+Qualquer `.insert().select().single()` está sujeito a RLS SELECT no `RETURNING`, não só a RLS INSERT. O PostgREST usa `RETURNING *` internamente (`Prefer: return=representation`) — se não existir policy SELECT para o caller, o `RETURNING` devolve 0 rows e `.single()` lança exceção, mesmo que o INSERT tenha tido sucesso e a row esteja na BD. Verificar SEMPRE que existe policy SELECT correspondente antes de assumir que um INSERT funcional implica leitura funcional. Ver `decisions_log.md 2026-06-29` para o caso concreto.
 
 ---
 
