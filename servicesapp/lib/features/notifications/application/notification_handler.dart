@@ -5,7 +5,6 @@ import '../../../core/constants/enums.dart';
 import '../../auth/application/session_provider.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
-import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
 
@@ -48,22 +47,15 @@ class NotificationHandler {
         ref.invalidate(clientJobsProvider);
         context.go('/client/jobs');
       case NotificationType.helpRequestApproved:
-        // related_id = help_request_id (set by approve_help_request RPC).
-        // The lobby route needs job + proposal objects, so we fetch the
-        // help_request first to get job_id and proposal_id, then resolve both.
+        // related_id = help_request_id — fetch once to resolve job_id,
+        // then navigate directly (screen loads its own data via provider).
         if (notification.relatedId == null) break;
-        final helpRequest = await ref
+        final helpRequestApproved = await ref
             .read(helpRequestRepositoryProvider)
             .fetchHelpRequestById(notification.relatedId!);
-        if (helpRequest == null || !context.mounted) break;
-        final job =
-            await ref.read(jobByIdProvider(helpRequest.jobId).future);
-        final proposal = await ref
-            .read(proposalByIdProvider(helpRequest.proposalId).future);
-        if (job == null || proposal == null || !context.mounted) break;
+        if (helpRequestApproved == null || !context.mounted) break;
         context.push(
-          '/worker/job/${helpRequest.jobId}/help-requests',
-          extra: {'job': job, 'proposal': proposal},
+          '/worker/job/${helpRequestApproved.jobId}/help-requests',
         );
       case NotificationType.helpAccepted:
         context.go('/worker/help-requests',
@@ -78,20 +70,14 @@ class NotificationHandler {
         context.push('/worker/help-requests');
       case NotificationType.helpWithdrew:
         // Principal worker is told a helper withdrew.
-        // related_id = help_request_id — navigate to the lobby.
+        // related_id = help_request_id — fetch once to resolve job_id.
         if (notification.relatedId == null) break;
-        final helpRequest = await ref
+        final helpRequestWithdrew = await ref
             .read(helpRequestRepositoryProvider)
             .fetchHelpRequestById(notification.relatedId!);
-        if (helpRequest == null || !context.mounted) break;
-        final job =
-            await ref.read(jobByIdProvider(helpRequest.jobId).future);
-        final proposal = await ref
-            .read(proposalByIdProvider(helpRequest.proposalId).future);
-        if (job == null || proposal == null || !context.mounted) break;
+        if (helpRequestWithdrew == null || !context.mounted) break;
         context.push(
-          '/worker/job/${helpRequest.jobId}/help-requests',
-          extra: {'job': job, 'proposal': proposal},
+          '/worker/job/${helpRequestWithdrew.jobId}/help-requests',
         );
       // unreachable: all NotificationType cases handled above
     }

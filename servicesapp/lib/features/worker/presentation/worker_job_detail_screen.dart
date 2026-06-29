@@ -15,9 +15,9 @@ import '../application/worker_providers.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 
 class WorkerJobDetailScreen extends ConsumerStatefulWidget {
-  final JobRequest job;
+  const WorkerJobDetailScreen({super.key, required this.jobId});
 
-  const WorkerJobDetailScreen({super.key, required this.job});
+  final String jobId;
 
   @override
   ConsumerState<WorkerJobDetailScreen> createState() =>
@@ -31,7 +31,7 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     final success = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _ProposalSheet(job: widget.job),
+      builder: (context) => _ProposalSheet(jobId: widget.jobId),
     );
     if (success != true) return;
     ref.invalidate(jobsInRadiusProvider);
@@ -41,16 +41,16 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     router.go('/worker/home');
   }
 
-  String? _sizeLabel() => switch (widget.job.sizeEstimate) {
+  String? _sizeLabel(JobRequest job) => switch (job.sizeEstimate) {
         SizeEstimate.small => 'Pequeno',
         SizeEstimate.medium => 'Médio',
         SizeEstimate.large => 'Grande',
         null => null,
       };
 
-  String _dateModeShortLabel() => switch (widget.job.dateMode) {
-        DateMode.fixed when widget.job.preferredDate != null =>
-          'Data: ${DateFormat('dd/MM/yyyy').format(widget.job.preferredDate!)}',
+  String _dateModeShortLabel(JobRequest job) => switch (job.dateMode) {
+        DateMode.fixed when job.preferredDate != null =>
+          'Data: ${DateFormat('dd/MM/yyyy').format(job.preferredDate!)}',
         DateMode.fixed => 'Data não definida',
         DateMode.flexible => 'Cliente flexível quanto à data',
         DateMode.availability => 'Por disponibilidade',
@@ -58,228 +58,245 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final serviceTypesAsync = ref.watch(serviceTypesProvider);
-    final workerAsync = ref.watch(workerProfileProvider);
-    final photosAsync = ref.watch(jobPhotosProvider(widget.job.id));
-
-    final currentUserId = ref.watch(currentUserIdProvider) ?? '';
-    final workerProposalAsync = currentUserId.isEmpty
-        ? const AsyncValue<JobProposal?>.data(null)
-        : ref.watch(workerProposalForJobProvider((widget.job.id, currentUserId)));
-    final isCheckingProposal = workerProposalAsync.isLoading;
-    final alreadySent = workerProposalAsync.asData?.value != null;
-
-    final serviceType = serviceTypesAsync.value
-        ?.where((s) => s.id == widget.job.serviceTypeId)
-        .firstOrNull;
-
-    final workerProfile = workerAsync.value;
-    String? distanceStr;
-    if (workerProfile != null) {
-      final meters = Geolocator.distanceBetween(
-        workerProfile.baseLat,
-        workerProfile.baseLng,
-        widget.job.locationLat,
-        widget.job.locationLng,
-      );
-      distanceStr = meters < 1000
-          ? '${meters.round()} m'
-          : '${(meters / 1000).toStringAsFixed(1)} km';
-    }
-
-    final sizeLabel = _sizeLabel();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(serviceType?.name ?? 'Detalhe do pedido'),
+    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
+    return jobAsync.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      error: (e, _) => Scaffold(
+        body: Center(child: Text(friendlyError(e))),
+      ),
+      data: (job) {
+        if (job == null) {
+          return const Scaffold(
+            body: Center(child: Text('Pedido não encontrado.')),
+          );
+        }
+
+        final theme = Theme.of(context);
+        final serviceTypesAsync = ref.watch(serviceTypesProvider);
+        final workerAsync = ref.watch(workerProfileProvider);
+        final photosAsync = ref.watch(jobPhotosProvider(widget.jobId));
+
+        final currentUserId = ref.watch(currentUserIdProvider) ?? '';
+        final workerProposalAsync = currentUserId.isEmpty
+            ? const AsyncValue<JobProposal?>.data(null)
+            : ref.watch(
+                workerProposalForJobProvider((widget.jobId, currentUserId)));
+        final isCheckingProposal = workerProposalAsync.isLoading;
+        final alreadySent = workerProposalAsync.asData?.value != null;
+
+        final serviceType = serviceTypesAsync.value
+            ?.where((s) => s.id == job.serviceTypeId)
+            .firstOrNull;
+
+        final workerProfile = workerAsync.value;
+        String? distanceStr;
+        if (workerProfile != null) {
+          final meters = Geolocator.distanceBetween(
+            workerProfile.baseLat,
+            workerProfile.baseLng,
+            job.locationLat,
+            job.locationLng,
+          );
+          distanceStr = meters < 1000
+              ? '${meters.round()} m'
+              : '${(meters / 1000).toStringAsFixed(1)} km';
+        }
+
+        final sizeLabel = _sizeLabel(job);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(serviceType?.name ?? 'Detalhe do pedido'),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    serviceType?.name ?? '',
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        serviceType?.name ?? '',
+                        style: theme.textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (job.urgency == Urgency.urgent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Urgente',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                  ],
                 ),
-                if (widget.job.urgency == Urgency.urgent)
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    _DetailChip(
+                        icon: Icons.calendar_today_outlined,
+                        label: _dateModeShortLabel(job)),
+                    if (distanceStr != null)
+                      _DetailChip(
+                          icon: Icons.place_outlined, label: distanceStr),
+                    if (sizeLabel != null)
+                      _DetailChip(
+                          icon: Icons.straighten_outlined, label: sizeLabel),
+                    if (job.proposalCount > 0)
+                      _DetailChip(
+                        icon: Icons.people_outlined,
+                        label:
+                            '${job.proposalCount} proposta${job.proposalCount > 1 ? 's' : ''}',
+                      ),
+                  ],
+                ),
+                // Availability text shown separately (can be long)
+                if (job.dateMode == DateMode.availability &&
+                    job.availabilityText != null &&
+                    job.availabilityText!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.event_note_outlined,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Disponibilidade do cliente:',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            Text(job.availabilityText!,
+                                style: theme.textTheme.bodyMedium),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (job.addressText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.location_on_outlined,
+                          size: 16,
+                          color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          job.addressText,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (alreadySent) ...[
+                  const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                    child: const Text(
-                      'Urgente',
-                      style: TextStyle(color: Colors.white, fontSize: 13),
-                    ),
+                    child: Row(children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.blue.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                            'Já enviaste uma proposta para este pedido.'),
+                      ),
+                    ]),
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _DetailChip(
-                    icon: Icons.calendar_today_outlined,
-                    label: _dateModeShortLabel()),
-                if (distanceStr != null)
-                  _DetailChip(
-                      icon: Icons.place_outlined, label: distanceStr),
-                if (sizeLabel != null)
-                  _DetailChip(
-                      icon: Icons.straighten_outlined, label: sizeLabel),
-                if (widget.job.proposalCount > 0)
-                  _DetailChip(
-                    icon: Icons.people_outlined,
-                    label:
-                        '${widget.job.proposalCount} proposta${widget.job.proposalCount > 1 ? 's' : ''}',
-                  ),
-              ],
-            ),
-            // Availability text shown separately (can be long)
-            if (widget.job.dateMode == DateMode.availability &&
-                widget.job.availabilityText != null &&
-                widget.job.availabilityText!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.event_note_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
+                ],
+                const SizedBox(height: 24),
+                Text('Descrição', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(job.description, style: theme.textTheme.bodyMedium),
+                photosAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (photos) {
+                    if (photos.isEmpty) return const SizedBox.shrink();
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Disponibilidade do cliente:',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                        Text(widget.job.availabilityText!,
-                            style: theme.textTheme.bodyMedium),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (widget.job.addressText.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.location_on_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      widget.job.addressText,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (alreadySent) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(children: [
-                  Icon(Icons.info_outline,
-                      color: Colors.blue.shade700, size: 18),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                        'Já enviaste uma proposta para este pedido.'),
-                  ),
-                ]),
-              ),
-            ],
-            const SizedBox(height: 24),
-            Text('Descrição', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(widget.job.description,
-                style: theme.textTheme.bodyMedium),
-            photosAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (photos) {
-                if (photos.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 24),
-                    Text('Fotos', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: photos.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (_, i) => GestureDetector(
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => PhotoViewerScreen(
-                                photoUrls: photos,
-                                initialIndex: i,
+                        const SizedBox(height: 24),
+                        Text('Fotos', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 120,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: photos.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (_, i) => GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PhotoViewerScreen(
+                                    photoUrls: photos,
+                                    initialIndex: i,
+                                  ),
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  photos[i],
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              photos[i],
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                      ],
+                    );
+                  },
+                ),
+                SizedBox(height: alreadySent ? 32 : 80),
+              ],
             ),
-            SizedBox(height: alreadySent ? 32 : 80),
-          ],
-        ),
-      ),
-      bottomNavigationBar: alreadySent
-          ? null
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton(
-                onPressed: isCheckingProposal ? null : _showProposalSheet,
-                child: isCheckingProposal
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Enviar proposta'),
-              ),
-            ),
+          ),
+          bottomNavigationBar: alreadySent
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton(
+                    onPressed: isCheckingProposal ? null : _showProposalSheet,
+                    child: isCheckingProposal
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Enviar proposta'),
+                  ),
+                ),
+        );
+      },
     );
   }
 }
@@ -304,9 +321,9 @@ class _DetailChip extends StatelessWidget {
 }
 
 class _ProposalSheet extends ConsumerStatefulWidget {
-  final JobRequest job;
+  final String jobId;
 
-  const _ProposalSheet({required this.job});
+  const _ProposalSheet({required this.jobId});
 
   @override
   ConsumerState<_ProposalSheet> createState() => _ProposalSheetState();
@@ -398,7 +415,7 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
     setState(() => _submitting = true);
     try {
       await ref.read(proposalRepositoryProvider).createProposal(
-            jobId: widget.job.id,
+            jobId: widget.jobId,
             workerId: user.id,
             hourlyRate: double.parse(_rateController.text.trim()),
             estimatedHoursMin:

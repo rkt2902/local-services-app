@@ -308,8 +308,7 @@ class _JobCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push(
-          '/worker/my-job/${proposal.id}',
-          extra: {'proposal': proposal, 'job': job},
+          '/worker/my-job/${proposal.id}?jobId=${job.id}',
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -360,7 +359,6 @@ class _JobCard extends StatelessWidget {
                 GestureDetector(
                   onTap: () => context.push(
                     '/worker/job/${job.id}/help-requests',
-                    extra: {'job': job, 'proposal': proposal},
                   ),
                   child: Chip(
                     avatar: const Icon(Icons.group, size: 16),

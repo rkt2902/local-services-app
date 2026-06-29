@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../jobs/data/job_model.dart';
+import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/ratings_sheet.dart';
@@ -14,11 +14,10 @@ import '../data/help_request_model.dart';
 // ── Pure helper ────────────────────────────────────────────────────────────────
 
 double _suggestedRate(
-    HelpRequest hr, HelpAcceptance candidate, JobProposal proposal) {
-  if (hr.equipmentRequired) return proposal.hourlyRate;
-  return candidate.broughtEquipment
-      ? proposal.hourlyRate
-      : proposal.hourlyRate * 0.7;
+    HelpRequest hr, HelpAcceptance candidate, JobProposal? proposal) {
+  final rate = proposal?.hourlyRate ?? 0;
+  if (hr.equipmentRequired) return rate;
+  return candidate.broughtEquipment ? rate : rate * 0.7;
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -26,12 +25,10 @@ double _suggestedRate(
 class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
   const WorkerHelpRequestsLobbyScreen({
     super.key,
-    required this.job,
-    required this.proposal,
+    required this.jobId,
   });
 
-  final JobRequest job;
-  final JobProposal proposal;
+  final String jobId;
 
   @override
   ConsumerState<WorkerHelpRequestsLobbyScreen> createState() =>
@@ -46,8 +43,9 @@ class _WorkerHelpRequestsLobbyScreenState
     HelpRequest hr,
     HelpAcceptance acceptance,
     String candidateName,
+    JobProposal? proposal,
   ) async {
-    final suggested = _suggestedRate(hr, acceptance, widget.proposal);
+    final suggested = _suggestedRate(hr, acceptance, proposal);
     final controller =
         TextEditingController(text: suggested.toStringAsFixed(2));
     bool submitting = false;
@@ -159,7 +157,7 @@ class _WorkerHelpRequestsLobbyScreenState
     controller.dispose();
     if (confirmed == true) {
       ref.invalidate(candidatesForHelpRequestProvider(hr.id));
-      ref.invalidate(helpRequestsForJobProvider(widget.job.id));
+      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
     }
   }
 
@@ -197,7 +195,7 @@ class _WorkerHelpRequestsLobbyScreenState
           .read(helpRequestRepositoryProvider)
           .rejectHelpCandidate(acceptance.id);
       ref.invalidate(candidatesForHelpRequestProvider(hr.id));
-      ref.invalidate(helpRequestsForJobProvider(widget.job.id));
+      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
     } catch (e) {
       if (mounted) {
         scaffold.showSnackBar(SnackBar(
@@ -214,8 +212,10 @@ class _WorkerHelpRequestsLobbyScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final workerAsync = ref.watch(workerProfileProvider);
+    final proposalAsync = ref.watch(acceptedProposalForJobProvider(widget.jobId));
+    final proposal = proposalAsync.asData?.value;
     final helpRequestsAsync =
-        ref.watch(helpRequestsForJobProvider(widget.job.id));
+        ref.watch(helpRequestsForJobProvider(widget.jobId));
     final helpRequests = helpRequestsAsync.asData?.value ?? [];
 
     var anyLoading = helpRequestsAsync.isLoading;
@@ -344,7 +344,7 @@ class _WorkerHelpRequestsLobbyScreenState
                   isAccepted: false,
                   isActionable: isActionable,
                   onAccept: isActionable
-                      ? () => _showAcceptSheet(hr, c, nameOf(c))
+                      ? () => _showAcceptSheet(hr, c, nameOf(c), proposal)
                       : null,
                   // Reject remains available regardless of slot status.
                   onReject:
@@ -370,7 +370,7 @@ class _WorkerHelpRequestsLobbyScreenState
       appBar: AppBar(title: const Text('Equipa')),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(helpRequestsForJobProvider(widget.job.id));
+          ref.invalidate(helpRequestsForJobProvider(widget.jobId));
           for (final hr in helpRequests) {
             ref.invalidate(candidatesForHelpRequestProvider(hr.id));
           }
@@ -381,7 +381,7 @@ class _WorkerHelpRequestsLobbyScreenState
               child: _PrincipalHeader(
                 avatarUrl: workerProfile?.avatarUrl,
                 name: workerProfile?.fullName ?? '',
-                jobId: widget.job.id,
+                jobId: widget.jobId,
               ),
             ),
 

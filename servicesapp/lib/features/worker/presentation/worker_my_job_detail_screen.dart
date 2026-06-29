@@ -18,19 +18,18 @@ import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
-import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
   const WorkerMyJobDetailScreen({
     super.key,
-    required this.proposal,
-    required this.job,
+    required this.proposalId,
+    required this.jobId,
   });
 
-  final JobProposal proposal;
-  final JobRequest job;
+  final String proposalId;
+  final String jobId;
 
   @override
   ConsumerState<WorkerMyJobDetailScreen> createState() =>
@@ -55,7 +54,7 @@ class _WorkerMyJobDetailScreenState
     final router = GoRouter.of(context);
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
-            jobId: widget.job.id,
+            jobId: widget.jobId,
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
           );
@@ -85,7 +84,7 @@ class _WorkerMyJobDetailScreenState
     final router = GoRouter.of(context);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
-            jobId: widget.job.id,
+            jobId: widget.jobId,
             newDate: result['date'] as DateTime,
             newTime: result['time'] as String?,
             newFlexible: result['flexible'] as bool,
@@ -108,7 +107,7 @@ class _WorkerMyJobDetailScreenState
     final scaffold = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     try {
-      await ref.read(jobRepositoryProvider).acceptReschedule(widget.job.id);
+      await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
       ref.invalidate(scheduledWorkerProposalsProvider);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Nova data aceite.')));
@@ -127,7 +126,7 @@ class _WorkerMyJobDetailScreenState
     final scaffold = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     try {
-      await ref.read(jobRepositoryProvider).rejectReschedule(widget.job.id);
+      await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
       ref.invalidate(scheduledWorkerProposalsProvider);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação recusada.')));
@@ -168,7 +167,7 @@ class _WorkerMyJobDetailScreenState
     try {
       await ref
           .read(proposalRepositoryProvider)
-          .withdrawProposal(widget.proposal.id, widget.job.id);
+          .withdrawProposal(widget.proposalId, widget.jobId);
       ref.invalidate(pendingWorkerProposalsProvider);
       router.pop();
       scaffold.showSnackBar(
@@ -257,14 +256,14 @@ class _WorkerMyJobDetailScreenState
                             await ref
                                 .read(helpRequestRepositoryProvider)
                                 .createHelpRequest(
-                                  jobId: widget.job.id,
-                                  proposalId: widget.proposal.id,
+                                  jobId: widget.jobId,
+                                  proposalId: widget.proposalId,
                                   slotsNeeded: slotsNeeded,
                                   equipmentRequired: equipmentRequired,
                                   createdPostConfirmation: true,
                                 );
                             ref.invalidate(
-                                helpRequestsForJobProvider(widget.job.id));
+                                helpRequestsForJobProvider(widget.jobId));
                             if (mounted) Navigator.of(context).pop();
                             scaffold.showSnackBar(const SnackBar(
                               content: Text(
@@ -316,7 +315,7 @@ class _WorkerMyJobDetailScreenState
               try {
                 await ref
                     .read(proposalRepositoryProvider)
-                    .markJobCompleted(widget.job.id);
+                    .markJobCompleted(widget.jobId);
                 ref.invalidate(scheduledWorkerProposalsProvider);
                 ref.invalidate(completedWorkerProposalsProvider);
                 ref.invalidate(jobsInRadiusProvider);
@@ -346,34 +345,46 @@ class _WorkerMyJobDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final proposalAsync = ref.watch(proposalByIdProvider(widget.proposalId));
+    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
+
+    if (proposalAsync.isLoading || jobAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (proposalAsync.hasError || jobAsync.hasError) {
+      final e = proposalAsync.error ?? jobAsync.error!;
+      return Scaffold(body: Center(child: Text(friendlyError(e))));
+    }
+
+    final proposal = proposalAsync.value;
+    final job = jobAsync.value;
+    if (proposal == null || job == null) {
+      return const Scaffold(
+          body: Center(child: Text('Não encontrado.')));
+    }
+
     final theme = Theme.of(context);
     final currentUserId = ref.watch(currentUserIdProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
-    final photosAsync = ref.watch(jobPhotosProvider(widget.job.id));
-    final clientInfoAsync =
-        ref.watch(clientBasicInfoProvider(widget.job.clientId));
+    final photosAsync = ref.watch(jobPhotosProvider(widget.jobId));
+    final clientInfoAsync = ref.watch(clientBasicInfoProvider(job.clientId));
 
     final serviceType = serviceTypesAsync.value
-        ?.where((s) => s.id == widget.job.serviceTypeId)
+        ?.where((s) => s.id == job.serviceTypeId)
         .firstOrNull;
 
-    final liveStatus = ref
-        .watch(proposalByIdProvider(widget.proposal.id))
-        .asData?.value?.status ?? widget.proposal.status;
-
-    final liveJobStatus = ref
-        .watch(jobByIdProvider(widget.job.id))
-        .asData?.value?.status ?? widget.job.status;
+    final liveStatus = proposal.status;
+    final liveJobStatus = job.status;
 
     final helpersForRatingAsync =
-        ref.watch(acceptedHelpersForJobProvider(widget.job.id));
+        ref.watch(acceptedHelpersForJobProvider(widget.jobId));
 
     final (statusLabel, statusColor) = _proposalStatusInfo(liveStatus);
 
     final estimate = _formatEstimate(
-      widget.proposal.hourlyRate,
-      widget.proposal.estimatedHoursMin,
-      widget.proposal.estimatedHoursMax,
+      proposal.hourlyRate,
+      proposal.estimatedHoursMin,
+      proposal.estimatedHoursMax,
     );
 
     return Scaffold(
@@ -406,30 +417,30 @@ class _WorkerMyJobDetailScreenState
               _infoRow(context, Icons.yard_outlined, 'Serviço',
                   serviceType?.name ?? '—'),
               _infoRow(context, Icons.calendar_today_outlined, 'Data',
-                  _formatDate(widget.job.preferredDate)),
-              if (widget.job.addressText.isNotEmpty)
+                  _formatDate(job.preferredDate)),
+              if (job.addressText.isNotEmpty)
                 AddressMapLink(
-                  address: widget.job.addressText,
-                  lat: widget.job.locationLat,
-                  lng: widget.job.locationLng,
+                  address: job.addressText,
+                  lat: job.locationLat,
+                  lng: job.locationLng,
                 ),
               _infoRow(
                   context,
                   Icons.bolt_outlined,
                   'Urgência',
-                  widget.job.urgency == Urgency.urgent
+                  job.urgency == Urgency.urgent
                       ? 'Urgente'
                       : 'Normal'),
-              if (widget.job.sizeEstimate != null)
+              if (job.sizeEstimate != null)
                 _infoRow(context, Icons.straighten_outlined, 'Dimensão',
-                    _sizeLabel(widget.job.sizeEstimate!)),
+                    _sizeLabel(job.sizeEstimate!)),
             ]),
             const SizedBox(height: 20),
 
             // Description
             Text('Descrição', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(widget.job.description,
+            Text(job.description,
                 style: theme.textTheme.bodyMedium),
             const SizedBox(height: 20),
 
@@ -483,25 +494,25 @@ class _WorkerMyJobDetailScreenState
             const SizedBox(height: 8),
             _SectionCard(children: [
               _infoRow(context, Icons.euro_outlined, 'Taxa/hora',
-                  widget.proposal.hourlyRate > 0
-                      ? '${widget.proposal.hourlyRate.toStringAsFixed(2)} €/h'
+                  proposal.hourlyRate > 0
+                      ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
                       : 'Preço a definir'),
-              if (widget.proposal.estimatedHoursMin != null ||
-                  widget.proposal.estimatedHoursMax != null)
+              if (proposal.estimatedHoursMin != null ||
+                  proposal.estimatedHoursMax != null)
                 _infoRow(
                     context,
                     Icons.schedule_outlined,
                     'Horas estimadas',
-                    _hoursLabel(widget.proposal.estimatedHoursMin,
-                        widget.proposal.estimatedHoursMax)),
+                    _hoursLabel(proposal.estimatedHoursMin,
+                        proposal.estimatedHoursMax)),
               if (estimate.isNotEmpty)
                 _infoRow(context, Icons.calculate_outlined,
                     'Total estimado', estimate),
               _infoRow(context, Icons.group_outlined, 'Pessoas',
-                  '${widget.proposal.peopleNeeded}'),
-              if (widget.proposal.notes?.isNotEmpty == true)
+                  '${proposal.peopleNeeded}'),
+              if (proposal.notes?.isNotEmpty == true)
                 _infoRow(context, Icons.notes_outlined, 'Notas',
-                    widget.proposal.notes!),
+                    proposal.notes!),
             ]),
             const SizedBox(height: 20),
 
@@ -509,18 +520,16 @@ class _WorkerMyJobDetailScreenState
             Text('Estado do pedido', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             StatusTimeline(
-              steps: buildJobTimeline(
-                widget.job.copyWith(status: liveJobStatus),
-              ),
+              steps: buildJobTimeline(job),
             ),
             const SizedBox(height: 20),
 
             // === ACCEPTED ===
             if (liveStatus == ProposalStatus.accepted) ...[
               // Reschedule banner
-              if (widget.job.rescheduleStatus == RescheduleStatus.pending) ...[
-                if (widget.job.rescheduleProposedBy != null &&
-                    widget.job.rescheduleProposedBy != currentUserId)
+              if (job.rescheduleStatus == RescheduleStatus.pending) ...[
+                if (job.rescheduleProposedBy != null &&
+                    job.rescheduleProposedBy != currentUserId)
                   Card(
                     color: Colors.orange.shade50,
                     margin: const EdgeInsets.only(bottom: 16),
@@ -535,7 +544,7 @@ class _WorkerMyJobDetailScreenState
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'O cliente propôs remarcar para ${_proposedRescheduleLabel(widget.job)}'
+                                'O cliente propôs remarcar para ${_proposedRescheduleLabel(job)}'
                                     .trim(),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                     color: Colors.orange.shade900),
@@ -586,7 +595,7 @@ class _WorkerMyJobDetailScreenState
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Aguarda resposta à remarcação que propuseste para ${_proposedRescheduleLabel(widget.job)}'
+                            'Aguarda resposta à remarcação que propuseste para ${_proposedRescheduleLabel(job)}'
                                 .trim(),
                             style: theme.textTheme.bodyMedium,
                           ),
@@ -595,9 +604,9 @@ class _WorkerMyJobDetailScreenState
                     ),
                   ),
               ],
-              if ((widget.job.status == JobStatus.confirmed ||
-                      liveJobStatus == JobStatus.awaitingConfirmation) &&
-                  widget.job.confirmedDate != null) ...[
+              if ((job.status == JobStatus.confirmed ||
+                      job.status == JobStatus.awaitingConfirmation) &&
+                  job.confirmedDate != null) ...[
                 Text('Agendamento', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 _SectionCard(children: [
@@ -605,7 +614,7 @@ class _WorkerMyJobDetailScreenState
                     context,
                     Icons.event_available_outlined,
                     'Agendado para',
-                    _confirmedScheduleLabel(widget.job),
+                    _confirmedScheduleLabel(job),
                   ),
                 ]),
                 const SizedBox(height: 20),
@@ -667,7 +676,7 @@ class _WorkerMyJobDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                if (widget.job.rescheduleStatus == RescheduleStatus.pending)
+                if (job.rescheduleStatus == RescheduleStatus.pending)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
@@ -680,7 +689,7 @@ class _WorkerMyJobDetailScreenState
                 Row(children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: (widget.job.rescheduleStatus == RescheduleStatus.pending ||
+                      onPressed: (job.rescheduleStatus == RescheduleStatus.pending ||
                               _proposingReschedule)
                           ? null
                           : _proposeReschedule,
@@ -691,10 +700,10 @@ class _WorkerMyJobDetailScreenState
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: (widget.job.rescheduleStatus == RescheduleStatus.pending ||
+                      onPressed: (job.rescheduleStatus == RescheduleStatus.pending ||
                               _cancellingJob ||
-                              (widget.job.confirmedDate != null &&
-                               widget.job.confirmedDate!.difference(DateTime.now()).inHours < 24))
+                              (job.confirmedDate != null &&
+                               job.confirmedDate!.difference(DateTime.now()).inHours < 24))
                           ? null
                           : _cancelJob,
                       style: OutlinedButton.styleFrom(
@@ -704,8 +713,8 @@ class _WorkerMyJobDetailScreenState
                     ),
                   ),
                 ]),
-                if (widget.job.confirmedDate != null &&
-                    widget.job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
+                if (job.confirmedDate != null &&
+                    job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Cancelamento disponível até 24h antes da data confirmada.',
@@ -750,7 +759,7 @@ class _WorkerMyJobDetailScreenState
                   ),
                 )
               else if (liveJobStatus == JobStatus.completed)
-                _buildCompletedSection(theme, helpersForRatingAsync),
+                _buildCompletedSection(job, theme, helpersForRatingAsync),
             ],
 
             // === REJECTED ===
@@ -860,6 +869,7 @@ class _WorkerMyJobDetailScreenState
   }
 
   Widget _buildCompletedSection(
+    JobRequest job,
     ThemeData theme,
     AsyncValue<List<AcceptedHelper>> helpersAsync,
   ) {
@@ -883,14 +893,14 @@ class _WorkerMyJobDetailScreenState
         Text('Deixa a tua avaliação', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         _PrincipalRatingCard(
-          jobId: widget.job.id,
-          rateeId: widget.job.clientId,
+          jobId: job.id,
+          rateeId: job.clientId,
           title: 'Avaliar o cliente',
           submittedLabel: 'Cliente avaliado ✓',
           onSubmit: (stars, comment) =>
               ref.read(ratingRepositoryProvider).submitPrincipalRating(
-                    jobId: widget.job.id,
-                    rateeId: widget.job.clientId,
+                    jobId: job.id,
+                    rateeId: job.clientId,
                     stars: stars,
                     comment: comment,
                   ),
@@ -904,13 +914,13 @@ class _WorkerMyJobDetailScreenState
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: _PrincipalRatingCard(
-                  jobId: widget.job.id,
+                  jobId: job.id,
                   rateeId: h.workerId,
                   title: 'Avaliar: ${h.fullName}',
                   submittedLabel: '${h.fullName} avaliado ✓',
                   onSubmit: (stars, comment) =>
                       ref.read(ratingRepositoryProvider).submitPrincipalRating(
-                            jobId: widget.job.id,
+                            jobId: job.id,
                             rateeId: h.workerId,
                             stars: stars,
                             comment: comment,

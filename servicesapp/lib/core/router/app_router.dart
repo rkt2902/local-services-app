@@ -15,7 +15,6 @@ import '../../features/worker/presentation/worker_job_detail_screen.dart';
 import '../../features/jobs/presentation/create_job_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
-import '../../features/jobs/data/job_model.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
@@ -23,7 +22,6 @@ import '../../features/help_requests/presentation/worker_help_requests_lobby_scr
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
-import '../../features/proposals/data/proposal_model.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
@@ -71,8 +69,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/client/job/:id',
             builder: (_, state) {
-              final job = state.extra! as JobRequest;
-              return ClientJobDetailScreen(job: job);
+              final jobId = state.pathParameters['id']!;
+              return ClientJobDetailScreen(jobId: jobId);
             },
           ),
           GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
@@ -90,8 +88,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/job/:id',
             builder: (context, state) {
-              final job = state.extra! as JobRequest;
-              return WorkerJobDetailScreen(job: job);
+              final jobId = state.pathParameters['id']!;
+              return WorkerJobDetailScreen(jobId: jobId);
             },
           ),
           GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
@@ -102,21 +100,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/my-job/:id',
             builder: (context, state) {
-              final extra = state.extra! as Map<String, dynamic>;
+              final proposalId = state.pathParameters['id']!;
+              final jobId = state.uri.queryParameters['jobId']!;
               return WorkerMyJobDetailScreen(
-                proposal: extra['proposal'] as JobProposal,
-                job: extra['job'] as JobRequest,
+                proposalId: proposalId,
+                jobId: jobId,
               );
             },
           ),
           GoRoute(
             path: '/worker/job/:id/help-requests',
             builder: (context, state) {
-              final extra = state.extra! as Map<String, dynamic>;
-              return WorkerHelpRequestsLobbyScreen(
-                job: extra['job'] as JobRequest,
-                proposal: extra['proposal'] as JobProposal,
-              );
+              final jobId = state.pathParameters['id']!;
+              return WorkerHelpRequestsLobbyScreen(jobId: jobId);
             },
           ),
           GoRoute(

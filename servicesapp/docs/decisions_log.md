@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-29 — A2 Prompt B: /worker/my-job/:id e /worker/job/:id/help-requests convertidos para ID-based routing
+
+Route `/worker/my-job/:id` usa query param `?jobId=` para carregamento paralelo (decisão 2026-06-29, evita cascade sequencial proposta→job). `WorkerMyJobDetailScreen` reescrito com `required this.proposalId, required this.jobId` (ambos String): ambos os providers observados em paralelo no topo de `build()`, `liveStatus`/`liveJobStatus` simplificados — providers são a única fonte, fallback para widget eliminado. Route `/worker/job/:id/help-requests` simplificada para só `jobId`; `WorkerHelpRequestsLobbyScreen` usa `acceptedProposalForJobProvider(widget.jobId)` para obter proposta, `_suggestedRate()` aceita `JobProposal?` nulo, degrada para taxa 0 com validação existente `> 0` no sheet. `notification_handler.dart` simplificado nos dois casos de help_request (`helpRequestApproved`, `helpWithdrew`): pre-fetch manual de job+proposal removido — o fetch do `help_request` permanece apenas para resolver `job_id` a partir do `help_request_id` (confirmed: `related_id` IS `help_request_id`). `flutter analyze` limpo. Completa A2 — fecha P6 (todas as 4 rotas convertidas), resolve T1/T3 nestes 2 ecrãs finais, desbloqueia T6.
+
+## 2026-06-29 — A2 Prompt A: /client/job/:id e /worker/job/:id convertidos de state.extra para ID-based routing
+
+`state.extra! as JobRequest` removido das duas rotas — elimina o crash T3 (nullable extra em deep-link/notification) e o problema T1 (snapshot estático diverge do provider quando o job muda). Ambas as telas passam a receber `jobId: String` e carregam dados via `jobByIdProvider(jobId)` que já existia. Call sites (`client_jobs_screen.dart`, `worker_home_screen.dart`) simplificados — `extra: job` removido. `_job.copyWith()` optimistic updates substituídos por `ref.invalidate(jobByIdProvider(...))`. `/worker/my-job/:id` e `/worker/job/:id/help-requests` ficam para Prompt B (dependência de cascade loading com proposal).
+
 ## 2026-06-29 — T5: cancelamento de job confirmado pelo cliente agora opt-in (migration 0025)
 
 **Problema confirmado:** `cancel_job` RPC aplicava reabertura automática ao path do cliente (quando `reopen_count_client < 1`) sem pedir consentimento. Comportamento correto apenas para o worker — quando o worker cancela, faz sentido encontrar um substituto; quando o cliente cancela, não.

@@ -48,19 +48,18 @@ String get _statusLabel => switch (acceptance.status) {
 ```
 Hoje está seguro porque o filtro upstream (linha 280-281) só envia `rejected | cancelled` para o separador de histórico. Mas o wildcard significa: (a) se o filtro mudar, `pending`/`accepted` mostram `'—'` sem aviso de compilação; (b) um novo valor no enum também cairia silenciosamente no wildcard.
 
-**⚠️ P6 — 4 rotas crasham em navegação direta por usarem `state.extra!` sem fallback (CRÍTICO — bloqueia deep linking)**
-Estas rotas fazem `state.extra!` (null assertion) no builder:
+**✅ P6 — RESOLVIDO 2026-06-29 (A2 Prompt A + Prompt B) — 4 rotas convertidas de `state.extra!` para ID-based routing**
 
-| Rota | Ficheiro:linha | Tipo de extra |
+| Rota | Abordagem | Prompt |
 |---|---|---|
-| `/client/job/:id` | `app_router.dart:73` | `JobRequest` |
-| `/worker/job/:id` | `app_router.dart:92` | `JobRequest` |
-| `/worker/my-job/:id` | `app_router.dart:104` | `Map<String, dynamic>` |
-| `/worker/job/:id/help-requests` | `app_router.dart:113` | `Map<String, dynamic>` |
+| `/client/job/:id` | `jobId` via `pathParameters` | A |
+| `/worker/job/:id` | `jobId` via `pathParameters` | A |
+| `/worker/my-job/:id` | `proposalId` via `pathParameters` + `jobId` via `queryParameters` (carregamento paralelo) | B |
+| `/worker/job/:id/help-requests` | `jobId` via `pathParameters`; proposta via `acceptedProposalForJobProvider` | B |
 
 Navegação direta (deep link, back/forward do sistema, ou acesso cross-role de P5) lança `Null check operator used on a null value` antes de o ecrã renderizar. Deep links para qualquer job individual são impossíveis enquanto este padrão persistir.
 
-> **⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.** T1 (desync de propostas — snapshot stale passado em `state.extra` diverge do estado real da BD) e T3 (red screen `Null check operator` durante navegação na área de jobs) são sintomas diretos confirmados em teste real em dispositivo. Tratar como Tier 0/1, não mais como melhoria diferida. Ver secção "Sessão de testes manuais — 2026-06-29".
+> ~~**⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.**~~ **✅ RESOLVIDO 2026-06-29.** T1 e T3 (sintomas diretos de `state.extra` stale/null) resolvidos em todos os 4 ecrãs. T6 (deep-link de notificações para job exato) desbloqueado — `notification_handler.dart` simplificado para os casos de `helpRequestApproved`/`helpWithdrew`; restantes notificações de job (reschedule, cancelled, etc.) ainda navegam para lista, mas a infraestrutura de routing já suporta deep-link direto. Ver `decisions_log.md` 2026-06-29.
 
 **P7 — `architecture.md` tem diagrama de pastas obsoleto**
 O diagrama em `docs/architecture.md` lista `ratings/` (não existe — Fase 11 por implementar) mas omite `notifications/` (totalmente implementado, com estrutura própria `data/`, `application/`, `presentation/`). Um novo developer que leia o diagrama vai à procura de uma pasta inexistente e não encontra a que existe.
@@ -494,21 +493,9 @@ class _ProposalCard extends ConsumerWidget {
 
 ---
 
-**P-8-5 — `_acceptReschedule()` em `client_job_detail_screen.dart` deixa campos de remarcação obsoletos na cópia local `_job`**
+**~~P-8-5~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A) — `_job.copyWith()` eliminado de `client_job_detail_screen.dart`**
 
-`client_job_detail_screen.dart:164`:
-```dart
-setState(() => _job = _job.copyWith(
-  confirmedDate: _job.rescheduleProposedDate,
-  confirmedTime: _job.rescheduleProposedTime,
-  confirmedFlexible: _job.rescheduleProposedFlexible ?? false,
-  rescheduleStatus: RescheduleStatus.accepted,
-  // rescheduleProposedDate, rescheduleProposedTime, rescheduleProposedBy
-  // NÃO são limpos — BD limpa corretamente (linhas 996-999 da RPC), memória não
-));
-```
-
-A BD limpa os campos propostos. A cópia local `_job` mantém os valores obsoletos até ao próximo re-fetch via `clientJobsProvider`. Impacto visual menor (campos propostos não são mostrados depois de aceitar), mas é uma inconsistência real. Limitação do Dart `copyWith` com `??` — campos nullable não podem ser limpos para `null` sem sentinelas ou re-fetch explícito.
+O padrão `_job = _job.copyWith(...)` foi completamente removido por A2 Prompt A. `ClientJobDetailScreen` foi reescrito para receber `jobId: String` e carregar dados via `jobByIdProvider(widget.jobId)`. Após qualquer operação RPC (accept reschedule, reject reschedule, etc.), o código usa `ref.invalidate(jobByIdProvider(widget.jobId))` — força re-fetch completo. Nunca há cópia local divergente — o provider é sempre a única fonte de verdade.
 
 ---
 
@@ -529,11 +516,11 @@ Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = nul
 
 ---
 
-**P-8-9 — Notificações de `job_cancelled`/`job_reopened`/reschedule/conclusão navegam para a lista de jobs, não para o job específico**
+**P-8-9 — Notificações de `job_cancelled`/`job_reopened`/reschedule/conclusão navegam para a lista de jobs, não para o job específico — ⚠️ PARCIALMENTE RESOLVIDO 2026-06-29**
 
-`notification_handler.dart:28`: navega para `/client/jobs` ou `/worker/home` em vez do job concreto. O `related_id` está disponível mas não é usado para navegação. Ligado ao P6 da auditoria de Fases 0-3 (`state.extra!` impede deep-link às rotas de detalhe). Torna-se acionável após a implementação de A2 dessa auditoria (routing baseado em ID).
+`notification_handler.dart:28`: navega para `/client/jobs` ou `/worker/home` em vez do job concreto. O `related_id` está disponível mas não é usado para navegação.
 
-> **⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.** T1 (desync de propostas causado por snapshot stale em `state.extra` em vez de fetch reativo por ID) e T6 (Henrique confirmou explicitamente que cada notificação deve navegar para o item exato a que se refere) confirmam impacto real em produção. Tratar como Tier 0/1 em conjunto com P6. Ver secção "Sessão de testes manuais — 2026-06-29".
+> **Progresso 2026-06-29 (A2 Prompt B):** A2 está completo — todas as 4 rotas de detalhe usam ID-based routing. O bloqueador estrutural (P6) está resolvido. Casos `helpRequestApproved` e `helpWithdrew` em `notification_handler.dart` já navegam para o ecrã exato (`/worker/job/${jobId}/help-requests`) sem `extra`. **Falta:** `job_cancelled`, `job_reopened`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted` — estes ainda navegam para lista genérica. Fix agora é simples: usar `notification.relatedId` (que é `job_id` nestes tipos) diretamente em `context.push('/client/job/$jobId')` ou `context.push('/worker/my-job/$proposalId?jobId=$jobId')` (o segundo requer fetch de proposta ou use do case `proposalAccepted`). Ver T6.
 
 ---
 
@@ -567,9 +554,9 @@ Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos
 
 ### Melhorias — Baixa prioridade
 
-**B1 — Deep-link de notificações para o job específico (resolve P-8-9, bloqueado por Fases 0-3 A2) — ⚠️ RE-PRIORIZADO TIER 0/1 em 2026-06-29**
+**B1 — Deep-link de notificações para o job específico (resolve P-8-9) — ⚠️ DESBLOQUEADO 2026-06-29 (A2 completo)**
 
-`related_id` disponível em todas as notificações de job. Navegação para o job concreto torna-se implementável após A2 da auditoria de Fases 0-3 (routing baseado em ID em vez de `state.extra`). Este item deixou de ser diferido — T1, T3 e T6 da sessão de testes 2026-06-29 confirmam impacto real em produção. Bloqueia a resolução de T1 e T3.
+`related_id` disponível em todas as notificações de job. A2 está completo — todas as rotas de detalhe são ID-based. `helpRequestApproved`/`helpWithdrew` já navegam diretamente. **Falta:** `job_cancelled`, `job_reopened`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted` — em todos estes casos `related_id` é o `job_id`; o fix é ligar `context.push('/client/job/${notification.relatedId}')` ou `context.push('/worker/job/${notification.relatedId}')` consoante o role. Para notificações do worker com job aceite (reschedule etc.), o link correto é `/worker/my-job/$proposalId?jobId=${notification.relatedId}` — requer um fetch da proposta aceite para esse jobId (ou usar `acceptedProposalForJobProvider`). T1 e T3 resolvidos; apenas T6 parcialmente aberto.
 
 **B2 — `RescheduleDialog`: confirmar se impede seleção de data passada/mesmo dia**
 
@@ -999,17 +986,13 @@ indefinidamente; para o cliente, não há urgência percetível.
 
 ### Bugs confirmados
 
-**T1 — Desync de estado de propostas (screenshots 1-2, severidade: ALTA)**
+**~~T1~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A) — Desync de estado de propostas (screenshots 1-2)**
 
-O card de job na home do cliente mostra badge **"1 proposta"**. Ao abrir o detalhe desse mesmo job:
-- A pill de status no topo mostra **"À espera de proposta"** (implica `proposal_count = 0`)
-- O header da tab no mesmo ecrã mostra **"Propostas (1)"** (confirma 1 proposta existente)
+O card de job na home do cliente mostrava badge **"1 proposta"** enquanto o ecrã de detalhe mostrava **"À espera de proposta"** — snapshot stale em `state.extra` divergia do estado real da BD.
 
-Dois elementos de UI no mesmo ecrã apresentam estados contraditórios sobre o mesmo job. Resolvido por força-close e reabertura da app — confirma que o estado in-memory divergiu do estado real da BD, não que a BD esteja inconsistente.
+**Resolução:** `ClientJobDetailScreen` reescrito com `jobId: String` + `jobByIdProvider(widget.jobId)`. O ecrã nunca recebe snapshot — lê sempre do provider reativo. O `proposal_count` no status pill vem do mesmo objeto que o provider devolve em tempo real. Desync impossível por design.
 
-**Causa provável:** o ecrã de detalhe recebe o `JobRequest` via `state.extra` — uma snapshot estática capturada no momento da navegação a partir de `clientJobsProvider`. Se a notificação de `proposal_received` chegou e `ref.invalidate(clientJobsProvider)` foi chamado, mas a re-build do card na lista ainda não completou quando o utilizador tocou para abrir o detalhe, o `state.extra` contém o snapshot com `proposal_count = 0`. O ecrã de detalhe renderiza esse snapshot obsoleto enquanto a tab "Propostas (1)" vem de uma query separada que já reflete o estado atual. Este é um sintoma direto do padrão `state.extra` (P6) — ecrãs ID-based resolveriam via provider reativo e nunca teriam snapshot stale.
-
-**Relacionado:** P6 (Fases 0-3), P-8-9 (Fase 8), T3, T6. Ver notas de re-priorização em P6 e P-8-9.
+**Relacionado:** P6 (Fases 0-3, ✅ resolvido), P-8-9 (Fase 8, parcialmente resolvido), T3 (✅ resolvido), T6.
 
 ---
 
@@ -1025,22 +1008,13 @@ Banner de debug visível **"OVERFLOWED BY 52 PIXELS"** no card de contacto do wo
 
 ---
 
-**T3 — Red screen: `Null check operator used on a null value` (screenshot 4, severidade: CRÍTICA)**
+**~~T3~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A + Prompt B) — Red screen: `Null check operator used on a null value` (screenshot 4)**
 
-Crash com ecrã vermelho durante navegação na área de lista de jobs. Henrique não confirmou a ação exata que o desencadeou.
+Crash com ecrã vermelho durante navegação na área de lista de jobs causado por `state.extra!` null assertion em 4 rotas de detalhe.
 
-**Causa provável:** alta correlação com P6. Quatro rotas fazem `state.extra!` (null assertion) no builder sem fallback:
+**Resolução:** todas as 4 rotas removidas de `state.extra`. Nenhum builder em `app_router.dart` faz null assertion em extra — nenhuma rota de detalhe de job pode crashar por extra em falta. Navegação direta (notificação, deep link, back/forward do sistema) funciona sem crash.
 
-| Rota | Ficheiro |
-|---|---|
-| `/client/job/:id` | `app_router.dart:73` |
-| `/worker/job/:id` | `app_router.dart:92` |
-| `/worker/my-job/:id` | `app_router.dart:104` |
-| `/worker/job/:id/help-requests` | `app_router.dart:113` |
-
-Se qualquer mecanismo de navegação atingir uma destas rotas sem `state.extra` preenchido (notificação com `context.go('/client/job/$id')` sem extra, navegação após redirect do router que descartou o extra, back/forward do sistema), o `state.extra!` lança antes de o ecrã renderizar. O fix estrutural é A2 da auditoria de Fases 0-3 (routing baseado em ID: receber `jobId` via path parameter e fazer fetch via provider).
-
-**Relacionado:** P6 (Fases 0-3), T1, T6.
+**Relacionado:** P6 (Fases 0-3, ✅ resolvido), T1 (✅ resolvido), T6.
 
 ---
 
@@ -1080,17 +1054,13 @@ Quando o **cliente** cancela um job `confirmed`, a app recriava automaticamente 
 
 ---
 
-**T6 — Routing de notificações: gap estrutural elevado a prioridade Tier 0/1**
+**T6 — Routing de notificações: gap estrutural — ⚠️ PARCIALMENTE RESOLVIDO 2026-06-29 (A2 completo)**
 
 Henrique confirmou explicitamente (2026-06-29): *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*
 
-Este é o mesmo gap já documentado em **P-8-9** (notificações navegam para lista genérica, não para o item específico) e **P6** (padrão `state.extra!` impede deep-link a rotas de detalhe). Os findings T1 e T3 desta sessão são sintomas diretos desta lacuna:
-- **T1**: o snapshot stale em `state.extra` só existe porque a navegação não usa ID-based routing — com routing por ID, o ecrã faria fetch reativo e nunca mostraria dados obsoletos.
-- **T3**: o crash por `state.extra!` null só acontece porque as rotas de detalhe exigem o objeto completo via extra em vez de receber apenas o ID e fazer fetch.
+**Progresso 2026-06-29:** A2 está completo — todas as 4 rotas de detalhe são ID-based. T1 e T3 (sintomas diretos de `state.extra`) resolvidos. `helpRequestApproved`/`helpWithdrew` em `notification_handler.dart` já navegam diretamente para o ecrã correto. **Falta:** notificações de `job_cancelled`, `job_reopened`, reschedule, conclusão — ainda navegam para lista genérica (ver P-8-9). O bloqueador estrutural (P6) está removido; o trabalho restante é adicionar navegação precisa para cada tipo de notificação em `notification_handler.dart`.
 
-**Este item não acrescenta um problema novo** — é a elevação de prioridade de P6 + P-8-9 de "melhoria diferida" para Tier 0/1. O fix estrutural é **A2 da auditoria de Fases 0-3** (routing baseado em ID: path param `jobId` + `jobByIdProvider` reativo). Após A2 implementado, B1 da auditoria da Fase 8 (deep-link de notificações) fica desbloqueado com esforço mínimo.
-
-**Ver entradas re-priorizadas:** P6 (Fases 0-3) e P-8-9 / B1 (Fase 8).
+**Ver:** P6 (✅ resolvido), T1 (✅ resolvido), T3 (✅ resolvido), P-8-9 (parcialmente resolvido).
 
 ---
 

@@ -91,7 +91,7 @@ class WorkerHomeScreen extends ConsumerWidget {
                   serviceTypeName: serviceType?.name ?? '',
                   distanceMeters: distanceMeters,
                   onTap: () =>
-                      context.go('/worker/job/${job.id}', extra: job),
+                      context.go('/worker/job/${job.id}'),
                 );
               },
             );
