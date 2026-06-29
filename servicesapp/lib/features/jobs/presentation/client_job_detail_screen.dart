@@ -71,23 +71,25 @@ class _ClientJobDetailScreenState
       setState(() => _saving = true);
       final scaffold = ScaffoldMessenger.of(context);
       final router = GoRouter.of(context);
+      var navigatedAway = false;
       try {
         await ref.read(jobRepositoryProvider).cancelJob(
               jobId: widget.jobId,
               reason: 'no_longer_needed',
               reasonDetail: null,
             );
-        ref.invalidate(clientJobsProvider);
-        ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
+        navigatedAway = true;
+        router.go('/client/jobs');
         scaffold.showSnackBar(
             const SnackBar(content: Text('Pedido cancelado.')));
-        router.go('/client/jobs');
+        ref.invalidate(clientJobsProvider);
+        ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
       } catch (e) {
         scaffold.showSnackBar(
           SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
         );
       } finally {
-        if (mounted) setState(() => _saving = false);
+        if (!navigatedAway && mounted) setState(() => _saving = false);
       }
       return;
     }
@@ -120,6 +122,7 @@ class _ClientJobDetailScreenState
     setState(() => _saving = true);
     final scaffold = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    var navigatedAway = false;
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
             jobId: widget.jobId,
@@ -127,8 +130,8 @@ class _ClientJobDetailScreenState
             reasonDetail: result['reasonDetail'],
             clientWantsReopen: wantsReopen ?? false,
           );
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
+      navigatedAway = true;
+      router.go('/client/jobs');
       if (newJobId != null) {
         scaffold.showSnackBar(
           const SnackBar(
@@ -138,13 +141,14 @@ class _ClientJobDetailScreenState
       } else {
         scaffold.showSnackBar(const SnackBar(content: Text('Pedido cancelado.')));
       }
-      router.go('/client/jobs');
+      ref.invalidate(clientJobsProvider);
+      ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (!navigatedAway && mounted) setState(() => _saving = false);
     }
   }
 
@@ -372,10 +376,10 @@ class _ClientJobDetailScreenState
       await ref
           .read(proposalRepositoryProvider)
           .acceptProposal(proposal.id, widget.jobId);
+      router.go('/client/jobs');
+      scaffold.showSnackBar(const SnackBar(content: Text('Proposta aceite!')));
       ref.invalidate(clientJobsProvider);
       ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
-      scaffold.showSnackBar(const SnackBar(content: Text('Proposta aceite!')));
-      router.go('/client/jobs');
     } catch (e) {
       scaffold.showSnackBar(
           SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));

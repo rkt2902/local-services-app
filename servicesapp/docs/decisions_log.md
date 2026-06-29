@@ -3,6 +3,31 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-29 — T4 corrigido: ordering race entre ref.invalidate() e router.go() em _markCompleted()
+
+Causa raiz: `ref.invalidate()` chamado **antes** de `router.go()` no caminho de sucesso de `_markCompleted()` em `worker_my_job_detail_screen.dart`. As três invalidações (`scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`) disparavam notificações síncronas ao `WidgetRef` do ecrã, registando-o como dependente ativo a reconstruir. De seguida, `dialogNavigator.pop()` e `router.go('/worker/home')` iniciavam a desmontagem do ecrã — mas o `WidgetRef` ainda estava na lista `_dependents` dos elementos de provider que tinham acabado de notificá-lo. O `ProviderElement.dispose()` do Riverpod asserta `_dependents.isEmpty`, falhando com `'_dependents.isEmpty': is not true`. Agravado pelo bloco `finally` que chamava `setState()` com `mounted == true` após a navegação já ter sido iniciada, agendando mais uma reconstrução.
+
+**Fix aplicado:** reordenação no caminho de sucesso para `pop → go → snackBar → invalidate`. A invalidação acontece depois do ecrã já ter começado a sair da árvore — o `WidgetRef` está a ser limpo, não a receber notificações novas. Adicionado `navigatedAway = true` antes de `router.go()`; bloco `finally` alterado para `if (!navigatedAway && mounted) setState(...)`, eliminando o `setState` supérfluo no caminho de sucesso.
+
+**Lição geral:** nunca invalidar providers **antes** de uma navegação que vai desmontar o ecrã atual. A invalidação dispara `notifyListeners()` síncronos — se o `WidgetRef` do ecrã for dependente do provider, é marcado como dirty. Se a desmontagem começar antes do rebuild ser processado, o Riverpod encontra a inconsistência na limpeza de dependentes. A regra de ouro: `navigate → then invalidate`, não `invalidate → then navigate`.
+
+**Candidatos adicionais da mesma classe de bug identificados em `client_job_detail_screen.dart` — corrigidos preventivamente na sessão seguinte:** linhas 80-84 (cancel open job), 130-141 (cancel confirmed job), 374-378 (accept proposal). Ver entrada seguinte.
+
+---
+
+## 2026-06-29 — Fix preventivo do padrão T4 em 3 locais de client_job_detail_screen.dart
+
+Aplicado o mesmo padrão de reordenação do T4 a 3 locais de `client_job_detail_screen.dart` que tinham a mesma classe de risco de `_dependents.isEmpty`, antes de crashar em produção.
+
+**Locais corrigidos:**
+- `_cancelJob` (path `job.status == open`): `_cancelOpenJob` block — `cancelJob()` → `navigatedAway = true` → `router.go('/client/jobs')` → snackBar → `invalidate` ×2. Guard `!navigatedAway && mounted` no `finally`.
+- `_cancelJob` (path `job.status == confirmed`): mesmo padrão — `newJobId` capturado antes, navega primeiro, snackbar condicional (newJobId != null), depois invalidate. Guard `!navigatedAway && mounted` no `finally`.
+- `_acceptProposal`: sem `finally` — apenas reordenação: `acceptProposal()` → `router.go('/client/jobs')` → snackBar → `invalidate` ×2. Sem guard necessário (catch block só reseta estado de erro, não existe `finally`).
+
+**Por que só estes 3:** as funções de reschedule (`_proposeReschedule`, `_acceptReschedule`, `_rejectReschedule`) invalidam `jobByIdProvider(widget.jobId)` (watched pelo ecrã) mas **não navegam para fora** — o ecrã permanece na árvore e o rebuild da invalidação é processado normalmente. `_confirmJobCompletion` invalida `clientJobsProvider` (não watched pelo ecrã) antes de navegar — sem risco. Confirmado por grep exaustivo do ficheiro.
+
+---
+
 ## 2026-06-29 — 3 bugs reais na área de ajudantes corrigidos via migration 0026
 
 Investigação completa de 3 bugs confirmados em `help_requests`. Causa raiz identificada em todos os 3; migration `0026_helper_lobby_fixes.sql` criada — **NÃO aplicada, aplicar manualmente via Supabase SQL Editor.**

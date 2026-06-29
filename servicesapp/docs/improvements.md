@@ -1011,25 +1011,13 @@ Crash com ecrã vermelho durante navegação na área de lista de jobs causado p
 
 ---
 
-**T4 — Red screen: `'_dependents.isEmpty': is not true` — reproduzido 2× (screenshots 5-6, severidade: CRÍTICA)**
+**~~T4~~ — ✅ RESOLVIDO 2026-06-29 — Red screen: `'_dependents.isEmpty': is not true`**
 
-Assertion do framework Flutter (`ChangeNotifier`), reproduzida em duas sessões diferentes e sempre no mesmo contexto: fluxo de "Confirmar conclusão?" no ecrã de detalhe do worker (`worker_my_job_detail_screen.dart`).
+Causa raiz confirmada por investigação: `ref.invalidate()` ×3 chamado **antes** de `dialogNavigator.pop()` e `router.go('/worker/home')` no caminho de sucesso de `_markCompleted()`. As invalidações notificavam síncronamente o `WidgetRef` do ecrã, registando-o como dependente a reconstruir. A navegação subsequente iniciava a desmontagem enquanto o `WidgetRef` ainda estava na lista `_dependents` dos elementos de provider — `ProviderElement.dispose()` asserta `_dependents.isEmpty`, falhando.
 
-Esta assertion é lançada quando `notifyListeners()` é chamado num `ChangeNotifier` que ainda tem listeners registados que já foram descartados (disposed). Significa que um widget ficou subscrito a um notificador e foi destruído, mas o notificador continuou a disparar notificações para ele.
+**Resolução:** reordenação para `pop → go → snackBar → invalidate` + guard `navigatedAway` no `finally` para evitar `setState` supérfluo após navegação. Ver `decisions_log.md` 2026-06-29.
 
-**Causa provável:** o `AlertDialog` de confirmação de conclusão é aberto via `showDialog()`. Quando confirma (ou cancela), o diálogo fecha e o seu State é descartado. Nesse momento, se:
-- O `RouterNotifier` (que chama `notifyListeners()` em cada tick de auth/token-refresh) disparar durante o dispose do diálogo, **ou**
-- O callback de sucesso do RPC (`ref.invalidate(...)`) desencadear uma rebuild que tenta notificar um listener já removido do diálogo
-
-...a assertion é lançada. O fix do `loadingExempt` → `return null` reduz a frequência de ticks do RouterNotifier durante navegação, mas não elimina completamente o risco se o timing for desfavorável durante o dispose.
-
-**Candidatos específicos a investigar:**
-1. `_markDone()` em `worker_my_job_detail_screen.dart`: após sucesso do RPC, `ref.invalidate(...)` é chamado — verificar se há `if (!mounted) return` antes do invalidate.
-2. `showDialog()` + `await`: se o `State` pai for descartado enquanto o `await` do diálogo está pendente, o callback de success tenta executar num `ref` inválido.
-
-**Ficheiro:** `lib/features/worker/presentation/worker_my_job_detail_screen.dart` — método `_markDone()` e o `AlertDialog` associado.
-
-**Severidade:** Crítica — hard crash consistentemente reproduzível. Bug de maior urgência da sessão.
+**Candidatos da mesma classe em `client_job_detail_screen.dart` — ✅ corrigidos preventivamente (2026-06-29):** linhas 80-84, 130-141, 374-378 — reordenados para `navigate → snackBar → invalidate` com guards `navigatedAway` onde existia `finally`. Ver `decisions_log.md` 2026-06-29.
 
 ---
 

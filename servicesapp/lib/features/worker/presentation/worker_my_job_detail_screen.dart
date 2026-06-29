@@ -312,19 +312,21 @@ class _WorkerMyJobDetailScreenState
               final scaffold = ScaffoldMessenger.of(context);
               final router = GoRouter.of(context);
               setState(() => _completing = true);
+              var navigatedAway = false;
               try {
                 await ref
                     .read(proposalRepositoryProvider)
                     .markJobCompleted(widget.jobId);
-                ref.invalidate(scheduledWorkerProposalsProvider);
-                ref.invalidate(completedWorkerProposalsProvider);
-                ref.invalidate(jobsInRadiusProvider);
                 dialogNavigator.pop();
+                navigatedAway = true;
                 router.go('/worker/home');
                 scaffold.showSnackBar(
                   const SnackBar(
                       content: Text('Trabalho marcado como concluído!')),
                 );
+                ref.invalidate(scheduledWorkerProposalsProvider);
+                ref.invalidate(completedWorkerProposalsProvider);
+                ref.invalidate(jobsInRadiusProvider);
               } catch (e) {
                 dialogNavigator.pop();
                 scaffold.showSnackBar(
@@ -333,7 +335,7 @@ class _WorkerMyJobDetailScreenState
                       backgroundColor: Colors.red),
                 );
               } finally {
-                if (mounted) setState(() => _completing = false);
+                if (!navigatedAway && mounted) setState(() => _completing = false);
               }
             },
             child: const Text('Confirmar'),
