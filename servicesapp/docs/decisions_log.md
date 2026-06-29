@@ -15,6 +15,18 @@ Causa raiz: `ref.invalidate()` chamado **antes** de `router.go()` no caminho de 
 
 ---
 
+## 2026-06-29 — T2 corrigido: overflow no card de contacto do worker
+
+T2 corrigido. Nome do worker no card de contacto envolvido em `Expanded` + `TextOverflow.ellipsis`, eliminando o overflow de 52px confirmado em dispositivo real.
+
+**Ficheiros alterados:**
+- `client_job_detail_screen.dart` — `_workerContactCard()`: Row do nome e Row da data/hora do agendamento, ambos sem `Expanded`. Dois textos dinâmicos (nome do worker, output de `_formatConfirmedSchedule()`) agora envolvidos em `Expanded(child: Text(..., overflow: TextOverflow.ellipsis, maxLines: 1))`.
+- `worker_my_job_detail_screen.dart` — card de contacto do cliente (linhas ~640-652): Row do nome do cliente com `Text(info['full_name'])` sem `Expanded` — mesma classe de bug, corrigido preventivamente com o mesmo padrão.
+
+**Outros Rows inspecionados e confirmados seguros:** reschedule banner (ambos os ficheiros), awaiting-completion banner, status banners (rejected, superseded, pending), rating card — todos já tinham `Expanded`. `Text('Trabalho avaliado')` (linha ~994, `client_job_detail_screen.dart`) é string estática de 16 chars, sem risco de overflow.
+
+---
+
 ## 2026-06-29 — Fix preventivo do padrão T4 em 3 locais de client_job_detail_screen.dart
 
 Aplicado o mesmo padrão de reordenação do T4 a 3 locais de `client_job_detail_screen.dart` que tinham a mesma classe de risco de `_dependents.isEmpty`, antes de crashar em produção.

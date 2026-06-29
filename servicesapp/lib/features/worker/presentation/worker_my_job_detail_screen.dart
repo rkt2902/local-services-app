@@ -642,13 +642,17 @@ class _WorkerMyJobDetailScreenState
                                 color:
                                     theme.colorScheme.onPrimaryContainer),
                             const SizedBox(width: 8),
-                            Text(
-                              info['full_name']?.isNotEmpty == true
-                                  ? info['full_name']!
-                                  : '—',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme
-                                      .colorScheme.onPrimaryContainer),
+                            Expanded(
+                              child: Text(
+                                info['full_name']?.isNotEmpty == true
+                                    ? info['full_name']!
+                                    : '—',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                    color: theme
+                                        .colorScheme.onPrimaryContainer),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             ),
                           ]),
                           const SizedBox(height: 12),

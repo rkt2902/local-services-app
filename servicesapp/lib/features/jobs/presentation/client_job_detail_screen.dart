@@ -412,16 +412,27 @@ class _ClientJobDetailScreenState
                 Row(children: [
                   const Icon(Icons.person_outlined),
                   const SizedBox(width: 8),
-                  Text(name, style: theme.textTheme.titleMedium),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
                 ]),
                 if (job.confirmedDate != null) ...[
                   const SizedBox(height: 8),
                   Row(children: [
                     const Icon(Icons.event_available_outlined),
                     const SizedBox(width: 8),
-                    Text(
-                      _formatConfirmedSchedule(job),
-                      style: theme.textTheme.bodyMedium,
+                    Expanded(
+                      child: Text(
+                        _formatConfirmedSchedule(job),
+                        style: theme.textTheme.bodyMedium,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                   ]),
                 ],

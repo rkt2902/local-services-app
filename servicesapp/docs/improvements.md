@@ -989,15 +989,9 @@ O card de job na home do cliente mostrava badge **"1 proposta"** enquanto o ecr�
 
 ---
 
-**T2 — Overflow de renderização no card de contacto do worker (screenshot 3, severidade: MÉDIA)**
+**~~T2~~ — ✅ RESOLVIDO 2026-06-29 — Overflow de renderização no card de contacto do worker (screenshot 3, severidade: MÉDIA)**
 
-Banner de debug visível **"OVERFLOWED BY 52 PIXELS"** no card de contacto do worker no ecrã de detalhe do cliente (`client_job_detail_screen.dart`), bordo direito, para jobs em estado `confirmed`.
-
-**Causa provável:** o `_workerContactCard()` usa uma `Row` com elementos de texto (nome do worker) e um botão WhatsApp. Se o nome for suficientemente longo, o texto não faz wrap porque não está dentro de `Expanded` ou `Flexible` — empurra o botão para fora dos limites da linha. O overflow de 52px é consistente com um botão de ação deslocado para a direita.
-
-**Ficheiro:** `lib/features/jobs/presentation/client_job_detail_screen.dart` — método `_workerContactCard()` (introduzido em 2026-06-25 para estender o card a `awaitingConfirmation` e `completed`).
-
-**Fix indicado:** envolver o widget de texto do nome em `Expanded` ou `Flexible` com `overflow: TextOverflow.ellipsis`.
+~~Banner de debug visível **"OVERFLOWED BY 52 PIXELS"**~~ — corrigido. Row do nome e Row da data/hora em `_workerContactCard()` envolvidos em `Expanded + TextOverflow.ellipsis`. Mesmo fix aplicado preventivamente ao card de contacto do cliente em `worker_my_job_detail_screen.dart`. Ver `decisions_log.md` 2026-06-29.
 
 ---
 
