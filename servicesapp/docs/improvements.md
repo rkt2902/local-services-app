@@ -1029,6 +1029,16 @@ Quando o **cliente** cancela um job `confirmed`, a app recriava automaticamente 
 
 ---
 
+**~~T7~~ — ✅ RESOLVIDO 2026-06-29 — Nome/avatar do candidato no lobby mostra "—" e placeholder genérico**
+
+No lobby de ajudantes (`worker_help_requests_lobby_screen.dart`), o nome do candidato nos cards "Por decidir" e "Aceites" mostrava sempre "—" e o avatar mostrava um placeholder genérico, enquanto o nome do principal ("Jorge") renderizava corretamente no topo.
+
+**Causa:** terceiro waterfall assíncrono: `helpRequestsForJobProvider` → `candidatesForHelpRequestProvider` → `profileSummaryProvider` (por candidato). O `profileSummaryProvider` era não-bloqueante e erros eram mascarados silenciosamente por `?? {}`, fazendo o nome mostrar sempre "—" na janela de loading (e permanentemente em caso de erro de rede/auth).
+
+**Resolução:** join direto de `profiles` na query `fetchCandidatesForHelpRequest` via PostgREST embedded resources (dois saltos: `worker_profiles(profiles(full_name, avatar_url))`). `HelpAcceptance` adicionou `fullName` e `avatarUrl`. O bloco `profileSummaries` e as funções `nameOf`/`avatarOf` foram removidos do lobby screen — os cards lêem `c.fullName ?? 'Sem nome'` e `c.avatarUrl` diretamente da instância já carregada. Ver `decisions_log.md` 2026-06-29.
+
+---
+
 **T6 — Routing de notificações: gap estrutural — ⚠️ PARCIALMENTE RESOLVIDO 2026-06-29 (A2 completo)**
 
 Henrique confirmou explicitamente (2026-06-29): *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*

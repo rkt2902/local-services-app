@@ -15,6 +15,14 @@ Causa raiz: `ref.invalidate()` chamado **antes** de `router.go()` no caminho de 
 
 ---
 
+## 2026-06-29 — Bug do nome/avatar do candidato no lobby corrigido
+
+Causa: 3.º waterfall (`profileSummaryProvider` por candidato) mascarava erros silenciosamente via `?? {}` e mostrava `'—'` enquanto carregava. Fix: join direto de `profiles` na query de `fetchCandidatesForHelpRequest`, eliminando o waterfall e a possibilidade de erro mascarado.
+
+**Detalhe técnico do join:** `help_acceptances.worker_id` aponta para `worker_profiles(profile_id)` e NÃO diretamente para `profiles(id)`. O join correto é de dois saltos via PostgREST embedded resources: `.select('*, worker_profiles(profiles(full_name, avatar_url))')`. A FK sugerida originalmente `profiles!help_acceptances_worker_id_fkey` seria inválida (não existe essa FK direta). O JSON aninhado é desserializado em `HelpAcceptance.fromJson` via `json['worker_profiles']?['profiles']`. `HelpAcceptance` passou a ter os campos `fullName` e `avatarUrl` (ambos `String?`). O bloco `profileSummaries` e as funções `nameOf`/`avatarOf` do `worker_help_requests_lobby_screen.dart` foram removidos; os cards passam a ler `c.fullName ?? 'Sem nome'` e `c.avatarUrl` diretamente.
+
+---
+
 ## 2026-06-29 — T2 corrigido: overflow no card de contacto do worker
 
 T2 corrigido. Nome do worker no card de contacto envolvido em `Expanded` + `TextOverflow.ellipsis`, eliminando o overflow de 52px confirmado em dispositivo real.

@@ -230,18 +230,6 @@ class _WorkerHelpRequestsLobbyScreenState
       candidatesByHr[hr.id] = cAsync.asData?.value ?? [];
     }
 
-    // Profile summaries — non-blocking; renders with initials while loading
-    final profileSummaries = <String, Map<String, String?>>{};
-    final seenWorkerIds = <String>{};
-    for (final hr in helpRequests) {
-      for (final c in candidatesByHr[hr.id] ?? []) {
-        if (seenWorkerIds.add(c.workerId)) {
-          final sAsync = ref.watch(profileSummaryProvider(c.workerId));
-          profileSummaries[c.workerId] = sAsync.asData?.value ?? {};
-        }
-      }
-    }
-
     if (anyLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Equipa')),
@@ -278,11 +266,6 @@ class _WorkerHelpRequestsLobbyScreenState
       // brief window between the action and the provider invalidation/refetch.
       final isFilled = accepted.length >= hr.slotsNeeded;
 
-      String nameOf(HelpAcceptance c) =>
-          profileSummaries[c.workerId]?['full_name'] ?? '—';
-      String? avatarOf(HelpAcceptance c) =>
-          profileSummaries[c.workerId]?['avatar_url'];
-
       sectionWidgets.add(Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
         child: Column(
@@ -314,8 +297,8 @@ class _WorkerHelpRequestsLobbyScreenState
               const SizedBox(height: 8),
               ...accepted.map((c) => _CandidateCard(
                     acceptance: c,
-                    candidateName: nameOf(c),
-                    candidateAvatarUrl: avatarOf(c),
+                    candidateName: c.fullName ?? 'Sem nome',
+                    candidateAvatarUrl: c.avatarUrl,
                     isActing: _actingOn[c.id] == true,
                     isAccepted: true,
                     isActionable: false,
@@ -336,19 +319,19 @@ class _WorkerHelpRequestsLobbyScreenState
               ...pending.map((c) {
                 final isActing = _actingOn[c.id] == true;
                 final isActionable = !isFilled && !isActing;
+                final name = c.fullName ?? 'Sem nome';
                 return _CandidateCard(
                   acceptance: c,
-                  candidateName: nameOf(c),
-                  candidateAvatarUrl: avatarOf(c),
+                  candidateName: name,
+                  candidateAvatarUrl: c.avatarUrl,
                   isActing: isActing,
                   isAccepted: false,
                   isActionable: isActionable,
                   onAccept: isActionable
-                      ? () => _showAcceptSheet(hr, c, nameOf(c), proposal)
+                      ? () => _showAcceptSheet(hr, c, name, proposal)
                       : null,
                   // Reject remains available regardless of slot status.
-                  onReject:
-                      !isActing ? () => _confirmReject(hr, c, nameOf(c)) : null,
+                  onReject: !isActing ? () => _confirmReject(hr, c, name) : null,
                 );
               }),
             ],

@@ -174,6 +174,8 @@ class HelpAcceptance {
   final double agreedRate;
   final bool broughtEquipment;
   final DateTime createdAt;
+  final String? fullName;
+  final String? avatarUrl;
 
   const HelpAcceptance({
     required this.id,
@@ -183,15 +185,23 @@ class HelpAcceptance {
     required this.agreedRate,
     required this.broughtEquipment,
     required this.createdAt,
+    this.fullName,
+    this.avatarUrl,
   });
 
-  factory HelpAcceptance.fromJson(Map<String, dynamic> json) => HelpAcceptance(
-        id: json['id'] as String,
-        helpRequestId: json['help_request_id'] as String,
-        workerId: json['worker_id'] as String,
-        status: HelpAcceptanceStatus.fromValue(json['status'] as String),
-        agreedRate: (json['agreed_rate'] as num).toDouble(),
-        broughtEquipment: json['brought_equipment'] as bool,
-        createdAt: DateTime.parse(json['created_at'] as String),
-      );
+  factory HelpAcceptance.fromJson(Map<String, dynamic> json) {
+    final wpData = json['worker_profiles'] as Map<String, dynamic>?;
+    final profileData = wpData?['profiles'] as Map<String, dynamic>?;
+    return HelpAcceptance(
+      id: json['id'] as String,
+      helpRequestId: json['help_request_id'] as String,
+      workerId: json['worker_id'] as String,
+      status: HelpAcceptanceStatus.fromValue(json['status'] as String),
+      agreedRate: (json['agreed_rate'] as num).toDouble(),
+      broughtEquipment: json['brought_equipment'] as bool,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      fullName: profileData?['full_name'] as String?,
+      avatarUrl: profileData?['avatar_url'] as String?,
+    );
+  }
 }
