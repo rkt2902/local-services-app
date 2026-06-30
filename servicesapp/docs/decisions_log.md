@@ -3,6 +3,80 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-06-30 — Auditoria de docs: 5 gaps confirmados corrigidos via migration 0027 + T6 expandido
+
+### Contexto
+
+Verificação manual dos itens "Crítico" e "Alta prioridade" de `improvements.md` contra a BD viva e o código actual. Henrique confirmou dois items via live query directa:
+- **P-FA5:** `SELECT indexname FROM pg_indexes WHERE tablename IN ('help_requests','help_acceptances')` → **0 rows** — nenhum dos 3 índices existia.
+- **P-FA6:** `SELECT column_default FROM information_schema.columns WHERE table_name='help_acceptances' AND column_name='status'` → `'accepted'::text` — default incorreto confirmado.
+
+Os restantes 3 items (P-FA1, P-67-2, M5) confirmados por grep exaustivo de migrations 0001–0026 e inspeção do código Dart.
+
+**Achado adicional:** item `get_jobs_in_radius overload antigo` em `improvements.md` estava marcado como "ainda por remover". Verificação de `0011_drop_obsolete_get_jobs_in_radius.sql` confirmou que já contém `DROP FUNCTION IF EXISTS get_jobs_in_radius(numeric, numeric, integer)` — item era STALE; nenhuma acção necessária.
+
+### Migration 0027_doc_audit_fixes.sql — CRIADA, NÃO APLICADA
+
+**IMPORTANTE: Este ficheiro foi criado mas NÃO aplicado à base de dados. Aplicar manualmente via Supabase SQL Editor.**
+
+Cinco fixes num único ficheiro (`supabase/migrations/0027_doc_audit_fixes.sql`):
+
+#### P-FA1 — `client_has_confirmed_job_with_worker` + policy ausentes de todas as migrations
+
+`CREATE OR REPLACE FUNCTION client_has_confirmed_job_with_worker(p_worker_id uuid)` com os três estados correctos (`confirmed`, `awaiting_confirmation`, `completed`) + `CREATE POLICY "Cliente ve perfil de worker com job confirmado" ON worker_profiles FOR SELECT USING (client_has_confirmed_job_with_worker(profile_id))`.
+
+Nota: `worker_profiles` PK é `profile_id` (confirmado em `0001_baseline.sql` linha 35) — a policy usa `profile_id`, não `id`.
+
+#### P-67-2 — sync de serviços do worker agora atómico via RPC
+
+Dart: `_syncServiceTypes` em `worker_repository.dart` substituído por chamada única `_client.rpc('sync_worker_service_types', params: {...})`. As duas chamadas PostgREST separadas (DELETE + INSERT) sem transação foram eliminadas — o intervalo de tempo em que o worker podia ficar com ZERO serviços deixa de existir.
+
+SQL: `CREATE OR REPLACE FUNCTION sync_worker_service_types(p_worker_id uuid, p_service_type_ids uuid[]) RETURNS void LANGUAGE plpgsql SECURITY DEFINER` — DELETE + INSERT numa única transação.
+
+#### P-FA5 + M3 — índices em falta criados
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_help_requests_job_id ON help_requests (job_id);
+CREATE INDEX IF NOT EXISTS idx_help_requests_proposal_id ON help_requests (proposal_id);
+CREATE INDEX IF NOT EXISTS idx_help_acceptances_worker_id ON help_acceptances (worker_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at DESC);
+```
+
+`help_acceptances.worker_id` era o mais urgente: avaliado pelo RLS em TODAS as queries à tabela, não só em queries explícitas da app. M3 (índice de notificações) agrupado aqui por ser a mesma classe de fix — índice ausente confirmado por grep de todas as migrations anteriores.
+
+#### P-FA6 — DEFAULT de `help_acceptances.status` corrigido
+
+`ALTER TABLE help_acceptances ALTER COLUMN status SET DEFAULT 'pending';`
+
+O DEFAULT `'accepted'` causava rejeição silenciosa de qualquer INSERT que omitisse `status` (RLS WITH CHECK `status = 'pending'` bloqueava com count=0, sem erro visível). Só rows futuras são afectadas — rows existentes não mudam.
+
+#### M5 — policy SELECT para cliente em `help_requests` alargada
+
+`DROP POLICY IF EXISTS "Cliente vê help requests pendentes de aprovação" ON help_requests; CREATE POLICY "Cliente vê help requests dos seus jobs" ON help_requests FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM job_requests WHERE id = help_requests.job_id AND client_id = auth.uid()))` — a policy anterior (migration 0003) só cobria `pending_approval`; a nova cobre todos os estados para jobs do próprio cliente.
+
+### T6 — 5 tipos de notificação adicionais resolvidos em `notification_handler.dart`
+
+Adicionada navegação precisa para 5 tipos anteriormente ausentes do switch de `NotificationHandler`:
+
+| Tipo | `relatedId` | Acção |
+|---|---|---|
+| `newJobInRadius` | `job_id` | `context.push('/worker/job/${relatedId}')` |
+| `proposalReceived` / `proposalWithdrawn` | `job_id` | `context.push('/client/job/${relatedId}')` |
+| `proposalRejected` | `job_id` | `context.push('/worker/job/${relatedId}')` |
+| `proposalAccepted` | `job_id` | fetch `fetchAcceptedProposalForJob(jobId)` → `context.push('/worker/my-job/${proposal.id}?jobId=${relatedId}')` |
+
+`proposalAccepted` requer fetch assíncrono porque `relatedId = job_id` mas a rota precisa de `proposalId` — reutilizado o padrão async já existente para `helpRequestApproved`/`helpWithdrew`.
+
+`helpAccepted`/`helpJobCancelled`: mantidos com `extra: {'initialTabIndex': 1}` — avaliado que passar um `int` primitivo em `extra` para um ecrã de lista é seguro (sem objeto de domínio stale, sem crash risk; pior caso é degradação de UX para tab errada).
+
+`helpRequestReopened`: mantido com `context.push('/worker/help-requests')` (descoberta) — destino correcto para o worker re-candidatar-se ao slot reaberto.
+
+**T6 ainda aberto:** `jobCancelled`, `jobReopened`, `rescheduleProposed`, `rescheduleAccepted`, `rescheduleRejected`, `jobMarkedDone`, `jobCompleted` — navegam para lista genérica. Fix: push para `/client/job/$relatedId` ou `/worker/my-job/$proposalId?jobId=$relatedId` conforme role. Worker paths requerem `fetchAcceptedProposalForJob(relatedId)` para obter `proposalId`.
+
+**`flutter analyze`:** limpo após todas as alterações (0 issues).
+
+---
+
 ## 2026-06-29 — T4 corrigido: ordering race entre ref.invalidate() e router.go() em _markCompleted()
 
 Causa raiz: `ref.invalidate()` chamado **antes** de `router.go()` no caminho de sucesso de `_markCompleted()` em `worker_my_job_detail_screen.dart`. As três invalidações (`scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`) disparavam notificações síncronas ao `WidgetRef` do ecrã, registando-o como dependente ativo a reconstruir. De seguida, `dialogNavigator.pop()` e `router.go('/worker/home')` iniciavam a desmontagem do ecrã — mas o `WidgetRef` ainda estava na lista `_dependents` dos elementos de provider que tinham acabado de notificá-lo. O `ProviderElement.dispose()` do Riverpod asserta `_dependents.isEmpty`, falhando com `'_dependents.isEmpty': is not true`. Agravado pelo bloco `finally` que chamava `setState()` com `mounted == true` após a navegação já ter sido iniciada, agendando mais uma reconstrução.

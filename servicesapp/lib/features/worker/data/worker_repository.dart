@@ -87,17 +87,10 @@ class WorkerRepository {
 
   Future<void> _syncServiceTypes(
       String workerId, List<String> serviceTypeIds) async {
-    await _client
-        .from('worker_service_types')
-        .delete()
-        .eq('worker_id', workerId);
-    if (serviceTypeIds.isNotEmpty) {
-      await _client.from('worker_service_types').insert(
-            serviceTypeIds
-                .map((id) => {'worker_id': workerId, 'service_type_id': id})
-                .toList(),
-          );
-    }
+    await _client.rpc('sync_worker_service_types', params: {
+      'p_worker_id': workerId,
+      'p_service_type_ids': serviceTypeIds,
+    });
   }
 
   Future<Map<String, String>> fetchWorkerBasicInfo(String workerId) async {

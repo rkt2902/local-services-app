@@ -5,415 +5,70 @@
 > não cabe no momento, adicionar aqui em vez de esquecer.
 >
 > Cada item: descrição curta, contexto/porquê, e prioridade subjetiva.
-
----
-
-> **Revalidação 2026-06-26 (atualizado sessão 7):** Esta série de auditorias foi revalidada contra um snapshot direto da BD viva (`schema_snapshot_2026-06-26.csv`, já apagado), migrations 0016–0019 (P-8-4, P-FA4, P-9-1, P-FA3, P-FA2, P-FA7). Itens confirmados stale, parcialmente resolvidos, ou totalmente resolvidos foram removidos ou movidos para o apêndice no final desta série. **Itens abertos: 14** (24 após sessão 4 → −2: P-FA2, P-FA7; 22 após sessão 5 → −2: P-8-1, P-10-3; 20 após sessão 6 → −6: P-67-3, P-67-4, P-67-5, P-67-6, P-8-3, P-8-6).
-
----
-
-## 🔍 Auditoria 2026-06-25 — Fases 0-3 (a atacar em breve)
-
-> Resultado da revisão independente de Fases 0-3 feita em 2026-06-25.
-> Itens numerados com códigos estáveis (P1-P8, A1-A3, M1-M6, B1-B4) para
-> referência futura sem re-derivar a análise. Nenhum ficheiro .dart foi
-> alterado nesta sessão — só documentação.
-
-### Problemas encontrados
-
-**P1 — JobStatus color-label map duplicada 4× com inconsistências**
-A mesma lógica "JobStatus → (label, Color)" está implementada independentemente em 4 lugares:
-- `lib/features/client/presentation/client_home_screen.dart:227` — `_statusChip()`, label para `open`: **"À espera"**
-- `lib/features/jobs/presentation/client_jobs_screen.dart:183` — `_statusChip()`, label para `open`: **"À espera de proposta"** ← inconsistente
-- `lib/features/jobs/presentation/client_job_detail_screen.dart:1063` — `_statusInfo()`, label para `open`: **"À espera de proposta"**
-- `lib/features/help_requests/presentation/worker_help_requests_screen.dart:353` — `_jobStatusDisplay(String)` — opera em **strings brutas** em vez do enum `JobStatus`; `open` e `no_response` caem no wildcard `'Em aberto'`; não tem exaustividade garantida pelo compilador
-
-Consequências: label inconsistente em dois ecrãs de alta visibilidade; ao adicionar um novo `JobStatus`, as 3 versões enum serão apanhadas pelo compilador mas a versão string não.
-
-**P2 — Cores hex hardcoded divergentes do seed do tema**
-- `lib/core/router/app_router.dart:44` — `Color(0xFF2E7D32)` para o spinner de loading. Duplica `AppTheme._seed` mas não está ligado a ele — se a cor da marca mudar, o spinner fica verde.
-- `lib/core/widgets/status_timeline.dart:118` — `Color(0xFF43A047)` para o círculo "done". É um verde **diferente** do seed (`0xFF2E7D32`). Os dois hex são suficientemente próximos para passar na revisão visual mas divergirão com qualquer ajuste de tema ou modo escuro.
-
-**P3 — `Colors.orange` usado para semânticas diferentes sem mapeamento no tema**
-`Colors.orange.shade700` aparece nos chips de urgência, no badge de "propostas pendentes", no banner de "remarcação pendente", e em ícones de notificação — de features diferentes, sem token semântico partilhado. O Material 3 já gera `colorScheme.tertiary` (warning/accent) e `colorScheme.error` (destrutivo) a partir do seed, mas nenhum ecrã os usa; todos acedem a `Colors.orange` diretamente.
-
-**P4 — Wildcard em `_HistoryCard._statusLabel` silencia 2 casos válidos do enum**
-`lib/features/help_requests/presentation/worker_help_requests_screen.dart:509`:
-```dart
-String get _statusLabel => switch (acceptance.status) {
-  HelpAcceptanceStatus.rejected  => 'Não selecionado',
-  HelpAcceptanceStatus.cancelled => 'Desististe',
-  _ => '—',  // silencia .pending e .accepted
-};
-```
-Hoje está seguro porque o filtro upstream (linha 280-281) só envia `rejected | cancelled` para o separador de histórico. Mas o wildcard significa: (a) se o filtro mudar, `pending`/`accepted` mostram `'—'` sem aviso de compilação; (b) um novo valor no enum também cairia silenciosamente no wildcard.
-
-**✅ P6 — RESOLVIDO 2026-06-29 (A2 Prompt A + Prompt B) — 4 rotas convertidas de `state.extra!` para ID-based routing**
-
-| Rota | Abordagem | Prompt |
-|---|---|---|
-| `/client/job/:id` | `jobId` via `pathParameters` | A |
-| `/worker/job/:id` | `jobId` via `pathParameters` | A |
-| `/worker/my-job/:id` | `proposalId` via `pathParameters` + `jobId` via `queryParameters` (carregamento paralelo) | B |
-| `/worker/job/:id/help-requests` | `jobId` via `pathParameters`; proposta via `acceptedProposalForJobProvider` | B |
-
-Navegação direta (deep link, back/forward do sistema, ou acesso cross-role de P5) lança `Null check operator used on a null value` antes de o ecrã renderizar. Deep links para qualquer job individual são impossíveis enquanto este padrão persistir.
-
-> ~~**⚠️ Re-priorizado em 2026-06-29 — deixou de ser um gap teórico.**~~ **✅ RESOLVIDO 2026-06-29.** T1 e T3 (sintomas diretos de `state.extra` stale/null) resolvidos em todos os 4 ecrãs. T6 (deep-link de notificações para job exato) desbloqueado — `notification_handler.dart` simplificado para os casos de `helpRequestApproved`/`helpWithdrew`; restantes notificações de job (reschedule, cancelled, etc.) ainda navegam para lista, mas a infraestrutura de routing já suporta deep-link direto. Ver `decisions_log.md` 2026-06-29.
-
-**P7 — `architecture.md` tem diagrama de pastas obsoleto**
-O diagrama em `docs/architecture.md` lista `ratings/` (não existe — Fase 11 por implementar) mas omite `notifications/` (totalmente implementado, com estrutura própria `data/`, `application/`, `presentation/`). Um novo developer que leia o diagrama vai à procura de uma pasta inexistente e não encontra a que existe.
-
-**P8 — `worker_setup_screen.dart` chama Supabase direto no widget, viola `architecture.md` Princípio #2**
-`lib/features/worker/presentation/worker_setup_screen.dart:178`:
-```dart
-final profileData = await ref
-    .read(supabaseClientProvider)
-    .from('profiles')
-    .select('full_name, phone')
-    .eq('id', currentUser.id)
-    .single();
-```
-Chamada direta ao Supabase dentro de um `ConsumerStatefulWidget`. `architecture.md` Princípio #2 diz explicitamente: *"Nunca chamar Supabase diretamente dentro de widgets."* É a única violação encontrada — mas cria um precedente se não for corrigida antes de a equipa crescer.
-
----
-
-### Melhorias — Alta prioridade
-
-**A1 — Centralizar `JobStatus` → `(String label, Color color)` numa extension única (resolve P1)**
-Criar uma extension `StatusDisplay` em `JobStatus` (em `core/constants/` ou `core/widgets/`) com um único switch exaustivo que devolve label e cor. Todos os ecrãs chamam `status.displayInfo(proposalCount)`. Resolve simultaneamente:
-- A inconsistência "À espera" / "À espera de proposta"
-- ~100 linhas de duplicação (4 implementações → 1)
-- A versão raw-string em `worker_help_requests_screen.dart` que não tem exaustividade
-
-**A2 — Substituir navigation-extra por ID-based routing nos ecrãs de detalhe (resolve causa raiz dos bugs de `/choose-role` de hoje E P6; maior impacto estrutural do relatório)**
-O padrão atual passa objetos ricos em `state.extra`. O padrão correto go_router + Riverpod:
-```dart
-// Route: /client/job/:id — sem extra
-builder: (_, state) => ClientJobDetailScreen(jobId: state.pathParameters['id']!),
-
-// Ecrã: faz fetch via provider (já existe jobByIdProvider)
-final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
-```
-Elimina **toda a classe** de bugs "extra perdido durante redirect" (incluindo o bug `/choose-role` que foi corrigido hoje com um workaround no redirect). Habilita deep links para todos os ecrãs de detalhe. Resolve P6. O refactor toca 4 rotas e os ecrãs correspondentes; os providers necessários (`jobByIdProvider`, `proposalByIdProvider`) já existem e são usados em `notification_handler.dart`.
-
-**A3 — `PendingSignupStateProvider` para eliminar definitivamente o risco de perda de dados no `/choose-role` (complementa A2)**
-Mesmo com o fix de redirect atual, `fullName`/`phone` continuam a ser passados como `state.extra` para `/choose-role`. Se qualquer futura alteração ao router criar um novo caminho de redirect através de `/choose-role`, os dados voltam a perder-se.
-
-Solução robusta: um `StateProvider<PendingSignupState?>` na camada `auth/application/`. O `SignupScreen` escreve para ele antes de navegar; o `ChooseRoleScreen` lê dele. O extra de navegação deixa de ser load-bearing. Combinado com A2, fecha permanentemente a classe de "state de navegação perdido durante redirect do router".
-
----
-
-### Melhorias — Média prioridade
-
-**M1 — Tokens de cor semânticos no AppTheme usando o ColorScheme do Material 3 já gerado**
-O Material 3 já gera `theme.colorScheme.tertiary` (warning/accent) e `theme.colorScheme.error` (destrutivo) a partir do seed. Os ecrãs devem usar:
-- `theme.colorScheme.error` em vez de `Colors.red` nos SnackBars de erro
-- `theme.colorScheme.tertiary` em vez de `Colors.orange.shade700` para estados pending/warning
-Resolve P3. Nenhuma nova cor precisa de ser definida — o Material 3 já as calcula.
-
-**M2 — Expor `AppTheme.seed` como `static const` e referenciar em `app_router.dart` (resolve P2)**
-Mudar `_seed` para `seed` em `AppTheme` (torná-lo público) e substituir `Color(0xFF2E7D32)` em `app_router.dart:44` por `AppTheme.seed`. Um ficheiro, uma linha, elimina a divergência de P2.
-
-**M4 — Constantes de border radius no AppTheme**
-Três valores aparecem repetidamente: `8` (~8 ocorrências), `12` (~12 ocorrências), `16` (~4 ocorrências). Adicionar:
-```dart
-static const double radiusSmall  = 8;
-static const double radiusMedium = 12;
-static const double radiusLarge  = 16;
-```
-Uma futura alteração de corner radius passa de ~24 ficheiros para 1 ficheiro.
-
-**M5 — Documentar setup de `--dart-define` para novos contribuidores em `project_overview.md`**
-O `decisions_log.md` regista a *decisão* (entrada 2026-06-02) mas não dá instruções de setup. Um novo developer precisa de:
-1. Saber que existe um `.vscode/launch.json` gitignored
-2. Saber o esqueleto exato do ficheiro com os campos `SUPABASE_URL` e `SUPABASE_ANON_KEY`
-3. Saber onde obter os valores (dashboard Supabase)
-
-Nenhum destes passos está documentado em `project_overview.md` ou `architecture.md`. Adicionar uma secção "Setup de desenvolvimento" com o esqueleto do `launch.json` e referência ao dashboard elimina este friction point.
-
-**M6 — Atualizar diagrama de pastas em `architecture.md` (resolve P7)**
-- Adicionar `notifications/` à lista de features
-- Anotar `ratings/` como `# Fase 11 — não implementado`
-Mudança de 2 linhas, diagrama passa a ser fidedigno.
-
----
-
-### Melhorias — Baixa prioridade
-
-**B1 — Boilerplate de enums: não vale code-gen a esta escala (decisão, não ação)**
-9 enums × ~6-15 linhas de `value`/`fromValue` = ~100 linhas de boilerplate total. Code-gen (json_serializable, freezed) adicionaria build_runner e indireção para um ganho mínimo. O Dart built-in `.name` cobre enums com valor igual ao identifier; para os com underscore (`awaitingConfirmation → 'awaiting_confirmation'`) o getter manual é mais legível do que qualquer abstração. **Decisão: manter o boilerplate.** O compilador já apanha casos em falta nos switches de expressão — o principal benefício do code-gen está coberto.
-
-**B2 — Partilha estrutural entre `ClientShell`/`WorkerShell`: não vale ainda (decisão, não ação)**
-Os dois shells têm tabs, ícones, FAB logic e contagens de destinos suficientemente diferentes para que um `GenericShell(tabs: [...])` fique tão complexo quanto a separação atual. **Decisão: manter separados.** O momento certo para extrair é quando surgir um terceiro shell (e.g. role admin) ou comportamento partilhado (e.g. banner global). Nenhum está no roadmap.
-
-**B3 — Tornar exaustivo o switch de `_HistoryCard._statusLabel` (resolve P4)**
-Substituir `_ => '—'` por casos explícitos para `pending` e `accepted`:
-```dart
-HelpAcceptanceStatus.pending  => 'Pendente',   // não deve aparecer aqui
-HelpAcceptanceStatus.accepted => 'Aceite',     // não deve aparecer aqui
-```
-Sem comportamento visível hoje (filtro upstream garante que não chegam). O ganho é que um novo valor no enum passa a ser um erro de compilação em vez de um wildcard silencioso.
-
-**B4 — Mover chamada Supabase de `worker_setup_screen.dart` para o repository (resolve P8)**
-Mover o `from('profiles').select('full_name, phone')` de `worker_setup_screen.dart:178` para um método `fetchBasicProfile(userId)` no `WorkerRepository` ou `ClientRepository`. Restaura a invariante de architecture.md e remove o único ponto de contacto direto com Supabase dentro de um widget.
-
----
-
-> **Nota:** Esta auditoria cobre só Fases 0-3. A auditoria de Fases 4-5 foi
-> adicionada na secção seguinte (mesma sessão, 2026-06-25). Auditorias para
-> Fases 6-7, 8, 9 e 10 podem ser adicionadas como secções próprias.
-
----
-
-## 🔍 Auditoria 2026-06-25 — Fases 4-5 (a atacar em breve)
-
-> Resultado da revisão independente de Fases 4-5 (Supabase config, schema,
-> RLS para todas as 13 tabelas, migrations 0001-0014, storage, índices) feita
-> em 2026-06-25. Itens numerados com códigos estáveis (P-FA1–P-FA8, A1–A4,
-> M1–M6, B1–B4) para referência futura sem re-derivar a análise.
 >
-> ⚠️ **MAIS URGENTE DESTA AUDITORIA: P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de todas as migrations. BD não reproduzível sem ela. (P-FA3 resolvido em migration 0018 — 2026-06-26.)
-
-### Problemas encontrados
-
-**P-FA1 — `client_has_confirmed_job_with_worker` existe na BD viva mas ausente de todas as migrations**
-
-A função existe na BD viva com corpo correto (`jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`) — confirmado via snapshot 2026-06-26 (`pg_get_functiondef`). A policy `"Cliente ve perfil de worker com job confirmado"` em `worker_profiles` referencia-a — também confirmada presente via snapshot. Nenhuma das migrations 0001–0014 contém a função nem a policy.
-
-**Acção necessária:** criar migration nova com a definição da função + a policy (ver A1 desta auditoria). Sem este fix, uma BD nova a partir das migrations não teria nem a função nem a policy — contactos de worker ficariam sempre invisíveis ao cliente.
+> **Organização:** Itens por resolver ordenados por severidade (Crítico → Alta → Média → Baixa). Decisões de produto e features futuras a seguir. Resolvidos no final como referência histórica.
 
 ---
 
-**P-FA5 — Índices em falta em `help_requests` e `help_acceptances`**
+## 🟠 Alta prioridade — Por resolver
 
-Nenhum índice existe em:
+### T6 / P-8-9 — Deep-link de notificações: gap estrutural (parcialmente resolvido 2026-06-30)
 
-| Coluna | Usada em | Impacto |
-|---|---|---|
-| `help_requests.job_id` | `fetchHelpRequestsForJob` WHERE; JOIN em `get_help_requests_in_radius` | Sequential scan de all help_requests por lobby load |
-| `help_requests.proposal_id` | JOIN em `get_help_requests_in_radius`; `is_principal_worker_for_help_request` | Sequential scan no JOIN |
-| `help_acceptances.worker_id` | `get_my_help_acceptances` WHERE; RLS USING "Worker vê as suas candidaturas" | **Sequential scan por cada query à tabela** (avaliado pelo RLS em todas as queries) |
+Henrique confirmou: *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*
 
-O UNIQUE constraint `(help_request_id, worker_id)` em `help_acceptances` cobre lookups com `help_request_id` como prefixo esquerdo — `fetchCandidatesForHelpRequest` está coberto. Lookups só por `worker_id` (sem `help_request_id`) não usam este índice.
+**Progresso 2026-06-29:** A2 completo — todas as 4 rotas de detalhe são ID-based. `helpRequestApproved`/`helpWithdrew` em `notification_handler.dart` já navegam diretamente para o ecrã correto.
 
-`help_acceptances.worker_id` é o mais urgente: é avaliado pelo RLS em **todas** as queries à tabela, não só nas queries explícitas da app.
+**Progresso 2026-06-30:** 5 tipos adicionais resolvidos — `proposalReceived`, `proposalWithdrawn`, `proposalAccepted` (async via `fetchAcceptedProposalForJob`), `proposalRejected`, `newJobInRadius`. `helpAccepted`/`helpJobCancelled` mantidos com `extra: {'initialTabIndex': 1}` (primitivo int — avaliado como seguro, sem crash risk). `helpRequestReopened` mantido com push para descoberta (destino correto para re-candidatura).
+
+**Falta (7 tipos):** `jobCancelled`, `jobReopened`, `rescheduleProposed`, `rescheduleAccepted`, `rescheduleRejected`, `jobMarkedDone`, `jobCompleted` — ainda navegam para lista genérica. Em todos estes casos `related_id` é o `job_id`; o fix é `context.push('/client/job/${notification.relatedId}')` ou `/worker/my-job/$proposalId?jobId=${notification.relatedId}` conforme role. Worker paths requerem `fetchAcceptedProposalForJob(relatedId)` para resolver `proposalId`.
 
 ---
 
-**P-FA6 — `help_acceptances.status` tem DEFAULT `'accepted'` na BD, contradiz a RLS de INSERT**
+## 🟡 Média prioridade — Por resolver
 
-A RLS de INSERT (migration 0004): `WITH CHECK (worker_id = auth.uid() AND status = 'pending')`.
+### P1 / A1 — JobStatus color-label duplicada 4× com inconsistências
 
-Qualquer INSERT que omita `status` recebe o default `'accepted'`, o que falha imediatamente no `WITH CHECK` — silenciosamente bloqueado (sem erro visível, só count=0). O default correto seria `'pending'`. O default `'accepted'` predata a migration 0004 (que introduziu o conceito de `pending`). Nenhuma migration posterior corrigiu o default.
+A mesma lógica "JobStatus → (label, Color)" implementada independentemente em 4 lugares:
+- `client_home_screen.dart:226` — `_statusChip()`, label `open`: **"À espera"**
+- `client_jobs_screen.dart:182` — `_statusChip()`, label `open`: **"À espera de proposta"** ← inconsistente
+- `client_job_detail_screen.dart:1267` — `_statusInfo()`, label `open`: **"À espera de proposta"**
+- `worker_help_requests_screen.dart:359` — `_jobStatusDisplay(String)` opera em strings brutas; `open` e `no_response` caem no wildcard `'Em aberto'`; sem exaustividade de compilador
 
----
-
-**P-FA8 — `cancel_job` reproduzido por completo em 4 migrations sem a 24h rule nas 3 mais antigas**
-
-O corpo completo de `cancel_job` aparece em 0001, 0007, 0009 e 0013. As versões 0001/0007/0009 não têm a 24h rule (introduzida em 0013) — correto por design (cada migration só reproduz o estado daquele momento). A versão autoritativa é sempre a última (0013). Mas um leitor que leia 0007 antes de 0013 pode perder as mudanças de 0009 (loop de notificações `help_job_cancelled`). É um comprehension hazard crescente, não um bug runtime.
-
----
-
-### Melhorias — Alta prioridade
-
-**A1 — Adicionar `client_has_confirmed_job_with_worker` a uma migration (resolve P-FA1)**
-
-Confirmado via snapshot 2026-06-26: a policy `"Cliente ve perfil de worker com job confirmado"` em `worker_profiles` referencia a função. Criar migration 0015 com:
-1. `CREATE OR REPLACE FUNCTION client_has_confirmed_job_with_worker(p_worker_id uuid) RETURNS boolean...` — corpo completo em `database_schema.md` secção "Funções internas"
-2. `DROP POLICY IF EXISTS "Cliente ve perfil de worker com job confirmado" ON worker_profiles; CREATE POLICY...` — texto actual da policy em `database_schema.md` secção RLS
-
-Sem este fix, a BD não é reproduzível a partir das migrations.
+**Acção:** criar extension `StatusDisplay` em `JobStatus` com switch exaustivo que devolve label e cor. Todos os ecrãs chamam `status.displayInfo(proposalCount)`. Resolve a inconsistência e ~100 linhas de duplicação.
 
 ---
 
-### Melhorias — Média prioridade
+### P-8-2 / M1 Fase 8 — N+1 queries de nome de worker em `_ProposalCard`
 
-**M1 — Índices em `help_requests` e `help_acceptances` (resolve P-FA5)**
+`client_job_detail_screen.dart` (`_ProposalCard` l.1079 / `workerNameProvider` ref l.1094) — `ref.watch(workerNameProvider(proposal.workerId))` por proposta. Para N propostas de N workers: N round-trips. O lado do worker (`fetchPendingWorkerProposals`, etc.) já usa o padrão de embedded resources PostgREST. O mesmo padrão não foi aplicado ao lado do cliente.
 
-```sql
-CREATE INDEX IF NOT EXISTS idx_help_requests_job_id
-  ON help_requests (job_id);
-
-CREATE INDEX IF NOT EXISTS idx_help_requests_proposal_id
-  ON help_requests (proposal_id);
-
-CREATE INDEX IF NOT EXISTS idx_help_acceptances_worker_id
-  ON help_acceptances (worker_id);
-```
-
-Ordem de prioridade: `help_acceptances.worker_id` (afeta RLS de cada query à tabela) > `help_requests.job_id` (lobby screen + JOIN do RPC) > `help_requests.proposal_id` (só JOIN do RPC, volume menor).
-
-**M2 — Corrigir DEFAULT de `help_acceptances.status` para `'pending'` (resolve P-FA6)**
-
-```sql
-ALTER TABLE help_acceptances ALTER COLUMN status SET DEFAULT 'pending';
-```
-
-Sem data migration — rows existentes não são afetadas. Torna o schema self-documenting e elimina silenciosa rejeição por RLS em INSERTs sem `status` explícito.
-
-**M3 — Índice composto `notifications(user_id, created_at DESC)` para queries ordenadas**
-
-Todas as queries de notificações em `notification_repository.dart` fazem ORDER BY `created_at DESC`. O índice atual `idx_notifications_user_id` cobre o filtro mas o Postgres ainda precisa de ordenar o resultado. Um índice composto permite um true index scan:
-```sql
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created
-  ON notifications (user_id, created_at DESC);
-```
-O índice `idx_notifications_user_read` (para contagem de não-lidas) continua útil e não conflitua.
-
-**M4 — CHECK constraints em `people_needed` e `slots_needed` (integridade de dados)**
-
-Sem estes CHECKs, `accept_proposal` pode calcular `slots_needed = people_needed - 1 = -1` se `people_needed = 0` chegar à BD, criando uma help_request com `slots_needed` negativo (imediatamente considerada "filled"):
-```sql
-ALTER TABLE job_proposals
-  ADD CONSTRAINT check_people_needed CHECK (people_needed >= 1);
-
-ALTER TABLE help_requests
-  ADD CONSTRAINT check_slots_needed CHECK (slots_needed >= 1);
-```
-
-**M5 — Policy SELECT mais ampla para o cliente em `help_requests` (gap C3.2 — parcialmente fechado)**
-
-> **Nota 2026-06-29:** o gap C3.2 está parcialmente fechado. A policy SELECT para o **worker principal** foi adicionada em migration 0026 (corrigiu bugs P1+P2 da sessão). O gap que permanece aqui é só do lado do **cliente**: atualmente só `pending_approval` rows são visíveis ao cliente (policy da migration 0003). Qualquer ecrã futuro "ver equipa" (help_requests em `open`/`filled`) retornaria vazio silenciosamente. Fix proactivo:
-```sql
--- Dropar a policy narrow de pending_approval:
-DROP POLICY IF EXISTS "Cliente vê help requests pendentes de aprovação" ON help_requests;
-
--- Substituir por policy que cobre todos os estados para jobs do cliente:
-CREATE POLICY "Cliente vê help requests dos seus jobs"
-  ON help_requests FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM job_requests
-      WHERE id = help_requests.job_id
-        AND client_id = auth.uid()
-    )
-  );
-```
-
-O fluxo de aprovação (`approve_help_request` RPC) já valida que o cliente é dono do job — a policy mais ampla não altera o comportamento dos RPCs.
-
-**M6 — Coluna "Migration atual" na tabela de RPCs do `database_schema.md`**
-
-`cancel_job` tem corpo completo em 4 migrations; `accept_proposal` em 2; `create_proposal` em 3. Não é óbvio qual é a versão autoritativa sem ler todas. Adicionar uma coluna "Definido/atualizado em" à tabela de RPCs em `database_schema.md` para navegação direta à versão atual.
-
----
-
-### Melhorias — Baixa prioridade
-
-**B1 — Reproduções completas de `cancel_job` em 4 migrations: sem ação agora**
-
-Sem ação agora — o padrão de reproduzir o corpo completo em cada migration é correto e self-contained. Se o número de migrations passar de 20, considerar `supabase/FUNCTION_HISTORY.md` que mapeie cada função → migration mais recente que a tocou.
-
-**B2 — Policy "Sistema insere notificações": inconsistência docs-vs-baseline**
-
-O 0001_baseline cria:
-```sql
-CREATE POLICY "Sistema insere notificações"
-  ON notifications FOR INSERT TO service_role
-  WITH CHECK (true);
-```
-Mas `database_schema.md` diz: *"Não existe uma política 'Sistema insere notificações' na BD viva."*
-
-A policy é funcionalmente harmless (funções SECURITY DEFINER bypassam RLS independentemente), mas a inconsistência é confusa para quem audite o fluxo de INSERT de notificações. Resolver: atualizar `database_schema.md` para refletir que a policy é criada pelo 0001 mas redundante, ou fazer DROP explícito numa migration com comentário explicativo.
-
-**B3 — Remover coluna legacy `job_proposals.estimated_hours`**
-
-Coluna nullable que predata o split min/max (2026-06-11). Não mapeada em `JobProposal.fromJson` — ignorada silenciosamente. Aproveitar a migration da Fase 11 (ratings) para o drop:
-```sql
-ALTER TABLE job_proposals DROP COLUMN IF EXISTS estimated_hours;
-```
-
-**B4 — CHECK `(hourly_rate >= 0)` em `job_proposals`**
-
-`job_proposals.hourly_rate` é NOT NULL mas sem CHECK. Seguir o padrão já estabelecido pelo `check_agreed_rate` em `help_acceptances` (migration 0007):
-```sql
-ALTER TABLE job_proposals
-  ADD CONSTRAINT check_hourly_rate CHECK (hourly_rate >= 0);
-```
-Usar `>= 0` (não `> 0`) para permitir "negociar no local" como sinal explícito, se necessário.
-
----
-
-> **Nota:** Esta auditoria cobre Fases 4-5. A auditoria de Fases 6-7 foi
-> adicionada na secção seguinte (mesma sessão, 2026-06-25).
-> ⚠️ Item mais urgente de toda a auditoria até agora: **P-FA3** — policy de
-> avatars quebrada desde o dia 1, fix só na BD viva (nunca capturado em migration).
-
----
-
-## 🔍 Auditoria 2026-06-25 — Fases 6-7 (a atacar em breve)
-
-> Resultado da revisão independente de Fases 6-7 (fluxos de auth, ecrãs de
-> perfil de cliente e worker, SessionNotifier, RouterNotifier.redirect())
-> feita em 2026-06-25, imediatamente após 2 bugs reais terem sido encontrados
-> e corrigidos nestas mesmas áreas. Itens numerados com códigos estáveis
-> (P-67-1–P-67-6, A1–A3, M1–M4, B1–B4) para referência futura.
->
-> ⚠️ **MAIS URGENTE: P-67-1** — `/worker/setup` ausente de `loadingExempt`,
-> mesma classe estrutural do Bug 2 corrigido hoje, com risco real de perda de
-> dados em produção (formulário apagado silenciosamente sem erro).
-
-### Problemas encontrados
-
-**P-67-2 — `worker_service_types` sync não é atómico (DELETE + INSERT como 2 chamadas PostgREST separadas, sem transação). Se o INSERT falhar depois do DELETE ter sucesso, o worker fica com ZERO serviços permanentemente até reabrir e regravar manualmente.**
-
-`worker_repository.dart:88`:
+**Acção:** aplicar embedded join em `fetchPendingProposalsForJob`:
 ```dart
-Future<void> _syncServiceTypes(String workerId, List<String> serviceTypeIds) async {
-  await _client.from('worker_service_types').delete().eq('worker_id', workerId);
-  if (serviceTypeIds.isNotEmpty) {
-    await _client.from('worker_service_types').insert(
-      serviceTypeIds.map((id) => {'worker_id': workerId, 'service_type_id': id}).toList(),
-    );
-  }
-}
+// proposal_repository.dart:38 — ANTES: .select()
+// DEPOIS (confirmar nome FK antes de implementar):
+.select('*, profiles!job_proposals_worker_id_fkey(full_name, id)')
 ```
-
-Duas chamadas PostgREST sem transação. Se o DELETE suceder e o INSERT falhar (erro de rede, connection reset, rate limit Supabase):
-
-- Para `updateProfile` (worker a editar perfil): worker fica com ZERO serviços. O utilizador vê o SnackBar "Ocorreu um erro inesperado." mas não sabe que os serviços foram apagados. Se navegar sem tentar de novo: invisível na descoberta, sem notificações de jobs, sem erro mostrado. Pode não notar durante dias.
-- Para `createProfile` (worker setup pela primeira vez): `hasProfile()` devolve `true` (worker_profiles upsertado com sucesso) → `workerProfileComplete = true` → worker chega a `/worker/home` com ZERO service types. Invisível na descoberta desde o primeiro instante, sem erro nenhum mostrado.
-
-PostgREST REST API não suporta transações multi-statement. O único fix correto é um RPC SECURITY DEFINER que envolve DELETE + INSERT numa transação PL/pgSQL única.
+Adicionar `workerName` ao modelo `JobProposal`. Atualizar `_ProposalCard` para usar `proposal.workerName` diretamente. N queries → 1 query. **Esforço: ~45 min.**
 
 ---
 
-### Melhorias — Alta prioridade
+### M4 Fases 4-5 — CHECK constraints em `people_needed` e `slots_needed`
 
-**A3 — Criar RPC `sync_worker_service_types` (SECURITY DEFINER) para tornar o delete-then-insert atómico (resolve P-67-2, ~30 min)**
+Sem estes CHECKs, `accept_proposal` pode calcular `slots_needed = people_needed - 1 = -1` se `people_needed = 0` chegar à BD, criando uma help_request com `slots_needed` negativo (imediatamente considerada "filled").
 
+**Acção:**
 ```sql
-CREATE OR REPLACE FUNCTION sync_worker_service_types(
-  p_worker_id        uuid,
-  p_service_type_ids uuid[]
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  DELETE FROM worker_service_types WHERE worker_id = p_worker_id;
-  IF array_length(p_service_type_ids, 1) IS NOT NULL
-     AND array_length(p_service_type_ids, 1) > 0 THEN
-    INSERT INTO worker_service_types (worker_id, service_type_id)
-    SELECT p_worker_id, unnest(p_service_type_ids);
-  END IF;
-END;
-$$;
+ALTER TABLE job_proposals ADD CONSTRAINT check_people_needed CHECK (people_needed >= 1);
+ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed >= 1);
 ```
-
-Depois substituir `_syncServiceTypes` no `worker_repository.dart` por uma única chamada RPC. Todo o delete-then-insert passa a ser atómico ao nível da BD. Esforço: nova migration + alteração no repository Dart.
 
 ---
 
-### Melhorias — Média prioridade
+### M4 Fases 6-7 — `PendingSignupStateProvider` (resolve causa raiz de "dados perdidos em redirect")
 
-**M4 — `PendingSignupStateProvider` — `StateProvider<PendingSignupData?>` na camada de auth, substitui o uso de navigation extra para `fullName`/`phone` entre `SignupScreen` e `ChooseRoleScreen`. Resolve a CAUSA RAIZ de toda a classe de bugs "dados perdidos em redirect".**
+`fullName`/`phone` continuam a ser passados como `state.extra` para `/choose-role`. Qualquer futura alteração ao router que crie um novo caminho de redirect volta a perder os dados.
 
-Os 2 bugs corrigidos hoje são instâncias da mesma classe: dados de aplicação guardados em `state.extra` do router em vez de estado Riverpod. `state.extra` é transitório por design e descartado em qualquer navegação iniciada pelo próprio router — o que acontece sempre em fluxos de auth.
-
+**Acção:**
 ```dart
 // lib/features/auth/application/pending_signup_provider.dart
 @immutable
@@ -422,978 +77,544 @@ class PendingSignupData {
   final String phone;
   const PendingSignupData({required this.fullName, required this.phone});
 }
-
 final pendingSignupProvider = StateProvider<PendingSignupData?>((ref) => null);
 ```
-
-`SignupScreen` escreve para o provider antes de `context.go('/choose-role')`. `ChooseRoleScreen` lê do provider em vez de `widget.fullName`/`widget.phone`. Após `createProfile` ter sucesso, o provider é reset para null.
-
-`loadingExempt` fica como otimização de UX (sem flash), não como requisito de correção. Qualquer ecrã de onboarding futuro está protegido automaticamente.
-
-**Esforço: ~1.5h** (novo provider + atualizar SignupScreen + atualizar ChooseRoleScreen + testar fluxo de signup).
+`SignupScreen` escreve para o provider antes de `context.go('/choose-role')`. `ChooseRoleScreen` lê do provider. Após `createProfile` ter sucesso, reset para null. **Esforço: ~1.5h.**
 
 ---
 
-### Melhorias — Baixa prioridade
+### P-10-2 / M2 Fase 10 — Contacto do worker principal não visível ao ajudante
 
-**B1 — Validação de email com regex mínimo em vez de só `contains('@')`**
+`project_overview.md` especifica: *"Ajudantes veem o contacto do worker principal, não o do client (no MVP)."* `principalPhone` — campo **não existe** em `HelpAcceptanceSummary` nem em `HelpAcceptanceDetails`. Sem botão WhatsApp em qualquer ecrã para o ajudante contactar o principal.
 
-Em `signup_screen.dart` e `login_screen.dart`, `!v.contains('@')` aceita `@`, `test@@`, `a@`. O Supabase rejeita emails inválidos ao nível do servidor, mas o feedback chega mais tarde. Substituir por:
-```dart
-if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())) {
-  return 'Email inválido.';
-}
-```
-Sem pacotes adicionais. O servidor continua a ser a gate real.
-
-**B2 — Validação de tamanho mínimo no telefone (números inválidos quebram o link `wa.me` usado para contacto WhatsApp)**
-
-Todos os ecrãs de signup e perfil validam o telefone como "não vazio". Um valor como `"1"` ou `"abc"` passa e fica guardado. O link WhatsApp é construído com `wa.me/<número limpo>` — número inválido = link quebrado. Adicionar no mínimo:
-```dart
-final digits = v!.trim().replaceAll(RegExp(r'[\s\-\+\(\)]'), '');
-if (digits.length < 9) return 'Número de telefone inválido.';
-```
-
-**B3 — Indicador de loading específico para a fase de upload de avatar (separado do `_saving` genérico)**
-
-Ambos os ecrãs de perfil usam `_saving = true` para todo o ciclo save (upload avatar + update BD). O upload pode demorar 1-5s numa ligação móvel fraca. Sem indicação específica, utilizadores podem pensar que a app travou e tentar de novo. Um estado `_uploadingAvatar` separado com texto "A carregar foto..." melhora o feedback sem alterar a lógica de negócio.
-
----
-
-### Nota da sessão
-
-Pergunta colocada no prompt original: existe uma mudança estrutural que previna esta CLASSE de bug? Resposta: sim — M4 (`PendingSignupStateProvider`).
-
-A causa raiz dos 2 bugs corrigidos hoje é guardar dados de aplicação em `state.extra` do router em vez de estado Riverpod. `state.extra` é transitório por design e descartado em qualquer navegação iniciada pelo próprio router — o que acontece sempre em fluxos de auth. M4 resolve isto de forma permanente para qualquer ecrã de onboarding futuro, não só os 2 já corrigidos.
-
-`loadingExempt` fica como otimização de UX (sem flash visível), não como requisito de correção — a distinção é importante para perceber o que é workaround vs. fix estrutural.
-
----
-
-## 🔍 Auditoria 2026-06-25 — Fase 8 (a atacar em breve)
-
-> Resultado da revisão independente da Fase 8 (ciclo de vida de jobs e
-> propostas, remarcação, conclusão, timeline de estados, fotos, notificações)
-> feita em 2026-06-25, após a code review dedicada, o crosscheck BD/docs/código,
-> e as adições de cancellation handling já aplicadas. Itens numerados com
-> códigos estáveis (P-8-1–P-8-9, A1–A3, M1–M4, B1–B4) para referência futura.
-
-### Problemas encontrados
-
-**P-8-2 — N+1 queries de nome de worker em `_ProposalCard` — confirmado ainda presente, nunca corrigido**
-
-`client_job_detail_screen.dart:914`:
-```dart
-class _ProposalCard extends ConsumerWidget {
-  Widget build(BuildContext context, WidgetRef ref) {
-    final workerNameAsync = ref.watch(workerNameProvider(proposal.workerId));
-```
-
-`workerNameProvider` é `FutureProvider.family<String, String>` — uma chamada `fetchWorkerName(workerId)` separada por proposta. Para N propostas de N workers diferentes: N round-trips. Item já catalogado em improvements.md (secção "Performance técnica"), confirmado ainda presente. As queries do lado do worker (`fetchPendingWorkerProposals`, `fetchScheduledWorkerProposals`, `fetchCompletedWorkerProposals`) já usam corretamente o padrão de embedded resources PostgREST (`.select('*, job_requests!...')`). O mesmo padrão não foi aplicado ao lado do cliente.
-
----
-
-**~~P-8-5~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A) — `_job.copyWith()` eliminado de `client_job_detail_screen.dart`**
-
-O padrão `_job = _job.copyWith(...)` foi completamente removido por A2 Prompt A. `ClientJobDetailScreen` foi reescrito para receber `jobId: String` e carregar dados via `jobByIdProvider(widget.jobId)`. Após qualquer operação RPC (accept reschedule, reject reschedule, etc.), o código usa `ref.invalidate(jobByIdProvider(widget.jobId))` — força re-fetch completo. Nunca há cópia local divergente — o provider é sempre a única fonte de verdade.
-
----
-
-**P-8-7 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente**
-
-`proposal_repository.dart:131`: busca todos os registos `status = 'accepted'` do worker, depois descarta no Dart tudo o que não seja `confirmed | awaiting_confirmation`. Um worker com 50 jobs concluídos transfere todos os 50 para mostrar 1 ou 2 na tab "Agendados". Já tinha um TODO comentado no código. Confirmado ainda presente.
-
----
-
-**P-8-8 — Jobs cancelados em `open` (nunca confirmados) invisíveis no histórico do cliente — decisão de produto a confirmar**
-
-`client_jobs_screen.dart:45`:
-```dart
-(j.status == JobStatus.cancelled && j.acceptedProposalId != null)
-```
-
-Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = null`) não aparecem no histórico. Pode ser intencional (menos lixo no histórico) ou um descuido. Sem registo explícito da intenção no `decisions_log`.
-
----
-
-**P-8-9 — Notificações de `job_cancelled`/`job_reopened`/reschedule/conclusão navegam para a lista de jobs, não para o job específico — ⚠️ PARCIALMENTE RESOLVIDO 2026-06-29**
-
-`notification_handler.dart:28`: navega para `/client/jobs` ou `/worker/home` em vez do job concreto. O `related_id` está disponível mas não é usado para navegação.
-
-> **Progresso 2026-06-29 (A2 Prompt B):** A2 está completo — todas as 4 rotas de detalhe usam ID-based routing. O bloqueador estrutural (P6) está resolvido. Casos `helpRequestApproved` e `helpWithdrew` em `notification_handler.dart` já navegam para o ecrã exato (`/worker/job/${jobId}/help-requests`) sem `extra`. **Falta:** `job_cancelled`, `job_reopened`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted` — estes ainda navegam para lista genérica. Fix agora é simples: usar `notification.relatedId` (que é `job_id` nestes tipos) diretamente em `context.push('/client/job/$jobId')` ou `context.push('/worker/my-job/$proposalId?jobId=$jobId')` (o segundo requer fetch de proposta ou use do case `proposalAccepted`). Ver T6.
-
----
-
-### Melhorias — Média prioridade
-
-**M1 — Resolver N+1 com join de profile em `fetchPendingProposalsForJob` (resolve P-8-2)**
-
-Aplicar o mesmo padrão de embedded resources PostgREST que o lado do worker já usa:
-
-```dart
-// proposal_repository.dart:38 — ANTES:
-.select()
-
-// DEPOIS (confirmar nome exato da FK antes de implementar):
-.select('*, profiles!job_proposals_worker_id_fkey(full_name, id)')
-```
-
-Adicionar `workerName` ao modelo `JobProposal`. Atualizar `_ProposalCard` para usar `proposal.workerName` diretamente em vez de `ref.watch(workerNameProvider(proposal.workerId))`. N queries → 1 query. **Esforço: ~45 min** (modelo + repository + widget).
-
-**M3 — Mover filtro de `fetchScheduledWorkerProposals` para a BD (resolve P-8-7)**
-
-Substituir o `.where()` client-side por filtro PostgREST no embedded resource. Mesmo racional do TODO já existente no código. Reduz dados transferidos para workers com histórico longo.
-
-**M4 — Timeline de estados (8E.5): decisão de "deixar até ao redesign" RE-CONFIRMADA com olhos frescos**
-
-Lógica em `job_timeline.dart` analisada com atenção: cobre corretamente todos os estados documentados (incluindo reschedule pending/accepted e awaiting_confirmation). O estado `noResponse` tem agora cron implementado (migration 0020) e a timeline já o tratava corretamente — sem mudanças necessárias.
-
-**Decisão re-confirmada: não investir em polish visual agora.** A lógica de derivação de estados (`job_timeline.dart`) provavelmente sobrevive ao redesign visual. O widget (`status_timeline.dart`) é onde o redesign vai acontecer — não tocar até lá.
-
----
-
-### Melhorias — Baixa prioridade
-
-**B1 — Deep-link de notificações para o job específico (resolve P-8-9) — ⚠️ DESBLOQUEADO 2026-06-29 (A2 completo)**
-
-`related_id` disponível em todas as notificações de job. A2 está completo — todas as rotas de detalhe são ID-based. `helpRequestApproved`/`helpWithdrew` já navegam diretamente. **Falta:** `job_cancelled`, `job_reopened`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted` — em todos estes casos `related_id` é o `job_id`; o fix é ligar `context.push('/client/job/${notification.relatedId}')` ou `context.push('/worker/job/${notification.relatedId}')` consoante o role. Para notificações do worker com job aceite (reschedule etc.), o link correto é `/worker/my-job/$proposalId?jobId=${notification.relatedId}` — requer um fetch da proposta aceite para esse jobId (ou usar `acceptedProposalForJobProvider`). T1 e T3 resolvidos; apenas T6 parcialmente aberto.
-
-**B2 — `RescheduleDialog`: confirmar se impede seleção de data passada/mesmo dia**
-
-A BD bloqueia via regra das 24h em `propose_reschedule`. Mas validação client-side com `firstDate: DateTime.now().add(Duration(days: 1))` no `showDatePicker` daria feedback imediato. Requer leitura de `reschedule_dialog.dart` para confirmar o estado atual.
-
-**B3 — `state_machine.md` omite `jobsInRadiusProvider` na linha `proposal_rejected`**
-
-O código em `notification_providers.dart:84` invalida corretamente `jobsInRadiusProvider` para `proposalRejected` (worker rejeitado pode ver o job novamente na descoberta). O documento `state_machine.md` não lista este provider na linha correspondente. Código correto; doc incompleto. Fix de documentação, não de código.
-
-**B4 — `workerProposalForJobProvider` não invalidado para o cliente após `proposalAccepted`**
-
-Edge case: nenhum ecrã atual do cliente depende deste provider diretamente após uma aceitação de proposta. Acionável se um futuro ecrã de cliente vier a observar este estado.
-
----
-
-### Nota cross-cutting — invalidação de notificações
-
-Cross-check completo dos 12 tipos de notificação originais da Fase 8 contra `notification_providers.dart`:
-
-| Tipo | Providers no state_machine.md | Providers no código | Estado |
-|---|---|---|---|
-| `new_job_in_radius` | `jobsInRadiusProvider` | ✅ igual | ✅ |
-| `proposal_received` | 5 providers | ✅ igual | ✅ |
-| `proposal_withdrawn` | 4 providers | ✅ igual | ✅ |
-| `proposal_accepted` | 7 providers | ✅ igual | ✅ |
-| `proposal_rejected` | 4 providers | Código também invalida `jobsInRadiusProvider` (correto) | ✅ código correto, doc incompleto |
-| `job_cancelled` / `job_reopened` | 6 providers | ✅ igual | ✅ |
-| `reschedule_*` (3 tipos) | 5 providers cada | ✅ igual | ✅ |
-| `job_marked_done` | 2 providers | ✅ igual | ✅ |
-| `job_completed` | 3 providers | ✅ + `clientJobsProvider` adicionado (P-10-3) | ✅ |
-| `job_no_response` | *(ausente do SM)* | `clientJobsProvider` + navegação (P-8-1) | ✅ |
-
-**Sem gaps de invalidação escondidos.** Todas as notificações de remarcação, conclusão e propostas estão corretamente ligadas.
-
----
-
-## 🔍 Auditoria 2026-06-25 — Fase 9, segunda passagem (a atacar em breve)
-
-> Segunda revisão independente da Fase 9 (lobby screen, "As minhas
-> candidaturas", factor 0.75, `created_post_confirmation`/`pending_approval`,
-> UX de descoberta), feita em 2026-06-25 após a code review dedicada e as
-> adições de cancellation handling. Itens numerados com códigos estáveis
-> (P-9-1–P-9-6, A1–A2, M1–M3, B1–B2) para referência futura.
-
-### Problemas encontrados
-
-
-**P-9-3 — `_appliedIds` é estado transiente do widget (reset em rebuild) — "Candidatar-me" reaparece ativo após navegar e voltar**
-
-`worker_help_requests_screen.dart:25`:
-```dart
-final Set<String> _appliedIds = {};
-```
-
-Após candidatura bem-sucedida e navegação/rebuild, `_appliedIds` está vazio. O help_request continua `open` (com 1 candidato pending), portanto regressar à lista mostra o botão "Candidatar-me" ativo. Um segundo toque falha silenciosamente por `UNIQUE (help_request_id, worker_id)` — sem corrupção de dados, mas confuso. O fix estrutural é A2 (excluir no RPC), não gestão de estado no widget.
-
----
-
-**P-9-5 — ~~`pending_approval` UI: gap intencional~~ RESOLVIDO 2026-06-28**
-
-Botão "Adicionar ajudante" adicionado em `worker_my_job_detail_screen.dart` (bloco `liveJobStatus == confirmed`); card "Aprovar equipa" adicionado em `client_job_detail_screen.dart` (secção confirmed). Fluxo completo de ponta a ponta: principal cria → cliente aprova → `helpRequestApproved` notifica principal → lobby de candidatos. Ver `decisions_log.md 2026-06-28`.
-
----
-
-**P-9-6 — `get_my_help_acceptances` sem paginação — aceitável a esta escala, anotar para Fase 11+**
-
-`0010_my_help_acceptances_rpc.sql:53`: `ORDER BY ha.created_at DESC` sem `LIMIT`/`OFFSET`. Para MVP scale (primeiros utilizadores, histórico curto) não é urgente. Para Fase 11+ quando o volume crescer: mesmo padrão de `fetchCompletedWorkerProposals` (limit/offset).
-
----
-
-### Estado verificado como correto (12 itens confirmados nesta passagem)
-
-`UNIQUE (help_request_id, worker_id)` em `help_acceptances` ✅ · exclusão do próprio principal na descoberta (`jp.worker_id <> auth.uid()`) ✅ · filtros de status `open`/`cancelled`/`completed` em `get_help_requests_in_radius` ✅ · factor 0.75/0.70 documentado em `decisions_log.md 2026-06-24` com explicação do buffer intencional ✅ · lógica de `_buildSlots` (accepted → pending → overflow → empty padding) ✅ · validações de status em `accept/reject_help_candidate` ✅ · autorização em `withdraw_help_acceptance` ✅ · cascade de `cancel_job` para `help_requests`/`help_acceptances` ✅ · lógica do botão "Desistir" apenas para `accepted` ✅ · invalidação de providers no lobby após aceitar/rejeitar ✅ · CHECK constraint `agreed_rate > 0` para `status = 'accepted'` ✅ · `pending_approval` help_requests invisíveis na descoberta (filtro `status = 'open'`) ✅
-
----
-
-### Melhorias — Alta prioridade
-
-**~~A2 — Excluir da descoberta help_requests onde o worker já tem candidatura ativa (resolve P-9-3, elimina `_appliedIds`)~~ RESOLVIDO 2026-06-29 (migration 0026)**
-
-`NOT EXISTS` clause adicionada ao WHERE de `get_help_requests_in_radius`. Só migration, sem mudanças Dart. Item nunca implementado nas migrations 0008–0025 — não era regressão, era omissão original.
-
----
-
-### Melhorias — Média prioridade
-
-**~~M3 — Implementar UI de `pending_approval`~~ RESOLVIDO 2026-06-28 (ver P-9-5 acima)**
-
----
-
-### Melhorias — Baixa prioridade
-
-**B1 — Paginação em `get_my_help_acceptances` (resolve P-9-6)**
-
-Mesmo padrão de `fetchCompletedWorkerProposals` (limit/offset). Adiar para quando o volume justificar — Fase 11+.
-
-**B2 — Documentar (ou impor via constraint) que um job deve ter um único `help_request` por design**
-
-O schema permite múltiplos `help_requests` por job (sem UNIQUE em `(job_id, proposal_id)`). A intenção do MVP é one-to-one (um help_request com `slots_needed = N`). Se a intenção é flexível (múltiplos por job para serviços diferentes), documentar. Se é one-to-one, adicionar constraint. Actualmente não está registado em nenhum dos dois sentidos.
-
----
-
-### Nota da sessão
-
-~~A2 é a correção mais eficiente por esforço: 15 minutos de SQL eliminam tanto um bug de UX como um workaround inteiro de estado local no Dart.~~ (A2 resolvido — 2026-06-29, migration 0026.)
-
-O factor 0.75/0.70 está corretamente documentado em `decisions_log.md 2026-06-24` — não é um problema. O gap de `pending_approval` está correctamente documentado como intencional em `implementation_plan.md` — não é um problema.
-
-**Lição de RLS — aplicável a todo o codebase (registada 2026-06-29):**
-Qualquer `.insert().select().single()` está sujeito a RLS SELECT no `RETURNING`, não só a RLS INSERT. O PostgREST usa `RETURNING *` internamente (`Prefer: return=representation`) — se não existir policy SELECT para o caller, o `RETURNING` devolve 0 rows e `.single()` lança exceção, mesmo que o INSERT tenha tido sucesso e a row esteja na BD. Verificar SEMPRE que existe policy SELECT correspondente antes de assumir que um INSERT funcional implica leitura funcional. Ver `decisions_log.md 2026-06-29` para o caso concreto.
-
----
-
-## 🔍 Auditoria 2026-06-26 — Fase 10 (Contactos e conclusão)
-
-> Revisão independente da Fase 10 (visibilidade de contactos após confirmação,
-> fluxo de conclusão de dois lados, regra das 24h no cancelamento, reports,
-> auto-confirmação por cron, ratings, notificações de conclusão) feita em
-> 2026-06-26. Itens numerados com códigos estáveis (P-10-1–P-10-7, A1–A2,
-> M1–M3, B1–B3) para referência futura.
-
-### Problemas encontrados
-
-**P-10-2 — Contacto do worker principal não visível ao ajudante — gap documentado em `project_overview.md`**
-
-`project_overview.md` especifica: *"Ajudantes veem o contacto do worker principal, não o do client (no MVP)."* A nota imediatamente a seguir regista a implementação parcial: nome do principal já mostrado, contacto ainda não.
-
-Confirmado no código:
-- `HelpAcceptanceSummary.principalName` e `HelpAcceptanceDetails.principalName` existem — mostrados em 4 locais em `worker_help_requests_screen.dart` (linhas 386, 467, 539, 638)
-- `principalPhone` — campo **não existe** em nenhum dos dois modelos
-- Sem botão WhatsApp em qualquer ecrã para o ajudante contactar o principal
-
-Não é uma regressão — está documentado como intencionalmente parcial em `project_overview.md`. Registado aqui para tracking até à implementação completa.
-
----
-
-**P-10-4 — `job_reports` é efetivamente write-only — infraestrutura de moderação inexistente, mensagem UI prometendo revisão sem suporte**
-
-O fluxo de "Reportar problema":
-- UI: formulário com validação mínima (≥10 chars), tratamento de erros correto ✓
-- RLS: INSERT (`reporter_id = auth.uid()`) ✓; SELECT para o próprio reporter ✓ (migration 0002) ✓
-
-Mas após o INSERT:
-- Sem policy SELECT para admins → invisível fora do Studio com service_role
-- Sem trigger, webhook ou notificação para nenhum elemento da equipa
-- O worker não sabe que um report foi enviado
-- O job mantém-se em `awaiting_confirmation` até o cliente confirmar manualmente ou o auto-confirm disparar (3 dias)
-- Sem mecanismo de disputa, escalada ou resolução dentro da app
-
-A mensagem UI *"A nossa equipa vai rever o caso."* é uma garantia sem infraestrutura de suporte. Após o report, o cliente é perguntado se quer confirmar na mesma — a única via de saída prática dentro do prazo de 3 dias é confirmar. O report não altera o estado do job nem notifica ninguém.
-
-Adicionalmente, `reportJobProblem()` está semanticamente mal colocado em `proposal_repository.dart:212` — não tem relação com propostas; deveria estar em `job_repository.dart`.
-
----
-
-**P-10-6 — `reportJobProblem()` semanticamente mal colocado em `proposal_repository.dart`**
-
-`proposal_repository.dart:212` contém um método que insere em `job_reports` — sem qualquer relação com propostas. Deveria estar em `job_repository.dart` ou num futuro `report_repository.dart`. Sem impacto runtime; código organizacionalmente incorreto.
-
----
-
-**P-10-7 — Bloco `rejected` no worker screen faz fetch desnecessário de perfil de cliente que RLS sempre bloqueia**
-
-`worker_my_job_detail_screen.dart:653`: no bloco `ProposalStatus.rejected`, `clientInfoAsync.when(...)` é observado. Mas a RLS `"Worker ve perfil de cliente com job confirmado"` exige `jp.status = 'accepted'` — para um worker com proposta rejeitada, `jp.status = 'rejected'`, logo a query retorna sempre vazio. A guarda `if (phone.isEmpty) return const SizedBox.shrink()` (linha 658) evita qualquer renderização incorreta, mas o fetch de rede é desnecessário e nunca produz resultado.
-
----
-
-### Melhorias — Média prioridade
-
-**M2 — Implementar contacto do worker principal para ajudantes (resolve P-10-2)**
-
+**Acção:**
 1. Atualizar `get_my_help_acceptances` RPC para incluir `p.phone AS principal_phone` (JOIN `profiles p ON p.id = jp.worker_id`)
 2. Adicionar `principalPhone: String` a `HelpAcceptanceSummary` e `HelpAcceptanceDetails`
-3. Adicionar botão WhatsApp nos cards de candidatura `accepted` em `worker_help_requests_screen.dart`
+3. Adicionar botão WhatsApp nos cards `accepted` em `worker_help_requests_screen.dart`
 
-Verificar primeiro se a RLS de `profiles` para worker→worker está coberta por alguma policy existente (possivelmente `"Utilizador vê o seu perfil"` não cobre terceiros; pode ser necessária uma nova policy ou mover o campo para o RPC SECURITY DEFINER onde RLS é bypassed).
+Verificar se a RLS de `profiles` para worker→worker está coberta (RPC é SECURITY DEFINER — RLS bypassed). **Esforço: ~1.5h.**
 
-**Esforço: ~1.5h** (migration de RPC + modelo Dart + UI).
+---
 
-**M3 — Corrigir mensagem UI de `job_reports` para não fazer promessas sem infraestrutura (resolve P-10-4 parcialmente)**
+### P-8-7 / M3 Fase 8 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente
 
-Caminho mínimo (sem infraestrutura de moderação):
+`proposal_repository.dart:131` — busca todos os registos `status = 'accepted'` do worker, depois descarta no Dart tudo o que não seja `confirmed | awaiting_confirmation`. Worker com 50 jobs concluídos transfere todos os 50 para mostrar 1 ou 2 na tab "Agendados". Já tinha um TODO comentado no código.
 
+**Acção:** mover filtro para a BD via filtro PostgREST no embedded resource.
+
+---
+
+### `fetchCompletedWorkerProposals` — filtro client-side antes de paginação
+
+A query usa `.range(page * pageSize, ...)` antes de filtrar `job_requests.status == 'completed'` client-side. Páginas podem ter menos items que `pageSize` mesmo quando há mais páginas, levando o utilizador a não carregar mais quando ainda existem dados.
+
+**Acção:** criar RPC `get_completed_worker_proposals(p_worker_id, p_limit, p_offset)` que filtra por `status = 'accepted'` E `job_requests.status = 'completed'` antes de paginar — garantindo que o `LIMIT` se aplica após o filtro.
+
+---
+
+### P-8-8 — Jobs cancelados em `open` invisíveis no histórico do cliente (decisão de produto)
+
+`client_jobs_screen.dart:45`: `(j.status == JobStatus.cancelled && j.acceptedProposalId != null)`. Jobs cancelados antes de qualquer proposta ser aceite (`acceptedProposalId = null`) não aparecem no histórico. Pode ser intencional (menos lixo) ou um descuido. Sem registo explícito da intenção no `decisions_log`.
+
+**Acção:** confirmar intenção e registar em `decisions_log.md`.
+
+---
+
+## 🔵 Baixa prioridade / Limpeza — Por resolver
+
+### P2 / M2 Fases 0-3 — Cores hex hardcoded divergentes do seed do tema
+
+- `app_router.dart:44` — `Color(0xFF2E7D32)` para spinner de loading (duplica `AppTheme._seed` sem ligação)
+- `status_timeline.dart:118` — `Color(0xFF43A047)` para círculo "done" (verde diferente do seed)
+
+**Acção:** tornar `_seed` público (`seed`) em `AppTheme` e substituir `Color(0xFF2E7D32)` em `app_router.dart` por `AppTheme.seed`. Uma linha.
+
+---
+
+### P3 / M1 Fases 0-3 — `Colors.orange` sem token semântico partilhado
+
+`Colors.orange.shade700` em chips de urgência, badge de "propostas pendentes", banner de "remarcação pendente" e ícones de notificação — features diferentes, sem token partilhado. O Material 3 já gera `colorScheme.tertiary` (warning/accent) e `colorScheme.error` (destrutivo) a partir do seed.
+
+**Acção:** substituir `Colors.orange.shade700` por `theme.colorScheme.tertiary` e `Colors.red` por `theme.colorScheme.error` nos SnackBars de erro.
+
+---
+
+### P4 / B3 Fases 0-3 — Wildcard em `_HistoryCard._statusLabel` silencia 2 casos válidos
+
+`worker_help_requests_screen.dart:509` — `_ => '—'` silencia `.pending` e `.accepted`. Seguro hoje pelo filtro upstream, mas um novo valor no enum cai silenciosamente no wildcard.
+
+**Acção:** substituir `_ => '—'` por casos explícitos:
 ```dart
-// ANTES — em client_job_detail_screen.dart:263:
-'Descreve o que aconteceu. A nossa equipa vai rever o caso.'
-
-// DEPOIS:
-'Descreve o que aconteceu. O teu relato fica registado para referência futura.'
+HelpAcceptanceStatus.pending  => 'Pendente',   // não deve aparecer aqui
+HelpAcceptanceStatus.accepted => 'Aceite',     // não deve aparecer aqui
 ```
 
-Remove a garantia falsa. O path completo (notificação real à equipa) requer Edge Function ou trigger com webhook para Slack/email — decidir quando a moderação for prioridade.
+---
 
-**Esforço: 1 linha. Trivial.**
+### P7 / M6 Fases 0-3 — `architecture.md` tem diagrama de pastas obsoleto
+
+`ratings/` listado (não existe — Fase 11 por implementar); `notifications/` omitido (totalmente implementado com estrutura própria `data/`, `application/`, `presentation/`).
+
+**Acção:** adicionar `notifications/` e anotar `ratings/` como `# Fase 11 — não implementado`. 2 linhas.
 
 ---
 
-### Melhorias — Baixa prioridade
+### P8 / B4 Fases 0-3 — `worker_setup_screen.dart` chama Supabase direto no widget
 
-**B1 — Mover `reportJobProblem()` para `job_repository.dart` (resolve P-10-6)**
+`worker_setup_screen.dart:178` — única violação de architecture.md Princípio #2 ("Nunca chamar Supabase diretamente dentro de widgets").
 
-Mover o método e atualizar o `import` em `client_job_detail_screen.dart`. Sem impacto runtime. **Esforço: ~15 min.**
-
-**B2 — Remover fetch de perfil de cliente no bloco `rejected` do worker screen (resolve P-10-7)**
-
-O `clientInfoAsync` (observado com `ref.watch`) é sempre-vazio para `liveStatus == ProposalStatus.rejected`. Condicionar o `ref.watch` a `liveStatus != ProposalStatus.rejected`, ou remover o bloco de contacto do ecrã de rejected inteiramente (o botão WhatsApp nunca renderiza). **Esforço: trivial.**
-
-**B3 — Cross-reference: validação de data em `mark_job_done` — decisão de produto pendente**
-
-O worker pode marcar como concluído antes da data confirmada — a BD não valida `confirmed_date`. Já documentado na secção "Confiança e segurança" deste ficheiro. Registado aqui como cross-reference para garantir que o item é considerado em Fase 11 quando as avaliações forem implementadas (uma avaliação imediata antes da data faz menos sentido).
+**Acção:** mover o `from('profiles').select('full_name, phone')` para `fetchBasicProfile(userId)` no `WorkerRepository` ou `ClientRepository`.
 
 ---
 
-### Estado verificado como correto
+### M4 Fases 0-3 — Constantes de border radius no AppTheme
 
-`mark_job_done` auth check (`v_worker_id IS DISTINCT FROM auth.uid()`) ✅ — não partilha o bug P-8-4 das 3 RPCs de remarcação · `confirm_job_completion` auth check (`v_job.client_id IS DISTINCT FROM auth.uid()`) ✅ · `cancel_job` bloqueia `awaiting_confirmation` explicitamente (`status NOT IN ('open', 'confirmed')` → RAISE) ✅ · UI sem botão cancelar em `awaiting_confirmation` (cliente nem worker) ✅ · `auto_confirm_completed_jobs()` localmente: `FOR UPDATE SKIP LOCKED` ✅, `SECURITY DEFINER` sem `auth.uid()` ✅, idempotente ✅, título distinto do confirm manual ✅ · `notification_providers.dart` — `jobMarkedDone`: invalida `clientJobsProvider` + `jobByIdProvider` ✅; `jobCompleted`: invalida `scheduledWorkerProposalsProvider` + `completedWorkerProposalsProvider(0)` + `jobByIdProvider` ✅ · RLS worker→cliente: usa `jp.status = 'accepted'` (não `jr.status`) — cobre todos os estados pós-aceitação sem necessidade de atualização ✅ · Fotos de jobs — policy SELECT: `client_id = auth.uid()` sem restrição de estado → cliente mantém acesso em qualquer estado pós-confirmação ✅ · Ratings: zero referências Dart à tabela `ratings`; único placeholder é `enabled: false` com tooltip em `client_job_detail_screen.dart:671` — Fase 11 genuinamente não iniciada ✅ · `job_reports` RLS INSERT (`reporter_id = auth.uid()`) ✅; SELECT para o próprio reporter ✅ (migration 0002) · `notification_handler.dart`: switch exaustivo sem wildcard; `jobMarkedDone` e `jobCompleted` navegam para a lista — mesma limitação de P-8-9 (deep-link bloqueado por P6 Fases 0-3), não nova nesta fase ✅
+Três valores aparecem repetidamente: `8` (~8 ocorrências), `12` (~12 ocorrências), `16` (~4 ocorrências).
 
----
-
-> **Nota:** Esta é a última auditoria da série Fases 0-10 (revalidada 2026-06-26 — ver apêndice de itens resolvidos/descartados).
-> Itens mais urgentes por resolver após revalidação (por criticidade):
-> **P-FA1** — `client_has_confirmed_job_with_worker` e policy associada ausentes de migrations (ALTA). (P-FA3 resolvido em migration 0018 — 2026-06-26.)
+**Acção:** adicionar `static const double radiusSmall = 8; radiusMedium = 12; radiusLarge = 16;` ao `AppTheme`.
 
 ---
 
-## Auditoria — Itens resolvidos/descartados (revalidação 2026-06-26)
+### M5 Fases 0-3 — Documentar setup de `--dart-define` para novos contribuidores
 
-> Revalidados contra `schema_snapshot_2026-06-26.csv` (snapshot direto da BD viva, 2026-06-26, já apagado) e migration 0016 (confirmada aplicada por Henrique via `pg_get_functiondef` e `pg_get_expr`).
+O `decisions_log.md` regista a decisão (2026-06-02) mas não dá instruções de setup. Falta: (1) que existe um `.vscode/launch.json` gitignored, (2) esqueleto do ficheiro com `SUPABASE_URL` e `SUPABASE_ANON_KEY`, (3) onde obter os valores.
 
-### Totalmente resolvidos em código
-
-- **P-67-1** *(Fases 6-7)* — `/worker/setup` ausente de `loadingExempt`: adicionado em `app_router.dart` (2026-06-26). Elimina perda silenciosa do formulário de setup após token refresh do Supabase (60 min). **Seguimento (2026-06-28):** fix original necessária mas não suficiente — confirmado via bug real que `/worker/profile`, `/client/profile` e `/client/create-job` tinham a mesma vulnerabilidade (ImagePicker + Geolocator disparam o mesmo redirect). Todas adicionadas a `loadingExempt` em `app_router.dart` (2026-06-28). Ver `decisions_log.md` 2026-06-28.
-- **P5** *(Fases 0-3)* — Sem guard cross-role no router: guard adicionado em `app_router.dart` após o bloco `role == null` (2026-06-26). **Mitigação parcial** — actualmente o acesso cross-role já causava crash (P6, `state.extra!`), pelo que o guard intercepta antes do crash. Após P6 ser corrigido (routing baseado em ID), o guard torna-se a protecção primária contra estado vazio silencioso com dados do UID errado. P6 continua aberto.
-- **P-67-3** *(Fases 6-7)* — SnackBar de erro de `client_profile_screen.dart` mostrava exceção em bruto: substituído por `friendlyError(e)` (2026-06-26).
-- **P-67-4** *(Fases 6-7)* — Widget `error:` de service types em `worker_setup_screen.dart` e `worker_profile_screen.dart` mostrava exceção em bruto: substituído por `${friendlyError(e)}` em ambos (2026-06-26).
-- **P-67-5** *(Fases 6-7)* — `worker_setup_screen.dart:178` usava `.single()` que lançava PGRST116 em signup parcialmente falhado: substituído por `.maybeSingle()` com null check e mensagem acionável (2026-06-26).
-- **P-67-6** *(Fases 6-7)* — `_mapError` em `auth_controller.dart` não tratava `email_not_confirmed` nem `rate_limit`: handlers adicionados antes do fallback genérico — bloqueador de pré-lançamento resolvido (2026-06-26).
-- **P-8-3** *(Fase 8)* — Compressão de fotos usava 1280px/72% em vez da decisão registada de 800px/60%: `job_repository.dart` corrigido (2026-06-26). Previne esgotamento prematuro do limite de 50MB do Free Plan.
-- **P-8-6** *(Fase 8)* — `create_job_screen.dart:281` mostrava exceção em bruto no widget de service types: substituído por `${friendlyError(e)}` (2026-06-26).
-
-### Totalmente resolvidos por migration
-
-- **P-FA4** *(Fases 4-5)* — `job_proposals` UPDATE policy sem `WITH CHECK`: corrigida em migration 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. Confirmada aplicada.
-- **P-FA3** *(Fases 4-5, CRÍTICO)* — Policy de UPDATE de avatars usava `storage.foldername(name)[1]`, que devolve NULL para paths root-level `$userId.jpg`. Confirmado via `pg_policy` query 2026-06-26 que a policy viva ainda tinha a lógica quebrada (o fix interativo de 2026-06-15 corrigiu apenas INSERT, não UPDATE). Resultado prático: qualquer re-upload de avatar (2.º upload em diante) falha silenciosamente — `FileOptions(upsert: true)` passa pelo UPDATE policy quando o ficheiro já existe. Adicionada também DELETE policy (confirmada ausente via `pg_policy`). Corrigido em migration 0018 com `regexp_replace(storage.filename(name), '\.[^.]+$', '')`. Severidade confirmada elevada: de "gap teórico nunca capturado em migration" para "bug real em produção" (2026-06-26).
-- **P-FA2** *(Fases 4-5)* — Storage DELETE policy para `job-photos` ausente da BD viva (confirmado via `pg_policy` 2026-06-26 — diagnóstico original "não-funcional" era menos preciso: estava simplesmente ausente). Correcção dependia de mudar o path de upload primeiro: com o path antigo `$jobId/<ts>.jpg`, `foldername(name)[1]` = `job_id` ≠ `auth.uid()`, logo qualquer DELETE policy seria inútil. Path alterado para `$clientId/$jobId/<ts>.jpg` em `job_repository.dart` + nova DELETE policy criada em migration 0019. **Caveat:** fotos anteriores (path antigo) continuam não-apagáveis — sem impacto, não existe UI de apagamento (2026-06-26).
-- **P-FA7** *(Fases 4-5)* — Nenhuma DELETE policy existia na tabela `job_photos` (confirmado via `pg_policy` 2026-06-26). Resolvido em conjunto com P-FA2 em migration 0019: nova policy `"Client apaga fotos do seu job"` com EXISTS subquery em `job_requests` para verificar ownership. Mesmos caveats de P-FA2 aplicam-se às linhas com storage_path no formato antigo (2026-06-26).
-- **P-8-1** *(Fase 8)* — Transição `open → no_response` nunca implementada: corrigido em migration 0020. `auto_expire_jobs()` com `FOR UPDATE SKIP LOCKED`, notificação `job_no_response` ao cliente. Cron `'auto-expire-jobs'` a `0 */3 * * *`. Dart: `notification_handler.dart` invalida `clientJobsProvider` e navega `/client/jobs`; `notification_providers.dart` invalida `clientJobsProvider` em `jobNoResponse` (migration não aplicada à BD viva — aplicar via SQL Editor; 2026-06-26).
-- **P-10-3** *(Fase 10)* — `auto_confirm_completed_jobs()` não notificava o cliente: corrigido em migration 0020. Segundo INSERT para `v_job.client_id` com tipo `job_completed` e body "Passaram 3 dias sem resposta." (vs "sem confirmação" para o worker). `clientJobsProvider` adicionado ao caso `jobCompleted` em `notification_providers.dart` (migration não aplicada à BD viva; 2026-06-26).
-
-### Parcialmente verdadeiros → totalmente resolvidos
-
-- **P-8-4** *(Fase 8)* — Bypass de autorização nas 3 RPCs de remarcação: **parcialmente verdadeiro**. Snapshot confirmou que `propose_reschedule` e `accept_reschedule` já tinham verificação correta na BD viva (corrigidas interactivamente numa sessão anterior não registada). Só `reject_reschedule` tinha o gap real — corrigido em migration 0016. **Lição:** findings multi-parte podem ser parcialmente verdadeiros; verificar cada componente contra a BD viva independentemente, não apenas contra ficheiros de migration.
-
-### Totalmente resolvidos por migration + reestruturação de UI
-
-- **P-9-1** *(Fase 9)* — `accept_help_candidate` não auto-rejeitava candidatos pending restantes quando `help_request` ficava `filled`: resolvido em migration 0017. Loop FOR adicionado após o UPDATE de fill — rejeita e notifica todos os outros pending imediatamente (2026-06-26).
-- **P-9-2** *(Fase 9)* — Candidatos overflow não acionáveis no lobby (sem botão aceitar nem rejeitar): **fechado por mudança estrutural**. O modelo de "grelha de N vagas com isOverflow" foi eliminado — o lobby passa a mostrar todos os candidatos pending como lista plana, cada um acionável. O conceito de overflow não existe no novo modelo.
-- **P-9-4** *(Fase 9)* — Label "Preenchida" ambígua no card de candidato overflow: **fechado por mudança estrutural** (igual a P-9-2 — não há cards de overflow no novo modelo de lista).
-
-### Falsos alarmes confirmados por snapshot
-
-- **P-10-1** *(Fase 10)* — `client_has_confirmed_job_with_worker` provavelmente só cobre `confirmed`: **falso alarme**. `pg_get_functiondef` confirmou que o corpo live já inclui `jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`. **Lição:** leitura de `0001_baseline.sql` (que não reflecte alterações interactivas posteriores) levou à suposição errada sobre o estado live — sempre verificar `pg_get_functiondef` contra funções críticas de RLS antes de reportar um bug.
-- **P-10-5** *(Fase 10)* — Estado das migrations 0013–0014 não verificável localmente: **resolvido**. Snapshot confirmou migrations 0001–0014 todas aplicadas (evidência: corpo de `cancel_job` com regra 24h; `auto_confirm_completed_jobs` + cron `auto-confirm-completed-jobs` presentes na BD viva).
+**Acção:** adicionar secção "Setup de desenvolvimento" em `project_overview.md`.
 
 ---
 
-## Revisão conceptual 2026-06-27
+### M6 Fases 4-5 — Coluna "Migration atual" na tabela de RPCs do `database_schema.md`
 
-> Revisão de produto de nível conceptual — avalia se o sistema como um todo é coerente, não
-> audita código linha a linha. Cobre: coerência da máquina de estados, interações
-> entre Fase 9 (equipa) e Fase 11 (avaliações), completude de notificações, lacunas
-> conceptuais e pontos de confusão para novos utilizadores.
->
-> Itens com código **RCB** são bugs de engenharia sem ambiguidade de produto — corrigir
-> diretamente. Itens com código **RC** requerem uma decisão de produto de Henrique antes
-> de qualquer alteração de código.
+`cancel_job` tem corpo completo em 4 migrations; `accept_proposal` em 2; `create_proposal` em 3. Não é óbvio qual é a versão autoritativa sem ler todas.
+
+**Acção:** adicionar coluna "Definido/atualizado em" à tabela de RPCs em `database_schema.md`.
 
 ---
 
-### Bugs claros (sem ambiguidade de produto — corrigir diretamente)
+### B2 Fases 4-5 — Policy "Sistema insere notificações": inconsistência docs-vs-baseline
 
-**RCB1 — `withdraw_help_acceptance` não valida o estado do job ✅ RESOLVIDO 2026-06-27**
+0001_baseline cria a policy; `database_schema.md` diz que não existe na BD viva. A policy é funcionalmente harmless (SECURITY DEFINER bypassa RLS independentemente) mas confusa para quem audite.
 
-Guarda adicionada em migration 0023: SELECT `job_requests.status` via `help_requests.job_id`;
-RAISE EXCEPTION se o job não estiver em `'confirmed'` ou `'awaiting_confirmation'`.
-Ver `decisions_log.md` — entrada 2026-06-27.
+**Acção:** atualizar `database_schema.md` para refletir que a policy existe no 0001 mas é redundante, ou fazer DROP com comentário.
 
 ---
 
-**RCB2 — `cancel_job` não move ajudantes aceites para um estado terminal ✅ RESOLVIDO 2026-06-27**
+### B3 Fases 4-5 — Remover coluna legacy `job_proposals.estimated_hours`
 
-`cancel_job` estendido em migration 0023: novo `UPDATE help_acceptances SET status = 'cancelled'
-WHERE status = 'accepted'`, colocado depois do INSERT de notificações `help_job_cancelled`
-(para preservar a sequência de notification → status change). RC1 desbloqueado: Henrique
-confirmou reutilizar `'cancelled'`. Ver `decisions_log.md` — entrada 2026-06-27.
+Coluna nullable que predata o split min/max (2026-06-11). Não mapeada em `JobProposal.fromJson`.
 
----
-
-**RCB3 — Texto enganoso em `job_reports` ✅ RESOLVIDO 2026-06-27**
-
-`client_job_detail_screen.dart:266` — texto substituído por
-`'Descreve o que aconteceu. O teu relato fica registado para referência futura.'`
-Ver `decisions_log.md` — entrada 2026-06-27.
+**Acção:** aproveitar migration da Fase 11 (ratings): `ALTER TABLE job_proposals DROP COLUMN IF EXISTS estimated_hours;`
 
 ---
 
-### Decisões de produto pendentes (RC — aguardam input de Henrique)
+### B4 Fases 4-5 — CHECK `(hourly_rate >= 0)` em `job_proposals`
 
-**RC1 — Qual o estado de um ajudante aceite quando o job é cancelado? ✅ RESOLVIDO 2026-06-27**
-
-Henrique decidiu: reutilizar `'cancelled'` existente. *"Foi só cancelado é info
-suficiente."* Sem novo status, sem migration de enum. Desbloqueou RCB2 (ver acima).
+`job_proposals.hourly_rate` é NOT NULL mas sem CHECK. Segue o padrão já estabelecido pelo `check_agreed_rate` em `help_acceptances` (migration 0007). Usar `>= 0` (não `> 0`) para permitir "negociar no local" como sinal explícito.
 
 ---
 
-**RC2 — O cliente deve ver a composição da equipa?**
+### B1 Fases 6-7 — Validação de email com regex mínimo
 
-Hoje, um cliente que contratou um trabalho para 3 pessoas vê exatamente o mesmo que
-um cliente com um trabalho solo: o nome e contacto do prestador principal. Não há
-visibilidade sobre:
-- Quantas vagas de ajudante existem
-- Quantas foram preenchidas
-- Quem são os ajudantes
-- Se um ajudante desistiu antes do trabalho
+`signup_screen.dart` e `login_screen.dart` — `!v.contains('@')` aceita `@`, `test@@`, `a@`. O Supabase rejeita emails inválidos ao nível do servidor, mas o feedback chega mais tarde.
 
-A infraestrutura está pronta (RLS fix C3.2 pendente, dados existem), mas nenhuma
-UI de cliente foi planeada para isto.
-
-**O que precisa de decidir:** a transparência da equipa para o cliente é uma feature
-do MVP ou é deliberadamente opaca por design (o cliente contrata o principal, o
-principal gere a equipa)?
+**Acção:** `RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim())` — sem pacotes adicionais.
 
 ---
 
-**RC3 — O ajudante deve ver a logística do job na app? ✅ RESOLVIDO 2026-06-27**
+### B2 Fases 6-7 — Validação de tamanho mínimo no telefone
 
-Resolvido via migration 0022 + `AddressMapLink` widget. O ajudante aceite passa a ver
-em `_AcceptedCard`: data/hora confirmada, endereço tappable (abre Google Maps),
-e botão WhatsApp para o prestador principal. Ver `decisions_log.md` — entrada
-2026-06-27.
+Número como `"1"` ou `"abc"` passa e fica guardado. Link WhatsApp construído com `wa.me/<número limpo>` — número inválido = link quebrado.
 
----
-
-**RC4 — O cliente deve ser avisado que a sua avaliação se propaga a todos os
-ajudantes?**
-
-`submit_client_rating` aplica as mesmas estrelas ao prestador principal e a cada
-ajudante aceite, com uma única ação. O utilizador vê "Avaliar o trabalho" — sem
-menção de que esta avaliação também afeta 2 ou 3 outras pessoas que podem ter
-tido desempenhos distintos.
-
-**O que precisa de decidir:** 
-a) Manter como está (propagação silenciosa, simplicidade máxima)
-b) Acrescentar uma linha explicativa no sheet de avaliação: "Esta avaliação aplica-se
-   ao prestador e à equipa" — sem alterar o fluxo, só cópia
-c) Mostrar os nomes dos ajudantes no sheet para o cliente ter consciência de quem está
-   a avaliar
+**Acção:** verificar mínimo 9 dígitos após `replaceAll(RegExp(r'[\s\-\+\(\)]'), '')`.
 
 ---
 
-**RC5 — O cliente deve receber orientação quando um job expira sem propostas?**
+### B3 Fases 6-7 — Indicador de loading específico para upload de avatar
 
-Quando um job expira para `no_response` após 48h, o cliente recebe uma notificação
-e o job fica em estado terminal. Não há indicação sobre porquê (zona sem cobertura?
-preço abaixo do mercado? serviço não disponível?) nem sugestão de o que fazer a seguir.
+Ambos os ecrãs de perfil usam `_saving = true` para todo o ciclo (upload avatar + update BD). Upload pode demorar 1-5s numa ligação móvel fraca.
 
-O app sabe factos potencialmente úteis (nº de workers no raio quando o job foi criado,
-via trigger `on_job_created`). Com 0 workers notificados: a zona não tem cobertura. Com
-workers notificados e 0 propostas: pode ser preço ou urgência.
-
-**O que precisa de decidir:** simplificação máxima (sem guidance, o cliente recria do
-zero) vs. uma mensagem contextual mínima no ecrã de job expirado?
+**Acção:** estado `_uploadingAvatar` separado com texto "A carregar foto..." nos ecrãs de perfil.
 
 ---
 
-**RC6 — A janela de 3 dias para auto-confirmação deve ser visível na UI?**
+### B2 Fase 8 — `RescheduleDialog`: confirmar se impede seleção de data passada
 
-Após o worker marcar um job como concluído (`awaiting_confirmation`), o job é
-automaticamente confirmado ao fim de 3 dias se o cliente não responder. Nem o worker
-nem o cliente veem este prazo em lado nenhum — para o worker, parece que está a esperar
-indefinidamente; para o cliente, não há urgência percetível.
+A BD bloqueia via regra das 24h em `propose_reschedule`. Validação client-side com `firstDate: DateTime.now().add(Duration(days: 1))` daria feedback imediato.
 
-**O que precisa de decidir:** mostrar contagem decrescente ("Confirmar nos próximos
-2 dias", calculado de `jobs.updated_at + 3 dias`) ou deixar sem indicação explícita?
+**Acção:** ler `reschedule_dialog.dart` para confirmar estado atual.
+
+---
+
+### B3 Fase 8 — `state_machine.md` omite `jobsInRadiusProvider` em `proposalRejected`
+
+Código em `notification_providers.dart:84` invalida corretamente `jobsInRadiusProvider` para `proposalRejected`. O documento `state_machine.md` não lista este provider na linha correspondente. Fix de documentação, não de código.
+
+---
+
+### B4 Fase 8 — `workerProposalForJobProvider` não invalidado para cliente após `proposalAccepted`
+
+Edge case sem ecrã atual que dependa diretamente. Acionável se um futuro ecrã de cliente observar este estado.
+
+---
+
+### B1 Fase 9 — Paginação em `get_my_help_acceptances`
+
+`0010_my_help_acceptances_rpc.sql:53` — ORDER BY sem LIMIT/OFFSET. Aceitável a esta escala. Mesmo padrão de `fetchCompletedWorkerProposals` quando volume justificar — Fase 11+.
+
+---
+
+### B2 Fase 9 — Documentar (ou impor via constraint) que um job tem um único `help_request`
+
+Schema permite múltiplos (sem UNIQUE em `(job_id, proposal_id)`). Intenção MVP: one-to-one. Não registado em nenhum dos dois sentidos.
+
+---
+
+### B1 Fase 10 — Mover `reportJobProblem()` para `job_repository.dart`
+
+`proposal_repository.dart:212` — método que insere em `job_reports` sem relação com propostas. **Esforço: ~15 min.**
+
+---
+
+### B2 Fase 10 — Remover fetch de perfil de cliente no bloco `rejected`
+
+`worker_my_job_detail_screen.dart:653` — `clientInfoAsync.when(...)` observado no bloco `ProposalStatus.rejected`, mas RLS sempre bloqueia (job não confirmado). O fetch de rede nunca produz resultado. **Esforço: trivial.**
+
+---
+
+### B3 Fase 10 — Validação de data em `mark_job_done`
+
+Worker pode marcar como concluído antes da data confirmada — a BD não valida `confirmed_date`. Considerar em Fase 11 quando avaliações forem implementadas (avaliação imediata antes da data faz menos sentido).
+
+---
+
+### Paginação nas tabs "Por confirmar" e "Agendados"
+
+Actualmente sem limite. Para workers muito ativos (>50 items por tab). Adiar para quando houver dados reais que justifiquem.
+
+---
+
+### Compressão e thumbnails de fotos
+
+Hoje comprimimos a 800px/60% no upload. Para thumbs em listas podia ser mais agressivo. Gerar thumb 400px no upload (segundo ficheiro) e usar nas listas. Original só no detalhe.
+
+---
+
+### Image transformations do Supabase
+
+Supabase tem CDN com transforms on-the-fly (resize, quality) — mas no Free Plan tem limites. Avaliar quando upgrade fizer sentido.
+
+---
+
+### B1 Fases 0-3 — Boilerplate de enums (decisão: manter)
+
+9 enums × ~6-15 linhas = ~100 linhas total. Code-gen adicionaria build_runner e indireção para ganho mínimo. **Decisão: manter o boilerplate.** Compilador apanha casos em falta nos switches de expressão.
+
+---
+
+### B2 Fases 0-3 — Partilha estrutural `ClientShell`/`WorkerShell` (decisão: manter separados)
+
+Os dois shells têm tabs, ícones, FAB logic suficientemente diferentes para que um `GenericShell(tabs: [...])` fique tão complexo quanto a separação atual. **Decisão: manter separados.** O momento certo é quando surgir um terceiro shell ou comportamento partilhado.
+
+---
+
+### P-FA8 — `cancel_job` reproduzido em 4 migrations (comprehension hazard — sem ação agora)
+
+Corpo completo em 0001, 0007, 0009 e 0013. Cada migration é self-contained por design. **Sem ação agora.** Se o número de migrations passar de 20, considerar `supabase/FUNCTION_HISTORY.md` que mapeie cada função → migration mais recente.
+
+---
+
+## 📋 Decisões de produto pendentes
+
+### RC2 — O cliente deve ver a composição da equipa?
+
+Hoje um cliente que contratou um trabalho para 3 pessoas vê o mesmo que um cliente com trabalho solo: nome e contacto do prestador principal. Sem visibilidade sobre nº de vagas, quem são os ajudantes, ou se um desistiu. A infraestrutura está pronta (dados existem, policy SELECT adicionada em migration 0026).
+
+**O que precisa de decidir:** a transparência da equipa para o cliente é uma feature do MVP ou é deliberadamente opaca por design (o cliente contrata o principal, o principal gere a equipa)?
+
+---
+
+### RC4 — O cliente deve ser avisado que a sua avaliação se propaga a todos os ajudantes?
+
+`submit_client_rating` aplica as mesmas estrelas ao prestador principal e a cada ajudante aceite com uma única ação. O utilizador vê "Avaliar o trabalho" — sem menção de que esta avaliação também afeta 2-3 outras pessoas que podem ter tido desempenhos distintos.
+
+**O que precisa de decidir:**
+- a) Manter como está (propagação silenciosa, simplicidade máxima)
+- b) Acrescentar uma linha explicativa: "Esta avaliação aplica-se ao prestador e à equipa" — sem alterar o fluxo
+- c) Mostrar os nomes dos ajudantes no sheet para o cliente ter consciência de quem está a avaliar
+
+---
+
+### RC5 — O cliente deve receber orientação quando um job expira sem propostas?
+
+Quando um job expira para `no_response` após 48h, o cliente recebe notificação e o job fica em estado terminal. Sem indicação sobre porquê (zona sem cobertura? preço abaixo do mercado?) nem sugestão do que fazer a seguir. A app sabe o nº de workers no raio quando o job foi criado — 0 workers notificados significa zona sem cobertura.
+
+**O que precisa de decidir:** simplificação máxima (sem guidance) vs. mensagem contextual mínima no ecrã de job expirado?
+
+---
+
+### RC6 — A janela de 3 dias para auto-confirmação deve ser visível na UI?
+
+Após o worker marcar como concluído (`awaiting_confirmation`), o job é automaticamente confirmado ao fim de 3 dias. Nem worker nem cliente veem este prazo — para o worker parece espera indefinida; para o cliente não há urgência percetível.
+
+**O que precisa de decidir:** mostrar contagem decrescente ("Confirmar nos próximos 2 dias", calculado de `jobs.updated_at + 3 dias`) ou deixar sem indicação explícita?
 
 ---
 
 ### Notas de registo (sem decisão necessária, sem código para escrever)
 
-- **Notificação de equipa completa ausente:** quando `help_request.status` passa a
-  `filled` (todas as vagas preenchidas), o cliente não recebe nenhuma notificação.
-  Relacionado com RC2 — relevante só se RC2 decidir que o cliente tem visibilidade
-  da equipa.
-
-- **Workers com proposta pending não são notificados quando o cliente cancela um job
-  em `open`:** o job desaparece silenciosamente da lista deles. Não é um bug crítico
-  (o job genuinamente já não existe) mas é uma experiência confusa para um worker novo
-  que não sabe se o job foi aceite por outro, cancelado ou expirou.
-
-- **Horas reais trabalhadas nunca são capturadas:** o sistema sabe o que foi estimado
-  e acordado, mas não o que foi efetivamente trabalhado. Bloqueia qualquer dashboard de
-  ganhos preciso ("Quanto fiz este mês?") e qualquer lógica de faturação futura. A janela
-  para adicionar um campo `actual_hours_worked` é agora (junto à conclusão do job), não
-  depois de haver dados acumulados sem ele.
-
-- **`excluded_worker_ids` é opaco para o worker:** o worker excluído simplesmente vê o
-  job desaparecer da sua lista de descoberta, sem qualquer indicação de que foi excluído.
-  Sem mecanismo de recurso. Aceitável para MVP mas a registar para quando houver casos
-  reais de exclusão injusta.
+- **Notificação de equipa completa ausente:** quando `help_request.status` passa a `filled`, o cliente não recebe notificação. Relevante só se RC2 decidir que o cliente tem visibilidade da equipa.
+- **Workers com proposta pending não são notificados quando o cliente cancela um job em `open`:** o job desaparece silenciosamente da lista deles. Não é um bug crítico mas é uma experiência confusa para um worker novo.
+- **Horas reais trabalhadas nunca capturadas:** o sistema sabe o estimado e acordado, mas não o efetivamente trabalhado. Bloqueia dashboards de ganhos precisos e lógica de faturação. A janela para adicionar `actual_hours_worked` é agora (junto à conclusão do job), não depois de haver dados acumulados sem ele.
+- **`excluded_worker_ids` é opaco para o worker:** worker excluído vê o job desaparecer sem indicação. Sem mecanismo de recurso. Aceitável para MVP.
 
 ---
 
-## Sessão de testes manuais — 2026-06-29
+## 💡 Features futuras e ideias
 
-> Testes manuais em dispositivo físico por Henrique. 6 screenshots capturados como evidência (Henrique tem os originais). Todos os findings foram observados diretamente — não inferidos de análise estática.
->
-> Itens com código **T1–T6** estável para referência cruzada. Nenhum ficheiro `.dart` ou `.sql` foi alterado nesta sessão — só documentação. Findings T1 e T3 confirmam impacto real de P6 e P-8-9 (ver notas de re-priorização nessas entradas).
+### Muito Alta prioridade
 
----
+**Push notifications (FCM)**
+Realtime in-app funciona, mas não notifica fora da app. Firebase Cloud Messaging + Supabase Edge Function que dispara push quando entra notificação na tabela. **Workers vão perder pedidos sem isto — pós-MVP imediato.**
 
-### Bugs confirmados
+**Relações persistentes Worker ↔ Cliente + Jobs recorrentes**
+Anti-desintermediação mais importante. Visão em camadas (implementar por ordem):
 
-**~~T1~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A) — Desync de estado de propostas (screenshots 1-2)**
+- **Camada 1 — Conversa persistente** (pós mini-chat de proposta): canal de mensagens direto criado automaticamente após o primeiro job completed entre os dois. Mantém-se para trabalhos futuros. Substitui o WhatsApp para comunicação recorrente.
+- **Camada 2 — Jobs recorrentes**: dentro da conversa, cliente ativa "repetir trabalho" com frequência (semanal, quinzenal, mensal). Worker confirma. Jobs seguintes criam-se automaticamente com proposta automática (mesmo worker, mesmo preço). Sem marketplace.
+- **Camada 3 — Perfil de cliente para o worker**: histórico, morada guardada, notas pessoais ("tem cão", "portão azul"), ganhos totais.
 
-O card de job na home do cliente mostrava badge **"1 proposta"** enquanto o ecrã de detalhe mostrava **"À espera de proposta"** — snapshot stale em `state.extra` divergia do estado real da BD.
+Modelo de dados: `worker_client_relationships`, `relationship_messages`, `recurring_jobs`. Dependência: mini-chat implementado primeiro.
 
-**Resolução:** `ClientJobDetailScreen` reescrito com `jobId: String` + `jobByIdProvider(widget.jobId)`. O ecrã nunca recebe snapshot — lê sempre do provider reativo. O `proposal_count` no status pill vem do mesmo objeto que o provider devolve em tempo real. Desync impossível por design.
-
-**Relacionado:** P6 (Fases 0-3, ✅ resolvido), P-8-9 (Fase 8, parcialmente resolvido), T3 (✅ resolvido), T6.
-
----
-
-**~~T2~~ — ✅ RESOLVIDO 2026-06-29 — Overflow de renderização no card de contacto do worker (screenshot 3, severidade: MÉDIA)**
-
-~~Banner de debug visível **"OVERFLOWED BY 52 PIXELS"**~~ — corrigido. Row do nome e Row da data/hora em `_workerContactCard()` envolvidos em `Expanded + TextOverflow.ellipsis`. Mesmo fix aplicado preventivamente ao card de contacto do cliente em `worker_my_job_detail_screen.dart`. Ver `decisions_log.md` 2026-06-29.
+**Pedidos recorrentes**
+"Corte de relva quinzenal" — receita previsível para o jardineiro, conveniência para o cliente, uso recorrente. Ao criar pedido, opção "Repetir" com frequência. Cria jobs automaticamente. Dependência: Relações persistentes.
 
 ---
 
-**~~T3~~ — ✅ RESOLVIDO 2026-06-29 (A2 Prompt A + Prompt B) — Red screen: `Null check operator used on a null value` (screenshot 4)**
+### Alta prioridade
 
-Crash com ecrã vermelho durante navegação na área de lista de jobs causado por `state.extra!` null assertion em 4 rotas de detalhe.
+**Mini-chat por proposta (modelo Vinted)**
+Cada job_proposal tem um chat associado — cliente e worker trocam mensagens dentro dessa proposta específica. Realtime via Supabase Realtime (infraestrutura já existe). Modelo de dados: `proposal_messages(id, proposal_id, sender_id, content, created_at)`. RLS: só client e worker da proposta veem as mensagens. UI: bottom sheet da proposta com tabs "Detalhes" e "Chat". Após proposta rejeitada/retirada, chat fica em modo leitura. **Diferenciador forte vs contacto por WhatsApp.**
 
-**Resolução:** todas as 4 rotas removidas de `state.extra`. Nenhum builder em `app_router.dart` faz null assertion em extra — nenhuma rota de detalhe de job pode crashar por extra em falta. Navegação direta (notificação, deep link, back/forward do sistema) funciona sem crash.
+**Vista de agenda do worker**
+Worker com vários jobs agendados precisa de hierarquia temporal. Vista alternativa em calendário (semana/mês) com slots ocupados. Divisores "Hoje" / "Esta semana" / "Mais tarde" na lista. **Essencial assim que workers tiverem 5+ jobs simultâneos.**
 
-**Relacionado:** P6 (Fases 0-3, ✅ resolvido), T1 (✅ resolvido), T6.
+**Perfil de worker visitável (em camadas)**
 
----
+- **Camada 1:** ecrã `worker_profile_screen` com dois modos — "próprio" (mostra botão editar) vs "visitante" (read-only), decidido por `profile_id == auth.uid()`. RLS: cliente vê worker_profiles desde proposta `pending`. Conteúdo: foto, área de atuação, ferramentas, tipos de trabalho, avaliações. **Risco:** query pública não deve expor `base_lat`/`base_lng` — filtrar ao nível da query/DTO, não confiar só na RLS.
+- **Camada 2 — Portfólio de trabalhos:** worker publica fotos de trabalhos feitos (campo `photos` já existe em `worker_profiles`). Depende da Camada 1.
+- **Camada 3 — Feed na home:** workers próximos/recomendados na página inicial do cliente. Depende de 1 e 2 testadas com utilizadores.
 
-**~~T4~~ — ✅ RESOLVIDO 2026-06-29 — Red screen: `'_dependents.isEmpty': is not true`**
+Camada 1 pode avançar a qualquer momento sem bloqueios externos.
 
-Causa raiz confirmada por investigação: `ref.invalidate()` ×3 chamado **antes** de `dialogNavigator.pop()` e `router.go('/worker/home')` no caminho de sucesso de `_markCompleted()`. As invalidações notificavam síncronamente o `WidgetRef` do ecrã, registando-o como dependente a reconstruir. A navegação subsequente iniciava a desmontagem enquanto o `WidgetRef` ainda estava na lista `_dependents` dos elementos de provider — `ProviderElement.dispose()` asserta `_dependents.isEmpty`, falhando.
+**Perfil público partilhável**
+URL público `/p/<worker-slug>` com perfil, fotos, avaliações, serviços, zona. Cada partilha é aquisição grátis. Complementa o perfil visitável (este item é partilha FORA da app; Camada 1 acima é visibilidade DENTRO). A estrutura de dados pode ser partilhada entre os dois.
 
-**Resolução:** reordenação para `pop → go → snackBar → invalidate` + guard `navigatedAway` no `finally` para evitar `setState` supérfluo após navegação. Ver `decisions_log.md` 2026-06-29.
+**Dashboard do jardineiro**
+"Quanto fiz este mês? Quantos km? Quantos trabalhos?" Ecrã com estatísticas mensais — ganhos, km, jobs feitos, % avaliação. Alimenta sentido de "isto é o meu negócio".
 
-**Candidatos da mesma classe em `client_job_detail_screen.dart` — ✅ corrigidos preventivamente (2026-06-29):** linhas 80-84, 130-141, 374-378 — reordenados para `navigate → snackBar → invalidate` com guards `navigatedAway` onde existia `finally`. Ver `decisions_log.md` 2026-06-29.
+**Trabalhos externos (agenda)**
+Worker adiciona trabalhos que não vieram pela app à sua agenda. Permite organizar rotas e ter visão completa do dia. Botão `+` do worker já está reservado para isto.
 
----
+**Verificação de identidade Nível 2**
+Upload de documento de identidade, verificação manual no início, selo visível no perfil. **Pós-MVP imediato** — para serviços em casa de pessoas, confiança é tudo.
 
-**~~T5~~ — Lógica de cancelamento invertida — ✅ RESOLVIDO 2026-06-29 (migration 0025)**
+**Nome próprio em português**
+"LocalServices" é genérico e mau para SEO. Considerar nome memorável antes do lançamento público. Mudar agora é barato, depois é caro.
 
-Quando o **cliente** cancela um job `confirmed`, a app recriava automaticamente um novo job sem pedir consentimento ao cliente. Este comportamento foi explicitamente desenhado para quando o **worker** cancela — nesse caso faz sentido encontrar um worker substituto enquanto o cliente ainda quer o trabalho feito.
-
-**Correção via inspeção direta do SQL (0013):** o `array_append` de `excluded_worker_ids` já estava dentro de `IF v_is_worker THEN` — o worker nunca era excluído no path do cliente. O único problema real era a reabertura automática sem consentimento.
-
-**Resolução (2026-06-29):**
-- `supabase/migrations/0025_cancel_job_client_reopen_choice.sql` — novo parâmetro `p_client_wants_reopen boolean DEFAULT NULL`. Worker call sites omitem o parâmetro (DEFAULT NULL → branch worker inalterado). Client call sites passam `true`/`false` explicitamente.
-- `lib/features/jobs/presentation/client_job_detail_screen.dart` — após o picker de razão, segundo dialog "Voltar a publicar?" (Sim/Não). Resposta enviada como `clientWantsReopen` para o RPC.
-- `lib/features/jobs/data/job_repository.dart` — `cancelJob()` aceita `bool? clientWantsReopen`, só passa ao RPC quando não null.
-- **Worker path: completamente inalterado.** Auto-reabre sempre (dentro do limite de 2), exclui sempre o worker que cancelou.
-
----
-
-**~~T7~~ — ✅ RESOLVIDO 2026-06-29 — Nome/avatar do candidato no lobby mostra "—" e placeholder genérico**
-
-No lobby de ajudantes (`worker_help_requests_lobby_screen.dart`), o nome do candidato nos cards "Por decidir" e "Aceites" mostrava sempre "—" e o avatar mostrava um placeholder genérico, enquanto o nome do principal ("Jorge") renderizava corretamente no topo.
-
-**Causa:** terceiro waterfall assíncrono: `helpRequestsForJobProvider` → `candidatesForHelpRequestProvider` → `profileSummaryProvider` (por candidato). O `profileSummaryProvider` era não-bloqueante e erros eram mascarados silenciosamente por `?? {}`, fazendo o nome mostrar sempre "—" na janela de loading (e permanentemente em caso de erro de rede/auth).
-
-**Resolução:** join direto de `profiles` na query `fetchCandidatesForHelpRequest` via PostgREST embedded resources (dois saltos: `worker_profiles(profiles(full_name, avatar_url))`). `HelpAcceptance` adicionou `fullName` e `avatarUrl`. O bloco `profileSummaries` e as funções `nameOf`/`avatarOf` foram removidos do lobby screen — os cards lêem `c.fullName ?? 'Sem nome'` e `c.avatarUrl` diretamente da instância já carregada. Ver `decisions_log.md` 2026-06-29.
+**Logo e identidade visual**
+Trabalhar com designer no UI Playground em paralelo à app principal.
 
 ---
 
-**T6 — Routing de notificações: gap estrutural — ⚠️ PARCIALMENTE RESOLVIDO 2026-06-29 (A2 completo)**
+### Média prioridade
 
-Henrique confirmou explicitamente (2026-06-29): *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*
+**Comparação lado-a-lado de propostas**
+Para 3+ propostas, vista em tabela (worker, preço, horas, data). Toggle entre vista de cards e tabela. Só faz sentido após validação com utilizadores reais.
 
-**Progresso 2026-06-29:** A2 está completo — todas as 4 rotas de detalhe são ID-based. T1 e T3 (sintomas diretos de `state.extra`) resolvidos. `helpRequestApproved`/`helpWithdrew` em `notification_handler.dart` já navegam diretamente para o ecrã correto. **Falta:** notificações de `job_cancelled`, `job_reopened`, reschedule, conclusão — ainda navegam para lista genérica (ver P-8-9). O bloqueador estrutural (P6) está removido; o trabalho restante é adicionar navegação precisa para cada tipo de notificação em `notification_handler.dart`.
+**Badge de "novas propostas" na tab Propostas**
+Badge colorido se houver propostas não vistas desde a última visualização.
 
-**Ver:** P6 (✅ resolvido), T1 (✅ resolvido), T3 (✅ resolvido), P-8-9 (parcialmente resolvido).
+**Orçamento por projeto**
+Novo tipo de pedido "Orçamento", worker envia proposta com valor total + descrição. Abre mercado de trabalhos maiores.
 
----
+**Otimização de rotas**
+Worker com 5 jobs num dia em sítios diferentes. Algoritmo nearest-neighbor ou integração Google Maps.
 
-## UX e fluxo
+**Faturação simplificada**
+Parceria com InvoiceXpress ou similar, ou guias práticos dentro da app.
 
-### Comparação lado-a-lado de propostas
-**Contexto:** Quando o cliente tem 3+ propostas, comparar é difícil scrollando entre cards.
-**Ideia:** Vista alternativa em tabela com colunas (worker, preço, horas, data). Toggle entre vista de cards e vista de tabela.
-**Prioridade:** Média — só faz sentido após validação do uso real com utilizadores.
+**Chat in-app (genérico)**
+Chat simples (Supabase Realtime, tabela `messages`) para negociar antes/durante o trabalho sem sair da app.
 
-### Aceitar 1ª proposta antes de receber mais
-**Contexto:** Cliente pode aceitar a primeira proposta que chega sem ver outras melhores.
-**Ideia:** Mensagem orientativa "Recomendamos aguardar até 24h para ver mais opções" — orienta sem bloquear.
-**Prioridade:** Baixa.
+**Lembretes sazonais**
+Notificações por categoria/serviço em datas específicas. Ex: outubro → "Está na altura de preparar o jardim para o inverno."
 
-### Badge de "novas propostas" na tab Propostas
-**Contexto:** Cliente não sabe se há propostas novas desde a última visualização.
-**Ideia:** Badge colorido na tab "Propostas (3)" laranja se houver propostas não vistas, neutro depois de abrir.
-**Prioridade:** Média.
+**Contador de cancelamentos tardios**
+"Cumpre compromissos: 95%" no perfil público. Depende das avaliações estarem prontas.
 
-### Agrupamento visual de jobs reabertos
-**Contexto:** Job cancelado + job novo são entradas separadas no histórico — pode ficar confuso.
-**Ideia:** Agrupar visualmente "Cancelado → Reaberto como #..." numa linha.
-**Prioridade:** Baixa — só relevante quando o histórico ficar denso.
+**Restrição de "marcar concluído" antes da data**
+Bloquear ou avisar "Tens a certeza? O trabalho está marcado para o dia X."
 
-### Vista de agenda do worker
-**Contexto:** Worker com vários jobs agendados precisa de hierarquia temporal.
-**Ideia:** Vista alternativa em calendário (semana/mês) com slots ocupados. Divisores "Hoje" / "Esta semana" / "Mais tarde" na lista.
-**Prioridade:** Alta — vai ser essencial assim que os workers tiverem 5+ jobs simultâneos.
-
-### Idade visual das propostas pendentes
-**Contexto:** Worker não sabe se a proposta foi vista ou ignorada.
-**Ideia:** Cor por idade — <24h normal, 24-48h amarelo, >48h cinzento (a expirar). "Há 6h", "Há 2 dias".
-**Prioridade:** Média.
-
-### Nota: Timeline de estados (8E.5) é implementação temporária
-**Contexto:** O StatusTimeline atual (lib/core/widgets/status_timeline.dart)
-foi feito como primeira versão funcional, lendo diretamente de JobRequest sem
-nova infraestrutura. Está confirmado que esta UI específica será refeita do
-zero mais tarde como parte de um redesign visual mais amplo (UI Playground).
-**Implicação:** não vale a pena investir tempo extra em polish visual ou
-animações nesta versão — só correção de bugs funcionais reais (dados errados
-exibidos), não cosmética. A lógica de derivação dos estados (job_timeline.dart)
-provavelmente sobrevive ao redesign mesmo que o widget visual mude por completo.
-**Prioridade:** Baixa (é só uma nota de contexto, não uma tarefa).
+**Idade visual das propostas pendentes**
+Cor por idade — <24h normal, 24-48h amarelo, >48h cinzento (a expirar). "Há 6h", "Há 2 dias".
 
 ---
 
-## Confiança e segurança
+### Baixa prioridade
 
-### Verificação de identidade nível 2
-**Contexto:** Hoje só temos email confirmado. Para serviços em casa de pessoas, confiança é tudo.
-**Ideia:** Upload de documento de identidade, verificação manual no início, selo visível no perfil.
-**Prioridade:** Alta — pós-MVP imediato.
+**Aceitar 1ª proposta sem ver mais**
+Mensagem orientativa "Recomendamos aguardar até 24h para ver mais opções" — orienta sem bloquear.
 
-### Contador de cancelamentos tardios
-**Contexto:** Quando alguém cancela com <24h, é registado mas não bloqueado.
-**Ideia:** Mostrar "Cumpre compromissos: 95%" no perfil público como sinal de confiança.
-**Prioridade:** Média — depende das avaliações estarem prontas.
+**Agrupamento visual de jobs reabertos**
+"Cancelado → Reaberto como #..." numa linha no histórico. Só relevante quando o histórico ficar denso.
 
-### Restrição de "marcar concluído" antes da data
-**Contexto:** Hoje o worker pode marcar como concluído mesmo no dia em que enviou a proposta.
-**Ideia:** Bloquear ou avisar "Tens a certeza? O trabalho está marcado para o dia X."
-**Prioridade:** Média.
+**Categorias além de jardinagem**
+Limpeza, pequenas reparações, manutenção. Só depois de jardinagem ter tração numa zona — não expandir antes de validar.
+
+**Resumo diário do worker**
+Notificação ao fim do dia: "Hoje recebeste 2 propostas, ganhaste €X."
 
 ---
 
-## Produto
+### Pós-MVP / Dependência de parceria externa
 
-### Pedidos recorrentes
-**Contexto:** "Corte de relva quinzenal" é o santo graal — receita previsível para o jardineiro, conveniência para o cliente, uso recorrente da app.
-**Ideia:** Ao criar pedido, opção "Repetir" com frequência (semanal, quinzenal, mensal). Cria jobs automaticamente.
-**Prioridade:** Muito alta — feature de retenção mais valiosa.
-
-### Perfil público partilhável
-**Contexto:** Worker pode usar como cartão de visita fora da app.
-**Ideia:** URL público `/p/<worker-slug>` com perfil, fotos, avaliações, serviços, zona. Cada partilha é aquisição grátis.
-**Prioridade:** Alta — pós-MVP.
-
-### Perfil de worker visitável (em camadas)
-**Contexto:** Hoje o perfil do worker só é visível ao cliente depois de job
-confirmado, e não há ecrã read-only — só o ecrã de edição do próprio worker.
-Visão de produto: tornar o perfil um "cartão de visita a sério" dentro da
-app, com 3 camadas progressivas.
-
-**Camada 1 — Perfil visitável (sem dependências externas, pode iniciar
-quando quiser):**
-- RLS: cliente vê worker_profiles desde proposta `pending` (não só
-  `accepted` como hoje); bidirecional — worker vê profiles do cliente
-  desde `pending` também.
-- UI: um único ecrã `worker_profile_screen` com dois modos — "próprio"
-  (mostra botão editar) vs "visitante" (read-only), decidido por
-  `profile_id == auth.uid()`. Evita duplicar estrutura visual em dois ecrãs.
-- Conteúdo: foto, área de atuação (raio/zona), ferramentas, tipos de
-  trabalho, avaliações (estrelas + comentários).
-- Sem selo de "verificado" — só existe Nível 1 (telefone) implementado;
-  um selo agora seria enganador. Esperar pelo Nível 2 (documento de
-  identidade, já listado como Alta prioridade noutro item deste ficheiro).
-- Risco identificado a resolver no design técnico: a query do perfil
-  público NÃO deve expor `base_lat`/`base_lng` (localização base exata do
-  worker) mesmo que a RLS permita — filtrar isso ao nível da query/DTO,
-  não confiar só na RLS.
-- Navegação: clicável a partir do card de proposta (cliente) e do card de
-  job/cliente associado (worker).
-
-**Camada 2 — Portfólio de trabalhos:** extensão do perfil da Camada 1.
-Worker publica fotos de trabalhos feitos, separadas das fotos de jobs
-individuais (campo `photos` já existe em worker_profiles — dar-lhe secção
-própria com legendas/datas). Depende da Camada 1 estar pronta.
-
-**Camada 3 — Feed na home:** mostrar workers próximos/recomendados na
-página inicial do cliente. Depende de 1 e 2 estarem prontas e testadas com
-utilizadores reais — decisões de produto novas em aberto (critério de
-ordenação: proximidade? categoria? reputação?) ficam para quando lá
-chegarmos, não decidir agora.
-
-**Prioridade:** Camada 1 pode avançar a qualquer momento (sem bloqueios
-externos). Camadas 2 e 3 são sequenciais a partir daí.
-**Relacionado:** sobrepõe-se parcialmente com o item já existente "Perfil
-público partilhável" (URL /p/<worker-slug>) — esse item é sobre partilha
-FORA da app; esta Camada 1 é sobre visibilidade DENTRO da app. A estrutura
-de dados do perfil pode ser partilhada entre os dois quando ambos avançarem.
-
-### Carteira digital de cartões (combustível/seguro)
-**Contexto:** Visão de longo prazo do programa de benefícios (ver
-business_strategy.md secção 2) — quando uma parceria real for fechada
-(Prio/BP/Galp para combustível, MDS/Fidelidade para seguro), o worker deve
-poder guardar o cartão na app em vez de andar com o cartão físico.
-**Decisão de scope (2026-06-19):** sem integração NFC real nem emissão de
-pagamento (exigiria certificação com rede de cartões/Google Wallet — fora
-de questão para este produto). Versão viável: "carteira digital" simples —
-foto do cartão (frente/verso) + campos de texto livre (nome dado pelo
-worker, tipo de cartão, número opcional). Mostrado em full-screen para
-leitura manual por um funcionário — sem qualquer leitura eletrónica.
-**Dependência real:** bloqueado por decisão de NEGÓCIO, não técnica — precisa
-de pelo menos uma parceria de benefícios fechada (business_strategy.md
-secção 2, todas "Estado: Ideia" atualmente) antes de desenhar a estrutura
-final, porque o formato do cartão real só se sabe depois de negociar com
-o parceiro.
-**Modelo de dados (rascunho, não implementar):** tabela worker_benefit_cards
-(id, worker_id, card_type, label, photo_front_url, photo_back_url nullable,
-card_number nullable, created_at).
-**Prioridade:** Pós-MVP — não avançar antes de fechar pelo menos uma
-parceria real.
-
-### Orçamento por projeto
-**Contexto:** Hoje só temos preço/hora. Trabalhos grandes (relvado novo, sistema de rega) precisam de orçamento fechado.
-**Ideia:** Novo tipo de pedido "Orçamento", worker envia proposta com valor total + descrição.
-**Prioridade:** Média — abre mercado de trabalhos maiores.
-
-### Dashboard do jardineiro
-**Contexto:** "Quanto fiz este mês? Quantos km? Quantos trabalhos?"
-**Ideia:** Ecrã com estatísticas mensais — ganhos, km, jobs feitos, % avaliação. Alimenta sentido de "isto é o meu negócio".
-**Prioridade:** Alta.
-
-### Trabalhos externos (agenda)
-**Contexto:** Botão `+` do worker já está reservado para isto.
-**Ideia:** Worker adiciona trabalhos que não vieram pela app à sua agenda. Permite organizar rotas e ter visão completa do dia.
-**Prioridade:** Alta.
-
-### Otimização de rotas
-**Contexto:** Worker com 5 jobs num dia em sítios diferentes — ordem ótima poupa horas.
-**Ideia:** A partir da agenda, sugerir ordem ótima de visitas (algoritmo simples nearest-neighbor ou integração Google Maps).
-**Prioridade:** Média.
-
-### Faturação simplificada
-**Contexto:** Recibos verdes em Portugal são fricção para o jardineiro.
-**Ideia:** Parceria com InvoiceXpress ou similar, ou pelo menos guias práticos dentro da app.
-**Prioridade:** Média.
-
-### Categorias além de jardinagem
-**Contexto:** O código já está preparado (nomes genéricos).
-**Ideia:** Expandir para limpeza, pequenas reparações, manutenção. Só depois de jardinagem ter tração numa zona.
-**Prioridade:** Baixa — não expandir antes de validar.
-
-
-### Mini-chat por proposta (modelo Vinted)
-**Contexto:** Negociação entre cliente e worker acontece fora da app (WhatsApp).
-Trazer a negociação para dentro da app aumenta confiança e contexto.
-**Ideia:** Cada job_proposal tem um chat associado — cliente e worker trocam
-mensagens dentro dessa proposta específica. Chat visível no card da proposta
-(cliente) e no detalhe do worker. Mensagens em tempo real via Supabase Realtime
-(infraestrutura já existe). Após proposta rejeitada/retirada, chat fica em
-modo leitura (histórico).
-**Modelo de dados:**
-- Tabela `proposal_messages`: id, proposal_id, sender_id, content, created_at
-- RLS: só client e worker da proposta veem as mensagens
-- Realtime: subscrição por proposal_id
-**UI:** bottom sheet da proposta tem duas tabs — "Detalhes" e "Chat".
-Chat simples com bolhas, campo de texto, enviar. Sem fotos no MVP do chat.
-**Porque é relativamente simples:** Realtime já configurado, padrão de
-bottom sheet já existe, tabela é simples.
-**Prioridade:** Alta — diferenciador forte vs contacto por WhatsApp.
-Implementar depois de MVP estável e testado.
-
-### Relações persistentes Worker ↔ Cliente + Jobs recorrentes
-**Contexto:** Após o primeiro trabalho concluído, cliente e worker têm uma
-relação que vale a pena preservar dentro da app. Hoje perdem-se para o WhatsApp.
-**Visão em camadas (implementar por ordem):**
-
-**Camada 1 — Conversa persistente (pós mini-chat de proposta)**
-Canal de mensagens direto entre worker e cliente, criado automaticamente após
-o primeiro job completed entre os dois. Mantém-se para trabalhos futuros.
-Substitui o WhatsApp para comunicação recorrente.
-
-**Camada 2 — Jobs recorrentes**
-Dentro da conversa, cliente ativa "repetir trabalho" com frequência
-(semanal, quinzenal, mensal). Worker confirma. Jobs seguintes criam-se
-automaticamente com proposta automática (mesmo worker, mesmo preço).
-Sem passar pelo marketplace — relação direta.
-
-**Camada 3 — Perfil de cliente para o worker**
-Worker vê histórico com aquele cliente: trabalhos feitos, morada guardada,
-notas pessoais ("tem cão", "portão azul"), ganhos totais.
-
-**Modelo de dados:**
-- `worker_client_relationships`: id, worker_id, client_id, status, created_at, notes
-- `relationship_messages`: id, relationship_id, sender_id, content, created_at
-- `recurring_jobs`: id, relationship_id, service_type_id, frequency, next_date, last_job_id, status
-
-Relação criada automaticamente após primeiro job completed entre os dois.
-
-**Porque é estratégico:**
-- Resolve desintermediação (relação vive na app, WhatsApp perde valor)
-- Receita recorrente previsível para o worker
-- Retém ambos os lados a longo prazo
-- Base para programa de benefícios (worker com X recorrentes → nível Pro)
-- Dados de uso (frequência, sazonalidade, padrões)
-
-**Dependências:** Mini-chat por proposta deve estar implementado primeiro.
-**Prioridade:** Muito Alta — é a feature anti-desintermediação mais importante.
+**Carteira digital de cartões (combustível/seguro)**
+Bloqueado por decisão de NEGÓCIO — precisa de pelo menos uma parceria de benefícios fechada (business_strategy.md secção 2, todas "Estado: Ideia" atualmente). Versão viável: foto do cartão + campos de texto livre, mostrado em full-screen para leitura manual. Sem integração NFC nem emissão de pagamento.
+Modelo de dados (rascunho, não implementar): `worker_benefit_cards(id, worker_id, card_type, label, photo_front_url, photo_back_url nullable, card_number nullable, created_at)`.
 
 ---
 
-## Notificações e comunicação
+### Avaliações — Pós-Fase 11 (Fase 12+)
 
-### Push notifications (FCM)
-**Contexto:** Realtime in-app funciona, mas não notifica fora da app.
-**Ideia:** Firebase Cloud Messaging + Supabase Edge Function que dispara push quando entra notificação na tabela.
-**Prioridade:** Muito alta — pós-MVP imediato. Workers vão perder pedidos sem isto.
+As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021 — aplicar manualmente se ainda não aplicado). Ver `decisions_log.md` 2026-06-26.
 
-### Chat in-app
-**Contexto:** Hoje a comunicação é via WhatsApp depois de confirmar.
-**Ideia:** Chat simples (Supabase Realtime, tabela `messages`) para negociar antes/durante o trabalho sem sair da app.
-**Prioridade:** Média — pós-MVP.
+**Exibir média de estrelas no perfil do worker:** `fetchRatingsForProfile` já existe em `RatingRepository`. Falta calcular a média e exibi-la em `worker_profile_screen.dart` e nos cards de propostas.
 
-### Lembretes sazonais
-**Contexto:** Jardinagem é sazonal — clientes podem esquecer "está na altura de podar".
-**Ideia:** Notificações por categoria/serviço em datas específicas. Ex: outubro → "Está na altura de preparar o jardim para o inverno."
-**Prioridade:** Média.
-
-### Resumo diário do worker
-**Contexto:** Pode ter perdido propostas durante o dia se a app estava fechada.
-**Ideia:** Notificação ao fim do dia: "Hoje recebeste 2 propostas, ganhaste €X."
-**Prioridade:** Baixa.
+**Resposta a avaliações:** worker responde publicamente a uma avaliação. Requer nova coluna `reply_text` na tabela `ratings` e UI dedicada.
 
 ---
 
-## Performance e técnico
+### Nota: Timeline de estados — implementação temporária
 
-### Otimizar N+1 query em propostas
-**Contexto:** Cada `_ProposalCard` chama `workerNameProvider` separadamente — N round-trips para N propostas.
-**Ideia:** Join `worker_profiles` em `fetchPendingProposalsForJob` para trazer nomes na mesma query.
-**Prioridade:** Baixa — só relevante quando houver muitas propostas por job.
-
-### Compressão e thumbnails de fotos
-**Contexto:** Hoje comprimimos a 1280px no upload. Para thumbs na lista podia ser mais agressivo.
-**Ideia:** Gerar thumb 400px no upload (segundo ficheiro) e usar nas listas. Original só no detalhe.
-**Prioridade:** Baixa.
-
-### Image transformations do Supabase
-**Contexto:** Supabase tem CDN com transforms on-the-fly (resize, quality) — mas no Free Plan tem limites.
-**Ideia:** Avaliar quando upgrade fizer sentido.
-**Prioridade:** Baixa.
+`lib/core/widgets/status_timeline.dart` — primeira versão funcional, será refeita do zero no redesign visual. Não investir em polish visual — só correção de bugs funcionais reais. A lógica de derivação (`job_timeline.dart`) provavelmente sobrevive ao redesign.
 
 ---
 
-## Avaliações (Fase 11 — implementada em 2026-06-26)
+## ✅ Resolvidos
 
-As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021 — aplicar manualmente). Ver `decisions_log.md` entrada 2026-06-26 para detalhes.
+> Referência histórica. Detalhes técnicos em `decisions_log.md`.
 
-### Itens pós-Fase 11 (Fase 12+)
+### Bugs de produção — Sessão de testes manuais 2026-06-29
 
-### Exibir média de estrelas no perfil do worker
-`fetchRatingsForProfile` já existe em `RatingRepository`. Falta calcular a média e exibi-la no `worker_profile_screen.dart` e nos cards de propostas.
+**T1 ✅ RESOLVIDO 2026-06-29** — Desync de estado de propostas: badge "1 proposta" na home vs "À espera de proposta" no detalhe. `ClientJobDetailScreen` reescrito com `jobId: String` + `jobByIdProvider`. Desync impossível por design.
 
-### Resposta a avaliações
-Worker pode responder publicamente a uma avaliação. Requer nova coluna `reply_text` na tabela `ratings` e UI dedicada.
+**T2 ✅ RESOLVIDO 2026-06-29** — Overflow "OVERFLOWED BY 52 PIXELS" em `_workerContactCard()`: Row do nome e Row da data/hora envolvidos em `Expanded + TextOverflow.ellipsis`. Fix preventivo aplicado em `worker_my_job_detail_screen.dart`.
 
-### Avaliação só com transação concluída
-Já garantido pelos RPCs: todos validam `v_job.status = 'completed'` antes de inserir.
+**T3 ✅ RESOLVIDO 2026-06-29** — Red screen `Null check operator used on a null value`: todas as 4 rotas removidas de `state.extra`. Navegação direta por deep link funciona sem crash.
 
----
+**T4 ✅ RESOLVIDO 2026-06-29** — Red screen `'_dependents.isEmpty': is not true`: reordenação para `pop → go → snackBar → invalidate` + guard `navigatedAway` no `finally`. Fix preventivo aplicado a 3 locais em `client_job_detail_screen.dart`.
 
-## Marca e produto
+**T5 ✅ RESOLVIDO 2026-06-29 (migration 0025)** — Lógica de cancelamento invertida: cliente cancelava um job `confirmed` e a app recriava automaticamente sem consentimento. Novo parâmetro `p_client_wants_reopen boolean DEFAULT NULL`. Worker path completamente inalterado. Client path com dialog "Voltar a publicar?".
 
-### Nome próprio em português
-**Contexto:** "LocalServices" é genérico e mau para SEO.
-**Ideia:** Considerar nome memorável em português antes do lançamento público. Mudar agora é barato, depois é caro.
-**Prioridade:** Alta — decisão de marca.
-
-### Logo e identidade visual
-**Contexto:** Faltam ativos visuais para a app e marketing.
-**Ideia:** Trabalhar com o designer no UI Playground em paralelo à app principal.
-**Prioridade:** Alta.
+**T7 ✅ RESOLVIDO 2026-06-29** — Nome/avatar do candidato no lobby mostrava "—" e placeholder genérico. Causa: terceiro waterfall assíncrono (`helpRequestsForJobProvider → candidatesForHelpRequestProvider → profileSummaryProvider` por candidato), erros mascarados por `?? {}`. Resolução: join direto via PostgREST embedded resources (dois saltos: `worker_profiles(profiles(full_name, avatar_url))`). `HelpAcceptance` adicionou `fullName` e `avatarUrl`. Bloco `profileSummaries` e funções `nameOf`/`avatarOf` removidos do lobby screen.
 
 ---
 
-## Performance técnica
+### Routing e navegação
 
-### Optimizar get_jobs_in_radius para filtrar propostas do worker na BD (✅ implementado)
-**Contexto:** Actualmente o Flutter faz 2 queries — uma para jobs no raio,
-outra para proposals do worker — e filtra client-side. Pode ser uma query só.
-**Solução:** Adicionar parâmetro `p_worker_id` ao RPC e fazer NOT EXISTS
-na query SQL para excluir jobs onde o worker já tem proposta pending.
-**Prioridade:** Média.
+**P6 ✅ RESOLVIDO 2026-06-29** — Navigation-extra substituído por ID-based routing em 4 rotas: `/client/job/:id`, `/worker/job/:id`, `/worker/my-job/:id`, `/worker/job/:id/help-requests`. T6 desbloqueado estruturalmente. T1 e T3 eram sintomas diretos deste bug.
 
-### fetchCompletedWorkerProposals: mover filtro para BD
-**Contexto:** A query usa `.range(page * pageSize, ...)` antes de filtrar `job_requests.status == 'completed'` client-side. Páginas podem ter menos items que `pageSize` mesmo quando há mais páginas, levando o utilizador a não carregar mais quando ainda existem dados.
-**Solução:** Criar RPC `get_completed_worker_proposals(p_worker_id, p_limit, p_offset)` que filtra por `status = 'accepted'` E `job_requests.status = 'completed'` antes de paginar — garantindo que o `LIMIT` se aplica após o filtro.
-**Prioridade:** Média — afeta UX da paginação em workers com histórico longo.
-
-### Paginação nas tabs Por confirmar e Agendados
-**Contexto:** Actualmente sem limite. Para workers muito activos com muitas
-propostas pendentes, pode ficar lento.
-**Solução:** Adicionar paginação igual à tab Concluídos quando houver dados reais
-que justifiquem (>50 items por tab).
-**Prioridade:** Baixa — resolver quando houver utilizadores reais com volume alto.
+**P5 ✅ RESOLVIDO 2026-06-26** — Guard cross-role adicionado ao router em `app_router.dart` após o bloco `role == null`.
 
 ---
 
-## Bugs pendentes / melhorias técnicas
+### Auth e sessão
 
-### Limpar funções RPC obsoletas (overload morto)
-**Contexto:** Descoberto durante a criação da migration baseline (2026-06-19).
-A BD viva tinha versões antigas de funções que coexistiam com as atuais via
-overload do Postgres (mesmo nome, assinatura diferente).
-- ~~`cancel_job(job_id_param uuid)`~~ — **resolvido em migration 0008** (DROP FUNCTION aplicado).
-- ~~`create_proposal` overloads antigos~~ — **resolvidos em migration 0008** (ambas as assinaturas antigas removidas).
-- `get_jobs_in_radius(worker_lat, worker_lng, radius_km)` sem `p_worker_id`
-  — **ainda por remover**: esta versão não foi incluída no DROP da migration
-  0008 (confirmado por inspeção do SQL). Ainda funciona mas ficou substituída
-  pela versão com `p_worker_id`.
-**Risco restante:** se alguma chamada esquecida no código ainda usar a
-assinatura sem `p_worker_id`, corre sem filtrar o worker — overload
-resolution silenciosa. Confirmar (grep no código Dart) antes de fazer DROP.
-**Solução:** DROP FUNCTION da assinatura antiga em migration futura.
-**Prioridade:** Média-Alta — limpeza de segurança barata.
+**P-67-1 ✅ RESOLVIDO 2026-06-26/2026-06-28** — `/worker/setup`, `/worker/profile`, `/client/profile`, `/client/create-job` adicionados a `loadingExempt`. Elimina perda silenciosa de formulários após token refresh do Supabase (ImagePicker/Geolocator disparam o mesmo redirect).
+
+**P-67-3 ✅** — SnackBar de erro de `client_profile_screen.dart` substituído por `friendlyError(e)`.
+
+**P-67-4 ✅** — Widget `error:` de service types em `worker_setup_screen.dart` e `worker_profile_screen.dart` substituído por `${friendlyError(e)}`.
+
+**P-67-5 ✅** — `worker_setup_screen.dart:178` `.single()` substituído por `.maybeSingle()` com null check e mensagem acionável.
+
+**P-67-6 ✅** — `auth_controller.dart` — handlers para `email_not_confirmed` e `rate_limit` adicionados antes do fallback genérico.
+
+---
+
+### Schema e migrations
+
+**P-FA2 ✅ RESOLVIDO (migration 0019)** — Storage DELETE policy para `job-photos` criada. Path alterado para `$clientId/$jobId/<ts>.jpg`. Fotos anteriores (path antigo) continuam não-apagáveis — sem impacto, não existe UI de apagamento.
+
+**P-FA3 ✅ RESOLVIDO (migration 0018)** — Policy de UPDATE de avatars corrigida (`regexp_replace` em vez de `storage.foldername` que devolvia NULL para paths root-level). DELETE policy adicionada. Severidade elevada: bug real em produção — qualquer re-upload de avatar silenciosamente falhava.
+
+**P-FA4 ✅ RESOLVIDO (migration 0016)** — `job_proposals` UPDATE policy sem `WITH CHECK`: corrigida com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`.
+
+**P-FA7 ✅ RESOLVIDO (migration 0019)** — DELETE policy para `job_photos` criada com EXISTS subquery em `job_requests` para verificar ownership.
+
+**P-8-1 ✅ RESOLVIDO (migration 0020)** — Transição `open → no_response` implementada com `auto_expire_jobs()`, `FOR UPDATE SKIP LOCKED`, notificação `job_no_response` ao cliente. Cron `'auto-expire-jobs'` a `0 */3 * * *`. `notification_handler.dart` invalida `clientJobsProvider` e navega `/client/jobs`.
+
+**P-8-3 ✅ RESOLVIDO 2026-06-26** — Compressão de fotos corrigida para 800px/60% em `job_repository.dart` (estava 1280px/72%).
+
+**P-8-4 ✅ RESOLVIDO (migration 0016)** — Bypass de autorização em `reject_reschedule` corrigido. `propose_reschedule` e `accept_reschedule` já estavam corretas na BD viva (alteradas interativamente numa sessão anterior não registada).
+
+**P-8-5 ✅ RESOLVIDO 2026-06-29** — `_job.copyWith()` eliminado de `client_job_detail_screen.dart`. Provider é sempre a única fonte de verdade.
+
+**P-8-6 ✅ RESOLVIDO 2026-06-26** — `create_job_screen.dart:281` exceção em bruto substituída por `${friendlyError(e)}`.
+
+**P-9-1 ✅ RESOLVIDO (migration 0017)** — `accept_help_candidate` auto-rejeita candidatos pending restantes quando `help_request` fica `filled`. Loop FOR adicionado — rejeita e notifica todos os outros pending imediatamente.
+
+**P-9-2 / P-9-4 ✅ RESOLVIDO** — Candidatos overflow não acionáveis: modelo de grelha com `isOverflow` eliminado. Lobby mostra todos os candidatos pending como lista plana, cada um acionável. Label "Preenchida" ambígua: fechado pela mesma mudança estrutural.
+
+**P-9-3 / A2 Fase 9 ✅ RESOLVIDO (migration 0026)** — `NOT EXISTS` clause adicionada ao WHERE de `get_help_requests_in_radius`. Exclui help_requests onde o worker já tem candidatura ativa. `_appliedIds` deixou de ser necessário.
+
+**P-9-5 ✅ RESOLVIDO 2026-06-28** — `pending_approval` UI: botão "Adicionar ajudante" em `worker_my_job_detail_screen.dart` e card "Aprovar equipa" em `client_job_detail_screen.dart`. Fluxo completo de ponta a ponta.
+
+**P-10-3 ✅ RESOLVIDO (migration 0020)** — `auto_confirm_completed_jobs()` passa a notificar o cliente. `clientJobsProvider` adicionado ao caso `jobCompleted` em `notification_providers.dart`.
+
+**P-10-5 ✅** (falso alarme) — Estado das migrations 0013-0014 confirmado via snapshot — corpo de `cancel_job` com regra 24h e `auto_confirm_completed_jobs` presentes na BD viva.
+
+**P-10-1 ✅** (falso alarme quanto ao conteúdo) — Corpo de `client_has_confirmed_job_with_worker` confirmado correto via `pg_get_functiondef` — inclui `jr.status IN ('confirmed', 'awaiting_confirmation', 'completed')`. **A ausência da função nas migrations continua aberta — ver P-FA1 em Crítico.**
+
+---
+
+### Revisão conceptual 2026-06-27
+
+**RCB1 ✅** — `withdraw_help_acceptance` não validava estado do job: guarda adicionada em migration 0023.
+
+**RCB2 ✅** — `cancel_job` não movia ajudantes aceites para estado terminal: `UPDATE help_acceptances SET status = 'cancelled' WHERE status = 'accepted'` adicionado em migration 0023.
+
+**RCB3 ✅** — Texto enganoso em `job_reports`: "A nossa equipa vai rever o caso." substituído por "O teu relato fica registado para referência futura."
+
+**RC1 ✅** — Estado de ajudante aceite quando job cancelado: Henrique decidiu reutilizar `'cancelled'` existente. Desbloqueou RCB2.
+
+**RC3 ✅ RESOLVIDO 2026-06-27 (migration 0022)** — Ajudante vê logística do job em `_AcceptedCard`: data/hora confirmada, endereço tappable (Google Maps), botão WhatsApp para o prestador principal.
+
+---
+
+### Performance
+
+**Optimizar `get_jobs_in_radius` para filtrar propostas do worker na BD ✅ implementado** — Parâmetro `p_worker_id` adicionado ao RPC com NOT EXISTS para excluir jobs onde o worker já tem proposta pending.
+
+---
+
+### Auditoria de docs — 2026-06-30
+
+**P-FA1 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `client_has_confirmed_job_with_worker` e policy `"Cliente ve perfil de worker com job confirmado"` ausentes de todas as migrations 0001–0026. Corrigidos em 0027: `CREATE OR REPLACE FUNCTION` + `DROP POLICY IF EXISTS`/`CREATE POLICY`. PK de `worker_profiles` é `profile_id` — policy usa `profile_id`, não `id`.
+
+**P-67-2 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `_syncServiceTypes` em `worker_repository.dart` substituído por chamada única ao RPC `sync_worker_service_types` (novo em 0027). DELETE + INSERT não atómicos eliminados; janela de ZERO serviços por falha de rede entre as duas chamadas fechada.
+
+**P-FA5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Três índices criados: `idx_help_requests_job_id`, `idx_help_requests_proposal_id`, `idx_help_acceptances_worker_id`. Confirmados ausentes via live query (0 rows em `pg_indexes`). `help_acceptances.worker_id` era o mais urgente (avaliado pelo RLS em todas as queries à tabela).
+
+**M3 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Índice `idx_notifications_user_created ON notifications (user_id, created_at DESC)` criado. Agrupado com P-FA5 em 0027 por ser a mesma classe de fix.
+
+**P-FA6 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `help_acceptances.status` DEFAULT corrigido de `'accepted'` para `'pending'`. Confirmado via live query (`column_default = 'accepted'::text`). Rows existentes não afectadas.
+
+**M5 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Policy SELECT do cliente em `help_requests` alargada a todos os estados dos seus jobs. Policy `"Cliente vê help requests pendentes de aprovação"` (migration 0003, apenas `pending_approval`) substituída por `"Cliente vê help requests dos seus jobs"`.
+
+**`get_jobs_in_radius` overload antigo ✅ JÁ RESOLVIDO (migration 0011)** — Item em `improvements.md` estava STALE. `0011_drop_obsolete_get_jobs_in_radius.sql` já continha `DROP FUNCTION IF EXISTS get_jobs_in_radius(numeric, numeric, integer)`. Nenhuma acção em 0027.
+
+**T6 (parcial) ✅ 2026-06-30** — 5 tipos de notificação com navegação precisa adicionados a `notification_handler.dart`: `newJobInRadius`, `proposalReceived`, `proposalWithdrawn`, `proposalAccepted` (async via `fetchAcceptedProposalForJob`), `proposalRejected`. `helpAccepted`/`helpJobCancelled` mantidos com `extra: {'initialTabIndex': 1}` (primitivo int — seguro). `helpRequestReopened` mantido com push para descoberta. Restam 7 tipos abertos: `jobCancelled`, `jobReopened`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted`.
 
 ---
 
@@ -1401,5 +622,4 @@ resolution silenciosa. Confirmar (grep no código Dart) antes de fazer DROP.
 
 - Sempre que aparecer uma ideia boa que **não cabe na fase atual**, adicionar aqui.
 - Cada item: descrição curta + porquê + prioridade subjetiva.
-- Quando uma ideia for implementada, remover daqui e mover para `decisions_log.md`.
-- Rever esta lista no fim de cada fase para reavaliar prioridades.
+- Quando uma ideia for implementada, mover para a secção **Resolvidos** e adicionar entrada em `decisions_log.md`.
