@@ -12,15 +12,19 @@
 
 ## 🟠 Alta prioridade — Por resolver
 
-### T6 / P-8-9 — Deep-link de notificações: gap estrutural (parcialmente resolvido 2026-06-30)
+### T6 / P-8-9 ✅ RESOLVIDO 2026-07-01 — Deep-link de notificações
 
-Henrique confirmou: *"a notificação deve levar o utilizador ao sítio exato a que se refere, não a uma lista genérica."*
-
-**Progresso 2026-06-29:** A2 completo — todas as 4 rotas de detalhe são ID-based. `helpRequestApproved`/`helpWithdrew` em `notification_handler.dart` já navegam diretamente para o ecrã correto.
-
-**Progresso 2026-06-30:** 5 tipos adicionais resolvidos — `proposalReceived`, `proposalWithdrawn`, `proposalAccepted` (async via `fetchAcceptedProposalForJob`), `proposalRejected`, `newJobInRadius`. `helpAccepted`/`helpJobCancelled` mantidos com `extra: {'initialTabIndex': 1}` (primitivo int — avaliado como seguro, sem crash risk). `helpRequestReopened` mantido com push para descoberta (destino correto para re-candidatura).
-
-**Falta (7 tipos):** `jobCancelled`, `jobReopened`, `rescheduleProposed`, `rescheduleAccepted`, `rescheduleRejected`, `jobMarkedDone`, `jobCompleted` — ainda navegam para lista genérica. Em todos estes casos `related_id` é o `job_id`; o fix é `context.push('/client/job/${notification.relatedId}')` ou `/worker/my-job/$proposalId?jobId=${notification.relatedId}` conforme role. Worker paths requerem `fetchAcceptedProposalForJob(relatedId)` para resolver `proposalId`.
+Auditoria completa de `notification_handler.dart` em 2026-07-01. Todos os 19 tipos de notificação navegam agora para o destino correto:
+- **Lifecycle com role-split** (`jobCancelled`, `rescheduleProposed/Accepted/Rejected`, `jobCompleted`): cliente → `context.go('/client/job/$id')`; worker → async fetch proposalId → `context.go('/worker/my-job/$pid?jobId=$id')`, fallback home se fetch nulo.
+- **Client-only** (`jobMarkedDone`, `jobNoResponse`, `proposalReceived`, `proposalWithdrawn`): `context.go('/client/job/$id')`.
+- **Worker discovery** (`newJobInRadius`, `jobReopened`, `proposalRejected`): `context.push('/worker/job/$id')`.
+- **Help-request** (`helpRequestApproved`, `helpWithdrew`): fetch help_request → push lobby; fallback home.
+- **Candidatures** (`helpAccepted`, `helpRejected`, `helpJobCancelled`): `context.go` → tab 1.
+- `context.go` usado (em vez de `context.push`) em todos os lifecycle events — elimina RT1 keyReservation crash por navegação dupla.
+- RT4 corrigido: `proposalAccepted` com fetch nulo agora navega para home + SnackBar em vez de break silencioso.
+- `helpRejected` agora navega para candidaturas (antes: break silencioso).
+- `helpRequestApproved` e `helpWithdrew` têm fallback para home (antes: break silencioso se fetch null).
+- Todos os casos com `await` têm `if (!context.mounted) break` imediatamente após.
 
 ---
 
@@ -506,11 +510,9 @@ As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão imple
 > Cada item cross-referenciado contra `improvements.md` e `decisions_log.md` antes de registar.
 > Nenhum item corrigido ainda — documentação para não se perder.
 
-### RT1 — CRASH: keyReservation.contains(key) is not true
+### RT1 ✅ RESOLVIDO 2026-07-01 — CRASH: keyReservation.contains(key) is not true
 
-Ao abrir uma notificação `proposal_received` (ou possivelmente qualquer navegação repetida/dupla), assertion do Navigator. Suspeita: double-tap na notificação ou navegação para uma rota já ativa causa colisão de key.
-
-**Precisa de:** reproduzir e capturar stack trace completo antes de corrigir.
+Eliminado pela auditoria completa de `notification_handler.dart`: todos os lifecycle event cases (`proposalReceived`, `proposalWithdrawn`, `jobCancelled`, `rescheduleProposed/Accepted/Rejected`, `jobMarkedDone`, `jobCompleted`, `jobNoResponse`) agora usam `context.go` em vez de `context.push`. `context.go` substitui o stack de navegação em vez de empilhar — sem possibilidade de push duplicado para a mesma rota, sem colisão de key.
 
 ---
 
@@ -528,11 +530,9 @@ Ao abrir uma notificação `proposal_received` (ou possivelmente qualquer navega
 
 ---
 
-### RT4 — `proposalAccepted`: fetch nulo quebra navegação silenciosamente (gap em fix existente)
+### RT4 ✅ RESOLVIDO 2026-07-01 — `proposalAccepted`: fetch nulo quebra navegação silenciosamente
 
-`notification_handler.dart:32-43` — `if (acceptedProposal == null || !context.mounted) break;` sem fallback nem feedback ao utilizador. Causa provável do "notificação não navega" reportado.
-
-**Fix:** substituir `break` silencioso por fallback (navegação para lista genérica + SnackBar explicativo) quando `fetchAcceptedProposalForJob` retorna null.
+`notification_handler.dart` — `proposalAccepted` agora: `if (!context.mounted) break` após await; se fetch nulo → `context.go('/worker/home')` + SnackBar "Não foi possível abrir o job. Verifica a lista de jobs." em vez de break silencioso. Mesmo padrão aplicado a `helpRequestApproved` e `helpWithdrew` (também tinham break silencioso se fetch nulo).
 
 ---
 

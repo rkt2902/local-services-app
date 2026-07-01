@@ -3,6 +3,12 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-01 — Auditoria completa de notification_handler.dart (RT1, RT4, T6 resolvidos)
+
+Auditoria de todos os 19 tipos de notificação em `notification_handler.dart`. Casos corrigidos: (1) **RT4** — `proposalAccepted` com fetch nulo agora faz `context.go('/worker/home')` + SnackBar em vez de break silencioso; mesmo padrão aplicado a `helpRequestApproved` e `helpWithdrew`. (2) **RT1** — todos os lifecycle cases convertidos de `context.push` para `context.go`, eliminando o keyReservation crash por push duplicado para rota já ativa. (3) **T6 completo** — `jobCancelled`, `rescheduleProposed/Accepted/Rejected`, `jobCompleted` agora têm split por role (cliente → `/client/job/$id`; worker → async fetch proposalId → `/worker/my-job/$pid?jobId=$id`, fallback home); `jobMarkedDone` e `jobNoResponse` navegam para `/client/job/$id` (client-only); `jobReopened` navega para `/worker/job/$id` (push). (4) `helpRejected` agora navega para candidaturas em vez de break silencioso. (5) `context.mounted` verificado após cada `await` em todos os casos. Import `job_providers.dart` removido (deixou de ser usado após mover `ref.invalidate` para `notification_providers.dart`). RT2 e RT8 confirmados presentes em `notification_providers.dart`. Gap menor identificado: `proposalRejected` em `notification_providers.dart` não invalida `workerProposalForJobProvider` (não bloqueante).
+
+---
+
 ## 2026-07-01 — RT2, RT6, RT8 corrigidos (Grupo 1 do plano de ataque do Run 1)
 
 `proposalReceived` em `notification_providers.dart` agora invalida `jobByIdProvider(notification.relatedId)` (RT2) — garante que o cliente no ecrã de detalhe vê a pill de estado actualizada quando chega uma nova proposta. Handlers de remarcação do worker (`_proposeReschedule`, `_acceptReschedule`, `_rejectReschedule` em `worker_my_job_detail_screen.dart`) confirmados já correctos por leitura directa — todos têm `ref.invalidate(jobByIdProvider(widget.jobId))` após `router.pop()` (RT6 já estava resolvido). `jobCompleted` em `notification_providers.dart` agora invalida `myRatingForJobProvider(notification.relatedId)` e `myRatingForJobAndRateeProvider` (família completa) para que o ecrã de avaliação reflicta o estado correcto sem restart (RT8); import `rating_providers.dart` adicionado ao ficheiro.
