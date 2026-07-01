@@ -3,6 +3,12 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-01 — Migration 0027 aplicada à BD viva
+
+Migration `0027_doc_audit_fixes.sql` aplicada manualmente via Supabase SQL Editor por Henrique. Todos os 5 fixes activos: `client_has_confirmed_job_with_worker` + policy (P-FA1), `sync_worker_service_types` RPC (P-67-2), 4 índices em falta (P-FA5+M3), `help_acceptances.status DEFAULT 'pending'` (P-FA6), policy SELECT cliente `help_requests` (M5).
+
+---
+
 ## 2026-06-30 — Auditoria de docs: 5 gaps confirmados corrigidos via migration 0027 + T6 expandido
 
 ### Contexto

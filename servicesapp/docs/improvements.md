@@ -600,17 +600,17 @@ As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão imple
 
 ### Auditoria de docs — 2026-06-30
 
-**P-FA1 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `client_has_confirmed_job_with_worker` e policy `"Cliente ve perfil de worker com job confirmado"` ausentes de todas as migrations 0001–0026. Corrigidos em 0027: `CREATE OR REPLACE FUNCTION` + `DROP POLICY IF EXISTS`/`CREATE POLICY`. PK de `worker_profiles` é `profile_id` — policy usa `profile_id`, não `id`.
+**P-FA1 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — `client_has_confirmed_job_with_worker` e policy `"Cliente ve perfil de worker com job confirmado"` ausentes de todas as migrations 0001–0026. Corrigidos em 0027: `CREATE OR REPLACE FUNCTION` + `DROP POLICY IF EXISTS`/`CREATE POLICY`. PK de `worker_profiles` é `profile_id` — policy usa `profile_id`, não `id`.
 
-**P-67-2 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `_syncServiceTypes` em `worker_repository.dart` substituído por chamada única ao RPC `sync_worker_service_types` (novo em 0027). DELETE + INSERT não atómicos eliminados; janela de ZERO serviços por falha de rede entre as duas chamadas fechada.
+**P-67-2 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — `_syncServiceTypes` em `worker_repository.dart` substituído por chamada única ao RPC `sync_worker_service_types` (novo em 0027). DELETE + INSERT não atómicos eliminados; janela de ZERO serviços por falha de rede entre as duas chamadas fechada.
 
-**P-FA5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Três índices criados: `idx_help_requests_job_id`, `idx_help_requests_proposal_id`, `idx_help_acceptances_worker_id`. Confirmados ausentes via live query (0 rows em `pg_indexes`). `help_acceptances.worker_id` era o mais urgente (avaliado pelo RLS em todas as queries à tabela).
+**P-FA5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — Três índices criados: `idx_help_requests_job_id`, `idx_help_requests_proposal_id`, `idx_help_acceptances_worker_id`. Confirmados ausentes via live query (0 rows em `pg_indexes`). `help_acceptances.worker_id` era o mais urgente (avaliado pelo RLS em todas as queries à tabela).
 
-**M3 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Índice `idx_notifications_user_created ON notifications (user_id, created_at DESC)` criado. Agrupado com P-FA5 em 0027 por ser a mesma classe de fix.
+**M3 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — Índice `idx_notifications_user_created ON notifications (user_id, created_at DESC)` criado. Agrupado com P-FA5 em 0027 por ser a mesma classe de fix.
 
-**P-FA6 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — `help_acceptances.status` DEFAULT corrigido de `'accepted'` para `'pending'`. Confirmado via live query (`column_default = 'accepted'::text`). Rows existentes não afectadas.
+**P-FA6 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — `help_acceptances.status` DEFAULT corrigido de `'accepted'` para `'pending'`. Confirmado via live query (`column_default = 'accepted'::text`). Rows existentes não afectadas.
 
-**M5 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — NÃO APLICADA)** — Policy SELECT do cliente em `help_requests` alargada a todos os estados dos seus jobs. Policy `"Cliente vê help requests pendentes de aprovação"` (migration 0003, apenas `pending_approval`) substituída por `"Cliente vê help requests dos seus jobs"`.
+**M5 Fases 4-5 ✅ RESOLVIDO 2026-06-30 (migration 0027 — APLICADA 2026-07-01)** — Policy SELECT do cliente em `help_requests` alargada a todos os estados dos seus jobs. Policy `"Cliente vê help requests pendentes de aprovação"` (migration 0003, apenas `pending_approval`) substituída por `"Cliente vê help requests dos seus jobs"`.
 
 **`get_jobs_in_radius` overload antigo ✅ JÁ RESOLVIDO (migration 0011)** — Item em `improvements.md` estava STALE. `0011_drop_obsolete_get_jobs_in_radius.sql` já continha `DROP FUNCTION IF EXISTS get_jobs_in_radius(numeric, numeric, integer)`. Nenhuma acção em 0027.
 
