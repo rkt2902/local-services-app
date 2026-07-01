@@ -227,6 +227,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
         const SnackBar(content: Text('Perfil atualizado.')),
       );
     } catch (e) {
+      debugPrint('[BUG1_DIAG] ${e.runtimeType}: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

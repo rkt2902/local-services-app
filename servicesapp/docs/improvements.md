@@ -500,6 +500,76 @@ As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão imple
 
 ---
 
+## Sessão de testes — Run 1, 2026-07-01
+
+> Achados do primeiro run do dashboard de testes manuais executado por Henrique.
+> Cada item cross-referenciado contra `improvements.md` e `decisions_log.md` antes de registar.
+> Nenhum item corrigido ainda — documentação para não se perder.
+
+### RT1 — CRASH: keyReservation.contains(key) is not true
+
+Ao abrir uma notificação `proposal_received` (ou possivelmente qualquer navegação repetida/dupla), assertion do Navigator. Suspeita: double-tap na notificação ou navegação para uma rota já ativa causa colisão de key.
+
+**Precisa de:** reproduzir e capturar stack trace completo antes de corrigir.
+
+---
+
+### RT2 ✅ RESOLVIDO 2026-07-01 — `proposalReceived` não invalida `jobByIdProvider` (gap em fix existente)
+
+`notification_providers.dart` — adicionado `if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!))` ao handler de `proposalReceived`. `relatedId` confirmado como `p_job_id` via migration 0001_baseline.sql:613. Se o cliente estiver no ecrã de detalhe quando a notificação chega, o `jobByIdProvider` é agora invalidado imediatamente.
+
+---
+
+### RT3 — Avatar do worker ausente no card de contacto (NOVO)
+
+`fetchWorkerBasicInfo` (`worker_repository.dart:96-103`) só busca `full_name`, `phone` — sem `avatar_url`. Nome aparece, foto não. Relacionado com o trabalho de `UserAvatarWithName` já desenhado mas não implementado.
+
+**Fix:** adicionar `avatar_url` ao SELECT de `fetchWorkerBasicInfo`; passar o valor ao contact card em `client_job_detail_screen.dart`.
+
+---
+
+### RT4 — `proposalAccepted`: fetch nulo quebra navegação silenciosamente (gap em fix existente)
+
+`notification_handler.dart:32-43` — `if (acceptedProposal == null || !context.mounted) break;` sem fallback nem feedback ao utilizador. Causa provável do "notificação não navega" reportado.
+
+**Fix:** substituir `break` silencioso por fallback (navegação para lista genérica + SnackBar explicativo) quando `fetchAcceptedProposalForJob` retorna null.
+
+---
+
+### RT5 — Cliente não vê preço/horas/data da proposta aceite (NOVO)
+
+`client_job_detail_screen.dart`, bloco `confirmed`: mostra card de contacto do worker mas nenhuma secção com os detalhes da proposta aceite (preço/hora, horas estimadas, data confirmada). Gap de UI genuíno, confirmado em duas sessões distintas no mesmo dia (2026-07-01).
+
+**Fix:** adicionar secção "Detalhes da proposta" ao bloco `confirmed` usando dados de `acceptedProposalForJobProvider`.
+
+---
+
+### RT6 ✅ JÁ ESTAVA RESOLVIDO (confirmado 2026-07-01) — Worker aceita remarcação: UI só atualiza após restart
+
+Confirmado por leitura directa de `worker_my_job_detail_screen.dart`: todos os três handlers (`_proposeReschedule` l.96, `_acceptReschedule` l.116, `_rejectReschedule` l.136) já tinham `ref.invalidate(jobByIdProvider(widget.jobId))` após `router.pop()`, seguindo o padrão T4. Fix estava presente antes desta sessão — provavelmente adicionado na sessão anterior do mesmo dia. Nenhuma alteração de código necessária.
+
+---
+
+### RT7 — "Marcar como concluído" funciona instantaneamente (NÃO É BUG)
+
+Confirma que o padrão T4 (navegar depois invalidar) funciona quando aplicado corretamente. Referência de comportamento correto — sem ação necessária.
+
+---
+
+### RT8 ✅ RESOLVIDO 2026-07-01 — `jobCompleted` não invalida providers de rating (NOVO sub-achado dentro de T6)
+
+`notification_providers.dart` — adicionados ao case `jobCompleted`: `if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!))` e `ref.invalidate(myRatingForJobAndRateeProvider)` (família completa, sem chave — aceitável por `jobCompleted` ser evento raro). Import `../../ratings/application/rating_providers.dart` adicionado. Ecrã de avaliação reflecte agora o estado correto sem precisar de restart. T6 (navegação do `jobCompleted`) permanece em aberto.
+
+---
+
+### RT9 — Estrela de avaliação ausente em jobs históricos, presente em jobs frescos (NOVO)
+
+`myRatingForJobAndRateeProvider` instanciado on-demand por `(jobId, rateeId)`. Suspeita: a lista de jobs concluídos históricos usa um caminho de código diferente que não entra no branch de renderização do widget de rating, enquanto o ecrã de detalhe recém-navegado sempre entra nesse branch.
+
+**Precisa de:** comparação directa entre os dois caminhos de código (lista histórica vs. ecrã de detalhe recém-aberto) antes de corrigir.
+
+---
+
 ## ✅ Resolvidos
 
 > Referência histórica. Detalhes técnicos em `decisions_log.md`.

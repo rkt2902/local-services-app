@@ -4,6 +4,7 @@ import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
+import '../../ratings/application/rating_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 import '../data/notification_types.dart';
@@ -61,6 +62,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
         case NotificationType.proposalWithdrawn:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
@@ -111,6 +113,8 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(jobByIdProvider);
           ref.invalidate(clientJobsProvider);
+          if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!));
+          ref.invalidate(myRatingForJobAndRateeProvider);
         case NotificationType.jobNoResponse:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);

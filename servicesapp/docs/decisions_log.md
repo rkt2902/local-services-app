@@ -3,6 +3,18 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-01 — RT2, RT6, RT8 corrigidos (Grupo 1 do plano de ataque do Run 1)
+
+`proposalReceived` em `notification_providers.dart` agora invalida `jobByIdProvider(notification.relatedId)` (RT2) — garante que o cliente no ecrã de detalhe vê a pill de estado actualizada quando chega uma nova proposta. Handlers de remarcação do worker (`_proposeReschedule`, `_acceptReschedule`, `_rejectReschedule` em `worker_my_job_detail_screen.dart`) confirmados já correctos por leitura directa — todos têm `ref.invalidate(jobByIdProvider(widget.jobId))` após `router.pop()` (RT6 já estava resolvido). `jobCompleted` em `notification_providers.dart` agora invalida `myRatingForJobProvider(notification.relatedId)` e `myRatingForJobAndRateeProvider` (família completa) para que o ecrã de avaliação reflicta o estado correcto sem restart (RT8); import `rating_providers.dart` adicionado ao ficheiro.
+
+---
+
+## 2026-07-01 — Run 1 do dashboard de testes: 9 achados cross-referenciados
+
+Run 1 do dashboard de testes manuais (executado no dia anterior, cross-referenciado hoje) revelou 9 achados: 1 crash novo (RT1), 1 avatar ausente no card de contacto (RT3 — NOVO), 1 gap de UI genuíno já identificado duas vezes no mesmo dia (RT5), 3 gaps concretos em fixes já existentes mas incompletos (RT2, RT4, RT8), e 2 achados a confirmar por leitura directa de código antes de corrigir (RT6, RT9). RT7 confirma que o padrão de fix já correto (T4) funciona quando aplicado — usar como referência para os restantes. Todos registados em `improvements.md` com códigos RT1–RT9. Nenhum corrigido nesta sessão — documentação apenas.
+
+---
+
 ## 2026-07-01 — Migration 0027 aplicada à BD viva
 
 Migration `0027_doc_audit_fixes.sql` aplicada manualmente via Supabase SQL Editor por Henrique. Todos os 5 fixes activos: `client_has_confirmed_job_with_worker` + policy (P-FA1), `sync_worker_service_types` RPC (P-67-2), 4 índices em falta (P-FA5+M3), `help_acceptances.status DEFAULT 'pending'` (P-FA6), policy SELECT cliente `help_requests` (M5).

@@ -208,6 +208,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       if (!mounted) return;
       context.go('/worker/home');
     } catch (e) {
+      debugPrint('[BUG1_DIAG] ${e.runtimeType}: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
