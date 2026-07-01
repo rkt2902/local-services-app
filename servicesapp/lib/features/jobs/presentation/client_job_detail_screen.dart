@@ -14,6 +14,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
+import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/job_timeline.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
@@ -390,7 +391,7 @@ class _ClientJobDetailScreenState
 
   Widget _workerContactCard(
     JobRequest job,
-    AsyncValue<Map<String, dynamic>> workerInfoAsync,
+    AsyncValue<Map<String, String>> workerInfoAsync,
     ThemeData theme,
   ) {
     return workerInfoAsync.when(
@@ -403,6 +404,7 @@ class _ClientJobDetailScreenState
         }
         final name = info['full_name'] ?? '';
         final phone = info['phone'] ?? '';
+        final avatarUrl = info['avatar_url'];
         return Card(
           color: theme.colorScheme.primaryContainer,
           child: Padding(
@@ -410,18 +412,7 @@ class _ClientJobDetailScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(children: [
-                  const Icon(Icons.person_outlined),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: theme.textTheme.titleMedium,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ]),
+                UserAvatarWithName(name: name, avatarUrl: avatarUrl),
                 if (job.confirmedDate != null) ...[
                   const SizedBox(height: 8),
                   Row(children: [
@@ -458,6 +449,36 @@ class _ClientJobDetailScreenState
           ),
         );
       },
+    );
+  }
+
+  Widget _acceptedProposalCard(JobProposal proposal, ThemeData theme) {
+    final estimateStr = _formatEstimate(
+        proposal.hourlyRate, proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+    final hoursStr =
+        _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Proposta aceite', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            _cardRow(context, Icons.euro_outlined,
+                proposal.hourlyRate > 0
+                    ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
+                    : 'Preço a definir'),
+            if (hoursStr.isNotEmpty)
+              _cardRow(context, Icons.schedule_outlined, hoursStr),
+            if (estimateStr.isNotEmpty)
+              _cardRow(context, Icons.calculate_outlined, estimateStr),
+            if (proposal.peopleNeeded > 1)
+              _cardRow(context, Icons.group_outlined,
+                  '${proposal.peopleNeeded} pessoas'),
+          ],
+        ),
+      ),
     );
   }
 
@@ -815,6 +836,10 @@ class _ClientJobDetailScreenState
             children: [
               Text('Serviço confirmado', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
+              if (acceptedProposalAsync.asData?.value != null) ...[
+                _acceptedProposalCard(acceptedProposalAsync.asData!.value!, theme),
+                const SizedBox(height: 12),
+              ],
               _workerContactCard(job, workerInfoAsync, theme),
               const SizedBox(height: 16),
               // Pending-approval help requests — worker asked for extra team, client must approve
@@ -1092,10 +1117,12 @@ class _ProposalCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final workerNameAsync = ref.watch(workerNameProvider(proposal.workerId));
-    final workerName = workerNameAsync.asData?.value.isNotEmpty == true
-        ? workerNameAsync.asData!.value
+    final workerInfo =
+        ref.watch(workerBasicInfoProvider(proposal.workerId)).asData?.value;
+    final workerName = workerInfo?['full_name']?.isNotEmpty == true
+        ? workerInfo!['full_name']!
         : '—';
+    final workerAvatarUrl = workerInfo?['avatar_url'] ?? '';
     final ratingSummary =
         ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
 
@@ -1116,7 +1143,21 @@ class _ProposalCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Icon(Icons.person_outlined, size: 20),
+              CircleAvatar(
+                radius: 16,
+                backgroundImage: workerAvatarUrl.isNotEmpty
+                    ? NetworkImage(workerAvatarUrl)
+                    : null,
+                child: workerAvatarUrl.isEmpty
+                    ? Text(
+                        workerName.isNotEmpty
+                            ? workerName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      )
+                    : null,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(workerName, style: theme.textTheme.titleMedium),

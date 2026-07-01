@@ -10,6 +10,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
+import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
 
 List<(JobProposal, JobRequest)> _parseEntries(
@@ -383,10 +384,34 @@ class _JobCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ],
+              if (job.status == JobStatus.completed) ...[
+                const SizedBox(height: 6),
+                _RatingChip(jobId: job.id),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RatingChip extends ConsumerWidget {
+  const _RatingChip({required this.jobId});
+  final String jobId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rating = ref.watch(myRatingForJobProvider(jobId)).asData?.value;
+    if (rating == null) return const SizedBox.shrink();
+    return Chip(
+      avatar: const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+      label: Text(
+        '${rating.stars}/5',
+        style: const TextStyle(fontSize: 11),
+      ),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

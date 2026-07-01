@@ -97,13 +97,14 @@ class WorkerRepository {
     if (workerId.isEmpty) return {};
     final data = await _client
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, avatar_url')
         .eq('id', workerId)
         .maybeSingle();
     if (data == null) return {};
     return {
       'full_name': data['full_name'] as String? ?? '',
       'phone': data['phone'] as String? ?? '',
+      'avatar_url': data['avatar_url'] as String? ?? '',
     };
   }
 

@@ -522,11 +522,9 @@ Eliminado pela auditoria completa de `notification_handler.dart`: todos os lifec
 
 ---
 
-### RT3 — Avatar do worker ausente no card de contacto (NOVO)
+### RT3 ✅ RESOLVIDO 2026-07-01 — Avatar do worker ausente no card de contacto
 
-`fetchWorkerBasicInfo` (`worker_repository.dart:96-103`) só busca `full_name`, `phone` — sem `avatar_url`. Nome aparece, foto não. Relacionado com o trabalho de `UserAvatarWithName` já desenhado mas não implementado.
-
-**Fix:** adicionar `avatar_url` ao SELECT de `fetchWorkerBasicInfo`; passar o valor ao contact card em `client_job_detail_screen.dart`.
+`fetchWorkerBasicInfo` agora seleciona `full_name, phone, avatar_url`. `_workerContactCard` em `client_job_detail_screen.dart` usa o novo widget `UserAvatarWithName` — CircleAvatar com NetworkImage se `avatar_url` preenchido, inicial do nome caso contrário. Widget criado em `lib/core/widgets/user_avatar_with_name.dart`.
 
 ---
 
@@ -536,11 +534,9 @@ Eliminado pela auditoria completa de `notification_handler.dart`: todos os lifec
 
 ---
 
-### RT5 — Cliente não vê preço/horas/data da proposta aceite (NOVO)
+### RT5 ✅ RESOLVIDO 2026-07-01 — Cliente não vê preço/horas/data da proposta aceite
 
-`client_job_detail_screen.dart`, bloco `confirmed`: mostra card de contacto do worker mas nenhuma secção com os detalhes da proposta aceite (preço/hora, horas estimadas, data confirmada). Gap de UI genuíno, confirmado em duas sessões distintas no mesmo dia (2026-07-01).
-
-**Fix:** adicionar secção "Detalhes da proposta" ao bloco `confirmed` usando dados de `acceptedProposalForJobProvider`.
+`client_job_detail_screen.dart`, bloco `confirmed`: adicionado card "Proposta aceite" com taxa/hora, horas estimadas, total estimado e número de pessoas. `acceptedProposalForJobProvider` já era watchado — apenas necessário inserir o card no bloco correto. Método `_acceptedProposalCard` adicionado.
 
 ---
 
@@ -562,11 +558,9 @@ Confirma que o padrão T4 (navegar depois invalidar) funciona quando aplicado co
 
 ---
 
-### RT9 — Estrela de avaliação ausente em jobs históricos, presente em jobs frescos (NOVO)
+### RT9 ✅ RESOLVIDO 2026-07-01 — Estrela de avaliação ausente em jobs históricos
 
-`myRatingForJobAndRateeProvider` instanciado on-demand por `(jobId, rateeId)`. Suspeita: a lista de jobs concluídos históricos usa um caminho de código diferente que não entra no branch de renderização do widget de rating, enquanto o ecrã de detalhe recém-navegado sempre entra nesse branch.
-
-**Precisa de:** comparação directa entre os dois caminhos de código (lista histórica vs. ecrã de detalhe recém-aberto) antes de corrigir.
+`_buildCompletedSection` em `worker_my_job_detail_screen.dart` confirmado correto — gated em `liveJobStatus == JobStatus.completed` dentro de `liveStatus == ProposalStatus.accepted`. O gap real era na lista: `_JobCard` em `worker_jobs_screen.dart` não mostrava nenhum indicador de avaliação para jobs concluídos. Adicionado widget `_RatingChip` (ConsumerWidget) que observa `myRatingForJobProvider(jobId)` — mostra chip "★ N/5" se já avaliado, nada se ainda não avaliado.
 
 ---
 

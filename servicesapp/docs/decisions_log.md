@@ -3,6 +3,18 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-01 — RT3, RT5, RT9 resolvidos + widget UserAvatarWithName criado
+
+**RT3:** `fetchWorkerBasicInfo` estendido para incluir `avatar_url` (SELECT `full_name, phone, avatar_url`). `_workerContactCard` em `client_job_detail_screen.dart` substituiu `Icon(Icons.person_outlined) + Text(name)` pelo novo widget `UserAvatarWithName`. Widget criado em `lib/core/widgets/user_avatar_with_name.dart` — `StatelessWidget` que exibe `CircleAvatar` com `NetworkImage(avatarUrl)` se URL não-vazio, ou inicial do nome caso contrário, seguido do nome em `Text` expandido.
+
+**RT5:** `_acceptedProposalCard` adicionado a `client_job_detail_screen.dart`. No bloco `confirmed`, inserido antes de `_workerContactCard` quando `acceptedProposalAsync.asData?.value != null`. Mostra taxa/hora, horas estimadas, total estimado, pessoas. `acceptedProposalForJobProvider` já era watchado no mesmo `data` block desde sessão anterior — nenhum novo provider necessário.
+
+**RT9:** `_RatingChip` (`ConsumerWidget`) adicionado a `worker_jobs_screen.dart`. Observa `myRatingForJobProvider(jobId)`. Quando rating existe, exibe chip `★ N/5` na `_JobCard` dos jobs com `job.status == JobStatus.completed`. `_buildCompletedSection` em `worker_my_job_detail_screen.dart` confirmado correto (gated em job.status == completed dentro de proposal.status == accepted).
+
+**Bónus (STEP 6):** `_ProposalCard` em `client_job_detail_screen.dart` actualizado para usar `workerBasicInfoProvider` em vez de `workerNameProvider` — `CircleAvatar` com avatar ou inicial substitui `Icon(Icons.person_outlined)`. Rating star e restante layout inalterados.
+
+---
+
 ## 2026-07-01 — Auditoria completa de notification_handler.dart (RT1, RT4, T6 resolvidos)
 
 Auditoria de todos os 19 tipos de notificação em `notification_handler.dart`. Casos corrigidos: (1) **RT4** — `proposalAccepted` com fetch nulo agora faz `context.go('/worker/home')` + SnackBar em vez de break silencioso; mesmo padrão aplicado a `helpRequestApproved` e `helpWithdrew`. (2) **RT1** — todos os lifecycle cases convertidos de `context.push` para `context.go`, eliminando o keyReservation crash por push duplicado para rota já ativa. (3) **T6 completo** — `jobCancelled`, `rescheduleProposed/Accepted/Rejected`, `jobCompleted` agora têm split por role (cliente → `/client/job/$id`; worker → async fetch proposalId → `/worker/my-job/$pid?jobId=$id`, fallback home); `jobMarkedDone` e `jobNoResponse` navegam para `/client/job/$id` (client-only); `jobReopened` navega para `/worker/job/$id` (push). (4) `helpRejected` agora navega para candidaturas em vez de break silencioso. (5) `context.mounted` verificado após cada `await` em todos os casos. Import `job_providers.dart` removido (deixou de ser usado após mover `ref.invalidate` para `notification_providers.dart`). RT2 e RT8 confirmados presentes em `notification_providers.dart`. Gap menor identificado: `proposalRejected` em `notification_providers.dart` não invalida `workerProposalForJobProvider` (não bloqueante).
