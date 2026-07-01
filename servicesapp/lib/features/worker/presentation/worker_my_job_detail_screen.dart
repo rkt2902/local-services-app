@@ -93,6 +93,7 @@ class _WorkerMyJobDetailScreenState
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação enviada.')));
       router.pop();
+      ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -112,6 +113,7 @@ class _WorkerMyJobDetailScreenState
       scaffold.showSnackBar(
           const SnackBar(content: Text('Nova data aceite.')));
       router.pop();
+      ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -131,6 +133,7 @@ class _WorkerMyJobDetailScreenState
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação recusada.')));
       router.pop();
+      ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),

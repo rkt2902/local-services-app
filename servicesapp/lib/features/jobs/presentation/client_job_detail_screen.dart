@@ -380,6 +380,7 @@ class _ClientJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Proposta aceite!')));
       ref.invalidate(clientJobsProvider);
       ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
+      ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
           SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
