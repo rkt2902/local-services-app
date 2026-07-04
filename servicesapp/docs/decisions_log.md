@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-04 — P-8-7 filtro server-side em fetchScheduledWorkerProposals; P-10-2 confirmado já resolvido
+
+**P-8-7 — filtro movido para servidor:** `fetchScheduledWorkerProposals` em `proposal_repository.dart` — adicionado `.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')` ao query PostgREST via embedded resource filter. Bloco `.where()` Dart eliminado. Sort por `confirmed_date` mantido client-side (PostgREST não suporta ORDER BY em campos de embedded resource). Antes: worker com N jobs concluídos transferia todos os N registos `accepted` para filtrar 1-2 no cliente. Depois: apenas registos com job `confirmed | awaiting_confirmation` chegam ao cliente.
+
+**P-10-2 — confirmado já resolvido:** Leitura de `help_request_model.dart` confirmou que `HelpAcceptanceSummary` já tem `principalPhone: String` e `principalWorkerId: String` com defaults `''`, parseados em `fromJson`. `_AcceptedCard` em `worker_help_requests_screen.dart` já apresenta botão WhatsApp gated em `principalPhone.isNotEmpty`. Implementação completa — provavelmente introduzida em RC3 / migration 0022 (2026-06-27). Nenhum código alterado; apenas marcado resolvido em `improvements.md`.
+
+---
+
 ## 2026-07-04 — proposalRejected invalida workerProposalForJobProvider; P-8-2 N+1 eliminado
 
 **FIX 1 — `proposalRejected` invalidation gap:** `notification_providers.dart`, case `proposalRejected` — adicionado `ref.invalidate(workerProposalForJobProvider)` (família completa, sem chave — `workerId` não está disponível no contexto do sync provider; mesmo padrão de `proposalWithdrawn`). `relatedId = p_job_id` confirmado via migration 0001_baseline.sql. Gap identificado na auditoria de 2026-07-01 e agora fechado.

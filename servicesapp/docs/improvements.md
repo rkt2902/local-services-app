@@ -79,24 +79,15 @@ final pendingSignupProvider = StateProvider<PendingSignupData?>((ref) => null);
 
 ---
 
-### P-10-2 / M2 Fase 10 — Contacto do worker principal não visível ao ajudante
+### P-10-2 / M2 Fase 10 ✅ RESOLVIDO 2026-07-04 — Contacto do worker principal não visível ao ajudante
 
-`project_overview.md` especifica: *"Ajudantes veem o contacto do worker principal, não o do client (no MVP)."* `principalPhone` — campo **não existe** em `HelpAcceptanceSummary` nem em `HelpAcceptanceDetails`. Sem botão WhatsApp em qualquer ecrã para o ajudante contactar o principal.
-
-**Acção:**
-1. Atualizar `get_my_help_acceptances` RPC para incluir `p.phone AS principal_phone` (JOIN `profiles p ON p.id = jp.worker_id`)
-2. Adicionar `principalPhone: String` a `HelpAcceptanceSummary` e `HelpAcceptanceDetails`
-3. Adicionar botão WhatsApp nos cards `accepted` em `worker_help_requests_screen.dart`
-
-Verificar se a RLS de `profiles` para worker→worker está coberta (RPC é SECURITY DEFINER — RLS bypassed). **Esforço: ~1.5h.**
+`HelpAcceptanceSummary` já tem `principalPhone: String` (default `''`) e `principalWorkerId: String` (default `''`), ambos parsed em `fromJson` via `json['principal_phone']` e `json['principal_worker_id']`. `_AcceptedCard` em `worker_help_requests_screen.dart` já apresenta botão WhatsApp (gated em `principalPhone.isNotEmpty`) e acede a `principalWorkerId`. Implementação completa em modelo + UI — já estava resolvido (provavelmente em migration 0022 / RC3 2026-06-27).
 
 ---
 
-### P-8-7 / M3 Fase 8 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente
+### P-8-7 / M3 Fase 8 ✅ RESOLVIDO 2026-07-04 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente
 
-`proposal_repository.dart:131` — busca todos os registos `status = 'accepted'` do worker, depois descarta no Dart tudo o que não seja `confirmed | awaiting_confirmation`. Worker com 50 jobs concluídos transfere todos os 50 para mostrar 1 ou 2 na tab "Agendados". Já tinha um TODO comentado no código.
-
-**Acção:** mover filtro para a BD via filtro PostgREST no embedded resource.
+`proposal_repository.dart` — filtro de job status movido para o servidor via `.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')` na query PostgREST. Bloco `.where()` client-side removido. Sort por `confirmed_date` mantido no cliente (PostgREST não ordena por campo de embedded resource).
 
 ---
 

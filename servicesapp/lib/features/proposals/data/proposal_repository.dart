@@ -135,17 +135,10 @@ class ProposalRepository {
         .select('*, job_requests!job_proposals_job_id_fkey(*)')
         .eq('worker_id', workerId)
         .eq('status', 'accepted')
+        .filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')
         .order('created_at', ascending: false);
 
-    return (data as List)
-        .cast<Map<String, dynamic>>()
-        .where((item) {
-          final jobData = item['job_requests'] as Map<String, dynamic>?;
-          if (jobData == null) return false;
-          final jobStatus = jobData['status'] as String?;
-          return jobStatus == 'confirmed' || jobStatus == 'awaiting_confirmation';
-        })
-        .toList()
+    return (data as List).cast<Map<String, dynamic>>().toList()
       ..sort((a, b) {
           final aDate =
               (a['job_requests'] as Map?)?['confirmed_date'] as String?;
