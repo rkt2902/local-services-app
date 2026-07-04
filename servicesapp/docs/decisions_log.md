@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-04 — Auditoria de segurança Fase 10 (dados/RLS apenas; UI ignorada por redesign pendente)
+
+3 achados confirmados, 2 corrigidos em migration 0028, 1 confirmado já correto:
+
+**F10-S1 — policy INSERT de `job_reports` demasiado permissiva:** `"Utilizador reporta problema"` (0001_baseline.sql:442) verificava apenas `auth.uid() = reporter_id` — qualquer utilizador autenticado podia submeter um report para qualquer `job_id`. Corrigido em 0028: nova policy `"Participante pode reportar o seu job"` exige que o reporter seja o cliente do job OU o worker com proposta aceite. Nota: a policy anterior foi confirmada pelo nome exato (`"Utilizador reporta problema"`) — a policy `"Authenticated users can report jobs"` mencionada no brief era um placeholder incorreto.
+
+**F10-S2 — `worker_rating_summary` sem `security_invoker` capturado em migration:** 0024 criou a view sem `security_invoker = true`; fix aplicado no SQL Editor após 0024 não estava em nenhuma migration — rebuild a partir de migrations revertia o fix. Capturado em 0028 com `CREATE OR REPLACE VIEW ... WITH (security_invoker = true)`. Comportamento atual não muda (ratings SELECT USING (true) é público), mas qualquer future tightening de RLS na tabela `ratings` seria silenciosamente bypassado por uma view security-definer.
+
+**F10-S3 — `fetchRatingsWithRaterNames` audited, sem alteração necessária:** Select atual é `'*, rater:profiles!rater_id(full_name)'` — phone já não estava incluído no join. O `*` aplica-se apenas a colunas de `ratings` (stars, comment, rater_id, ratee_id, job_id, created_at). Nenhuma exposição de phone; nenhuma alteração ao código Dart.
+
+Migration 0028 escrita mas **NOT aplicada** — aplicar via Supabase SQL Editor.
+
+---
+
 ## 2026-07-04 — M4 implementado: PendingSignupNotifier substitui state.extra no fluxo de registo
 
 `state.extra` removido como portador de `fullName`/`phone` entre `SignupScreen` e `ChooseRoleScreen`. Substituído por `NotifierProvider<PendingSignupNotifier, PendingSignupState>` em `lib/features/auth/application/pending_signup_provider.dart`. Dados ficam em memória Riverpod — sobrevivem a qualquer tick de auth-state ou redirect do router, sem dependência de navigation stack.

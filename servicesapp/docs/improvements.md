@@ -474,6 +474,31 @@ As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão imple
 
 ---
 
+## Auditoria de segurança Fase 10 — 2026-07-04
+
+> Auditoria de dados e RLS apenas (UI ignorada — redesign visual pendente).
+> 3 achados identificados; 2 corrigidos em migration 0028 (NOT aplicada — aplicar via SQL Editor); 1 confirmado já correto.
+
+### F10-S1 ✅ RESOLVIDO (migration 0028 — NOT APLICADA) — `job_reports` INSERT sem check de participação
+
+Policy `"Utilizador reporta problema"` (0001_baseline.sql:442) verificava apenas `auth.uid() = reporter_id`. Qualquer utilizador autenticado conseguia submeter um report para qualquer `job_id` — sem nenhuma relação com o job. A Dart call é um INSERT direto (não RPC), por isso a RLS era a única guarda.
+
+Migration 0028: DROP policy antiga + nova policy `"Participante pode reportar o seu job"` com WITH CHECK que exige que o reporter seja o cliente do job OU o worker com proposta aceite. Nome exato da policy antiga confirmado da migration 0001 (a task briefing mencionava `"Authenticated users can report jobs"` — esse nome não existia na BD).
+
+---
+
+### F10-S2 ✅ RESOLVIDO (migration 0028 — NOT APLICADA) — `worker_rating_summary` sem `security_invoker` em migration
+
+Migration 0024 criou a view sem `security_invoker = true`. Fix aplicado diretamente no SQL Editor não estava capturado em nenhuma migration — rebuild a partir de migrations revertia o fix silenciosamente. Migration 0028 recria a view com `WITH (security_invoker = true)` e repete o GRANT. Comportamento atual não muda (ratings SELECT USING (true) é público), mas qualquer future tightening de RLS em `ratings` seria silenciosamente bypassado por uma view security-definer.
+
+---
+
+### F10-S3 ✅ JÁ CORRETO (confirmado 2026-07-04) — `fetchRatingsWithRaterNames` não expunha phone
+
+Select auditado: `'*, rater:profiles!rater_id(full_name)'`. O `*` aplica-se apenas a colunas de `ratings`; o join de `profiles` seleciona apenas `full_name`. Phone nunca esteve incluído. Nenhuma alteração necessária ao código Dart.
+
+---
+
 ## Sessão de testes — Run 1, 2026-07-01
 
 > Achados do primeiro run do dashboard de testes manuais executado por Henrique.
