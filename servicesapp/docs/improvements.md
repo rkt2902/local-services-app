@@ -60,22 +60,9 @@ ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed 
 
 ---
 
-### M4 Fases 6-7 — `PendingSignupStateProvider` (resolve causa raiz de "dados perdidos em redirect")
+### M4 Fases 6-7 ✅ RESOLVIDO 2026-07-04 — `PendingSignupNotifier` substitui `state.extra` no fluxo de registo
 
-`fullName`/`phone` continuam a ser passados como `state.extra` para `/choose-role`. Qualquer futura alteração ao router que crie um novo caminho de redirect volta a perder os dados.
-
-**Acção:**
-```dart
-// lib/features/auth/application/pending_signup_provider.dart
-@immutable
-class PendingSignupData {
-  final String fullName;
-  final String phone;
-  const PendingSignupData({required this.fullName, required this.phone});
-}
-final pendingSignupProvider = StateProvider<PendingSignupData?>((ref) => null);
-```
-`SignupScreen` escreve para o provider antes de `context.go('/choose-role')`. `ChooseRoleScreen` lê do provider. Após `createProfile` ter sucesso, reset para null. **Esforço: ~1.5h.**
+`NotifierProvider<PendingSignupNotifier, PendingSignupState>` criado em `lib/features/auth/application/pending_signup_provider.dart`. `SignupScreen` escreve para o provider antes de `context.go('/choose-role')` (sem extra). `ChooseRoleScreen` lê via `ref.read(pendingSignupProvider)` e chama `.clear()` após `createProfile` com sucesso. Construtor de `ChooseRoleScreen` simplificado (`const ChooseRoleScreen()`); router `/choose-role` builder simplificado para `(_, _) => const ChooseRoleScreen()`.
 
 ---
 

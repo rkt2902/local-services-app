@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../application/auth_controller.dart';
+import '../application/pending_signup_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -38,11 +39,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
-    // Manually navigate before session invalidation triggers router redirect
-    context.go('/choose-role', extra: {
-      'fullName': _nameController.text.trim(),
-      'phone': _phoneController.text.trim(),
-    });
+    ref.read(pendingSignupProvider.notifier).set(
+      _nameController.text.trim(),
+      _phoneController.text.trim(),
+    );
+    context.go('/choose-role');
   }
 
   @override

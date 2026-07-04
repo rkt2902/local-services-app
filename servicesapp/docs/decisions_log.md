@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-04 — M4 implementado: PendingSignupNotifier substitui state.extra no fluxo de registo
+
+`state.extra` removido como portador de `fullName`/`phone` entre `SignupScreen` e `ChooseRoleScreen`. Substituído por `NotifierProvider<PendingSignupNotifier, PendingSignupState>` em `lib/features/auth/application/pending_signup_provider.dart`. Dados ficam em memória Riverpod — sobrevivem a qualquer tick de auth-state ou redirect do router, sem dependência de navigation stack.
+
+Ficheiros alterados: `signup_screen.dart` escreve para o provider antes de `context.go('/choose-role')` (sem extra); `choose_role_screen.dart` lê via `ref.read(pendingSignupProvider)` em `_submit()` e chama `.clear()` após `createProfile` com sucesso; `app_router.dart` simplificado para `builder: (_, _) => const ChooseRoleScreen()` (sem leitura de `state.extra`). Campos `required this.fullName`/`required this.phone` removidos do construtor de `ChooseRoleScreen`. Riverpod 3.x — usado `Notifier`/`NotifierProvider` (não `StateNotifier`/`StateNotifierProvider`, removidos na v2).
+
+---
+
 ## 2026-07-04 — P-8-7 filtro server-side em fetchScheduledWorkerProposals; P-10-2 confirmado já resolvido
 
 **P-8-7 — filtro movido para servidor:** `fetchScheduledWorkerProposals` em `proposal_repository.dart` — adicionado `.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')` ao query PostgREST via embedded resource filter. Bloco `.where()` Dart eliminado. Sort por `confirmed_date` mantido client-side (PostgREST não suporta ORDER BY em campos de embedded resource). Antes: worker com N jobs concluídos transferia todos os N registos `accepted` para filtrar 1-2 no cliente. Depois: apenas registos com job `confirmed | awaiting_confirmation` chegam ao cliente.

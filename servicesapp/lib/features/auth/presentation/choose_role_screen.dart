@@ -4,16 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
+import '../application/pending_signup_provider.dart';
 
 class ChooseRoleScreen extends ConsumerStatefulWidget {
-  final String fullName;
-  final String phone;
-
-  const ChooseRoleScreen({
-    super.key,
-    required this.fullName,
-    required this.phone,
-  });
+  const ChooseRoleScreen({super.key});
 
   @override
   ConsumerState<ChooseRoleScreen> createState() => _ChooseRoleScreenState();
@@ -27,17 +21,19 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     if (_submitting || _selectedRole == null) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
+    final pending = ref.read(pendingSignupProvider);
     setState(() => _submitting = true);
     try {
       await ref.read(authControllerProvider.notifier).createProfile(
         userId: user.id,
-        fullName: widget.fullName,
-        phone: widget.phone,
+        fullName: pending.fullName ?? '',
+        phone: pending.phone ?? '',
         role: _selectedRole!,
       );
       if (!mounted) return;
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
+      ref.read(pendingSignupProvider.notifier).clear();
       // Navigate directly — don't wait for router redirect
       if (_selectedRole == UserRole.client) {
         context.go('/client/home');

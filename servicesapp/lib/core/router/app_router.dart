@@ -49,15 +49,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/signup', builder: (_, _) => const SignupScreen()),
       GoRoute(
         path: '/choose-role',
-        builder: (context, state) {
-          final extra = state.extra != null
-              ? Map<String, String>.from(state.extra as Map)
-              : null;
-          return ChooseRoleScreen(
-            fullName: extra?['fullName'] ?? '',
-            phone: extra?['phone'] ?? '',
-          );
-        },
+        builder: (_, _) => const ChooseRoleScreen(),
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
