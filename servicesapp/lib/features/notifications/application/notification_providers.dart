@@ -85,6 +85,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
           ref.invalidate(proposalByIdProvider);
+          ref.invalidate(workerProposalForJobProvider);
         case NotificationType.jobCancelled:
         case NotificationType.jobReopened:
           debugPrint('notificationSync: invalidating for type=${notification.type}');

@@ -1117,12 +1117,9 @@ class _ProposalCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final workerInfo =
-        ref.watch(workerBasicInfoProvider(proposal.workerId)).asData?.value;
-    final workerName = workerInfo?['full_name']?.isNotEmpty == true
-        ? workerInfo!['full_name']!
-        : '—';
-    final workerAvatarUrl = workerInfo?['avatar_url'] ?? '';
+    final workerName =
+        proposal.workerName?.isNotEmpty == true ? proposal.workerName! : '—';
+    final workerAvatarUrl = proposal.workerAvatarUrl ?? '';
     final ratingSummary =
         ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
 

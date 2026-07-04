@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-04 — proposalRejected invalida workerProposalForJobProvider; P-8-2 N+1 eliminado
+
+**FIX 1 — `proposalRejected` invalidation gap:** `notification_providers.dart`, case `proposalRejected` — adicionado `ref.invalidate(workerProposalForJobProvider)` (família completa, sem chave — `workerId` não está disponível no contexto do sync provider; mesmo padrão de `proposalWithdrawn`). `relatedId = p_job_id` confirmado via migration 0001_baseline.sql. Gap identificado na auditoria de 2026-07-01 e agora fechado.
+
+**FIX 2 (P-8-2) — N+1 eliminado em `_ProposalCard`:** `fetchPendingProposalsForJob` em `proposal_repository.dart` alterado de `.select()` para `.select('*, worker_profiles(profiles(full_name, avatar_url))')` — join de dois saltos (padrão idêntico ao T7 fix: `job_proposals.worker_id → worker_profiles.profile_id → profiles.id`; FK direta `job_proposals → profiles` não existe). `JobProposal` recebeu dois campos opcionais: `workerName: String?` e `workerAvatarUrl: String?`, parsed via `(json['worker_profiles'] as Map?)?['profiles']?['full_name/avatar_url']`. `_ProposalCard` em `client_job_detail_screen.dart` removeu `ref.watch(workerBasicInfoProvider(proposal.workerId))` e lê `proposal.workerName` / `proposal.workerAvatarUrl` diretamente — N queries por lista → 1 query. `workerBasicInfoProvider` permanece em uso na mesma classe para `_workerContactCard` (line 533); import mantido.
+
+---
+
 ## 2026-07-01 — Parte A: UX do formulário de proposta reestruturado + Parte B: ícone de mapa
 
 **Parte A — Formulário de proposta (`worker_job_detail_screen.dart` `_ProposalSheet`):** Campo `TextFormField` "Pessoas necessárias" substituído por `CheckboxListTile` "Preciso de ajuda". Quando desmarcada: `people_needed = 1` e `helpers_equipment_required = false` (valores por omissão, sem submenu visível). Quando marcada: revela `DropdownButton<int>` (opções 2–5, total incluindo o principal) mapeado para `people_needed` e `SwitchListTile` "Ajudantes devem trazer equipamento próprio" mapeado para `helpers_equipment_required`. Ao desmarcar: ambos os valores resetam antes de ocultar o submenu. `_peopleController` removido; `_needsHelp`, `_peopleNeeded`, `_helpersEquipmentRequired` substituem.

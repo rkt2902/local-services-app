@@ -15,6 +15,8 @@ class JobProposal {
   final bool scheduledFlexible;
   final bool helpersEquipmentRequired;
   final DateTime createdAt;
+  final String? workerName;
+  final String? workerAvatarUrl;
 
   const JobProposal({
     required this.id,
@@ -31,6 +33,8 @@ class JobProposal {
     this.scheduledFlexible = false,
     this.helpersEquipmentRequired = false,
     required this.createdAt,
+    this.workerName,
+    this.workerAvatarUrl,
   });
 
   factory JobProposal.fromJson(Map<String, dynamic> json) => JobProposal(
@@ -53,5 +57,9 @@ class JobProposal {
         helpersEquipmentRequired:
             json['helpers_equipment_required'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
+        workerName: (json['worker_profiles'] as Map<String, dynamic>?)?
+            ['profiles']?['full_name'] as String?,
+        workerAvatarUrl: (json['worker_profiles'] as Map<String, dynamic>?)?
+            ['profiles']?['avatar_url'] as String?,
       );
 }

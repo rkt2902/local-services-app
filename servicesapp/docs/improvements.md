@@ -42,17 +42,9 @@ A mesma lógica "JobStatus → (label, Color)" implementada independentemente em
 
 ---
 
-### P-8-2 / M1 Fase 8 — N+1 queries de nome de worker em `_ProposalCard`
+### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-04 — N+1 queries de nome de worker em `_ProposalCard`
 
-`client_job_detail_screen.dart` (`_ProposalCard` l.1079 / `workerNameProvider` ref l.1094) — `ref.watch(workerNameProvider(proposal.workerId))` por proposta. Para N propostas de N workers: N round-trips. O lado do worker (`fetchPendingWorkerProposals`, etc.) já usa o padrão de embedded resources PostgREST. O mesmo padrão não foi aplicado ao lado do cliente.
-
-**Acção:** aplicar embedded join em `fetchPendingProposalsForJob`:
-```dart
-// proposal_repository.dart:38 — ANTES: .select()
-// DEPOIS (confirmar nome FK antes de implementar):
-.select('*, profiles!job_proposals_worker_id_fkey(full_name, id)')
-```
-Adicionar `workerName` ao modelo `JobProposal`. Atualizar `_ProposalCard` para usar `proposal.workerName` diretamente. N queries → 1 query. **Esforço: ~45 min.**
+`fetchPendingProposalsForJob` estendido com `.select('*, worker_profiles(profiles(full_name, avatar_url))')` — join de dois saltos (mesmo padrão do T7 fix). `JobProposal` modelo recebeu `workerName` e `workerAvatarUrl` (ambos `String?`, parsed via `json['worker_profiles']['profiles']`). `_ProposalCard` em `client_job_detail_screen.dart` removeu o `ref.watch(workerBasicInfoProvider(proposal.workerId))` e passou a ler `proposal.workerName` / `proposal.workerAvatarUrl` diretamente. N queries → 1 query.
 
 ---
 
