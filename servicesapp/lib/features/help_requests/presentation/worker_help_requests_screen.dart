@@ -29,7 +29,6 @@ class WorkerHelpRequestsScreen extends ConsumerStatefulWidget {
 class _WorkerHelpRequestsScreenState
     extends ConsumerState<WorkerHelpRequestsScreen> {
   final Set<String> _appliedIds = {};
-  final Map<String, bool> _broughtEquipment = {};
   final Map<String, bool> _applying = {};
 
   Future<void> _onDiscoverRefresh() async =>
@@ -37,8 +36,7 @@ class _WorkerHelpRequestsScreenState
 
   Future<void> _apply(HelpRequestSummary summary) async {
     final messenger = ScaffoldMessenger.of(context);
-    final broughtEquipment =
-        summary.equipmentRequired || (_broughtEquipment[summary.id] ?? false);
+    final broughtEquipment = summary.equipmentRequired;
     setState(() => _applying[summary.id] = true);
     try {
       await ref.read(helpRequestRepositoryProvider).applyToHelpRequest(
@@ -135,9 +133,6 @@ class _WorkerHelpRequestsScreenState
                   distanceMeters: distanceMeters,
                   isApplied: _appliedIds.contains(s.id),
                   isApplying: _applying[s.id] == true,
-                  broughtEquipment: _broughtEquipment[s.id] ?? false,
-                  onBroughtEquipmentChanged: (v) =>
-                      setState(() => _broughtEquipment[s.id] = v),
                   onApply: () => _apply(s),
                 ),
               );
@@ -715,8 +710,6 @@ class _HelpRequestCard extends StatelessWidget {
     this.distanceMeters,
     required this.isApplied,
     required this.isApplying,
-    required this.broughtEquipment,
-    required this.onBroughtEquipmentChanged,
     required this.onApply,
   });
 
@@ -725,8 +718,6 @@ class _HelpRequestCard extends StatelessWidget {
   final double? distanceMeters;
   final bool isApplied;
   final bool isApplying;
-  final bool broughtEquipment;
-  final ValueChanged<bool> onBroughtEquipmentChanged;
   final VoidCallback onApply;
 
   String? _distanceStr() {
@@ -802,15 +793,11 @@ class _HelpRequestCard extends StatelessWidget {
               ])
             else
               Row(children: [
-                Checkbox(
-                  value: broughtEquipment,
-                  onChanged: isApplied
-                      ? null
-                      : (v) => onBroughtEquipmentChanged(v ?? false),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                const Text('Levo o meu equipamento'),
+                Icon(Icons.check_circle_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                const Text('Sem equipamento necessário'),
               ]),
             const SizedBox(height: 12),
             SizedBox(

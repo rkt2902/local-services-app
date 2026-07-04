@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-01 — Parte A: UX do formulário de proposta reestruturado + Parte B: ícone de mapa
+
+**Parte A — Formulário de proposta (`worker_job_detail_screen.dart` `_ProposalSheet`):** Campo `TextFormField` "Pessoas necessárias" substituído por `CheckboxListTile` "Preciso de ajuda". Quando desmarcada: `people_needed = 1` e `helpers_equipment_required = false` (valores por omissão, sem submenu visível). Quando marcada: revela `DropdownButton<int>` (opções 2–5, total incluindo o principal) mapeado para `people_needed` e `SwitchListTile` "Ajudantes devem trazer equipamento próprio" mapeado para `helpers_equipment_required`. Ao desmarcar: ambos os valores resetam antes de ocultar o submenu. `_peopleController` removido; `_needsHelp`, `_peopleNeeded`, `_helpersEquipmentRequired` substituem.
+
+**Parte A — Discovery do ajudante (`worker_help_requests_screen.dart` `_HelpRequestCard`):** Quando `equipment_required = false`, o checkbox "Levo o meu equipamento" foi substituído por texto estático "Sem equipamento necessário" com ícone neutro. `broughtEquipment` passa sempre como `summary.equipmentRequired` (true quando obrigatório, false quando não). `_broughtEquipment` Map e parâmetros `broughtEquipment`/`onBroughtEquipmentChanged` removidos do widget e do estado pai.
+
+**Parte B — Ícone de mapa nos cards do worker (`worker_home_screen.dart`):** Endereço em texto removido dos cards de discovery. Substituído por `GestureDetector` com `Icon(Icons.map_outlined)` que abre Google Maps diretamente via `launchUrl` com as coordenadas do job. `url_launcher` importado.
+
+**Parte B — AddressMapLink no detalhe de job (`worker_job_detail_screen.dart`):** Bloco `Row(Icon + Text)` com endereço em texto simples substituído por `AddressMapLink` (já existia noutros ecrãs — padrão reutilizado). `address_map_link.dart` importado.
+
+**Parte B — Confirmações:** `worker_my_job_detail_screen.dart` já usava `AddressMapLink`. `worker_help_requests_screen.dart` já usava `AddressMapLink` na tab "As minhas candidaturas" (linha 547). `client_job_detail_screen.dart` não mostra morada de terceiros — sem mapa no ecrã do cliente (confirmado, skip intencional).
+
+---
+
 ## 2026-07-01 — RT3, RT5, RT9 resolvidos + widget UserAvatarWithName criado
 
 **RT3:** `fetchWorkerBasicInfo` estendido para incluir `avatar_url` (SELECT `full_name, phone, avatar_url`). `_workerContactCard` em `client_job_detail_screen.dart` substituiu `Icon(Icons.person_outlined) + Text(name)` pelo novo widget `UserAvatarWithName`. Widget criado em `lib/core/widgets/user_avatar_with_name.dart` — `StatelessWidget` que exibe `CircleAvatar` com `NetworkImage(avatarUrl)` se URL não-vazio, ou inicial do nome caso contrário, seguido do nome em `Text` expandido.

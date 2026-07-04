@@ -12,6 +12,7 @@ import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 
 class WorkerJobDetailScreen extends ConsumerStatefulWidget {
@@ -192,20 +193,10 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                 ],
                 if (job.addressText.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.location_on_outlined,
-                          size: 16,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          job.addressText,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ],
+                  AddressMapLink(
+                    address: job.addressText,
+                    lat: job.locationLat,
+                    lng: job.locationLng,
                   ),
                 ],
                 if (alreadySent) ...[
@@ -334,9 +325,12 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
   final _rateController = TextEditingController();
   final _hoursMinController = TextEditingController();
   final _hoursMaxController = TextEditingController();
-  final _peopleController = TextEditingController();
   final _notesController = TextEditingController();
   bool _submitting = false;
+
+  bool _needsHelp = false;
+  int _peopleNeeded = 2;
+  bool _helpersEquipmentRequired = false;
 
   DateTime? _scheduledDate;
   TimeOfDay? _scheduledTime;
@@ -345,7 +339,6 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
   @override
   void initState() {
     super.initState();
-    _peopleController.text = '1';
     final profile = ref.read(workerProfileProvider).value;
     if (profile?.defaultHourlyRate != null && profile!.defaultHourlyRate! > 0) {
       _rateController.text = profile.defaultHourlyRate!.toStringAsFixed(2);
@@ -357,7 +350,6 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
     _rateController.dispose();
     _hoursMinController.dispose();
     _hoursMaxController.dispose();
-    _peopleController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -422,7 +414,9 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
                 double.tryParse(_hoursMinController.text.trim()),
             estimatedHoursMax:
                 double.tryParse(_hoursMaxController.text.trim()),
-            peopleNeeded: int.parse(_peopleController.text.trim()),
+            peopleNeeded: _needsHelp ? _peopleNeeded : 1,
+            helpersEquipmentRequired:
+                _needsHelp ? _helpersEquipmentRequired : false,
             notes: _notesController.text.trim().isEmpty
                 ? null
                 : _notesController.text.trim(),
@@ -513,21 +507,49 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _peopleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Pessoas necessárias',
-                    prefixIcon: Icon(Icons.group_outlined),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Obrigatório.';
-                    final n = int.tryParse(v.trim());
-                    if (n == null || n < 1) return 'Mínimo 1 pessoa.';
-                    return null;
-                  },
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: _needsHelp,
+                  onChanged: (v) => setState(() {
+                    _needsHelp = v ?? false;
+                    if (!_needsHelp) {
+                      _peopleNeeded = 2;
+                      _helpersEquipmentRequired = false;
+                    }
+                  }),
+                  title: const Text('Preciso de ajuda'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
                 ),
+                if (_needsHelp) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.group_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      const Text('Total de pessoas:'),
+                      const SizedBox(width: 12),
+                      DropdownButton<int>(
+                        value: _peopleNeeded,
+                        items: [2, 3, 4, 5]
+                            .map((n) => DropdownMenuItem(
+                                  value: n,
+                                  child: Text('$n'),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _peopleNeeded = v ?? 2),
+                      ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    value: _helpersEquipmentRequired,
+                    onChanged: (v) =>
+                        setState(() => _helpersEquipmentRequired = v),
+                    title: const Text(
+                        'Ajudantes devem trazer equipamento próprio'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _notesController,

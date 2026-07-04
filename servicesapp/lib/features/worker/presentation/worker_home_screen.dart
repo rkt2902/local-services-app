@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
@@ -203,17 +204,25 @@ class _JobCard extends StatelessWidget {
                         icon: Icons.straighten_outlined, label: sizeLabel),
                 ],
               ),
-              if (job.addressText.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  job.addressText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+              if (job.addressText.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(
+                        'https://www.google.com/maps/search/?api=1'
+                        '&query=${Uri.encodeComponent('${job.locationLat},${job.locationLng}')}',
+                      );
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    },
+                    child: Icon(
+                      Icons.map_outlined,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
               if (job.proposalCount > 0) ...[
                 const SizedBox(height: 6),
                 Chip(

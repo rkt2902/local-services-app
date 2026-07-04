@@ -568,6 +568,14 @@ Confirma que o padrão T4 (navegar depois invalidar) funciona quando aplicado co
 
 > Referência histórica. Detalhes técnicos em `decisions_log.md`.
 
+### UX formulário de proposta + mapa nos cards — 2026-07-01
+
+**Parte A ✅ RESOLVIDO 2026-07-01** — Formulário de proposta (`_ProposalSheet`): campo "Pessoas necessárias" (TextFormField) substituído por `CheckboxListTile` "Preciso de ajuda". Submenu condicional (não greyed-out, completamente ausente quando desmarcado) com dropdown 2–5 pessoas e toggle de equipamento. Ao desmarcar: `people_needed = 1` e `helpers_equipment_required = false`. Na discovery do ajudante (`_HelpRequestCard`): quando `equipment_required = false`, checkbox "Levo o meu equipamento" substituído por texto estático "Sem equipamento necessário" e `broughtEquipment = false` incondicional.
+
+**Parte B ✅ RESOLVIDO 2026-07-01** — Cards de discovery do worker (`_JobCard` em `worker_home_screen.dart`): texto de endereço removido, substituído por ícone de mapa (`Icons.map_outlined`) que abre Google Maps diretamente. Ecrã de detalhe do job (`worker_job_detail_screen.dart`): texto simples de endereço substituído por `AddressMapLink`. `worker_my_job_detail_screen.dart` e `worker_help_requests_screen.dart` confirmados já com `AddressMapLink`.
+
+---
+
 ### Bugs de produção — Sessão de testes manuais 2026-06-29
 
 **T1 ✅ RESOLVIDO 2026-06-29** — Desync de estado de propostas: badge "1 proposta" na home vs "À espera de proposta" no detalhe. `ClientJobDetailScreen` reescrito com `jobId: String` + `jobByIdProvider`. Desync impossível por design.
