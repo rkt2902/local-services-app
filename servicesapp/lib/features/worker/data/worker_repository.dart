@@ -60,6 +60,7 @@ class WorkerRepository {
     await _client.from('profiles').update({
       'full_name': profile.fullName,
       'phone': profile.phone,
+      if (profile.avatarUrl != null) 'avatar_url': profile.avatarUrl,
     }).eq('id', profile.profileId);
 
     await _client.from('worker_profiles').upsert({
@@ -139,6 +140,7 @@ class WorkerRepository {
           file,
           fileOptions: const FileOptions(upsert: true),
         );
-    return _client.storage.from('avatars').getPublicUrl(path);
+    final url = _client.storage.from('avatars').getPublicUrl(path);
+    return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 }

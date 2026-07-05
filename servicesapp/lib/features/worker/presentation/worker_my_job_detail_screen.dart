@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
@@ -640,24 +641,14 @@ class _WorkerMyJobDetailScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(children: [
-                            Icon(Icons.person_outlined,
-                                color:
-                                    theme.colorScheme.onPrimaryContainer),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                info['full_name']?.isNotEmpty == true
-                                    ? info['full_name']!
-                                    : '—',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme
-                                        .colorScheme.onPrimaryContainer),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                          ]),
+                          UserAvatarWithName(
+                            name: info['full_name'] ?? '',
+                            avatarUrl: info['avatar_url']?.isNotEmpty == true
+                                ? info['avatar_url']
+                                : null,
+                            nameStyle: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer),
+                          ),
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: phone.isEmpty

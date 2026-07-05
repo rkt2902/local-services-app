@@ -14,9 +14,10 @@ class NotificationHandler {
     switch (notification.type) {
       // ── Job discovery ─────────────────────────────────────────────────────
       case NotificationType.newJobInRadius:
-        // relatedId = job_id — push so the worker can navigate back.
+        // relatedId = job_id — go (not push) to avoid keyReservation crash on
+        // duplicate push when the worker is already viewing this job.
         if (notification.relatedId == null) break;
-        context.push('/worker/job/${notification.relatedId}');
+        context.go('/worker/job/${notification.relatedId}');
 
       // ── Proposal lifecycle (client-facing) ────────────────────────────────
       case NotificationType.proposalReceived:
@@ -52,9 +53,9 @@ class NotificationHandler {
         }
 
       case NotificationType.proposalRejected:
-        // relatedId = job_id — push so the worker can navigate back.
+        // relatedId = job_id — go (not push) to avoid keyReservation crash.
         if (notification.relatedId == null) break;
-        context.push('/worker/job/${notification.relatedId}');
+        context.go('/worker/job/${notification.relatedId}');
 
       // ── Job lifecycle ─────────────────────────────────────────────────────
       case NotificationType.jobCancelled:
@@ -80,9 +81,9 @@ class NotificationHandler {
 
       case NotificationType.jobReopened:
         // Sent to workers whose proposals were on the original cancelled job.
-        // relatedId = job_id — push to the discovery view (can navigate back).
+        // relatedId = job_id — go (not push) to avoid keyReservation crash.
         if (notification.relatedId == null) break;
-        context.push('/worker/job/${notification.relatedId}');
+        context.go('/worker/job/${notification.relatedId}');
 
       case NotificationType.rescheduleProposed:
       case NotificationType.rescheduleAccepted:

@@ -15,6 +15,6 @@ final clientProfileProvider = FutureProvider<ClientProfile?>((ref) async {
 
 final clientBasicInfoProvider =
     FutureProvider.family<Map<String, String>, String>((ref, clientId) {
-  if (clientId.isEmpty) return Future.value({'full_name': '', 'phone': ''});
+  if (clientId.isEmpty) return Future.value({'full_name': '', 'phone': '', 'avatar_url': ''});
   return ref.read(clientRepositoryProvider).fetchClientBasicInfo(clientId);
 });

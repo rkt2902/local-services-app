@@ -207,6 +207,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       await ref.read(sessionStatusProvider.notifier).refresh();
       if (!mounted) return;
       context.go('/worker/home');
+      ref.invalidate(workerProfileProvider);
     } catch (e) {
       debugPrint('[BUG1_DIAG] ${e.runtimeType}: $e');
       if (!mounted) return;

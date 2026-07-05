@@ -12,6 +12,21 @@
 
 ## 🟠 Alta prioridade — Por resolver
 
+### Bug 3 (2026-07-05) — Worker name/avatar "—" em proposal cards — AGUARDA LIVE QUERY
+
+`fetchPendingProposalsForJob` e `JobProposal.fromJson` confirmados corretos. Causa provável: workers que submeteram propostas antes de completar `worker_setup_screen.dart` não têm `worker_profiles` row — o join de dois saltos devolve null → "—" exibido. Confirmar com live query antes de corrigir:
+
+```sql
+SELECT jp.id, jp.worker_id, wp.profile_id IS NOT NULL AS has_worker_profile
+FROM job_proposals jp
+LEFT JOIN worker_profiles wp ON wp.profile_id = jp.worker_id
+WHERE jp.status = 'pending';
+```
+
+Se `has_worker_profile = false` em rows reais: pedir aos workers afetados que completem o setup; ou adicionar fallback UI a ler `profiles` diretamente quando `worker_profiles` é null.
+
+---
+
 ### T6 / P-8-9 ✅ RESOLVIDO 2026-07-01 — Deep-link de notificações
 
 Auditoria completa de `notification_handler.dart` em 2026-07-01. Todos os 19 tipos de notificação navegam agora para o destino correto:
@@ -496,6 +511,40 @@ Migration 0024 criou a view sem `security_invoker = true`. Fix aplicado diretame
 ### F10-S3 ✅ JÁ CORRETO (confirmado 2026-07-04) — `fetchRatingsWithRaterNames` não expunha phone
 
 Select auditado: `'*, rater:profiles!rater_id(full_name)'`. O `*` aplica-se apenas a colunas de `ratings`; o join de `profiles` seleciona apenas `full_name`. Phone nunca esteve incluído. Nenhuma alteração necessária ao código Dart.
+
+---
+
+## Sessão de testes — Run 2, 2026-07-05
+
+> 5 achados confirmados após investigação de causa raiz. Bugs 1, 2, 4 corrigidos em 2026-07-06. Bug 3 aguarda live query. Bug 5 documentado como limitação de infra.
+
+### Bug 1 ✅ RESOLVIDO 2026-07-06 — Foto de perfil não aparecia após upload
+
+Dois sub-problemas distintos: (a) `createProfile` não escrevia `avatar_url` em `profiles` — `workerProfileProvider` nunca via o URL do avatar do setup; (b) `uploadAvatar` em ambos os repositórios usa sempre o mesmo path `$userId.jpg` — URL idêntico ao anterior, Flutter serve cache stale. Corrigido: `avatar_url` adicionado ao `profiles.update()` em `createProfile`; `uploadAvatar` retorna URL com `?v=<timestamp>`; `ref.invalidate(workerProfileProvider)` adicionado após `context.go('/worker/home')` em `worker_setup_screen.dart`.
+
+---
+
+### Bug 2 ✅ RESOLVIDO 2026-07-06 — Crash keyReservation em notificações de discovery
+
+`notification_handler.dart` usava `context.push` para `newJobInRadius`, `proposalRejected`, `jobReopened`. Push para rota já ativa → assert `keyReservation.contains(key) is not true`. Corrigido: `context.push` → `context.go` nos 3 casos. Tradeoff: sem back-navigation a partir da notificação (go substitui o stack), mas crash eliminado.
+
+---
+
+### Bug 3 — Worker name/avatar "—" em proposal cards — AGUARDA LIVE QUERY
+
+Código (select string + `fromJson`) confirmado correto. Causa provável: workers sem `worker_profiles` row. Detalhes em secção "Alta prioridade" acima.
+
+---
+
+### Bug 4 ✅ RESOLVIDO 2026-07-06 — Foto do cliente ausente no card de contacto do worker
+
+Dupla omissão: `fetchClientBasicInfo` não fetched `avatar_url`; card UI usava `Icon(Icons.person_outlined)` sem `CircleAvatar`. Corrigido: `avatar_url` adicionado ao select e mapa de retorno em `client_repository.dart`; card substituído por `UserAvatarWithName` em `worker_my_job_detail_screen.dart`.
+
+---
+
+### Bug 5 — Restart necessário após conclusão de job — LIMITAÇÃO DE INFRA (sem fix de código)
+
+Investigado: invalidações de provider em ambos os lados estão corretas. A causa é a stream do Supabase Realtime: se a app estiver em background quando `jobMarkedDone`/`jobCompleted` chega, a stream pode estar desligada e o estado não atualiza sem restart. **Push notifications (FCM) resolveria este problema** — ver item "Push notifications (FCM)" em Features futuras (Muito Alta prioridade).
 
 ---
 

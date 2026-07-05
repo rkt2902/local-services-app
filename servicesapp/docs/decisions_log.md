@@ -3,6 +3,40 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-06 — Bugs 1, 2, 4 corrigidos (testes 2026-07-05)
+
+**Bug 1 — Avatar não aparecia após upload (dois sub-problemas):**
+
+**1a — `createProfile` não escrevia `avatar_url` em `profiles`:** `worker_repository.dart createProfile()` atualizava `profiles` apenas com `full_name` e `phone`. `workerProfileProvider` lê `avatar_url` de `profiles` (via `getProfile`), pelo que o avatar carregado durante o setup era silenciosamente ignorado. Corrigido: adicionado `if (profile.avatarUrl != null) 'avatar_url': profile.avatarUrl` ao mapa de `profiles.update()` em `createProfile`, espelhando exatamente o que `updateProfile` já fazia.
+
+**1b — Cache de NetworkImage servia imagem antiga após re-upload:** `uploadAvatar` em ambos os repositórios (`worker_repository.dart` e `client_repository.dart`) faz upsert sempre para o mesmo path `$userId.jpg`. O URL público resultante é idêntico ao anterior — Flutter reutiliza a entrada em cache e a foto nova nunca aparece. Corrigido: `uploadAvatar` retorna agora `'$url?v=${DateTime.now().millisecondsSinceEpoch}'` em ambos os repositórios. O parâmetro de query muda a cada upload, forçando o `NetworkImage` a tratar o URL como novo.
+
+**1c — `workerProfileProvider` não invalidado após setup:** `worker_setup_screen.dart _save()` chamava `sessionStatusProvider.notifier.refresh()` mas não invalidava `workerProfileProvider`. Se o worker navegasse para o perfil imediatamente após o setup, via dados em cache sem avatar. Corrigido: `ref.invalidate(workerProfileProvider)` adicionado imediatamente após `context.go('/worker/home')` (padrão T4: navegar primeiro, invalidar depois).
+
+---
+
+**Bug 2 — Crash keyReservation em notificações de discovery (newJobInRadius, proposalRejected, jobReopened):**
+
+`notification_handler.dart` usava `context.push` nos 3 casos de discovery do worker. Se o worker já estivesse a ver o ecrã de detalhe de um job quando a notificação chegava, o push duplicava a rota ativa, causando a assert `keyReservation.contains(key) is not true` (mesma classe do RT1). A decisão de usar `push` para preservar navegação para trás foi reavaliada: o custo de crash supera o benefício de UX da back-navigation a partir de uma notificação. Corrigido: `context.push` → `context.go` nos 3 casos (`newJobInRadius` linha 19, `proposalRejected` linha 55, `jobReopened` linha 83). `context.go` substitui o stack — sem possibilidade de rota duplicada.
+
+---
+
+**Bug 4 — Foto do cliente ausente no card de contacto do worker (dupla omissão):**
+
+`client_repository.dart fetchClientBasicInfo()` selecionava apenas `full_name, phone` — `avatar_url` nunca era fetched. Adicionado `avatar_url` ao select e ao mapa de retorno (default `''` para null). Fallback vazio em `client_providers.dart` atualizado para incluir `'avatar_url': ''`. Na UI, `worker_my_job_detail_screen.dart` (card "Cliente") substituiu `Row(Icon + Text)` pelo widget reutilizável `UserAvatarWithName` — passa `name`, `avatarUrl` (null se string vazia), e `nameStyle` com a cor `onPrimaryContainer` do tema. Import `user_avatar_with_name.dart` adicionado.
+
+---
+
+**Bug 5 — Restart após conclusão de job (não é bug de código):**
+
+Investigado e documentado como limitação conhecida: a atualização de estado em tempo real depende da stream do Supabase Realtime estar ativa. Se o utilizador tiver a app em background quando a notificação `jobMarkedDone`/`jobCompleted` chega, a stream pode estar desligada e o estado não atualiza sem restart. Código de invalidação nos dois lados confirmado correto (`_markCompleted` invalida providers do worker; `notification_providers.dart` invalida providers do cliente via `jobMarkedDone`). Push notifications via FCM resolveria este problema — ver item de alta prioridade em `improvements.md`.
+
+**Bug 3 — Pending:** aguarda resultado de live query para confirmar workers sem `worker_profiles` row.
+
+`flutter analyze` após todas as alterações: **0 issues**.
+
+---
+
 ## 2026-07-04 — Auditoria de segurança Fase 10 (dados/RLS apenas; UI ignorada por redesign pendente)
 
 3 achados confirmados, 2 corrigidos em migration 0028, 1 confirmado já correto:

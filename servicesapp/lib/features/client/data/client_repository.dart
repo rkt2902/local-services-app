@@ -27,19 +27,21 @@ class ClientRepository {
           file,
           fileOptions: const FileOptions(upsert: true),
         );
-    return _client.storage.from('avatars').getPublicUrl(path);
+    final url = _client.storage.from('avatars').getPublicUrl(path);
+    return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   Future<Map<String, String>> fetchClientBasicInfo(String clientId) async {
     final data = await _client
         .from('profiles')
-        .select('full_name, phone')
+        .select('full_name, phone, avatar_url')
         .eq('id', clientId)
         .maybeSingle();
-    if (data == null) return {'full_name': '', 'phone': ''};
+    if (data == null) return {'full_name': '', 'phone': '', 'avatar_url': ''};
     return {
       'full_name': data['full_name'] as String? ?? '',
       'phone': data['phone'] as String? ?? '',
+      'avatar_url': data['avatar_url'] as String? ?? '',
     };
   }
 }
