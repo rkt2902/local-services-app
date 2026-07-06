@@ -86,10 +86,7 @@ class ClientHomeScreen extends ConsumerWidget {
                       return _CompactJobCard(
                         job: job,
                         serviceName: serviceName,
-                        onTap: () => context.push(
-                          '/client/job/${job.id}',
-                          extra: job,
-                        ),
+                        onTap: () => context.push('/client/job/${job.id}'),
                       );
                     }).toList(),
                   ),

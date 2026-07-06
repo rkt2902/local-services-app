@@ -12,18 +12,11 @@
 
 ## 🟠 Alta prioridade — Por resolver
 
-### Bug 3 (2026-07-05) — Worker name/avatar "—" em proposal cards — AGUARDA LIVE QUERY
+### Bug 3 ✅ RESOLVIDO 2026-07-06 (migration 0029 — NOT APLICADA) — Worker name/avatar "—" em proposal cards
 
-`fetchPendingProposalsForJob` e `JobProposal.fromJson` confirmados corretos. Causa provável: workers que submeteram propostas antes de completar `worker_setup_screen.dart` não têm `worker_profiles` row — o join de dois saltos devolve null → "—" exibido. Confirmar com live query antes de corrigir:
+Causa raiz confirmada via live log (`[BUG3_DIAG]`): PostgREST devolvia `worker_profiles: {profiles: null}` no join de dois saltos porque o FK `worker_profiles.profile_id → profiles(id)` estava ausente de `pg_constraint` na BD viva (CREATE TABLE IF NOT EXISTS saltou o corpo). SQL direto funcionava corretamente — problema exclusivo de schema cache do PostgREST.
 
-```sql
-SELECT jp.id, jp.worker_id, wp.profile_id IS NOT NULL AS has_worker_profile
-FROM job_proposals jp
-LEFT JOIN worker_profiles wp ON wp.profile_id = jp.worker_id
-WHERE jp.status = 'pending';
-```
-
-Se `has_worker_profile = false` em rows reais: pedir aos workers afetados que completem o setup; ou adicionar fallback UI a ler `profiles` diretamente quando `worker_profiles` é null.
+Fix: migration 0029 adiciona o FK explicitamente com `IF NOT EXISTS` seguro; select string atualizada com hint `profiles!worker_profiles_profile_id_fkey(...)`. `fromJson` inalterado.
 
 ---
 
@@ -530,9 +523,9 @@ Dois sub-problemas distintos: (a) `createProfile` não escrevia `avatar_url` em 
 
 ---
 
-### Bug 3 — Worker name/avatar "—" em proposal cards — AGUARDA LIVE QUERY
+### Bug 3 ✅ RESOLVIDO 2026-07-06 — Worker name/avatar "—" em proposal cards
 
-Código (select string + `fromJson`) confirmado correto. Causa provável: workers sem `worker_profiles` row. Detalhes em secção "Alta prioridade" acima.
+FK `worker_profiles.profile_id → profiles(id)` ausente de `pg_constraint` — PostgREST não resolvia o segundo salto. Fix: migration 0029 + FK hint explícito no select. Ver "Alta prioridade" acima e decisions_log.md 2026-07-06.
 
 ---
 

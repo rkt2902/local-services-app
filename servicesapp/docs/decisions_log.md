@@ -3,6 +3,51 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-06 — Bug 3 causa raiz confirmada e corrigida (migration 0029 — NOT APLICADA)
+
+**Causa raiz:** PostgREST devolve `worker_profiles: {profiles: null}` no join de dois saltos `worker_profiles(profiles(full_name, avatar_url))` apesar do JOIN SQL direto funcionar corretamente. A causa mais provável é que o FOREIGN KEY `worker_profiles.profile_id → profiles(id)` (declarado inline em 0001_baseline.sql com `PRIMARY KEY REFERENCES profiles(id)`) está ausente de `pg_constraint` na BD viva — possivelmente porque `CREATE TABLE IF NOT EXISTS` saltou o corpo da tabela quando a tabela já existia sem o FK. Sem este FK em `pg_constraint`, o PostgREST não consegue construir o segundo salto do join no schema cache e retorna null silenciosamente.
+
+**Evidência:** a live query SQL (`JOIN wp ON wp.profile_id = jp.worker_id JOIN p ON p.id = wp.profile_id`) resolve `full_name` corretamente — os dados e a UUID estão certos. O problema é exclusivamente de descoberta de FK pelo PostgREST.
+
+**Fix duplo (belt-and-suspenders):**
+
+**(a) Migration 0029** — `DO $$ BEGIN IF NOT EXISTS (...referential_constraints WHERE table_name='worker_profiles' AND column_name='profile_id') THEN ALTER TABLE worker_profiles ADD CONSTRAINT worker_profiles_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE; END IF; END $$;` — seguro: a query `IF NOT EXISTS` verifica qualquer FK na coluna (independente do nome), pelo que é no-op se o FK já existir. Após aplicar, o PostgREST recalcula o schema cache e o join de dois saltos passa a funcionar.
+
+**(b) FK hint explícito no select** — `proposal_repository.dart fetchPendingProposalsForJob` alterado de `.select('*, worker_profiles(profiles(full_name, avatar_url))')` para `.select('*, worker_profiles(profiles!worker_profiles_profile_id_fkey(full_name, avatar_url))')`. O hint diz ao PostgREST exatamente qual FK usar para o segundo salto, eliminando qualquer ambiguidade mesmo se houver múltiplos FKs de/para `worker_profiles`. `fromJson` não muda — o key path `json['worker_profiles']['profiles']['full_name']` é idêntico.
+
+`[BUG3_DIAG] debugPrint` removido de `proposal_repository.dart`. Import `flutter/foundation.dart` removido.
+
+Migration 0029 **NOT aplicada** — aplicar via Supabase SQL Editor.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-06 — Bug 3 diagnóstico + regressão A2 em client_home_screen corrigida
+
+**Bug 3 — Logging de diagnóstico adicionado (aguarda captura de log ao vivo):**
+
+`debugPrint('[BUG3_DIAG] raw first proposal: ${data.first}')` adicionado em `proposal_repository.dart fetchPendingProposalsForJob`, imediatamente antes do `.map(fromJson)`. Quando Henrique abrir o ecrã com propostas, o logcat mostrará o JSON cru para confirmar se a chave `worker_profiles` está presente e com que shape exato chega da BD. Import `package:flutter/foundation.dart` adicionado ao ficheiro (necessário para `debugPrint` fora de um widget).
+
+As linhas exatas de parsing em `JobProposal.fromJson` que estão sob suspeita:
+```dart
+workerName: (json['worker_profiles'] as Map<String, dynamic>?)?
+    ['profiles']?['full_name'] as String?,
+workerAvatarUrl: (json['worker_profiles'] as Map<String, dynamic>?)?
+    ['profiles']?['avatar_url'] as String?,
+```
+Se o log mostrar `worker_profiles: null` → workers sem `worker_profiles` row (hipótese de data). Se mostrar `worker_profiles: {profiles: null}` → join chega mas `profiles` está null (FK mismatch). Se mostrar shape diferente → chave errada no `fromJson`.
+
+**Regressão A2 encontrada e corrigida — `client_home_screen.dart` ainda passava `extra: job`:**
+
+Grep exaustivo de `lib/` para `extra:` com objetos de domínio encontrou 1 call site remanescente: `client_home_screen.dart:91` passava `extra: job` (um `JobRequest` completo) no `context.push('/client/job/${job.id}')` do card de job na home do cliente. Esta rota foi migrada para ID-based routing na sessão A2 de 2026-06-29 — todos os outros call sites (`client_jobs_screen.dart`, `notification_handler.dart`) já tinham o extra removido, mas este ficou. Era este o call site que gerava o aviso GoRouter "An extra with complex data type JobRequest is provided without a codec." Corrigido: `extra: job` removido; a rota recebe apenas o ID e carrega via `jobByIdProvider` como os restantes.
+
+Os únicos `extra:` remanescentes em toda a app são `{'initialTabIndex': 1}` em 3 casos em `notification_handler.dart` — passa um `int` primitivo, confirmado seguro (sem codec necessário para primitivos).
+
+`flutter analyze`: 0 issues.
+
+---
+
 ## 2026-07-06 — Bugs 1, 2, 4 corrigidos (testes 2026-07-05)
 
 **Bug 1 — Avatar não aparecia após upload (dois sub-problemas):**

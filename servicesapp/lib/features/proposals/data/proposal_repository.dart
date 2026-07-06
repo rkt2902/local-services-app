@@ -39,7 +39,7 @@ class ProposalRepository {
     if (jobId.isEmpty) return [];
     final data = await _client
         .from('job_proposals')
-        .select('*, worker_profiles(profiles(full_name, avatar_url))')
+        .select('*, worker_profiles(profiles!worker_profiles_profile_id_fkey(full_name, avatar_url))')
         .eq('job_id', jobId)
         .eq('status', ProposalStatus.pending.value)
         .order('created_at', ascending: true);
