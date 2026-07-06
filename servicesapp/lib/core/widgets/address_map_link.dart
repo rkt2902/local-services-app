@@ -22,7 +22,9 @@ class AddressMapLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (lat == 0 && lng == 0) return const SizedBox.shrink();
     final theme = Theme.of(context);
+    final label = address.isNotEmpty ? address : 'Ver no mapa';
     return InkWell(
       onTap: _openMaps,
       borderRadius: BorderRadius.circular(8),
@@ -48,7 +50,7 @@ class AddressMapLink extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    address,
+                    label,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.primary,
                       decoration: TextDecoration.underline,

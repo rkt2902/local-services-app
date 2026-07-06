@@ -12,6 +12,7 @@ import '../data/job_model.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
@@ -685,9 +686,6 @@ class _ClientJobDetailScreenState
           const SizedBox(height: 24),
           _DetailSection(
             children: [
-              if (job.addressText.isNotEmpty)
-                _detailRow(context, Icons.place_outlined, 'Localização',
-                    job.addressText),
               _detailRow(
                 context,
                 Icons.calendar_today_outlined,
@@ -715,6 +713,14 @@ class _ClientJobDetailScreenState
                 ),
             ],
           ),
+          if (job.locationLat != 0 || job.locationLng != 0) ...[
+            const SizedBox(height: 8),
+            AddressMapLink(
+              address: job.addressText,
+              lat: job.locationLat,
+              lng: job.locationLng,
+            ),
+          ],
           const SizedBox(height: 20),
           Text('Descrição', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),

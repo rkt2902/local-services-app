@@ -12,7 +12,7 @@
 
 ## 🟠 Alta prioridade — Por resolver
 
-### Bug 3 ✅ RESOLVIDO 2026-07-06 (migration 0029 — NOT APLICADA) — Worker name/avatar "—" em proposal cards
+### Bug 3 ✅ RESOLVIDO 2026-07-06 (migration 0029 — APLICADA 2026-07-07) — Worker name/avatar "—" em proposal cards
 
 Causa raiz confirmada via live log (`[BUG3_DIAG]`): PostgREST devolvia `worker_profiles: {profiles: null}` no join de dois saltos porque o FK `worker_profiles.profile_id → profiles(id)` estava ausente de `pg_constraint` na BD viva (CREATE TABLE IF NOT EXISTS saltou o corpo). SQL direto funcionava corretamente — problema exclusivo de schema cache do PostgREST.
 
@@ -50,9 +50,9 @@ A mesma lógica "JobStatus → (label, Color)" implementada independentemente em
 
 ---
 
-### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-04 — N+1 queries de nome de worker em `_ProposalCard`
+### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-07 — N+1 queries de nome de worker em `_ProposalCard`
 
-`fetchPendingProposalsForJob` estendido com `.select('*, worker_profiles(profiles(full_name, avatar_url))')` — join de dois saltos (mesmo padrão do T7 fix). `JobProposal` modelo recebeu `workerName` e `workerAvatarUrl` (ambos `String?`, parsed via `json['worker_profiles']['profiles']`). `_ProposalCard` em `client_job_detail_screen.dart` removeu o `ref.watch(workerBasicInfoProvider(proposal.workerId))` e passou a ler `proposal.workerName` / `proposal.workerAvatarUrl` diretamente. N queries → 1 query.
+`fetchPendingProposalsForJob` migrado para join directo `profiles!job_proposals_worker_id_fkey` via migration 0031. `fetchCandidatesForHelpRequest` igual com `help_acceptances_worker_id_fkey`. `fromJson` simplificado em ambos os modelos. Migration 0031 NOT APLICADA.
 
 ---
 
@@ -485,9 +485,9 @@ As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão imple
 ## Auditoria de segurança Fase 10 — 2026-07-04
 
 > Auditoria de dados e RLS apenas (UI ignorada — redesign visual pendente).
-> 3 achados identificados; 2 corrigidos em migration 0028 (NOT aplicada — aplicar via SQL Editor); 1 confirmado já correto.
+> 3 achados identificados; 2 corrigidos em migration 0028 (APLICADA 2026-07-07); 1 confirmado já correto.
 
-### F10-S1 ✅ RESOLVIDO (migration 0028 — NOT APLICADA) — `job_reports` INSERT sem check de participação
+### F10-S1 ✅ RESOLVIDO (migration 0028 — APLICADA 2026-07-07) — `job_reports` INSERT sem check de participação
 
 Policy `"Utilizador reporta problema"` (0001_baseline.sql:442) verificava apenas `auth.uid() = reporter_id`. Qualquer utilizador autenticado conseguia submeter um report para qualquer `job_id` — sem nenhuma relação com o job. A Dart call é um INSERT direto (não RPC), por isso a RLS era a única guarda.
 
@@ -495,7 +495,7 @@ Migration 0028: DROP policy antiga + nova policy `"Participante pode reportar o 
 
 ---
 
-### F10-S2 ✅ RESOLVIDO (migration 0028 — NOT APLICADA) — `worker_rating_summary` sem `security_invoker` em migration
+### F10-S2 ✅ RESOLVIDO (migration 0028 — APLICADA 2026-07-07) — `worker_rating_summary` sem `security_invoker` em migration
 
 Migration 0024 criou a view sem `security_invoker = true`. Fix aplicado diretamente no SQL Editor não estava capturado em nenhuma migration — rebuild a partir de migrations revertia o fix silenciosamente. Migration 0028 recria a view com `WITH (security_invoker = true)` e repete o GRANT. Comportamento atual não muda (ratings SELECT USING (true) é público), mas qualquer future tightening de RLS em `ratings` seria silenciosamente bypassado por uma view security-definer.
 
@@ -504,6 +504,14 @@ Migration 0024 criou a view sem `security_invoker = true`. Fix aplicado diretame
 ### F10-S3 ✅ JÁ CORRETO (confirmado 2026-07-04) — `fetchRatingsWithRaterNames` não expunha phone
 
 Select auditado: `'*, rater:profiles!rater_id(full_name)'`. O `*` aplica-se apenas a colunas de `ratings`; o join de `profiles` seleciona apenas `full_name`. Phone nunca esteve incluído. Nenhuma alteração necessária ao código Dart.
+
+---
+
+### F10-S4 ✅ RESOLVIDO (migrations 0031 + 0030 — NOT APLICADAS) — `worker_profiles` USING(true) expunha base_lat/base_lng
+
+Alta severidade: `base_lat`/`base_lng` (coordenadas de casa do worker) expostas a qualquer utilizador autenticado via REST direto (`GET /worker_profiles`). Policy de cliente (0027) também expunha as coords a clientes com job confirmado.
+
+Fix em 3 camadas: (1) Migration 0031 — FKs directos `job_proposals → profiles` e `help_acceptances → profiles`; (2) Dart Phase B — joins de proposta/candidatura roteiam via `profiles` diretamente, sem passar por `worker_profiles`; (3) Migration 0030 — worker_profiles restrito a owner-only SELECT; view `worker_profiles_public` (definer-style, **sem** security_invoker) expõe `bio, radius_km, tools, location_name, photos` a qualquer autenticado. Ordem obrigatória: 0031 → Dart Phase B → 0030. Ver `decisions_log.md` 2026-07-07.
 
 ---
 
@@ -609,7 +617,7 @@ Confirma que o padrão T4 (navegar depois invalidar) funciona quando aplicado co
 
 **Parte A ✅ RESOLVIDO 2026-07-01** — Formulário de proposta (`_ProposalSheet`): campo "Pessoas necessárias" (TextFormField) substituído por `CheckboxListTile` "Preciso de ajuda". Submenu condicional (não greyed-out, completamente ausente quando desmarcado) com dropdown 2–5 pessoas e toggle de equipamento. Ao desmarcar: `people_needed = 1` e `helpers_equipment_required = false`. Na discovery do ajudante (`_HelpRequestCard`): quando `equipment_required = false`, checkbox "Levo o meu equipamento" substituído por texto estático "Sem equipamento necessário" e `broughtEquipment = false` incondicional.
 
-**Parte B ✅ RESOLVIDO 2026-07-01** — Cards de discovery do worker (`_JobCard` em `worker_home_screen.dart`): texto de endereço removido, substituído por ícone de mapa (`Icons.map_outlined`) que abre Google Maps diretamente. Ecrã de detalhe do job (`worker_job_detail_screen.dart`): texto simples de endereço substituído por `AddressMapLink`. `worker_my_job_detail_screen.dart` e `worker_help_requests_screen.dart` confirmados já com `AddressMapLink`.
+**Parte B ✅ RESOLVIDO 2026-07-06 (cobertura completa)** — AddressMapLink (`https://www.google.com/maps/search/?api=1&query=$lat,$lng` via `LaunchMode.externalApplication`) presente em todos os ecrãs com endereço ou coordenadas: `worker_home_screen.dart`, `worker_job_detail_screen.dart` (detalhe + `_ProposalSheet`), `worker_my_job_detail_screen.dart`, `worker_jobs_screen.dart`, `client_job_detail_screen.dart`, `client_jobs_screen.dart`, `worker_help_requests_screen.dart` (`_AcceptedCard` + `_HelpRequestCard` com link compacto). Ver `decisions_log.md` 2026-07-06 para detalhe.
 
 ---
 

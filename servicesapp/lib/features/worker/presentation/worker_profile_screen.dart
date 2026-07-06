@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
@@ -37,6 +38,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
   final List<String> _tools = [];
   final List<String> _selectedServiceTypeIds = [];
   bool _saving = false;
+  String _locationName = '';
   bool _initialized = false;
   bool _geocoding = false;
   bool _showManualCoords = false;
@@ -69,6 +71,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
     _radiusKm = profile.radiusKm;
     _baseLat = profile.baseLat;
     _baseLng = profile.baseLng;
+    _locationName = profile.locationName;
     _tools
       ..clear()
       ..addAll(profile.tools);
@@ -91,9 +94,15 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
         ));
         return;
       }
+      final lat = locations.first.latitude;
+      final lng = locations.first.longitude;
       setState(() {
-        _baseLat = locations.first.latitude;
-        _baseLng = locations.first.longitude;
+        _baseLat = lat;
+        _baseLng = lng;
+      });
+      GeocodingService.reverseGeocode(lat, lng).then((result) {
+        if (!mounted || result == null) return;
+        setState(() => _locationName = result.locationName);
       });
     } catch (_) {
       if (!mounted) return;
@@ -142,6 +151,11 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
       setState(() {
         _baseLat = position.latitude;
         _baseLng = position.longitude;
+      });
+      GeocodingService.reverseGeocode(position.latitude, position.longitude)
+          .then((result) {
+        if (!mounted || result == null) return;
+        setState(() => _locationName = result.locationName);
       });
     } catch (e) {
       if (!mounted) return;
@@ -218,6 +232,7 @@ class _WorkerProfileScreenState extends ConsumerState<WorkerProfileScreen> {
         radiusKm: _radiusKm,
         baseLat: _baseLat,
         baseLng: _baseLng,
+        locationName: _locationName,
         tools: List.from(_tools),
         serviceTypeIds: List.from(_selectedServiceTypeIds),
       ));

@@ -75,7 +75,7 @@ class JobRequest {
         id: json['id'] as String,
         clientId: json['client_id'] as String,
         serviceTypeId: json['service_type_id'] as String,
-        addressText: json['address_text'] as String,
+        addressText: json['address_text'] as String? ?? '',
         locationLat: (json['location_lat'] as num).toDouble(),
         locationLng: (json['location_lng'] as num).toDouble(),
         dateMode: json['date_mode'] != null

@@ -57,9 +57,7 @@ class JobProposal {
         helpersEquipmentRequired:
             json['helpers_equipment_required'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
-        workerName: (json['worker_profiles'] as Map<String, dynamic>?)?
-            ['profiles']?['full_name'] as String?,
-        workerAvatarUrl: (json['worker_profiles'] as Map<String, dynamic>?)?
-            ['profiles']?['avatar_url'] as String?,
+        workerName: (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?,
+        workerAvatarUrl: (json['profiles'] as Map<String, dynamic>?)?['avatar_url'] as String?,
       );
 }

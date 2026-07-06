@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../../core/constants/enums.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -204,24 +203,11 @@ class _JobCard extends StatelessWidget {
                         icon: Icons.straighten_outlined, label: sizeLabel),
                 ],
               ),
-              if (job.addressText.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: GestureDetector(
-                    onTap: () async {
-                      final uri = Uri.parse(
-                        'https://www.google.com/maps/search/?api=1'
-                        '&query=${Uri.encodeComponent('${job.locationLat},${job.locationLng}')}',
-                      );
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
-                    },
-                    child: Icon(
-                      Icons.map_outlined,
-                      size: 16,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
+              if (job.locationLat != 0 || job.locationLng != 0)
+                AddressMapLink(
+                  address: job.addressText,
+                  lat: job.locationLat,
+                  lng: job.locationLng,
                 ),
               if (job.proposalCount > 0) ...[
                 const SizedBox(height: 6),

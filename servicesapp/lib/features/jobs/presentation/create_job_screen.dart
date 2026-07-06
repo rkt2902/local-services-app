@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/job_providers.dart';
@@ -74,6 +75,18 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
     }
   }
 
+  void _onMapTap(TapPosition _, LatLng point) {
+    setState(() => _pinPosition = point);
+    _reverseGeocodePin(point.latitude, point.longitude);
+  }
+
+  Future<void> _reverseGeocodePin(double lat, double lng) async {
+    final result = await GeocodingService.reverseGeocode(lat, lng);
+    if (result != null && mounted && _addressController.text.isEmpty) {
+      setState(() => _addressController.text = result.addressText);
+    }
+  }
+
   Future<void> _getLocation() async {
     setState(() {
       _loadingLocation = true;
@@ -98,6 +111,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       final latlng = LatLng(position.latitude, position.longitude);
       setState(() => _pinPosition = latlng);
       _mapController.move(latlng, 14);
+      _reverseGeocodePin(position.latitude, position.longitude);
     } catch (e) {
       if (!mounted) return;
       setState(
@@ -318,8 +332,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                       initialCenter:
                           _pinPosition ?? const LatLng(38.7169, -9.1399),
                       initialZoom: 14,
-                      onTap: (_, point) =>
-                          setState(() => _pinPosition = point),
+                      onTap: _onMapTap,
                     ),
                     children: [
                       TileLayer(

@@ -191,7 +191,7 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                     ],
                   ),
                 ],
-                if (job.addressText.isNotEmpty) ...[
+                if (job.locationLat != 0 || job.locationLng != 0) ...[
                   const SizedBox(height: 12),
                   AddressMapLink(
                     address: job.addressText,
@@ -439,6 +439,7 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final job = ref.watch(jobByIdProvider(widget.jobId)).asData?.value;
 
     return SafeArea(
       child: Padding(
@@ -456,6 +457,14 @@ class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Enviar proposta', style: theme.textTheme.titleLarge),
+                if (job != null && (job.locationLat != 0 || job.locationLng != 0)) ...[
+                  const SizedBox(height: 8),
+                  AddressMapLink(
+                    address: job.addressText,
+                    lat: job.locationLat,
+                    lng: job.locationLng,
+                  ),
+                ],
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _rateController,

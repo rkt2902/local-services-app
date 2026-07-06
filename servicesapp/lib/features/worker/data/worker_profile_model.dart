@@ -8,6 +8,7 @@ class WorkerProfile {
   final int radiusKm;
   final double baseLat;
   final double baseLng;
+  final String locationName;
   final List<String> tools;
   final List<String> serviceTypeIds;
 
@@ -21,6 +22,7 @@ class WorkerProfile {
     required this.radiusKm,
     required this.baseLat,
     required this.baseLng,
+    this.locationName = '',
     required this.tools,
     required this.serviceTypeIds,
   });
@@ -42,6 +44,7 @@ class WorkerProfile {
         radiusKm: (json['radius_km'] as num).toInt(),
         baseLat: (json['base_lat'] as num).toDouble(),
         baseLng: (json['base_lng'] as num).toDouble(),
+        locationName: json['location_name'] as String? ?? '',
         tools: List<String>.from(json['tools'] as List? ?? []),
         serviceTypeIds: serviceTypeIds,
       );
@@ -53,6 +56,7 @@ class WorkerProfile {
         'base_lat': baseLat,
         'base_lng': baseLng,
         'tools': tools,
+        if (locationName.isNotEmpty) 'location_name': locationName,
       };
 
   WorkerProfile copyWith({
@@ -64,6 +68,7 @@ class WorkerProfile {
     int? radiusKm,
     double? baseLat,
     double? baseLng,
+    String? locationName,
     List<String>? tools,
     List<String>? serviceTypeIds,
   }) =>
@@ -77,6 +82,7 @@ class WorkerProfile {
         radiusKm: radiusKm ?? this.radiusKm,
         baseLat: baseLat ?? this.baseLat,
         baseLng: baseLng ?? this.baseLng,
+        locationName: locationName ?? this.locationName,
         tools: tools ?? this.tools,
         serviceTypeIds: serviceTypeIds ?? this.serviceTypeIds,
       );

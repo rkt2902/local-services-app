@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/address_map_link.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 
@@ -149,13 +150,11 @@ class _JobCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              if (job.addressText.isNotEmpty)
-                Text(
-                  job.addressText,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              if (job.locationLat != 0 || job.locationLng != 0)
+                AddressMapLink(
+                  address: job.addressText,
+                  lat: job.locationLat,
+                  lng: job.locationLng,
                 ),
               const SizedBox(height: 4),
               Text(dateText, style: theme.textTheme.bodySmall),

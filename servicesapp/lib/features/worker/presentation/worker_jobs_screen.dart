@@ -12,6 +12,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
+import '../../../core/widgets/address_map_link.dart';
 
 List<(JobProposal, JobRequest)> _parseEntries(
     List<Map<String, dynamic>> raw) {
@@ -355,6 +356,14 @@ class _JobCard extends StatelessWidget {
                     _MetaItem(icon: Icons.euro_outlined, label: estimate),
                 ],
               ),
+              if (job.locationLat != 0 || job.locationLng != 0) ...[
+                const SizedBox(height: 4),
+                AddressMapLink(
+                  address: job.addressText,
+                  lat: job.locationLat,
+                  lng: job.locationLng,
+                ),
+              ],
               if (proposal.peopleNeeded > 1) ...[
                 const SizedBox(height: 6),
                 GestureDetector(

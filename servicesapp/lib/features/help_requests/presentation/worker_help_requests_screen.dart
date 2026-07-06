@@ -537,7 +537,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 ),
               ),
             ],
-            if (widget.acceptance.addressText.isNotEmpty) ...[
+            if (widget.acceptance.locationLat != 0 || widget.acceptance.locationLng != 0) ...[
               const SizedBox(height: 4),
               AddressMapLink(
                 address: widget.acceptance.addressText,
@@ -778,6 +778,38 @@ class _HelpRequestCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (summary.locationLat != 0 || summary.locationLng != 0) ...[
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () async {
+                  final uri = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1'
+                    '&query=${Uri.encodeComponent('${summary.locationLat},${summary.locationLng}')}',
+                  );
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.map_outlined, size: 16,
+                          color: theme.colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Ver no mapa',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                          decorationColor: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             if (summary.equipmentRequired)
               Row(children: [

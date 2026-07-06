@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
@@ -33,6 +34,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
   final List<String> _tools = [];
   final List<String> _selectedServiceTypeIds = [];
   bool _saving = false;
+  String _locationName = '';
   bool _geocoding = false;
   bool _showManualCoords = false;
   final _addressSearchController = TextEditingController();
@@ -63,9 +65,15 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
         ));
         return;
       }
+      final lat = locations.first.latitude;
+      final lng = locations.first.longitude;
       setState(() {
-        _baseLat = locations.first.latitude;
-        _baseLng = locations.first.longitude;
+        _baseLat = lat;
+        _baseLng = lng;
+      });
+      GeocodingService.reverseGeocode(lat, lng).then((result) {
+        if (!mounted || result == null) return;
+        setState(() => _locationName = result.locationName);
       });
     } catch (_) {
       if (!mounted) return;
@@ -114,6 +122,11 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       setState(() {
         _baseLat = position.latitude;
         _baseLng = position.longitude;
+      });
+      GeocodingService.reverseGeocode(position.latitude, position.longitude)
+          .then((result) {
+        if (!mounted || result == null) return;
+        setState(() => _locationName = result.locationName);
       });
     } catch (e) {
       if (!mounted) return;
@@ -200,6 +213,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
         radiusKm: _radiusKm,
         baseLat: _baseLat!,
         baseLng: _baseLng!,
+        locationName: _locationName,
         tools: _tools,
         serviceTypeIds: _selectedServiceTypeIds,
       ));

@@ -85,7 +85,7 @@ class HelpRequestRepository {
       String helpRequestId) async {
     final data = await _client
         .from('help_acceptances')
-        .select('*, worker_profiles(profiles(full_name, avatar_url))')
+        .select('*, profiles!help_acceptances_worker_id_fkey(full_name, avatar_url)')
         .eq('help_request_id', helpRequestId)
         .order('created_at', ascending: true);
     return (data as List).map((e) => HelpAcceptance.fromJson(e)).toList();

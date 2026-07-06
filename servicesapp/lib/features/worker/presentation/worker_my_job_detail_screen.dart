@@ -424,7 +424,7 @@ class _WorkerMyJobDetailScreenState
                   serviceType?.name ?? '—'),
               _infoRow(context, Icons.calendar_today_outlined, 'Data',
                   _formatDate(job.preferredDate)),
-              if (job.addressText.isNotEmpty)
+              if (job.locationLat != 0 || job.locationLng != 0)
                 AddressMapLink(
                   address: job.addressText,
                   lat: job.locationLat,

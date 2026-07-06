@@ -190,8 +190,7 @@ class HelpAcceptance {
   });
 
   factory HelpAcceptance.fromJson(Map<String, dynamic> json) {
-    final wpData = json['worker_profiles'] as Map<String, dynamic>?;
-    final profileData = wpData?['profiles'] as Map<String, dynamic>?;
+    final profileData = json['profiles'] as Map<String, dynamic>?;
     return HelpAcceptance(
       id: json['id'] as String,
       helpRequestId: json['help_request_id'] as String,

@@ -3,6 +3,109 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-07 — F10-S4 fix definitivo: worker_profiles RLS + view + FKs directos + geocoding
+
+**Decisão de design:** `worker_profiles` restrito a owner-only SELECT (`profile_id = auth.uid()`). View pública `worker_profiles_public` expõe colunas seguras (`bio`, `radius_km`, `tools`, `location_name`, `photos`) a qualquer utilizador autenticado. View criada **sem `security_invoker`** (definer-style, default PostgreSQL) — é deliberado: com `security_invoker=true` a view retornaria 0 rows para não-owners, silenciosamente, sem erro. Diferença crítica face a `worker_rating_summary` (0028, que usa `security_invoker=true` corretamente porque a sua tabela subjacente tem `USING(true)` — sem restrição a bypassed).
+
+**Migration 0031** (`0031_missing_profile_fks.sql`) — NOT APLICADA:
+- Adiciona `job_proposals_worker_id_fkey` → `profiles(id)` (FK declarado em 0001_baseline mas nunca registado em `pg_constraint` — mesmo root cause do 0029)
+- Adiciona `help_acceptances_worker_id_fkey` → `profiles(id)` (idem)
+- Puramente aditivo; zero alteração de comportamento; seguro a qualquer momento
+
+**Migration 0030** (`0030_worker_profiles_security.sql`) — NOT APLICADA (aplicar DEPOIS de 0031 + Dart Phase B verificados em prod):
+- `ADD COLUMN IF NOT EXISTS location_name text`
+- DROP `"Worker profiles são públicos"` (USING(true) — causa raiz de F10-S4)
+- DROP `"Cliente ve perfil de worker com job confirmado"` (0027 — também expunha base_lat/base_lng a clientes confirmados)
+- CREATE `"Worker lê o seu próprio perfil"` — `USING (profile_id = auth.uid())`
+- CREATE VIEW `worker_profiles_public` (definer-style, sem security_invoker) — `bio, radius_km, tools, location_name, photos`
+- INSERT/UPDATE policies não afetadas (`"Worker cria o seu próprio worker profile"`, `"Worker atualiza o seu próprio worker profile"`)
+
+**Phase B Dart** — selects atualizados para join directo (não via worker_profiles):
+- `proposal_repository.dart:42` — `profiles!job_proposals_worker_id_fkey(full_name, avatar_url)`
+- `help_request_repository.dart:88` — `profiles!help_acceptances_worker_id_fkey(full_name, avatar_url)`
+- `proposal_model.dart` + `help_request_model.dart` fromJson — `json['profiles']` (um nível)
+- Phase B3: grep exaustivo de `lib/` para `worker_profiles(` como join target — zero ocorrências adicionais
+
+**Phase D Dart** — `create_job_screen.dart`: `GeocodingService.reverseGeocode` chamado após GPS (`_getLocation`) e tap no mapa (`_onMapTap`). Só preenche `_addressController` se estiver vazio — não sobrescreve input manual. Import `geocoding_service.dart` adicionado.
+
+**Ordem de aplicação obrigatória:** 0031 (apply) → Dart Phase B (deploy + verify) → 0030 (apply). Inverter causa janela de quebra.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-06 — Security fix: worker_profiles USING(true) eliminado + GeocodingService (Nominatim)
+
+**Achado de segurança (alta severidade):** a policy `"Worker profiles são públicos"` (0001_baseline.sql) usava `USING (true)` — qualquer utilizador autenticado podia ler `base_lat` e `base_lng` de qualquer worker diretamente via REST. A policy `"Cliente ve perfil de worker com job confirmado"` (migration 0027) ia na mesma direção mas com scope mais restrito.
+
+**Migration 0030** (escrita, NOT APLICADA — aplicar via Supabase SQL Editor):
+1. `ALTER TABLE worker_profiles ADD COLUMN IF NOT EXISTS location_name text` — nome público da cidade/zona do worker (sem rua ou coordenadas exatas).
+2. DROP `"Worker profiles são públicos"` + DROP `"Cliente ve perfil de worker com job confirmado"` em `worker_profiles`.
+3. CREATE `"Worker lê o seu próprio perfil"` — `USING (profile_id = auth.uid())` — worker lê apenas o seu próprio row.
+4. CREATE VIEW `public.worker_profiles_public` (`WITH (security_invoker = true)`) — expõe `profile_id, bio, service_radius_km, tools_description, location_name, created_at, updated_at` — sem `base_lat`, `base_lng`, sem `photos`. GRANT SELECT TO authenticated.
+
+**Reads de Dart que precisam de atenção após migration aplicada (NOT alterados agora):**
+- `proposal_repository.dart` — join `.select('*, worker_profiles(profiles!...fkey(...))')` chamado pelo cliente. Após remoção da policy de cliente, join devolve null. **Precisa de update para join direto em `profiles`.**
+- `help_request_repository.dart` — join `.select('*, worker_profiles(profiles(...))')` chamado pelo worker principal para ver candidatos. Worker A não pode ler `worker_profiles` de worker B após migration. **Precisa de update.**
+- `worker_repository.dart fetchProfile()` / `hasProfile()` — leem o próprio row — continuam a funcionar.
+
+**GeocodingService** — `lib/core/services/geocoding_service.dart`:
+- Nominatim (OpenStreetMap) — gratuito, sem API key, via `http: ^1.2.2`
+- `reverseGeocode(lat, lng)` → `({String locationName, String addressText})?`
+- `locationName` = cidade/town/village/county mais específico disponível (para `worker_profiles.location_name`)
+- `addressText` = rua + número + código postal + cidade (para uso futuro como `address_text` padrão em criação de job)
+- User-Agent: `ProJardim/1.0 (projardim@example.com)` — obrigatório pela política Nominatim
+- Retorna `null` em qualquer erro — callers não crasham
+
+**Wiring:** `worker_setup_screen.dart` e `worker_profile_screen.dart` — após GPS ou pesquisa de morada, fire-and-forget `GeocodingService.reverseGeocode` → `_locationName` em estado → passado a `WorkerProfile(locationName: ...)` no save. `toWorkerJson()` inclui `location_name` condicionalmente (`if (locationName.isNotEmpty)`) — evita erro PostgREST antes de migration aplicada.
+
+`flutter analyze`: 0 issues. Migration 0030 NOT aplicada.
+
+---
+
+## 2026-07-06 — AddressMapLink: render por coordenadas, não por address text
+
+**Problema:** `AddressMapLink` nunca aparecia porque todos os callers usavam `if (job.addressText.isNotEmpty)` como guard — e `address_text` estava vazio/null nos dados de teste.
+
+**Fix em 3 partes:**
+
+1. **`address_map_link.dart`** — widget agora renderiza sempre que `lat != 0 || lng != 0`. Se `address` estiver vazio, mostra "Ver no mapa" como label. Só oculta com `SizedBox.shrink()` se `lat == 0 && lng == 0` (sem dados de localização).
+
+2. **Guards substituídos** — `if (job.addressText.isNotEmpty)` → `if (job.locationLat != 0 || job.locationLng != 0)` em todos os 8 pontos de chamada:
+   - `client_job_detail_screen.dart`
+   - `worker_home_screen.dart`
+   - `worker_jobs_screen.dart`
+   - `client_jobs_screen.dart`
+   - `worker_job_detail_screen.dart` (detalhe + `_ProposalSheet`)
+   - `worker_my_job_detail_screen.dart`
+   - `worker_help_requests_screen.dart` (`_AcceptedCard`)
+
+3. **`job_model.dart`** — `json['address_text'] as String` → `json['address_text'] as String? ?? ''` — null-safe, evita crash em runtime se a coluna estiver NULL na BD.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-06 — Google Maps integration completa em todos os ecrãs
+
+**URL verificado:** `https://www.google.com/maps/search/?api=1&query=$lat,$lng` via `LaunchMode.externalApplication`. Sem `canLaunchUrl()` — só `launchUrl`. AndroidManifest já tem `<data android:scheme="https"/>` em queries — sem alterações ao manifesto.
+
+**AddressMapLink** (ícone + label "Localização" + morada sublinhada + seta externa) adicionado a:
+- `worker_home_screen.dart` — discovery card (substituiu GestureDetector inline)
+- `worker_job_detail_screen.dart` — detalhe do pedido + topo do `_ProposalSheet`
+- `worker_my_job_detail_screen.dart` — já existia
+- `worker_jobs_screen.dart` — cards de propostas (todas as tabs) — **adicionado agora**
+- `client_job_detail_screen.dart` — aba Detalhes para todos os estados — **adicionado agora**
+- `client_jobs_screen.dart` — cards da lista (plain text substituído por link tappable) — **adicionado agora**
+- `worker_help_requests_screen.dart` `_AcceptedCard` — já existia
+
+**Compact map link** (ícone + "Ver no mapa" inline) adicionado a:
+- `worker_help_requests_screen.dart` `_HelpRequestCard` (discovery) — **adicionado agora**. `HelpRequestSummary` tem lat/lng mas não `address_text` (RPC `get_help_requests_in_radius` não o devolve) — AddressMapLink inaplicável; link compacto com coordenadas diretas.
+
+**Nota:** o endereço em `client_job_detail_screen.dart` é do próprio pedido do cliente — sem exposição de morada de terceiros.
+
+---
+
 ## 2026-07-06 — Bug 3 causa raiz confirmada e corrigida (migration 0029 — NOT APLICADA)
 
 **Causa raiz:** PostgREST devolve `worker_profiles: {profiles: null}` no join de dois saltos `worker_profiles(profiles(full_name, avatar_url))` apesar do JOIN SQL direto funcionar corretamente. A causa mais provável é que o FOREIGN KEY `worker_profiles.profile_id → profiles(id)` (declarado inline em 0001_baseline.sql com `PRIMARY KEY REFERENCES profiles(id)`) está ausente de `pg_constraint` na BD viva — possivelmente porque `CREATE TABLE IF NOT EXISTS` saltou o corpo da tabela quando a tabela já existia sem o FK. Sem este FK em `pg_constraint`, o PostgREST não consegue construir o segundo salto do join no schema cache e retorna null silenciosamente.
@@ -17,7 +120,7 @@
 
 `[BUG3_DIAG] debugPrint` removido de `proposal_repository.dart`. Import `flutter/foundation.dart` removido.
 
-Migration 0029 **NOT aplicada** — aplicar via Supabase SQL Editor.
+Migration 0029 **APLICADA** em 2026-07-07.
 
 `flutter analyze`: 0 issues.
 
@@ -92,7 +195,7 @@ Investigado e documentado como limitação conhecida: a atualização de estado 
 
 **F10-S3 — `fetchRatingsWithRaterNames` audited, sem alteração necessária:** Select atual é `'*, rater:profiles!rater_id(full_name)'` — phone já não estava incluído no join. O `*` aplica-se apenas a colunas de `ratings` (stars, comment, rater_id, ratee_id, job_id, created_at). Nenhuma exposição de phone; nenhuma alteração ao código Dart.
 
-Migration 0028 escrita mas **NOT aplicada** — aplicar via Supabase SQL Editor.
+Migration 0028 **APLICADA** em 2026-07-07.
 
 ---
 
