@@ -177,7 +177,8 @@ CREATE TABLE IF NOT EXISTS job_proposals (
   status                      text        NOT NULL DEFAULT 'pending'
                                 CHECK (status IN ('pending', 'accepted', 'rejected', 'superseded')),
   created_at                  timestamptz NOT NULL DEFAULT now(),
-  updated_at                  timestamptz NOT NULL DEFAULT now()
+  updated_at                  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT check_people_needed CHECK (people_needed >= 1)
 );
 
 -- ── notifications ────────────────────────────────────────────
@@ -206,7 +207,8 @@ CREATE TABLE IF NOT EXISTS help_requests (
                             CHECK (status IN ('pending_approval', 'open', 'filled', 'cancelled')),
   equipment_required      boolean     NOT NULL DEFAULT false,
   created_post_confirmation boolean   NOT NULL DEFAULT false,
-  created_at              timestamptz NOT NULL DEFAULT now()
+  created_at              timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT check_slots_needed CHECK (slots_needed >= 1)
 );
 
 -- ── help_acceptances ─────────────────────────────────────────
@@ -591,7 +593,29 @@ CREATE POLICY "Leitura pública de avaliações"
 
 CREATE POLICY "Utilizador cria a sua avaliação"
   ON ratings FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = rater_id);
+  WITH CHECK (
+    auth.uid() = rater_id
+    AND EXISTS (
+      SELECT 1 FROM job_requests jr
+      WHERE  jr.id     = ratings.job_id
+        AND  jr.status = 'completed'
+        AND (
+          jr.client_id = auth.uid()
+          OR EXISTS (
+            SELECT 1 FROM job_proposals jp
+            WHERE  jp.id = jr.accepted_proposal_id AND jp.worker_id = auth.uid()
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM   help_requests    hr
+            JOIN   help_acceptances ha ON ha.help_request_id = hr.id
+                                      AND ha.status = 'accepted'
+                                      AND ha.worker_id = auth.uid()
+            WHERE  hr.proposal_id = jr.accepted_proposal_id
+          )
+        )
+    )
+  );
 
 -- ─── job_reports ─────────────────────────────────────────────
 
@@ -1246,6 +1270,10 @@ DECLARE
   v_job       job_requests%ROWTYPE;
   v_worker_id uuid;
 BEGIN
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'Esta função é apenas para execução via cron.';
+  END IF;
+
   FOR v_job IN
     SELECT * FROM job_requests
     WHERE  status     = 'awaiting_confirmation'
@@ -1286,6 +1314,10 @@ AS $function$
 DECLARE
   v_job job_requests%ROWTYPE;
 BEGIN
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'Esta função é apenas para execução via cron.';
+  END IF;
+
   FOR v_job IN
     SELECT * FROM job_requests
     WHERE  status         = 'open'
@@ -2168,7 +2200,10 @@ CREATE POLICY "Leitura pública de avatars"
 DROP POLICY IF EXISTS "Upload avatar autenticado"             ON storage.objects;
 CREATE POLICY "Upload avatar autenticado"
   ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND auth.uid()::text = regexp_replace(storage.filename(name), '\.[^.]+$', '')
+  );
 
 DROP POLICY IF EXISTS "avatars: update pelo próprio utilizador" ON storage.objects;
 CREATE POLICY "avatars: update pelo próprio utilizador"
@@ -2199,7 +2234,10 @@ CREATE POLICY "Leitura publica de job-photos"
 DROP POLICY IF EXISTS "Upload autenticado em job-photos"     ON storage.objects;
 CREATE POLICY "Upload autenticado em job-photos"
   ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'job-photos' AND auth.role() = 'authenticated');
+  WITH CHECK (
+    bucket_id = 'job-photos'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
 
 DROP POLICY IF EXISTS "job-photos: delete pelo dono"         ON storage.objects;
 CREATE POLICY "job-photos: delete pelo dono"

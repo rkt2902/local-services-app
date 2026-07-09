@@ -187,16 +187,13 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     try {
       final currentUser = ref.read(currentUserProvider)!;
       final profileData = await ref
-          .read(supabaseClientProvider)
-          .from('profiles')
-          .select('full_name, phone')
-          .eq('id', currentUser.id)
-          .maybeSingle();
+          .read(authRepositoryProvider)
+          .fetchNameAndPhone(currentUser.id);
       if (profileData == null) {
         throw Exception('Perfil de utilizador não encontrado. Tenta fazer login novamente.');
       }
-      final existingName = profileData['full_name'] as String;
-      final existingPhone = profileData['phone'] as String? ?? '';
+      final existingName = profileData.fullName;
+      final existingPhone = profileData.phone;
       final repo = ref.read(workerRepositoryProvider);
       String? avatarUrl;
       if (_avatar != null) avatarUrl = await repo.uploadAvatar(currentUser.id, _avatar!);

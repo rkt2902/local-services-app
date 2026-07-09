@@ -35,6 +35,20 @@ class AuthRepository {
     });
   }
 
+  Future<({String fullName, String phone})?> fetchNameAndPhone(
+      String userId) async {
+    final data = await _client
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', userId)
+        .maybeSingle();
+    if (data == null) return null;
+    return (
+      fullName: data['full_name'] as String,
+      phone: data['phone'] as String? ?? '',
+    );
+  }
+
   Future<UserRole?> fetchUserRole(String userId) async {
     final data = await _client
         .from('profiles')

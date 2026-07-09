@@ -3,6 +3,12 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-10 — P8/B4 resolvido: chamada Supabase em widget movida para AuthRepository.fetchNameAndPhone
+
+`worker_setup_screen.dart:189` — `ref.read(supabaseClientProvider).from('profiles').select('full_name, phone')` movido para `AuthRepository.fetchNameAndPhone(userId)`. Widget usa agora `ref.read(authRepositoryProvider).fetchNameAndPhone(...)`. Comportamento idêntico; 0 violações arquiteturais.
+
+---
+
 ## 2026-07-09 — Auditoria de docs e roadmap (Task 2)
 
 Leitura de todos os ficheiros em `docs/` e dos ficheiros chave de `lib/` (proposal_repository, job_repository, worker_setup_screen, reschedule_dialog). Itens verificados contra código real:

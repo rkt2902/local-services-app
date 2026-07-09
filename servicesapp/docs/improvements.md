@@ -33,7 +33,7 @@
 | **P-8-8** — Jobs cancelados em `open` invisíveis no histórico | Pode ser intencional (menos lixo) ou omissão — não está registado | S | decisão de produto necessária |
 | **SA1** — `auto_confirm`/`auto_expire` sem check auth | Qualquer autenticado pode invocar via RPC; funções são idempotentes | S | migration (manual apply) |
 | **B1/B2 Fases 6-7** — Validação de email e telefone | Telefone aceita "1"; link WhatsApp construído com número inválido = link quebrado | S | nenhuma |
-| **P8/B4** — `worker_setup_screen` chama Supabase diretamente | Única violação do princípio arquitetural #2 | S | nenhuma |
+| ~~**P8/B4**~~ ✅ — `worker_setup_screen` chama Supabase diretamente | Resolvido 2026-07-10: `fetchNameAndPhone` em `AuthRepository` | S | — |
 
 ### 🔵 PÓS-LANÇAMENTO — deliberadamente adiado
 
@@ -121,11 +121,9 @@ HelpAcceptanceStatus.accepted => 'Aceite',     // não deve aparecer aqui
 
 ---
 
-### P8 / B4 Fases 0-3 — `worker_setup_screen.dart` chama Supabase direto no widget
+### ~~P8 / B4 Fases 0-3~~ ✅ RESOLVIDO 2026-07-10 — `worker_setup_screen.dart` chamava Supabase direto no widget
 
-`worker_setup_screen.dart:178` — única violação de architecture.md Princípio #2 ("Nunca chamar Supabase diretamente dentro de widgets").
-
-**Acção:** mover o `from('profiles').select('full_name, phone')` para `fetchBasicProfile(userId)` no `WorkerRepository` ou `ClientRepository`.
+`from('profiles').select('full_name, phone')` movido para `AuthRepository.fetchNameAndPhone(userId)`. Widget usa `ref.read(authRepositoryProvider).fetchNameAndPhone(...)`. Comportamento idêntico.
 
 ---
 
