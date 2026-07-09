@@ -1,0 +1,1475 @@
+section,object_type,object_name,definition
+1_tables,column,help_acceptances.agreed_rate,numeric DEFAULT 0 NOT NULL
+1_tables,column,help_acceptances.brought_equipment,boolean DEFAULT false NOT NULL
+1_tables,column,help_acceptances.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,help_acceptances.help_request_id,uuid NOT NULL
+1_tables,column,help_acceptances.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,help_acceptances.status,text DEFAULT 'pending'::text NOT NULL
+1_tables,column,help_acceptances.worker_id,uuid NOT NULL
+1_tables,column,help_requests.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,help_requests.created_post_confirmation,boolean DEFAULT false NOT NULL
+1_tables,column,help_requests.equipment_required,boolean DEFAULT false NOT NULL
+1_tables,column,help_requests.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,help_requests.job_id,uuid NOT NULL
+1_tables,column,help_requests.proposal_id,uuid NOT NULL
+1_tables,column,help_requests.slots_needed,integer DEFAULT 1 NOT NULL
+1_tables,column,help_requests.status,text DEFAULT 'open'::text NOT NULL
+1_tables,column,job_proposals.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,job_proposals.estimated_hours,numeric
+1_tables,column,job_proposals.estimated_hours_max,numeric
+1_tables,column,job_proposals.estimated_hours_min,numeric
+1_tables,column,job_proposals.helpers_equipment_required,boolean DEFAULT false NOT NULL
+1_tables,column,job_proposals.hourly_rate,numeric NOT NULL
+1_tables,column,job_proposals.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,job_proposals.job_id,uuid NOT NULL
+1_tables,column,job_proposals.notes,text
+1_tables,column,job_proposals.people_needed,integer DEFAULT 1 NOT NULL
+1_tables,column,job_proposals.scheduled_date,date
+1_tables,column,job_proposals.scheduled_flexible,boolean DEFAULT false NOT NULL
+1_tables,column,job_proposals.scheduled_time,time without time zone
+1_tables,column,job_proposals.status,text DEFAULT 'pending'::text NOT NULL
+1_tables,column,job_proposals.updated_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,job_proposals.worker_id,uuid NOT NULL
+1_tables,column,job_reports.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,job_reports.description,text NOT NULL
+1_tables,column,job_reports.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,job_reports.job_id,uuid NOT NULL
+1_tables,column,job_reports.reporter_id,uuid NOT NULL
+1_tables,column,job_requests.accepted_proposal_id,uuid
+1_tables,column,job_requests.address_text,text NOT NULL
+1_tables,column,job_requests.availability_text,text
+1_tables,column,job_requests.cancel_reason,text
+1_tables,column,job_requests.cancel_reason_detail,text
+1_tables,column,job_requests.cancelled_by,uuid
+1_tables,column,job_requests.cancelled_worker_id,uuid
+1_tables,column,job_requests.client_id,uuid NOT NULL
+1_tables,column,job_requests.confirmed_date,date
+1_tables,column,job_requests.confirmed_flexible,boolean
+1_tables,column,job_requests.confirmed_time,time without time zone
+1_tables,column,job_requests.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,job_requests.date_mode,text DEFAULT 'flexible'::text NOT NULL
+1_tables,column,job_requests.description,text NOT NULL
+1_tables,column,job_requests.excluded_worker_ids,ARRAY DEFAULT '{}'::uuid[] NOT NULL
+1_tables,column,job_requests.expires_at,timestamp with time zone DEFAULT (now() + '48:00:00'::interval) NOT NULL
+1_tables,column,job_requests.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,job_requests.location_lat,numeric NOT NULL
+1_tables,column,job_requests.location_lng,numeric NOT NULL
+1_tables,column,job_requests.preferred_date,date
+1_tables,column,job_requests.proposal_count,integer DEFAULT 0 NOT NULL
+1_tables,column,job_requests.reopen_count_client,integer DEFAULT 0 NOT NULL
+1_tables,column,job_requests.reopen_count_worker,integer DEFAULT 0 NOT NULL
+1_tables,column,job_requests.reopened_from,uuid
+1_tables,column,job_requests.reschedule_proposed_by,uuid
+1_tables,column,job_requests.reschedule_proposed_date,date
+1_tables,column,job_requests.reschedule_proposed_flexible,boolean
+1_tables,column,job_requests.reschedule_proposed_time,time without time zone
+1_tables,column,job_requests.reschedule_status,text
+1_tables,column,job_requests.service_type_id,uuid NOT NULL
+1_tables,column,job_requests.size_estimate,text
+1_tables,column,job_requests.status,text DEFAULT 'open'::text NOT NULL
+1_tables,column,job_requests.updated_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,job_requests.urgency,text
+1_tables,column,notifications.body,text NOT NULL
+1_tables,column,notifications.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,notifications.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,notifications.read,boolean DEFAULT false NOT NULL
+1_tables,column,notifications.related_id,uuid
+1_tables,column,notifications.related_type,text
+1_tables,column,notifications.title,text NOT NULL
+1_tables,column,notifications.type,text NOT NULL
+1_tables,column,notifications.user_id,uuid NOT NULL
+1_tables,column,profiles.avatar_url,text
+1_tables,column,profiles.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,profiles.full_name,text NOT NULL
+1_tables,column,profiles.id,uuid NOT NULL
+1_tables,column,profiles.phone,text
+1_tables,column,profiles.role,text NOT NULL
+1_tables,column,profiles.updated_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,ratings.comment,text
+1_tables,column,ratings.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,ratings.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,ratings.job_id,uuid NOT NULL
+1_tables,column,ratings.ratee_id,uuid NOT NULL
+1_tables,column,ratings.rater_id,uuid NOT NULL
+1_tables,column,ratings.stars,integer NOT NULL
+1_tables,column,service_types.active,boolean DEFAULT true NOT NULL
+1_tables,column,service_types.category_id,uuid NOT NULL
+1_tables,column,service_types.id,uuid DEFAULT uuid_generate_v4() NOT NULL
+1_tables,column,service_types.name,text NOT NULL
+1_tables,column,service_types.slug,text NOT NULL
+1_tables,column,worker_profiles.base_lat,numeric NOT NULL
+1_tables,column,worker_profiles.base_lng,numeric NOT NULL
+1_tables,column,worker_profiles.bio,text
+1_tables,column,worker_profiles.created_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,worker_profiles.default_hourly_rate,numeric
+1_tables,column,worker_profiles.location_name,text
+1_tables,column,worker_profiles.photos,ARRAY DEFAULT '{}'::text[] NOT NULL
+1_tables,column,worker_profiles.profile_id,uuid NOT NULL
+1_tables,column,worker_profiles.radius_km,integer DEFAULT 10 NOT NULL
+1_tables,column,worker_profiles.tools,ARRAY DEFAULT '{}'::text[] NOT NULL
+1_tables,column,worker_profiles.updated_at,timestamp with time zone DEFAULT now() NOT NULL
+1_tables,column,worker_service_types.service_type_id,uuid NOT NULL
+1_tables,column,worker_service_types.worker_id,uuid NOT NULL
+2_constraints,CHECK,help_acceptances.check_agreed_rate,CHECK (((status <> 'accepted'::text) OR (agreed_rate > (0)::numeric)))
+2_constraints,CHECK,help_acceptances.help_acceptances_status_check,"CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'cancelled'::text])))"
+2_constraints,CHECK,help_requests.help_requests_status_check,"CHECK ((status = ANY (ARRAY['pending_approval'::text, 'open'::text, 'filled'::text, 'cancelled'::text])))"
+2_constraints,CHECK,job_proposals.job_proposals_status_check,"CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text, 'superseded'::text])))"
+2_constraints,CHECK,job_requests.job_requests_date_mode_check,"CHECK ((date_mode = ANY (ARRAY['fixed'::text, 'flexible'::text, 'availability'::text])))"
+2_constraints,CHECK,job_requests.job_requests_reschedule_status_check,"CHECK ((reschedule_status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text])))"
+2_constraints,CHECK,job_requests.job_requests_status_check,"CHECK ((status = ANY (ARRAY['open'::text, 'confirmed'::text, 'awaiting_confirmation'::text, 'completed'::text, 'no_response'::text, 'cancelled'::text])))"
+2_constraints,CHECK,job_requests.job_requests_urgency_check,"CHECK ((urgency = ANY (ARRAY['normal'::text, 'urgent'::text])))"
+2_constraints,CHECK,profiles.profiles_role_check,"CHECK ((role = ANY (ARRAY['client'::text, 'worker'::text])))"
+2_constraints,CHECK,ratings.check_rater_not_ratee,CHECK ((rater_id <> ratee_id))
+2_constraints,CHECK,ratings.ratings_stars_check,CHECK (((stars >= 1) AND (stars <= 5)))
+2_constraints,FOREIGN KEY,help_acceptances.help_acceptances_help_request_id_fkey,FOREIGN KEY (help_request_id) REFERENCES help_requests(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,help_acceptances.help_acceptances_worker_id_fkey,FOREIGN KEY (worker_id) REFERENCES worker_profiles(profile_id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,help_requests.help_requests_job_id_fkey,FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,help_requests.help_requests_proposal_id_fkey,FOREIGN KEY (proposal_id) REFERENCES job_proposals(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,job_proposals.job_proposals_job_id_fkey,FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,job_proposals.job_proposals_worker_id_fkey,FOREIGN KEY (worker_id) REFERENCES worker_profiles(profile_id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,job_reports.job_reports_job_id_fkey,FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,job_reports.job_reports_reporter_id_fkey,FOREIGN KEY (reporter_id) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,job_requests.fk_accepted_proposal,FOREIGN KEY (accepted_proposal_id) REFERENCES job_proposals(id)
+2_constraints,FOREIGN KEY,job_requests.job_requests_cancelled_by_fkey,FOREIGN KEY (cancelled_by) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,job_requests.job_requests_cancelled_worker_id_fkey,FOREIGN KEY (cancelled_worker_id) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,job_requests.job_requests_client_id_fkey,FOREIGN KEY (client_id) REFERENCES profiles(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,job_requests.job_requests_reopened_from_fkey,FOREIGN KEY (reopened_from) REFERENCES job_requests(id)
+2_constraints,FOREIGN KEY,job_requests.job_requests_reschedule_proposed_by_fkey,FOREIGN KEY (reschedule_proposed_by) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,job_requests.job_requests_service_type_id_fkey,FOREIGN KEY (service_type_id) REFERENCES service_types(id)
+2_constraints,FOREIGN KEY,notifications.notifications_user_id_fkey,FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,profiles.profiles_id_fkey,FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,ratings.ratings_job_id_fkey,FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,ratings.ratings_ratee_id_fkey,FOREIGN KEY (ratee_id) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,ratings.ratings_rater_id_fkey,FOREIGN KEY (rater_id) REFERENCES profiles(id)
+2_constraints,FOREIGN KEY,service_types.service_types_category_id_fkey,FOREIGN KEY (category_id) REFERENCES service_categories(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,worker_profiles.worker_profiles_profile_id_fkey,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,worker_service_types.worker_service_types_service_type_id_fkey,FOREIGN KEY (service_type_id) REFERENCES service_types(id) ON DELETE CASCADE
+2_constraints,FOREIGN KEY,worker_service_types.worker_service_types_worker_id_fkey,FOREIGN KEY (worker_id) REFERENCES worker_profiles(profile_id) ON DELETE CASCADE
+2_constraints,PRIMARY KEY,help_acceptances.help_acceptances_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,help_requests.help_requests_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,job_proposals.job_proposals_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,job_reports.job_reports_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,job_requests.job_requests_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,notifications.notifications_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,profiles.profiles_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,ratings.ratings_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,service_types.service_types_pkey,PRIMARY KEY (id)
+2_constraints,PRIMARY KEY,worker_profiles.worker_profiles_pkey,PRIMARY KEY (profile_id)
+2_constraints,PRIMARY KEY,worker_service_types.worker_service_types_pkey,"PRIMARY KEY (worker_id, service_type_id)"
+2_constraints,UNIQUE,help_acceptances.help_acceptances_help_request_id_worker_id_key,"UNIQUE (help_request_id, worker_id)"
+2_constraints,UNIQUE,ratings.ratings_job_id_rater_id_ratee_id_key,"UNIQUE (job_id, rater_id, ratee_id)"
+2_constraints,UNIQUE,service_types.service_types_category_id_slug_key,"UNIQUE (category_id, slug)"
+3_indexes,index,help_acceptances.help_acceptances_help_request_id_worker_id_key,"CREATE UNIQUE INDEX help_acceptances_help_request_id_worker_id_key ON public.help_acceptances USING btree (help_request_id, worker_id)"
+3_indexes,index,help_acceptances.idx_help_acceptances_worker_id,CREATE INDEX idx_help_acceptances_worker_id ON public.help_acceptances USING btree (worker_id)
+3_indexes,index,help_requests.idx_help_requests_job_id,CREATE INDEX idx_help_requests_job_id ON public.help_requests USING btree (job_id)
+3_indexes,index,help_requests.idx_help_requests_proposal_id,CREATE INDEX idx_help_requests_proposal_id ON public.help_requests USING btree (proposal_id)
+3_indexes,index,job_proposals.idx_one_proposal_per_worker_per_job,"CREATE UNIQUE INDEX idx_one_proposal_per_worker_per_job ON public.job_proposals USING btree (job_id, worker_id) WHERE (status = 'pending'::text)"
+3_indexes,index,notifications.idx_notifications_user_created,"CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC)"
+3_indexes,index,ratings.ratings_job_id_rater_id_ratee_id_key,"CREATE UNIQUE INDEX ratings_job_id_rater_id_ratee_id_key ON public.ratings USING btree (job_id, rater_id, ratee_id)"
+3_indexes,index,service_types.service_types_category_id_slug_key,"CREATE UNIQUE INDEX service_types_category_id_slug_key ON public.service_types USING btree (category_id, slug)"
+4_rls_policies,policy_ALL,worker_service_types.Worker gere os seus serviços,USING: (auth.uid() = worker_id) | WITH_CHECK: none
+4_rls_policies,policy_DELETE,job_photos.Client apaga fotos do seu job,"USING: (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_photos.job_id) AND (job_requests.client_id = auth.uid())))) | WITH_CHECK: none"
+4_rls_policies,policy_DELETE,objects.avatars: delete pelo próprio utilizador,"USING: ((bucket_id = 'avatars'::text) AND ((auth.uid())::text = regexp_replace(storage.filename(name), '\.[^.]+$'::text, ''::text))) | WITH_CHECK: none"
+4_rls_policies,policy_DELETE,objects.job-photos: delete pelo dono,USING: ((bucket_id = 'job-photos'::text) AND ((auth.uid())::text = (storage.foldername(name))[1])) | WITH_CHECK: none
+4_rls_policies,policy_INSERT,help_acceptances.Worker candidata-se a help_request,USING: none | WITH_CHECK: ((worker_id = auth.uid()) AND (status = 'pending'::text))
+4_rls_policies,policy_INSERT,help_requests.Worker principal cria help requests,"USING: none | WITH_CHECK: (EXISTS ( SELECT 1
+   FROM job_proposals
+  WHERE ((job_proposals.id = help_requests.proposal_id) AND (job_proposals.worker_id = auth.uid()) AND (job_proposals.status = 'accepted'::text))))"
+4_rls_policies,policy_INSERT,job_photos.Cliente adiciona fotos aos seus jobs,"USING: none | WITH_CHECK: (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_photos.job_id) AND (job_requests.client_id = auth.uid()))))"
+4_rls_policies,policy_INSERT,job_proposals.Worker envia proposta,USING: none | WITH_CHECK: (auth.uid() = worker_id)
+4_rls_policies,policy_INSERT,job_reports.Participante pode reportar o seu job,"USING: none | WITH_CHECK: ((reporter_id = auth.uid()) AND ((EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_reports.job_id) AND (job_requests.client_id = auth.uid())))) OR (EXISTS ( SELECT 1
+   FROM (job_requests jr
+     JOIN job_proposals jp ON ((jp.id = jr.accepted_proposal_id)))
+  WHERE ((jr.id = job_reports.job_id) AND (jp.worker_id = auth.uid()))))))"
+4_rls_policies,policy_INSERT,job_requests.Client cria jobs,USING: none | WITH_CHECK: (auth.uid() = client_id)
+4_rls_policies,policy_INSERT,objects.Upload autenticado em job-photos,USING: none | WITH_CHECK: ((bucket_id = 'job-photos'::text) AND (auth.role() = 'authenticated'::text))
+4_rls_policies,policy_INSERT,objects.Upload avatar autenticado,USING: none | WITH_CHECK: ((bucket_id = 'avatars'::text) AND (auth.role() = 'authenticated'::text))
+4_rls_policies,policy_INSERT,profiles.Utilizador cria o seu perfil,USING: none | WITH_CHECK: (auth.uid() = id)
+4_rls_policies,policy_INSERT,ratings.Utilizador cria a sua avaliação,USING: none | WITH_CHECK: (auth.uid() = rater_id)
+4_rls_policies,policy_INSERT,worker_profiles.Worker cria o seu perfil,USING: none | WITH_CHECK: (auth.uid() = profile_id)
+4_rls_policies,policy_SELECT,help_acceptances.Worker principal vê candidatos,USING: is_principal_worker_for_help_request(help_request_id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,help_acceptances.Worker vê as suas candidaturas,USING: (worker_id = auth.uid()) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,help_requests.Cliente vê help requests dos seus jobs,"USING: (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = help_requests.job_id) AND (job_requests.client_id = auth.uid())))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,help_requests.Worker candidato vê help requests onde se candidatou,"USING: (EXISTS ( SELECT 1
+   FROM help_acceptances
+  WHERE ((help_acceptances.help_request_id = help_requests.id) AND (help_acceptances.worker_id = auth.uid())))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,help_requests.Worker principal vê os seus help requests,"USING: (EXISTS ( SELECT 1
+   FROM job_proposals
+  WHERE ((job_proposals.id = help_requests.proposal_id) AND (job_proposals.worker_id = auth.uid())))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,job_photos.Ver fotos de jobs proprios ou abertos,"USING: (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_photos.job_id) AND ((job_requests.client_id = auth.uid()) OR (job_requests.status = 'open'::text))))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,job_proposals.Client vê propostas dos seus jobs,"USING: (EXISTS ( SELECT 1
+   FROM job_requests
+  WHERE ((job_requests.id = job_proposals.job_id) AND (job_requests.client_id = auth.uid())))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,job_proposals.Worker vê as suas propostas,USING: (auth.uid() = worker_id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,job_reports.Utilizador vê os seus reports,USING: (reporter_id = auth.uid()) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,job_requests.Client vê os seus jobs,USING: (auth.uid() = client_id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,job_requests.Worker ve jobs onde tem proposta,USING: worker_has_proposal_for_job(id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,job_requests.Worker vê jobs abertos,USING: ((status = 'open'::text) AND (auth.role() = 'authenticated'::text)) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,notifications.Utilizador vê as suas notificações,USING: (auth.uid() = user_id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,objects.Leitura publica de job-photos,USING: (bucket_id = 'job-photos'::text) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,objects.Leitura pública de avatars,USING: (bucket_id = 'avatars'::text) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,profiles.Cliente ve perfil de worker com job confirmado,USING: ((role = 'worker'::text) AND client_has_confirmed_job_with_worker(id)) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,profiles.Utilizador vê o seu perfil,USING: (auth.uid() = id) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,profiles.Worker ve perfil de cliente com job confirmado,"USING: (EXISTS ( SELECT 1
+   FROM (job_proposals jp
+     JOIN job_requests jr ON ((jr.id = jp.job_id)))
+  WHERE ((jp.worker_id = auth.uid()) AND (jr.client_id = profiles.id) AND (jp.status = 'accepted'::text)))) | WITH_CHECK: none"
+4_rls_policies,policy_SELECT,ratings.Leitura pública de avaliações,USING: true | WITH_CHECK: none
+4_rls_policies,policy_SELECT,service_categories.Leitura pública de categorias,USING: true | WITH_CHECK: none
+4_rls_policies,policy_SELECT,service_types.Leitura pública de tipos de serviço,USING: true | WITH_CHECK: none
+4_rls_policies,policy_SELECT,worker_profiles.Worker lê o seu próprio perfil,USING: (profile_id = auth.uid()) | WITH_CHECK: none
+4_rls_policies,policy_SELECT,worker_service_types.Qualquer autenticado vê serviços de workers,USING: (auth.role() = 'authenticated'::text) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,help_acceptances.Worker cancela ajuda,USING: (auth.uid() = worker_id) | WITH_CHECK: ((auth.uid() = worker_id) AND (status = 'cancelled'::text))
+4_rls_policies,policy_UPDATE,help_acceptances.Worker principal decide candidatos,USING: is_principal_worker_for_help_request(help_request_id) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,job_proposals.Worker atualiza as suas propostas,USING: (auth.uid() = worker_id) | WITH_CHECK: ((auth.uid() = worker_id) AND (status = 'superseded'::text))
+4_rls_policies,policy_UPDATE,job_requests.Client atualiza os seus jobs,USING: (auth.uid() = client_id) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,job_requests.Cliente cancela os seus jobs,USING: (auth.uid() = client_id) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,notifications.Utilizador marca as suas notificações como lidas,USING: (auth.uid() = user_id) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,objects.avatars: update pelo próprio utilizador,"USING: ((bucket_id = 'avatars'::text) AND ((auth.uid())::text = regexp_replace(storage.filename(name), '\.[^.]+$'::text, ''::text))) | WITH_CHECK: ((bucket_id = 'avatars'::text) AND ((auth.uid())::text = regexp_replace(storage.filename(name), '\.[^.]+$'::text, ''::text)))"
+4_rls_policies,policy_UPDATE,profiles.Utilizador atualiza o seu perfil,USING: (auth.uid() = id) | WITH_CHECK: none
+4_rls_policies,policy_UPDATE,worker_profiles.Worker atualiza o seu perfil,USING: (auth.uid() = profile_id) | WITH_CHECK: none
+5_functions,security_definer,"accept_help_candidate(p_help_acceptance_id uuid, p_agreed_rate numeric)","CREATE OR REPLACE FUNCTION public.accept_help_candidate(p_help_acceptance_id uuid, p_agreed_rate numeric)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_principal_worker_id uuid;
+  v_helper_worker_id    uuid;
+  v_help_request_id     uuid;
+  v_slots_needed        int;
+  v_accepted_count      int;
+  v_current_status      text;
+  v_remaining_candidate RECORD;
+BEGIN
+  SELECT jp.worker_id, ha.worker_id, ha.help_request_id,
+         hr.slots_needed, ha.status
+  INTO   v_principal_worker_id, v_helper_worker_id, v_help_request_id,
+         v_slots_needed, v_current_status
+  FROM   help_acceptances ha
+  JOIN   help_requests    hr ON hr.id = ha.help_request_id
+  JOIN   job_proposals    jp ON jp.id = hr.proposal_id
+  WHERE  ha.id = p_help_acceptance_id
+  FOR UPDATE OF ha;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Candidatura não encontrada.';
+  END IF;
+
+  IF v_principal_worker_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Apenas o worker principal pode aceitar candidatos.';
+  END IF;
+
+  IF v_current_status <> 'pending' THEN
+    RAISE EXCEPTION
+      'Candidatura não está em estado pending (estado atual: %).', v_current_status;
+  END IF;
+
+  UPDATE help_acceptances
+  SET    status = 'accepted', agreed_rate = p_agreed_rate
+  WHERE  id = p_help_acceptance_id;
+
+  SELECT COUNT(*) INTO v_accepted_count
+  FROM   help_acceptances
+  WHERE  help_request_id = v_help_request_id
+    AND  status = 'accepted';
+
+  IF v_accepted_count >= v_slots_needed THEN
+    UPDATE help_requests SET status = 'filled' WHERE id = v_help_request_id;
+
+    FOR v_remaining_candidate IN
+      SELECT id, worker_id
+      FROM   help_acceptances
+      WHERE  help_request_id = v_help_request_id
+        AND  status = 'pending'
+        AND  id <> p_help_acceptance_id
+    LOOP
+      UPDATE help_acceptances SET status = 'rejected' WHERE id = v_remaining_candidate.id;
+      INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+      VALUES (v_remaining_candidate.worker_id, 'help_rejected',
+              'Candidatura não selecionada',
+              'Todas as vagas foram preenchidas.',
+              v_help_request_id, 'help_request');
+    END LOOP;
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_helper_worker_id,
+    'help_accepted',
+    'Candidatura aceite!',
+    'Foste selecionado para fazer parte da equipa.',
+    v_help_request_id,
+    'help_request'
+  );
+END;
+$function$
+"
+5_functions,security_definer,"accept_proposal(p_proposal_id uuid, p_job_id uuid)","CREATE OR REPLACE FUNCTION public.accept_proposal(p_proposal_id uuid, p_job_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_worker_id          uuid;
+  v_scheduled_date     date;
+  v_scheduled_time     time;
+  v_scheduled_flexible boolean;
+  v_people_needed      int;
+  v_equipment_required boolean;
+BEGIN
+  SELECT worker_id, scheduled_date, scheduled_time, scheduled_flexible,
+         people_needed, helpers_equipment_required
+  INTO   v_worker_id, v_scheduled_date, v_scheduled_time, v_scheduled_flexible,
+         v_people_needed, v_equipment_required
+  FROM   job_proposals
+  WHERE  id = p_proposal_id AND job_id = p_job_id AND status = 'pending'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Proposta não encontrada ou já processada.';
+  END IF;
+
+  UPDATE job_proposals
+  SET status = 'accepted', updated_at = now()
+  WHERE id = p_proposal_id;
+
+  WITH rejected AS (
+    UPDATE job_proposals
+    SET status = 'rejected', updated_at = now()
+    WHERE job_id = p_job_id
+      AND id    <> p_proposal_id
+      AND status = 'pending'
+    RETURNING worker_id
+  )
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  SELECT
+    worker_id,
+    'proposal_rejected',
+    'Proposta não selecionada',
+    'O cliente escolheu outra proposta.',
+    p_job_id,
+    'job_request'
+  FROM rejected;
+
+  UPDATE job_requests
+  SET status               = 'confirmed',
+      accepted_proposal_id = p_proposal_id,
+      confirmed_date       = v_scheduled_date,
+      confirmed_time       = v_scheduled_time,
+      confirmed_flexible   = COALESCE(v_scheduled_flexible, false),
+      proposal_count       = 0,
+      updated_at           = now()
+  WHERE id = p_job_id;
+
+  IF v_people_needed > 1 THEN
+    INSERT INTO help_requests (
+      job_id, proposal_id, slots_needed,
+      equipment_required, created_post_confirmation, status
+    ) VALUES (
+      p_job_id, p_proposal_id, v_people_needed - 1,
+      COALESCE(v_equipment_required, false), false, 'open'
+    );
+  END IF;
+
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_worker_id,
+    'proposal_accepted',
+    'Proposta aceite!',
+    'O cliente aceitou a sua proposta.',
+    p_job_id,
+    'job_request'
+  );
+END;
+$function$
+"
+5_functions,security_definer,accept_reschedule(p_job_id uuid),"CREATE OR REPLACE FUNCTION public.accept_reschedule(p_job_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_job public.job_requests;
+  v_is_client boolean;
+  v_is_worker boolean;
+  v_proposer_id uuid;
+begin
+  select * into v_job from public.job_requests where id = p_job_id;
+  if v_job is null or v_job.reschedule_status != 'pending' then
+    raise exception 'Sem remarcação pendente';
+  end if;
+
+  v_is_client := (v_job.client_id = v_user_id);
+  select exists(
+    select 1 from public.job_proposals
+    where id = v_job.accepted_proposal_id and worker_id = v_user_id
+  ) into v_is_worker;
+
+  -- Quem aceita tem de ser o OUTRO lado (não quem propôs)
+  if v_job.reschedule_proposed_by = v_user_id then
+    raise exception 'Não pode aceitar a sua própria remarcação';
+  end if;
+
+  if not (v_is_client or v_is_worker) then
+    raise exception 'Não autorizado';
+  end if;
+
+  v_proposer_id := v_job.reschedule_proposed_by;
+
+  -- Aplicar nova data + limpar campos de remarcação
+  update public.job_requests
+    set confirmed_date = reschedule_proposed_date,
+        confirmed_time = reschedule_proposed_time,
+        confirmed_flexible = reschedule_proposed_flexible,
+        reschedule_proposed_date = null,
+        reschedule_proposed_time = null,
+        reschedule_proposed_flexible = null,
+        reschedule_proposed_by = null,
+        reschedule_status = 'accepted',
+        updated_at = now()
+    where id = p_job_id;
+
+  -- Notificar quem propôs
+  insert into public.notifications (user_id, type, title, body, related_id, related_type)
+  values (v_proposer_id, 'reschedule_accepted', 'Remarcação aceite',
+    'A nova data foi aceite.', p_job_id, 'job_request');
+end;
+$function$
+"
+5_functions,security_definer,approve_help_request(p_help_request_id uuid),"CREATE OR REPLACE FUNCTION public.approve_help_request(p_help_request_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_status        text;
+  v_job_client_id uuid;
+  v_worker_id     uuid;
+BEGIN
+  SELECT hr.status, jr.client_id, jp.worker_id
+  INTO   v_status, v_job_client_id, v_worker_id
+  FROM   help_requests hr
+  JOIN   job_requests  jr ON jr.id = hr.job_id
+  JOIN   job_proposals jp ON jp.id = hr.proposal_id
+  WHERE  hr.id = p_help_request_id
+  FOR UPDATE OF hr;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'help_request não encontrado.';
+  END IF;
+
+  IF v_job_client_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Apenas o cliente do job pode aprovar este pedido de ajuda.';
+  END IF;
+
+  IF v_status <> 'pending_approval' THEN
+    RAISE EXCEPTION
+      'help_request não está em pending_approval (estado atual: %).', v_status;
+  END IF;
+
+  UPDATE help_requests
+  SET    status = 'open'
+  WHERE  id = p_help_request_id;
+
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_worker_id,
+    'help_request_approved',
+    'Pedido de equipa aprovado',
+    'O cliente aprovou o pedido de ajudantes. Podes agora aceitar candidatos.',
+    p_help_request_id,
+    'help_request'
+  );
+END;
+$function$
+"
+5_functions,security_definer,auto_confirm_completed_jobs(),"CREATE OR REPLACE FUNCTION public.auto_confirm_completed_jobs()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job       job_requests%ROWTYPE;
+  v_worker_id uuid;
+BEGIN
+  FOR v_job IN
+    SELECT * FROM job_requests
+    WHERE  status     = 'awaiting_confirmation'
+      AND  updated_at < NOW() - INTERVAL '3 days'
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    UPDATE job_requests
+    SET    status     = 'completed',
+           updated_at = now()
+    WHERE  id = v_job.id;
+
+    SELECT worker_id INTO v_worker_id
+    FROM   job_proposals
+    WHERE  id = v_job.accepted_proposal_id;
+
+    IF v_worker_id IS NOT NULL THEN
+      INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+      VALUES (
+        v_worker_id,
+        'job_completed',
+        'Trabalho confirmado automaticamente',
+        'Passaram 3 dias sem confirmação. O trabalho foi confirmado automaticamente.',
+        v_job.id,
+        'job_request'
+      );
+    END IF;
+
+    -- P-10-3 fix: notify the client too.
+    -- Body is distinct from the worker's to make clear who initiated.
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (
+      v_job.client_id,
+      'job_completed',
+      'Trabalho confirmado automaticamente',
+      'Passaram 3 dias sem resposta. O trabalho foi confirmado automaticamente.',
+      v_job.id,
+      'job_request'
+    );
+  END LOOP;
+END;
+$function$
+"
+5_functions,security_definer,auto_expire_jobs(),"CREATE OR REPLACE FUNCTION public.auto_expire_jobs()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job job_requests%ROWTYPE;
+BEGIN
+  FOR v_job IN
+    SELECT * FROM job_requests
+    WHERE  status       = 'open'
+      AND  expires_at   < now()
+      AND  proposal_count = 0
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    UPDATE job_requests
+    SET    status     = 'no_response',
+           updated_at = now()
+    WHERE  id = v_job.id;
+
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (
+      v_job.client_id,
+      'job_no_response',
+      'Sem resposta',
+      'O teu pedido não recebeu propostas em 48h.',
+      v_job.id,
+      'job_request'
+    );
+  END LOOP;
+END;
+$function$
+"
+5_functions,security_definer,"cancel_job(p_job_id uuid, p_reason text, p_reason_detail text, p_client_wants_reopen boolean)","CREATE OR REPLACE FUNCTION public.cancel_job(p_job_id uuid, p_reason text, p_reason_detail text DEFAULT NULL::text, p_client_wants_reopen boolean DEFAULT NULL::boolean)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job           job_requests%ROWTYPE;
+  v_caller_id     uuid    := auth.uid();
+  v_is_worker     boolean;
+  v_other_user_id uuid;
+  v_can_reopen    boolean := false;
+  v_new_excluded  uuid[];
+  v_new_job_id    uuid    := NULL;
+BEGIN
+  SELECT * INTO v_job FROM job_requests WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Job não encontrado.';
+  END IF;
+  IF v_job.status NOT IN ('open', 'confirmed') THEN
+    RAISE EXCEPTION 'estado inválido: o pedido não pode ser cancelado no estado atual.';
+  END IF;
+
+  v_is_worker := (v_job.client_id <> v_caller_id);
+
+  -- 24h rule: confirmed jobs with a fixed date cannot be cancelled within 24h.
+  -- Applies to both client and worker. Flexible-date jobs (confirmed_date IS
+  -- NULL) skip this check, matching propose_reschedule's existing behaviour.
+  IF v_job.status = 'confirmed'
+     AND v_job.confirmed_date IS NOT NULL
+     AND (v_job.confirmed_date - CURRENT_DATE) < 1 THEN
+    RAISE EXCEPTION 'O cancelamento requer pelo menos 24h de antecedência.';
+  END IF;
+
+  IF v_is_worker THEN
+    v_other_user_id := v_job.client_id;
+  ELSE
+    SELECT worker_id INTO v_other_user_id
+    FROM   job_proposals WHERE id = v_job.accepted_proposal_id;
+  END IF;
+
+  -- Reopen eligibility:
+  --   Worker: auto-reopens always if within the 2-strike limit (unchanged).
+  --   Client: only reopens when the client explicitly requests it
+  --           (p_client_wants_reopen = true) AND within the 1-reopen limit.
+  --           p_client_wants_reopen IS NULL (worker call site) → false for
+  --           the client branch, so the worker path is never affected.
+  IF v_job.status = 'confirmed' THEN
+    IF v_is_worker THEN
+      IF v_job.reopen_count_worker < 2 THEN
+        v_can_reopen := true;
+      END IF;
+    ELSE
+      IF p_client_wants_reopen = true AND v_job.reopen_count_client < 1 THEN
+        v_can_reopen := true;
+      END IF;
+    END IF;
+  END IF;
+
+  UPDATE job_requests
+  SET status               = 'cancelled',
+      cancelled_by         = v_caller_id,
+      cancel_reason        = p_reason,
+      cancel_reason_detail = p_reason_detail,
+      cancelled_worker_id  = CASE WHEN v_is_worker THEN v_caller_id ELSE NULL END,
+      updated_at           = now()
+  WHERE id = p_job_id;
+
+  UPDATE job_proposals
+  SET status = 'rejected', updated_at = now()
+  WHERE job_id = p_job_id AND status = 'pending';
+
+  -- C2.2 (from 0007): cascade cancellation to helper team data.
+  UPDATE help_requests
+  SET    status = 'cancelled'
+  WHERE  job_id = p_job_id
+    AND  status <> 'cancelled';
+
+  UPDATE help_acceptances
+  SET    status = 'rejected'
+  WHERE  help_request_id IN (
+           SELECT id FROM help_requests WHERE job_id = p_job_id
+         )
+    AND  status = 'pending';
+
+  -- Notify accepted helpers that the job they were helping on is cancelled.
+  -- Runs after the cascade above (which only rejects pending), so
+  -- ha.status = 'accepted' still correctly identifies impacted helpers.
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  SELECT ha.worker_id,
+         'help_job_cancelled',
+         'Trabalho cancelado',
+         'O trabalho em que ias ajudar foi cancelado.',
+         p_job_id,
+         'job_request'
+  FROM   help_acceptances ha
+  JOIN   help_requests    hr ON hr.id = ha.help_request_id
+  WHERE  hr.job_id = p_job_id
+    AND  ha.status = 'accepted';
+
+  IF v_other_user_id IS NOT NULL THEN
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (
+      v_other_user_id,
+      'job_cancelled',
+      'Pedido cancelado',
+      'Um pedido foi cancelado.',
+      p_job_id,
+      'job_request'
+    );
+  END IF;
+
+  IF v_can_reopen THEN
+    -- Worker path: exclude the cancelling worker from the reopened job so
+    --             the same worker cannot re-apply (2-strike accountability).
+    -- Client path: never exclude anyone — the client's cancellation is not
+    --              a negative signal about the worker, only about the client's
+    --              need. The reopened job should be open to all workers.
+    v_new_excluded := v_job.excluded_worker_ids;
+    IF v_is_worker THEN
+      v_new_excluded := array_append(v_new_excluded, v_caller_id);
+    END IF;
+
+    INSERT INTO job_requests (
+      client_id,       service_type_id,   address_text,
+      location_lat,    location_lng,
+      date_mode,       preferred_date,    availability_text,
+      urgency,         size_estimate,     description,
+      status,          reopened_from,
+      reopen_count_client, reopen_count_worker,
+      excluded_worker_ids, expires_at
+    ) VALUES (
+      v_job.client_id,      v_job.service_type_id, v_job.address_text,
+      v_job.location_lat,   v_job.location_lng,
+      v_job.date_mode,      v_job.preferred_date,  v_job.availability_text,
+      v_job.urgency,        v_job.size_estimate,   v_job.description,
+      'open', p_job_id,
+      CASE WHEN NOT v_is_worker THEN v_job.reopen_count_client + 1
+           ELSE v_job.reopen_count_client END,
+      CASE WHEN v_is_worker THEN v_job.reopen_count_worker + 1
+           ELSE v_job.reopen_count_worker END,
+      v_new_excluded,
+      now() + interval '48 hours'
+    )
+    RETURNING id INTO v_new_job_id;
+
+    -- Notify client only when the WORKER triggered the reopen (auto-reopen).
+    -- When the CLIENT triggers the reopen (explicit choice), they already know.
+    IF v_is_worker THEN
+      INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+      VALUES (
+        v_job.client_id,
+        'job_reopened',
+        'Pedido reaberto',
+        'O pedido foi reaberto automaticamente.',
+        v_new_job_id,
+        'job_request'
+      );
+    END IF;
+  END IF;
+
+  RETURN v_new_job_id;
+END;
+$function$
+"
+5_functions,security_definer,client_has_confirmed_job_with_worker(worker_id uuid),"CREATE OR REPLACE FUNCTION public.client_has_confirmed_job_with_worker(worker_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select exists (
+    select 1 from public.job_requests jr
+    join public.job_proposals jp on jp.id = jr.accepted_proposal_id
+    where jr.client_id = auth.uid()
+    and jp.worker_id = client_has_confirmed_job_with_worker.worker_id
+    and jr.status in ('confirmed', 'awaiting_confirmation', 'completed')
+  );
+$function$
+"
+5_functions,security_definer,"create_proposal(p_job_id uuid, p_worker_id uuid, p_hourly_rate numeric, p_estimated_hours_min numeric, p_estimated_hours_max numeric, p_people_needed integer, p_notes text, p_scheduled_date date, p_scheduled_time text, p_scheduled_flexible boolean, p_helpers_equipment_required boolean)","CREATE OR REPLACE FUNCTION public.create_proposal(p_job_id uuid, p_worker_id uuid, p_hourly_rate numeric, p_estimated_hours_min numeric DEFAULT NULL::numeric, p_estimated_hours_max numeric DEFAULT NULL::numeric, p_people_needed integer DEFAULT 1, p_notes text DEFAULT NULL::text, p_scheduled_date date DEFAULT NULL::date, p_scheduled_time text DEFAULT NULL::text, p_scheduled_flexible boolean DEFAULT false, p_helpers_equipment_required boolean DEFAULT false)
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_proposal_id uuid;
+  v_job_status  text;
+  v_client_id   uuid;
+BEGIN
+  SELECT status, client_id
+  INTO   v_job_status, v_client_id
+  FROM   job_requests
+  WHERE  id = p_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Job não encontrado.';
+  END IF;
+  IF v_job_status <> 'open' THEN
+    RAISE EXCEPTION 'Este pedido já não está disponível.';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM job_proposals
+    WHERE job_id = p_job_id AND worker_id = p_worker_id AND status = 'pending'
+  ) THEN
+    RAISE EXCEPTION 'Já tens uma proposta para este pedido.' USING ERRCODE = 'P0001';
+  END IF;
+
+  INSERT INTO job_proposals (
+    job_id, worker_id, hourly_rate,
+    estimated_hours_min, estimated_hours_max,
+    people_needed, notes,
+    scheduled_date, scheduled_time, scheduled_flexible,
+    helpers_equipment_required,
+    status
+  ) VALUES (
+    p_job_id, p_worker_id, p_hourly_rate,
+    p_estimated_hours_min, p_estimated_hours_max,
+    p_people_needed, p_notes,
+    p_scheduled_date,
+    p_scheduled_time::time,
+    COALESCE(p_scheduled_flexible, false),
+    COALESCE(p_helpers_equipment_required, false),
+    'pending'
+  )
+  RETURNING id INTO v_proposal_id;
+
+  UPDATE job_requests
+  SET proposal_count = proposal_count + 1,
+      updated_at     = now()
+  WHERE id = p_job_id;
+
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_client_id,
+    'proposal_received',
+    'Nova proposta recebida',
+    'Um jardineiro enviou uma proposta para o seu pedido.',
+    p_job_id,
+    'job_request'
+  );
+
+  RETURN v_proposal_id;
+END;
+$function$
+"
+5_functions,security_definer,get_accepted_helpers_for_job(p_job_id uuid),"CREATE OR REPLACE FUNCTION public.get_accepted_helpers_for_job(p_job_id uuid)
+ RETURNS TABLE(worker_id uuid, full_name text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT
+    ha.worker_id,
+    p.full_name
+  FROM   job_requests     jr
+  JOIN   job_proposals    jp ON jp.id  = jr.accepted_proposal_id
+  JOIN   help_requests    hr ON hr.proposal_id = jp.id
+  JOIN   help_acceptances ha ON ha.help_request_id = hr.id
+                            AND ha.status = 'accepted'
+  JOIN   profiles          p ON p.id   = ha.worker_id
+  WHERE  jr.id       = p_job_id
+    AND  jp.worker_id = auth.uid();
+$function$
+"
+5_functions,security_definer,"get_help_requests_in_radius(worker_lat double precision, worker_lng double precision, radius_km integer)","CREATE OR REPLACE FUNCTION public.get_help_requests_in_radius(worker_lat double precision, worker_lng double precision, radius_km integer)
+ RETURNS TABLE(id uuid, job_id uuid, proposal_id uuid, slots_needed integer, status text, equipment_required boolean, created_post_confirmation boolean, created_at timestamp with time zone, location_lat double precision, location_lng double precision, service_type_id uuid, principal_name text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT
+    hr.id,
+    hr.job_id,
+    hr.proposal_id,
+    hr.slots_needed,
+    hr.status,
+    hr.equipment_required,
+    hr.created_post_confirmation,
+    hr.created_at,
+    jr.location_lat::double precision,
+    jr.location_lng::double precision,
+    jr.service_type_id,
+    p.full_name AS principal_name
+  FROM   help_requests  hr
+  JOIN   job_requests   jr ON jr.id = hr.job_id
+  JOIN   job_proposals  jp ON jp.id = hr.proposal_id
+  JOIN   profiles        p ON p.id  = jp.worker_id
+  WHERE  hr.status = 'open'
+    AND  jr.status NOT IN ('cancelled', 'completed')
+    AND  jp.worker_id <> auth.uid()
+    AND NOT EXISTS (
+      SELECT 1 FROM help_acceptances ha
+      WHERE ha.help_request_id = hr.id
+        AND ha.worker_id       = auth.uid()
+    )
+    AND (
+      2 * 6371 * asin(sqrt(
+        power(sin(radians((jr.location_lat::double precision - worker_lat) / 2)), 2)
+        + cos(radians(worker_lat))
+          * cos(radians(jr.location_lat::double precision))
+          * power(sin(radians((jr.location_lng::double precision - worker_lng) / 2)), 2)
+      ))
+    ) <= radius_km
+  ORDER BY
+    power(sin(radians((jr.location_lat::double precision - worker_lat) / 2)), 2)
+    + cos(radians(worker_lat))
+      * cos(radians(jr.location_lat::double precision))
+      * power(sin(radians((jr.location_lng::double precision - worker_lng) / 2)), 2)
+    ASC;
+$function$
+"
+5_functions,security_definer,"get_jobs_in_radius(worker_lat numeric, worker_lng numeric, radius_km integer, p_worker_id uuid)","CREATE OR REPLACE FUNCTION public.get_jobs_in_radius(worker_lat numeric, worker_lng numeric, radius_km integer, p_worker_id uuid DEFAULT NULL::uuid)
+ RETURNS SETOF job_requests
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select jr.*
+  from public.job_requests jr
+  where jr.status = 'open'
+  -- Excluir workers no array de excluídos
+  and not (auth.uid() = any(jr.excluded_worker_ids))
+  -- Excluir jobs onde o worker já tem proposta pending
+  and (
+    p_worker_id is null
+    or not exists (
+      select 1 from public.job_proposals jp
+      where jp.job_id = jr.id
+      and jp.worker_id = p_worker_id
+      and jp.status = 'pending'
+    )
+  )
+  -- Filtro de distância Haversine
+  and (
+    6371 * acos(
+      cos(radians(worker_lat))
+      * cos(radians(jr.location_lat))
+      * cos(radians(jr.location_lng) - radians(worker_lng))
+      + sin(radians(worker_lat))
+      * sin(radians(jr.location_lat))
+    )
+  ) <= radius_km
+  order by (
+    6371 * acos(
+      cos(radians(worker_lat))
+      * cos(radians(jr.location_lat))
+      * cos(radians(jr.location_lng) - radians(worker_lng))
+      + sin(radians(worker_lat))
+      * sin(radians(jr.location_lat))
+    )
+  ) asc;
+$function$
+"
+5_functions,security_definer,get_my_help_acceptances(),"CREATE OR REPLACE FUNCTION public.get_my_help_acceptances()
+ RETURNS TABLE(id uuid, help_request_id uuid, status text, agreed_rate numeric, brought_equipment boolean, created_at timestamp with time zone, service_type_name text, principal_name text, job_status text, job_id uuid, principal_worker_id uuid, confirmed_date date, confirmed_time time without time zone, address_text text, location_lat numeric, location_lng numeric, principal_phone text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT
+    ha.id,
+    ha.help_request_id,
+    ha.status,
+    ha.agreed_rate,
+    ha.brought_equipment,
+    ha.created_at,
+    st.name              AS service_type_name,
+    p.full_name          AS principal_name,
+    jr.status            AS job_status,
+    jr.id                AS job_id,
+    jp.worker_id         AS principal_worker_id,
+    jr.confirmed_date    AS confirmed_date,
+    jr.confirmed_time    AS confirmed_time,
+    jr.address_text      AS address_text,
+    jr.location_lat      AS location_lat,
+    jr.location_lng      AS location_lng,
+    p.phone              AS principal_phone
+  FROM   help_acceptances ha
+  JOIN   help_requests    hr ON hr.id  = ha.help_request_id
+  JOIN   job_requests     jr ON jr.id  = hr.job_id
+  JOIN   service_types    st ON st.id  = jr.service_type_id
+  JOIN   job_proposals    jp ON jp.id  = hr.proposal_id
+  JOIN   profiles          p ON p.id   = jp.worker_id
+  WHERE  ha.worker_id = auth.uid()
+  ORDER BY ha.created_at DESC;
+$function$
+"
+5_functions,security_definer,is_principal_worker_for_help_request(p_help_request_id uuid),"CREATE OR REPLACE FUNCTION public.is_principal_worker_for_help_request(p_help_request_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1
+    FROM   help_requests hr
+    JOIN   job_proposals jp ON jp.id = hr.proposal_id
+    WHERE  hr.id            = p_help_request_id
+      AND  jp.worker_id     = auth.uid()
+  );
+$function$
+"
+5_functions,security_definer,mark_job_done(p_job_id uuid),"CREATE OR REPLACE FUNCTION public.mark_job_done(p_job_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_client_id uuid;
+begin
+  -- Verificar que é o worker da proposta aceite
+  if not exists (
+    select 1 from public.job_proposals jp
+    join public.job_requests jr on jr.id = jp.job_id
+    where jp.job_id = p_job_id
+      and jp.worker_id = auth.uid()
+      and jp.status = 'accepted'
+      and jr.status = 'confirmed'
+  ) then
+    raise exception 'Não autorizado ou job não está confirmado';
+  end if;
+
+  -- Buscar cliente
+  select client_id into v_client_id
+  from public.job_requests where id = p_job_id;
+
+  -- Marcar como awaiting_confirmation
+  update public.job_requests
+    set status = 'awaiting_confirmation', updated_at = now()
+    where id = p_job_id;
+
+  -- Notificar cliente
+  insert into public.notifications (user_id, type, title, body, related_id, related_type)
+  values (v_client_id, 'job_marked_done', 'Trabalho concluído!',
+    'O jardineiro marcou o trabalho como concluído. Confirma se está satisfeito.',
+    p_job_id, 'job_request');
+end;
+$function$
+"
+5_functions,security_definer,"propose_reschedule(p_job_id uuid, p_new_date date, p_new_time time without time zone, p_new_flexible boolean)","CREATE OR REPLACE FUNCTION public.propose_reschedule(p_job_id uuid, p_new_date date, p_new_time time without time zone DEFAULT NULL::time without time zone, p_new_flexible boolean DEFAULT false)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_job public.job_requests;
+  v_is_client boolean;
+  v_is_worker boolean;
+  v_other_user_id uuid;
+begin
+  select * into v_job from public.job_requests where id = p_job_id;
+  if v_job is null or v_job.status != 'confirmed' then
+    raise exception 'Só jobs confirmados podem ser remarcados';
+  end if;
+
+  -- Regra das 24h
+  if v_job.confirmed_date is not null and v_job.confirmed_date - current_date < 1 then
+    raise exception 'Não pode remarcar com menos de 24h de antecedência';
+  end if;
+
+  v_is_client := (v_job.client_id = v_user_id);
+  select exists(
+    select 1 from public.job_proposals
+    where id = v_job.accepted_proposal_id and worker_id = v_user_id
+  ) into v_is_worker;
+
+  if not (v_is_client or v_is_worker) then
+    raise exception 'Não autorizado';
+  end if;
+
+  -- Só uma remarcação pendente de cada vez
+  if v_job.reschedule_status = 'pending' then
+    raise exception 'Já existe uma remarcação pendente';
+  end if;
+
+  -- Atualizar job
+  update public.job_requests
+    set reschedule_proposed_date = p_new_date,
+        reschedule_proposed_time = p_new_time,
+        reschedule_proposed_flexible = p_new_flexible,
+        reschedule_proposed_by = v_user_id,
+        reschedule_status = 'pending',
+        updated_at = now()
+    where id = p_job_id;
+
+  -- Notificar o outro lado
+  if v_is_client then
+    select worker_id into v_other_user_id
+    from public.job_proposals where id = v_job.accepted_proposal_id;
+  else
+    v_other_user_id := v_job.client_id;
+  end if;
+
+  insert into public.notifications (user_id, type, title, body, related_id, related_type)
+  values (v_other_user_id, 'reschedule_proposed', 'Pedido de remarcação',
+    'A outra parte propôs uma nova data para o trabalho.',
+    p_job_id, 'job_request');
+end;
+$function$
+"
+5_functions,security_definer,reject_help_candidate(p_help_acceptance_id uuid),"CREATE OR REPLACE FUNCTION public.reject_help_candidate(p_help_acceptance_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_principal_worker_id uuid;
+  v_helper_worker_id    uuid;
+  v_help_request_id     uuid;
+  v_current_status      text;
+BEGIN
+  SELECT jp.worker_id, ha.worker_id, ha.help_request_id, ha.status
+  INTO   v_principal_worker_id, v_helper_worker_id, v_help_request_id, v_current_status
+  FROM   help_acceptances ha
+  JOIN   help_requests    hr ON hr.id = ha.help_request_id
+  JOIN   job_proposals    jp ON jp.id = hr.proposal_id
+  WHERE  ha.id = p_help_acceptance_id
+  FOR UPDATE OF ha;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Candidatura não encontrada.';
+  END IF;
+
+  IF v_principal_worker_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Apenas o worker principal pode rejeitar candidatos.';
+  END IF;
+
+  IF v_current_status <> 'pending' THEN
+    RAISE EXCEPTION
+      'Candidatura não está em estado pending (estado atual: %).', v_current_status;
+  END IF;
+
+  UPDATE help_acceptances
+  SET    status = 'rejected'
+  WHERE  id = p_help_acceptance_id;
+
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_helper_worker_id,
+    'help_rejected',
+    'Candidatura não selecionada',
+    'O worker principal não selecionou a tua candidatura.',
+    v_help_request_id,
+    'help_request'
+  );
+END;
+$function$
+"
+5_functions,security_definer,reject_reschedule(p_job_id uuid),"CREATE OR REPLACE FUNCTION public.reject_reschedule(p_job_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_job public.job_requests;
+  v_is_client boolean;
+  v_is_worker boolean;
+  v_proposer_id uuid;
+begin
+  select * into v_job from public.job_requests where id = p_job_id;
+  if v_job is null or v_job.reschedule_status != 'pending' then
+    raise exception 'Sem remarcação pendente';
+  end if;
+
+  v_is_client := (v_job.client_id = v_user_id);
+  select exists(
+    select 1 from public.job_proposals
+    where id = v_job.accepted_proposal_id and worker_id = v_user_id
+  ) into v_is_worker;
+
+  if v_job.reschedule_proposed_by = v_user_id then
+    raise exception 'Não pode recusar a sua própria remarcação';
+  end if;
+
+  if not (v_is_client or v_is_worker) then
+    raise exception 'Não autorizado';
+  end if;
+
+  v_proposer_id := v_job.reschedule_proposed_by;
+
+  update public.job_requests
+    set reschedule_proposed_date     = null,
+        reschedule_proposed_time     = null,
+        reschedule_proposed_flexible = null,
+        reschedule_proposed_by       = null,
+        reschedule_status            = 'rejected',
+        updated_at                   = now()
+    where id = p_job_id;
+
+  insert into public.notifications (user_id, type, title, body, related_id, related_type)
+  values (v_proposer_id, 'reschedule_rejected', 'Remarcação recusada',
+    'A nova data foi recusada. Mantém-se a data original.',
+    p_job_id, 'job_request');
+end;
+$function$
+"
+5_functions,security_definer,"submit_client_rating(p_job_id uuid, p_stars integer, p_comment text)","CREATE OR REPLACE FUNCTION public.submit_client_rating(p_job_id uuid, p_stars integer, p_comment text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job       job_requests%ROWTYPE;
+  v_principal uuid;
+  v_helper    RECORD;
+BEGIN
+  SELECT * INTO v_job FROM job_requests WHERE id = p_job_id FOR SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pedido não encontrado.';
+  END IF;
+  IF v_job.status <> 'completed' THEN
+    RAISE EXCEPTION 'Só é possível avaliar trabalhos concluídos.';
+  END IF;
+  IF v_job.client_id IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Não autorizado: só o cliente pode submeter esta avaliação.';
+  END IF;
+  IF p_stars < 1 OR p_stars > 5 THEN
+    RAISE EXCEPTION 'Avaliação inválida: entre 1 e 5 estrelas.';
+  END IF;
+
+  SELECT jp.worker_id INTO v_principal
+  FROM   job_proposals jp
+  WHERE  jp.id = v_job.accepted_proposal_id;
+
+  IF v_principal IS NULL THEN
+    RAISE EXCEPTION 'Proposta aceite não encontrada.';
+  END IF;
+
+  -- Rate principal (carries comment)
+  INSERT INTO ratings (job_id, rater_id, ratee_id, stars, comment)
+  VALUES (p_job_id, auth.uid(), v_principal, p_stars, p_comment)
+  ON CONFLICT (job_id, rater_id, ratee_id) DO NOTHING;
+
+  -- Rate each accepted helper (no comment propagated)
+  FOR v_helper IN
+    SELECT ha.worker_id
+    FROM   help_requests    hr
+    JOIN   help_acceptances ha ON ha.help_request_id = hr.id
+                              AND ha.status = 'accepted'
+    WHERE  hr.proposal_id = v_job.accepted_proposal_id
+  LOOP
+    INSERT INTO ratings (job_id, rater_id, ratee_id, stars, comment)
+    VALUES (p_job_id, auth.uid(), v_helper.worker_id, p_stars, NULL)
+    ON CONFLICT (job_id, rater_id, ratee_id) DO NOTHING;
+  END LOOP;
+END;
+$function$
+"
+5_functions,security_definer,"submit_helper_rating(p_job_id uuid, p_stars integer, p_comment text)","CREATE OR REPLACE FUNCTION public.submit_helper_rating(p_job_id uuid, p_stars integer, p_comment text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job       job_requests%ROWTYPE;
+  v_principal uuid;
+  v_is_helper boolean;
+BEGIN
+  SELECT * INTO v_job FROM job_requests WHERE id = p_job_id FOR SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pedido não encontrado.';
+  END IF;
+  IF v_job.status <> 'completed' THEN
+    RAISE EXCEPTION 'Só é possível avaliar trabalhos concluídos.';
+  END IF;
+  IF p_stars < 1 OR p_stars > 5 THEN
+    RAISE EXCEPTION 'Avaliação inválida: entre 1 e 5 estrelas.';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM   help_requests    hr
+    JOIN   help_acceptances ha ON ha.help_request_id = hr.id
+                              AND ha.status = 'accepted'
+                              AND ha.worker_id = auth.uid()
+    WHERE  hr.proposal_id = v_job.accepted_proposal_id
+  ) INTO v_is_helper;
+
+  IF NOT v_is_helper THEN
+    RAISE EXCEPTION 'Não autorizado: só ajudantes aceites podem submeter esta avaliação.';
+  END IF;
+
+  SELECT jp.worker_id INTO v_principal
+  FROM   job_proposals jp
+  WHERE  jp.id = v_job.accepted_proposal_id;
+
+  INSERT INTO ratings (job_id, rater_id, ratee_id, stars, comment)
+  VALUES (p_job_id, auth.uid(), v_principal, p_stars, p_comment)
+  ON CONFLICT (job_id, rater_id, ratee_id) DO NOTHING;
+END;
+$function$
+"
+5_functions,security_definer,"submit_principal_rating(p_job_id uuid, p_ratee_id uuid, p_stars integer, p_comment text)","CREATE OR REPLACE FUNCTION public.submit_principal_rating(p_job_id uuid, p_ratee_id uuid, p_stars integer, p_comment text DEFAULT NULL::text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_job      job_requests%ROWTYPE;
+  v_principal uuid;
+  v_valid    boolean := false;
+BEGIN
+  SELECT * INTO v_job FROM job_requests WHERE id = p_job_id FOR SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Pedido não encontrado.';
+  END IF;
+  IF v_job.status <> 'completed' THEN
+    RAISE EXCEPTION 'Só é possível avaliar trabalhos concluídos.';
+  END IF;
+  IF p_stars < 1 OR p_stars > 5 THEN
+    RAISE EXCEPTION 'Avaliação inválida: entre 1 e 5 estrelas.';
+  END IF;
+
+  SELECT jp.worker_id INTO v_principal
+  FROM   job_proposals jp
+  WHERE  jp.id = v_job.accepted_proposal_id;
+
+  IF v_principal IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Não autorizado: só o prestador principal pode submeter esta avaliação.';
+  END IF;
+
+  -- Allow rating the client
+  IF p_ratee_id = v_job.client_id THEN
+    v_valid := true;
+  END IF;
+
+  -- Allow rating an accepted helper
+  IF NOT v_valid THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM   help_requests    hr
+      JOIN   help_acceptances ha ON ha.help_request_id = hr.id
+                                AND ha.status = 'accepted'
+                                AND ha.worker_id = p_ratee_id
+      WHERE  hr.proposal_id = v_job.accepted_proposal_id
+    ) INTO v_valid;
+  END IF;
+
+  IF NOT v_valid THEN
+    RAISE EXCEPTION 'Não autorizado: o utilizador avaliado não é participante deste trabalho.';
+  END IF;
+
+  INSERT INTO ratings (job_id, rater_id, ratee_id, stars, comment)
+  VALUES (p_job_id, auth.uid(), p_ratee_id, p_stars, p_comment)
+  ON CONFLICT (job_id, rater_id, ratee_id) DO NOTHING;
+END;
+$function$
+"
+5_functions,security_definer,"sync_worker_service_types(p_worker_id uuid, p_service_type_ids uuid[])","CREATE OR REPLACE FUNCTION public.sync_worker_service_types(p_worker_id uuid, p_service_type_ids uuid[])
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  DELETE FROM worker_service_types WHERE worker_id = p_worker_id;
+  IF array_length(p_service_type_ids, 1) IS NOT NULL
+     AND array_length(p_service_type_ids, 1) > 0 THEN
+    INSERT INTO worker_service_types (worker_id, service_type_id)
+    SELECT p_worker_id, unnest(p_service_type_ids);
+  END IF;
+END;
+$function$
+"
+5_functions,security_definer,withdraw_help_acceptance(p_help_acceptance_id uuid),"CREATE OR REPLACE FUNCTION public.withdraw_help_acceptance(p_help_acceptance_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_worker_id           uuid;
+  v_help_request_id     uuid;
+  v_help_request_status text;
+  v_principal_worker_id uuid;
+  v_current_status      text;
+  v_job_status          text; -- NEW (RCB1)
+BEGIN
+  SELECT ha.worker_id,
+         ha.help_request_id,
+         ha.status,
+         hr.status,
+         jp.worker_id
+  INTO   v_worker_id,
+         v_help_request_id,
+         v_current_status,
+         v_help_request_status,
+         v_principal_worker_id
+  FROM   help_acceptances ha
+  JOIN   help_requests    hr ON hr.id = ha.help_request_id
+  JOIN   job_proposals    jp ON jp.id = hr.proposal_id
+  WHERE  ha.id = p_help_acceptance_id
+  FOR UPDATE OF ha;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Candidatura não encontrada.';
+  END IF;
+
+  IF v_worker_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Só podes retirar a tua própria candidatura.';
+  END IF;
+
+  IF v_current_status <> 'accepted' THEN
+    RAISE EXCEPTION
+      'Só podes retirar uma candidatura aceite (estado atual: %).', v_current_status;
+  END IF;
+
+  -- NEW (RCB1): guard against withdrawing from a job that is no longer active.
+  -- Without this check, a helper could trigger help_request_reopened notifications
+  -- for a completed or already-cancelled job.
+  SELECT jr.status INTO v_job_status
+  FROM   job_requests  jr
+  JOIN   help_requests hr ON hr.job_id = jr.id
+  WHERE  hr.id = v_help_request_id;
+
+  IF v_job_status NOT IN ('confirmed', 'awaiting_confirmation') THEN
+    RAISE EXCEPTION 'Não é possível desistir: o trabalho já não está ativo.';
+  END IF;
+
+  -- Withdraw the acceptance
+  UPDATE help_acceptances
+  SET    status = 'cancelled'
+  WHERE  id = p_help_acceptance_id;
+
+  -- If this withdrawal frees the last required slot, reopen the help_request
+  IF v_help_request_status = 'filled' THEN
+    UPDATE help_requests
+    SET    status = 'open'
+    WHERE  id = v_help_request_id;
+
+    -- Notify all rejected candidates that the slot is available again
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    SELECT ha.worker_id,
+           'help_request_reopened',
+           'Vaga disponível novamente',
+           'Uma vaga para ajudante voltou a ficar disponível.',
+           v_help_request_id,
+           'help_request'
+    FROM   help_acceptances ha
+    WHERE  ha.help_request_id = v_help_request_id
+      AND  ha.status          = 'rejected';
+  END IF;
+
+  -- Notify the principal worker that a helper withdrew
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  VALUES (
+    v_principal_worker_id,
+    'help_withdrew',
+    'Ajudante desistiu',
+    'Um ajudante retirou a sua aceitação.',
+    v_help_request_id,
+    'help_request'
+  );
+END;
+$function$
+"
+6_views,view,worker_profiles_public," SELECT profile_id,
+    bio,
+    radius_km,
+    tools,
+    location_name,
+    photos,
+    created_at,
+    updated_at
+   FROM worker_profiles;"
+6_views,view,worker_rating_summary," SELECT ratee_id AS worker_id,
+    round(avg(stars), 1) AS avg_rating,
+    count(*) AS rating_count
+   FROM ratings
+  GROUP BY ratee_id;"
+7_storage_buckets,bucket,avatars,public=true size_limit=none
+7_storage_buckets,bucket,job-photos,public=true size_limit=none

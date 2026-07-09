@@ -50,9 +50,9 @@ A mesma lógica "JobStatus → (label, Color)" implementada independentemente em
 
 ---
 
-### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-07 — N+1 queries de nome de worker em `_ProposalCard`
+### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-09 (migration 0032 — NOT APLICADA) — N+1 queries de nome de worker em `_ProposalCard`
 
-`fetchPendingProposalsForJob` migrado para join directo `profiles!job_proposals_worker_id_fkey` via migration 0031. `fetchCandidatesForHelpRequest` igual com `help_acceptances_worker_id_fkey`. `fromJson` simplificado em ambos os modelos. Migration 0031 NOT APLICADA.
+`fetchPendingProposalsForJob` usa join directo `profiles!job_proposals_worker_id_fkey`. `fetchCandidatesForHelpRequest` usa `profiles!help_acceptances_worker_id_fkey`. Os joins estavam quebrados porque ambos os FKs apontavam para `worker_profiles(profile_id)` em vez de `profiles(id)` — migration 0031 foi no-op silencioso (IF NOT EXISTS encontrou constraints existentes com nome correto mas destino errado). Migration 0032 corrige via DROP + ADD CONSTRAINT. Dart não muda: os hints já usavam os nomes corretos.
 
 ---
 
@@ -86,11 +86,9 @@ ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed 
 
 ---
 
-### `fetchCompletedWorkerProposals` — filtro client-side antes de paginação
+### `fetchCompletedWorkerProposals` — filtro client-side antes de paginação ✅ RESOLVIDO 2026-07-09
 
-A query usa `.range(page * pageSize, ...)` antes de filtrar `job_requests.status == 'completed'` client-side. Páginas podem ter menos items que `pageSize` mesmo quando há mais páginas, levando o utilizador a não carregar mais quando ainda existem dados.
-
-**Acção:** criar RPC `get_completed_worker_proposals(p_worker_id, p_limit, p_offset)` que filtra por `status = 'accepted'` E `job_requests.status = 'completed'` antes de paginar — garantindo que o `LIMIT` se aplica após o filtro.
+Substituído filtro client-side por `.filter('job_requests.status', 'eq', 'completed')` em `proposal_repository.dart`. PostgREST usa semântica INNER JOIN para filtros em embedded resources — LIMIT/RANGE aplicado após o filtro, paginação correcta. Mesmo padrão já usado em `fetchScheduledWorkerProposals`. RPC não necessário.
 
 ---
 
@@ -348,6 +346,36 @@ Após o worker marcar como concluído (`awaiting_confirmation`), o job é automa
 - **Workers com proposta pending não são notificados quando o cliente cancela um job em `open`:** o job desaparece silenciosamente da lista deles. Não é um bug crítico mas é uma experiência confusa para um worker novo.
 - **Horas reais trabalhadas nunca capturadas:** o sistema sabe o estimado e acordado, mas não o efetivamente trabalhado. Bloqueia dashboards de ganhos precisos e lógica de faturação. A janela para adicionar `actual_hours_worked` é agora (junto à conclusão do job), não depois de haver dados acumulados sem ele.
 - **`excluded_worker_ids` é opaco para o worker:** worker excluído vê o job desaparecer sem indicação. Sem mecanismo de recurso. Aceitável para MVP.
+
+---
+
+---
+
+## ⚠️ Riscos de segurança aceites — decisões intencionais MVP
+
+> Documentados em 2026-07-09 após auditoria B1-B4/C1-C4. Revisitar antes do lançamento público.
+
+### SA1 — auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado
+
+Ambas as funções são SECURITY DEFINER sem verificação de `auth.uid()`. Qualquer utilizador autenticado pode invocá-las via `rpc()`. Impacto real mínimo: são idempotentes (só afectam jobs que seriam alterados pela cron de qualquer forma). Aceite no MVP.
+
+**Fix futuro:** `IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Não autorizado.'` no início de cada função — não bloqueia a cron (cron corre como superuser), bloqueia RPC externo.
+
+---
+
+### SA2 — Ratings INSERT sem verificação de participação
+
+A policy `"Utilizador cria a sua avaliação"` em `ratings` verifica apenas `auth.uid() = rater_id`. Um autenticado pode inserir avaliação para qualquer `(job_id, ratee_id)` via REST directo. As RPCs `submit_client_rating`, `submit_principal_rating`, `submit_helper_rating` verificam participação completa e são o único ponto de acesso na camada Dart. Aceite no MVP enquanto as RPCs forem o único caminho de escrita.
+
+**Fix futuro:** substituir a policy INSERT por uma que valide participação, ou tornar a tabela `ratings` não-insertável diretamente (remover INSERT policy; forçar todas as escritas pelas RPCs).
+
+---
+
+### SA3 — Storage INSERT sem verificação de path de destino
+
+`"Upload avatar autenticado"` e `"Upload autenticado em job-photos"` verificam apenas `auth.role() = 'authenticated'`. Qualquer autenticado pode fazer upload para qualquer path. A policy de UPDATE de avatares verifica o filename (`regexp_replace`), mas a INSERT não. Aceite no MVP.
+
+**Fix futuro:** restringir INSERT de avatars a `(auth.uid())::text = regexp_replace(storage.filename(name), '\.[^.]+$', '')`, igual à policy de UPDATE.
 
 ---
 

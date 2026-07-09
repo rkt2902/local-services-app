@@ -151,9 +151,6 @@ class ProposalRepository {
         });
   }
 
-  // TODO: Move completed filter to DB via RPC to avoid fetching non-completed
-  // rows into the page range — client-side filter means pages may have fewer
-  // items than pageSize even when more pages exist.
   Future<List<Map<String, dynamic>>> fetchCompletedWorkerProposals(
     String workerId, {
     int page = 0,
@@ -164,17 +161,10 @@ class ProposalRepository {
         .select('*, job_requests!job_proposals_job_id_fkey(*)')
         .eq('worker_id', workerId)
         .eq('status', 'accepted')
+        .filter('job_requests.status', 'eq', 'completed')
         .order('created_at', ascending: false)
         .range(page * pageSize, (page + 1) * pageSize - 1);
-
-    return (data as List)
-        .cast<Map<String, dynamic>>()
-        .where((item) {
-          final jobData = item['job_requests'] as Map<String, dynamic>?;
-          if (jobData == null) return false;
-          return jobData['status'] == 'completed';
-        })
-        .toList();
+    return (data as List).cast<Map<String, dynamic>>().toList();
   }
 
   @Deprecated('Use fetchPendingWorkerProposals instead.')

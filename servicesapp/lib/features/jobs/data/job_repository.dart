@@ -46,8 +46,8 @@ class JobRepository {
         .from('job_requests')
         .insert(payload)
         .select('id')
-        .single();
-
+        .maybeSingle();
+    if (result == null) throw Exception('Job criado mas SELECT não devolveu dados.');
     return result['id'] as String;
   }
 

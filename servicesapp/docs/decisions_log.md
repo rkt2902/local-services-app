@@ -3,6 +3,113 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-09 — Auditoria completa B1-B4 (DB) + C1-C4 (Dart) + migration 0032
+
+### Contexto
+
+Auditoria de segurança e correctness em duas camadas: (1) schema/RLS/funções via `snapshot_tables.csv`; (2) código Dart via leitura de todo `lib/`. Achados documentados em tabelas B1-B4 e C1-C4. Migration 0032 escrita para corrigir os itens críticos e altos. **NÃO APLICADA — aplicar manualmente via SQL Editor.**
+
+---
+
+### B2-C1 CRÍTICO: FKs quebrados causavam null em nomes/avatares de workers (produção)
+
+**Root cause confirmado:** `job_proposals_worker_id_fkey` e `help_acceptances_worker_id_fkey` apontavam para `worker_profiles(profile_id)` em vez de `profiles(id)`. Migration 0031 foi um no-op silencioso: usou `IF NOT EXISTS` para verificar a existência do constraint pelo nome, encontrou-os (apontando para a tabela errada), e saltou o `ADD CONSTRAINT`. As strings de join `profiles!job_proposals_worker_id_fkey(full_name, avatar_url)` e `profiles!help_acceptances_worker_id_fkey(full_name, avatar_url)` em `proposal_repository.dart:42` e `help_request_repository.dart:88` pediam ao PostgREST para resolver o join via um FK cujo destino era `worker_profiles`, não `profiles` — join silenciosamente nulo.
+
+**Fix (migration 0032, Priority 1):** DROP ambos os constraints; ADD CONSTRAINT apontando para `profiles(id) ON DELETE CASCADE`. Os dados existentes são consistentes (worker_id = profiles.id = worker_profiles.profile_id — mesmo UUID). O hint de join em Dart não muda: o nome do FK mantém-se, só o destino muda.
+
+**Semântica de CASCADE após a mudança:** Apagar um profile cascada diretamente a job_proposals e help_acceptances (novo FK directo) e a worker_profiles (FK existente). Resultado final idêntico ao anterior.
+
+**Após aplicar:** executar `NOTIFY pgrst, 'reload schema'` (ou reiniciar PostgREST no dashboard) para que o schema cache seja atualizado e os embed joins funcionem.
+
+---
+
+### B2 CRÍTICO: accept_proposal sem verificação de auth.uid() = client_id
+
+**Vulnerabilidade:** qualquer utilizador autenticado que conhecesse um `proposal_id` e `job_id` podia chamar `rpc('accept_proposal', ...)` e aceitar uma proposta em nome do cliente — confirmando o job, notificando o worker, e criando um help_request automaticamente. A função é `SECURITY DEFINER`, by-passa RLS completamente.
+
+**Fix (migration 0032, Priority 2a):** `CREATE OR REPLACE FUNCTION accept_proposal` com check no início: `IF NOT EXISTS (SELECT 1 FROM job_requests WHERE id = p_job_id AND client_id = auth.uid()) THEN RAISE EXCEPTION ...`. Resto do corpo idêntico ao snapshot.
+
+---
+
+### B2 CRÍTICO: create_proposal sem verificação de p_worker_id = auth.uid()
+
+**Vulnerabilidade:** qualquer autenticado podia passar `p_worker_id = victim_uuid` e submeter uma proposta em nome de outro worker — incrementando o `proposal_count` do job da vítima, enviando notificação ao cliente com o nome errado, e bloqueando o slot de proposta da vítima nesse job.
+
+**Fix (migration 0032, Priority 2b):** `IF p_worker_id IS DISTINCT FROM auth.uid() THEN RAISE EXCEPTION 'Não autorizado.'` no início de `create_proposal`. Usa `IS DISTINCT FROM` para segurança com NULL.
+
+---
+
+### B2 CRÍTICO: sync_worker_service_types sem verificação de p_worker_id = auth.uid()
+
+**Vulnerabilidade:** qualquer autenticado podia chamar `rpc('sync_worker_service_types', {'p_worker_id': victim_uuid, 'p_service_type_ids': []})` e apagar todos os tipos de serviço de outro worker. A policy `ALL USING (auth.uid() = worker_id)` em `worker_service_types` é bypassed por SECURITY DEFINER.
+
+**Fix (migration 0032, Priority 2c):** `IF p_worker_id IS DISTINCT FROM auth.uid() THEN RAISE EXCEPTION 'Não autorizado.'` no início de `sync_worker_service_types`.
+
+---
+
+### B3 ALTO: profiles.role escalação via UPDATE directo
+
+**Vulnerabilidade:** a policy `"Utilizador atualiza o seu perfil"` tinha `USING (auth.uid() = id)` mas nenhum `WITH CHECK`. Um utilizador podia enviar `PATCH /profiles?id=eq.<uid>` com `{"role":"worker"}` e a BD aceitava — qualquer `client` tornava-se `worker` (ou vice-versa) sem nenhum obstáculo.
+
+**Fix (migration 0032, Priority 3):** Trigger `tg_prevent_profile_role_change` (`BEFORE UPDATE ON profiles FOR EACH ROW`) que lança exceção se `NEW.role IS DISTINCT FROM OLD.role`. Trigger é o guard primário porque `WITH CHECK` em políticas de UPDATE só tem acesso ao NEW row — impossível comparar com OLD.role em RLS. A policy foi recreada com `WITH CHECK (auth.uid() = id)` para consistência (não adiciona protecção de role por si só).
+
+---
+
+### B3: Políticas SELECT de profiles ausentes de todas as migrations
+
+**Achado:** o live DB tinha três políticas SELECT granulares em `profiles` que substituíram a policy broad `USING(true)` do 0001_baseline via sessões interativas. Ausentes de todas as migrations 0001-0031 — rebuild a partir de migrations deixaria qualquer autenticado a ler qualquer perfil.
+
+**Fix (migration 0032, Priority 5):**
+- DROP `"Perfis são legíveis por utilizadores autenticados"` (0001 — broad, não estava no live DB)
+- CREATE `"Utilizador vê o seu perfil"` — USING: `auth.uid() = id`
+- CREATE `"Worker ve perfil de cliente com job confirmado"` — USING: join via accepted proposal
+- CREATE `"Cliente ve perfil de worker com job confirmado"` — USING: `role = 'worker' AND client_has_confirmed_job_with_worker(id)`
+
+---
+
+### C2 MÉDIO: fetchCompletedWorkerProposals — filtro client-side antes de paginação
+
+**Problema:** a query usava `.range(page * pageSize, ...)` antes de filtrar `job_requests.status == 'completed'` no cliente. Páginas podiam ter menos items que `pageSize` mesmo com mais dados disponíveis — utilizador chegava ao fim prematuro.
+
+**Fix (Dart, proposal_repository.dart):** substituído filtro client-side por `.filter('job_requests.status', 'eq', 'completed')` — mesmo padrão já usado em `fetchScheduledWorkerProposals` (`.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')`). PostgREST usa semântica INNER JOIN para filtros em embedded resources, por isso o RANGE/LIMIT é aplicado após o filtro. TODO e `.where()` client-side removidos.
+
+---
+
+### C2 MÉDIO: job_repository.createJob usa .single() após INSERT
+
+**Problema:** `.insert(...).select('id').single()` lança `PostgrestException` se a SELECT policy não cobrir o próprio row (teoricamente impossível — a policy SELECT é `USING: auth.uid() = client_id` e o insertor é o cliente), mas `.single()` é estritamente mais frágil que `.maybeSingle()`.
+
+**Fix (Dart, job_repository.dart):** `.single()` → `.maybeSingle()` com null check explícito: `if (result == null) throw Exception('Job criado mas SELECT não devolveu dados.')`.
+
+---
+
+### Riscos aceites (B4) — documentados como trade-offs intencionais
+
+**auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado:**
+Ambas são SECURITY DEFINER sem `auth.uid()` check. Qualquer utilizador pode chamar via RPC. Efeito real: `auto_confirm` é idempotente (muda jobs `awaiting_confirmation` com `updated_at > 3 dias` para `completed` — no máximo adianta jobs que seriam confirmados de qualquer forma); `auto_expire` move jobs `open` com `expires_at < now()` para `no_response` — também idempotente. O impacto de uma chamada não autorizada é mínimo e não há dados sensíveis expostos. Fix recomendado em fase futura: adicionar `IF auth.uid() IS NULL THEN RAISE EXCEPTION` — não bloqueia a cron mas bloqueia chamadas via RPC externo.
+
+**Ratings INSERT — sem verificação de participação:**
+A policy `"Utilizador cria a sua avaliação"` verifica `auth.uid() = rater_id` mas não que o rater participou no job. Um utilizador autenticado pode inserir uma avaliação para qualquer `job_id` e `ratee_id` (o check `check_rater_not_ratee` apenas impede auto-avaliação). As RPCs `submit_client_rating`, `submit_principal_rating`, `submit_helper_rating` são SECURITY DEFINER e fazem verificação de participação completa — devem ser usadas em vez do INSERT directo. O INSERT directo (via REST) sem passar pelas RPCs é um bypass da lógica de negócio; a layer Dart usa sempre as RPCs. Risco aceite no MVP enquanto as RPCs forem o único ponto de acesso.
+
+**Storage INSERT policies sem verificação de path:**
+As policies `"Upload avatar autenticado"` e `"Upload autenticado em job-photos"` verificam apenas `auth.role() = 'authenticated'`. Qualquer autenticado pode fazer upload para qualquer path em `avatars` e `job-photos`. A policy de DELETE verifica ownership do path — é possível sobrescrever o avatar de outro utilizador (o path de um avatar é `<userId>.jpg`; a policy de UPDATE verifica o filename, mas o INSERT não). Risco aceite no MVP.
+
+---
+
+### C4: T4 ordering anti-patterns (6 ocorrências) — sem crash em código atual
+
+**Achado:** 6 locais onde `ref.invalidate()` é chamado antes de `router.go()`/`router.pop()`. Verificado via `ref.watch` de cada ecrã que nenhum deles observa os providers invalidados — sem risco de crash T4 no código atual. Ficam como anti-patterns que se tornarão bugs reais se esses providers forem adicionados ao `build()` dos respectivos ecrãs. Documentados como Low, não corrigidos.
+
+---
+
+### Skipped / Não corrigido nesta sessão
+
+- **T4 ordering anti-patterns** (6 locais) — Low, não crash-causing atualmente
+- **auto_confirm/expire auth check** — Low, impacto mínimo, aceite no MVP
+- **Ratings INSERT policy** — Low, aceite no MVP (RPCs são o único ponto de acesso)
+- **Storage INSERT policies** — Low, aceite no MVP
+- **worker_setup_screen.dart direct Supabase call** — Medium/Architecture, sem impacto de segurança
+
 ## 2026-07-07 — F10-S4 fix definitivo: worker_profiles RLS + view + FKs directos + geocoding
 
 **Decisão de design:** `worker_profiles` restrito a owner-only SELECT (`profile_id = auth.uid()`). View pública `worker_profiles_public` expõe colunas seguras (`bio`, `radius_km`, `tools`, `location_name`, `photos`) a qualquer utilizador autenticado. View criada **sem `security_invoker`** (definer-style, default PostgreSQL) — é deliberado: com `security_invoker=true` a view retornaria 0 rows para não-owners, silenciosamente, sem erro. Diferença crítica face a `worker_rating_summary` (0028, que usa `security_invoker=true` corretamente porque a sua tabela subjacente tem `USING(true)` — sem restrição a bypassed).
