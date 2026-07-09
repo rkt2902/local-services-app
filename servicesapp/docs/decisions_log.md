@@ -3,6 +3,53 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-09 — Auditoria de docs e roadmap (Task 2)
+
+Leitura de todos os ficheiros em `docs/` e dos ficheiros chave de `lib/` (proposal_repository, job_repository, worker_setup_screen, reschedule_dialog). Itens verificados contra código real:
+
+**B2 Fase 8 — CONFIRMADO RESOLVIDO:** `reschedule_dialog.dart:27` usa `firstDate: DateTime.now().add(const Duration(days: 1))` — impede seleção de data passada. Marcado resolvido em `improvements.md`.
+
+**P8/B4 — CONFIRMADO ABERTO:** `worker_setup_screen.dart:190` faz `ref.read(supabaseClientProvider).from('profiles').select(...)` diretamente no widget — única violação do princípio arquitetural #2.
+
+**decisions_log.md — quase completo:** todas as sessões de 2026-07-01 a 2026-07-09 têm entradas. Nenhuma entrada em falta identificada — o que o utilizador enumerou em STEP 2 estava já documentado nas entradas existentes.
+
+**Criado `docs/STATUS.md`:** snapshot honesto do estado do projeto — o que funciona end-to-end, gaps conhecidos (CRÍTICO/ALTO/MÉDIO/BAIXO), postura de segurança, o que é necessário antes do primeiro utilizador real.
+
+**Atualizado `docs/improvements.md`:** secção `🗺️ Roadmap limpo` adicionada com tabelas CRÍTICO/ALTO/MÉDIO/PÓS-LANÇAMENTO; B2 Fase 8 movida para resolvida.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-09 — Consolidação de migrations em baseline único
+
+### Contexto
+
+31 migrations incrementais (0001–0032, sem 0015) arquivadas em `supabase/migrations/archive/`. Um único ficheiro `0001_consolidated_baseline.sql` substitui-as para novos projetos. **NÃO APLICADO — aplicar manualmente via SQL Editor.**
+
+### Decisões tomadas
+
+**Fonte de verdade para o schema:** `snapshot_tables.csv` (2026-07-09) é autoritativo para colunas, constraints, indexes e RLS policies. Para tabelas não incluídas no snapshot query (`service_categories`, `job_photos`) e funções não capturadas (`reject_proposal`, `withdraw_proposal`, `confirm_job_completion`, `worker_has_proposal_for_job`, `notify_workers_new_job`), usou-se `0001_baseline.sql` do arquivo.
+
+**FKs corrigidos no baseline:** `job_proposals.worker_id` e `help_acceptances.worker_id` apontam para `profiles(id)` (correto), não para `worker_profiles(profile_id)` (estado actual do live DB, a ser corrigido via 0032).
+
+**Funções com auth checks:** `accept_proposal`, `create_proposal`, `sync_worker_service_types` incluem os checks de `auth.uid()` de 0032, não os corpos pré-0032 do snapshot.
+
+**`snapshot_a.csv` e `snapshot_b.csv` não existem:** Todos os dados do snapshot foram lidos de um único ficheiro `snapshot_tables.csv`. Documentado no README e no cabeçalho do ficheiro.
+
+**Discrepâncias snapshot vs. 0001_baseline encontradas:**
+- `profiles.phone`: nullable no live DB (snapshot: sem NOT NULL); 0001 criou como NOT NULL — baseline usa nullable.
+- `job_requests.confirmed_flexible`: nullable boolean no live DB; 0001 criou como `NOT NULL DEFAULT false` — baseline usa nullable.
+- 6 indexes do 0001 ausentes do live DB (CREATE TABLE IF NOT EXISTS skipped body) — incluídos no baseline via 0032.
+
+**Seed data preservada:** 1 service_category (gardening) + 3 service_types incluídos via `ON CONFLICT DO NOTHING`.
+
+**pg_cron:** 2 jobs documentados e incluídos (`auto-expire-jobs`, `auto-confirm-completed-jobs`), ambos a cada 3 horas.
+
+**Storage:** Buckets `avatars` e `job-photos` (public=true) com as 7 policies do live DB. `worker-photos` (do 0001) omitido — não está em uso no app e não estava no snapshot.
+
+---
+
 ## 2026-07-09 — Auditoria completa B1-B4 (DB) + C1-C4 (Dart) + migration 0032
 
 ### Contexto

@@ -10,29 +10,41 @@
 
 ---
 
-## 🟠 Alta prioridade — Por resolver
+## 🗺️ Roadmap limpo — 2026-07-09
 
-### Bug 3 ✅ RESOLVIDO 2026-07-06 (migration 0029 — APLICADA 2026-07-07) — Worker name/avatar "—" em proposal cards
+> Para o roadmap completo e análise de segurança, ver `docs/STATUS.md`.
 
-Causa raiz confirmada via live log (`[BUG3_DIAG]`): PostgREST devolvia `worker_profiles: {profiles: null}` no join de dois saltos porque o FK `worker_profiles.profile_id → profiles(id)` estava ausente de `pg_constraint` na BD viva (CREATE TABLE IF NOT EXISTS saltou o corpo). SQL direto funcionava corretamente — problema exclusivo de schema cache do PostgREST.
+### 🟠 ALTO — antes de mostrar a alguém fora da equipa
 
-Fix: migration 0029 adiciona o FK explicitamente com `IF NOT EXISTS` seguro; select string atualizada com hint `profiles!worker_profiles_profile_id_fkey(...)`. `fromJson` inalterado.
+| Item | Porquê | Esforço | Dependências |
+|---|---|---|---|
+| **FCM push notifications** | Workers perdem jobs quando app está em background. Maior bloqueador funcional após 0032. | L | Firebase project; Supabase Edge Function |
+| **SA3** fix: Storage INSERT path restriction | Qualquer autenticado pode fazer upload para qualquer path de avatar | S | migration (manual apply) |
+| **SA2** fix: ratings INSERT com verificação de participação | Bypass REST permite inserir avaliação para qualquer job | M | migration (manual apply) |
+| **Contacto do worker principal para ajudantes** | Ajudantes veem o nome mas não o telefone do principal — regra de negócio implementada pela metade | S | nenhuma |
+- **OAuth** (Google/Apple login) (Facebook login): Tem de ser implementado
 
----
+### 🟡 MÉDIO — polish antes do lançamento mais amplo
 
-### T6 / P-8-9 ✅ RESOLVIDO 2026-07-01 — Deep-link de notificações
+| Item | Porquê | Esforço | Dependências |
+|---|---|---|---|
+| **P1/A1** — `JobStatus` extension unificada | 4 implementações independentes com labels inconsistentes | M | nenhuma |
+| **M4** — CHECK constraints `people_needed ≥ 1` e `slots_needed ≥ 1` | `accept_proposal` pode calcular `slots_needed = -1` se `people_needed = 0` chegar à BD | S | migration (manual apply) |
+| **P-8-8** — Jobs cancelados em `open` invisíveis no histórico | Pode ser intencional (menos lixo) ou omissão — não está registado | S | decisão de produto necessária |
+| **SA1** — `auto_confirm`/`auto_expire` sem check auth | Qualquer autenticado pode invocar via RPC; funções são idempotentes | S | migration (manual apply) |
+| **B1/B2 Fases 6-7** — Validação de email e telefone | Telefone aceita "1"; link WhatsApp construído com número inválido = link quebrado | S | nenhuma |
+| **P8/B4** — `worker_setup_screen` chama Supabase diretamente | Única violação do princípio arquitetural #2 | S | nenhuma |
 
-Auditoria completa de `notification_handler.dart` em 2026-07-01. Todos os 19 tipos de notificação navegam agora para o destino correto:
-- **Lifecycle com role-split** (`jobCancelled`, `rescheduleProposed/Accepted/Rejected`, `jobCompleted`): cliente → `context.go('/client/job/$id')`; worker → async fetch proposalId → `context.go('/worker/my-job/$pid?jobId=$id')`, fallback home se fetch nulo.
-- **Client-only** (`jobMarkedDone`, `jobNoResponse`, `proposalReceived`, `proposalWithdrawn`): `context.go('/client/job/$id')`.
-- **Worker discovery** (`newJobInRadius`, `jobReopened`, `proposalRejected`): `context.push('/worker/job/$id')`.
-- **Help-request** (`helpRequestApproved`, `helpWithdrew`): fetch help_request → push lobby; fallback home.
-- **Candidatures** (`helpAccepted`, `helpRejected`, `helpJobCancelled`): `context.go` → tab 1.
-- `context.go` usado (em vez de `context.push`) em todos os lifecycle events — elimina RT1 keyReservation crash por navegação dupla.
-- RT4 corrigido: `proposalAccepted` com fetch nulo agora navega para home + SnackBar em vez de break silencioso.
-- `helpRejected` agora navega para candidaturas (antes: break silencioso).
-- `helpRequestApproved` e `helpWithdrew` têm fallback para home (antes: break silencioso se fetch null).
-- Todos os casos com `await` têm `if (!context.mounted) break` imediatamente após.
+### 🔵 PÓS-LANÇAMENTO — deliberadamente adiado
+
+- **FCM push**: já em ALTO — promover se não estiver feito antes do lançamento.
+
+- **Jobs recorrentes**: dependência de mini-chat + relações persistentes; implementar por camadas conforme tração.
+- **Página de perfil de worker visitável**: camada 1 (read-only dentro da app) pode avançar a qualquer momento; camada 2 (portfólio) depende de camada 1 validada.
+- **Feed/descoberta na home do cliente**: depende de perfis públicos e volume de workers; confirmar procura antes de construir.
+- **Mini-chat por proposta**: diferenciador forte vs WhatsApp; bloqueia jobs recorrentes e relações persistentes.
+- **Dashboard do worker** (ganhos, km, jobs feitos): sem dados históricos suficientes para ser útil antes de 3-6 meses de utilização real.
+- **Portfólio de fotos no perfil**: depende de perfil visitável (camada 1).
 
 ---
 
@@ -50,12 +62,6 @@ A mesma lógica "JobStatus → (label, Color)" implementada independentemente em
 
 ---
 
-### P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-09 (migration 0032 — NOT APLICADA) — N+1 queries de nome de worker em `_ProposalCard`
-
-`fetchPendingProposalsForJob` usa join directo `profiles!job_proposals_worker_id_fkey`. `fetchCandidatesForHelpRequest` usa `profiles!help_acceptances_worker_id_fkey`. Os joins estavam quebrados porque ambos os FKs apontavam para `worker_profiles(profile_id)` em vez de `profiles(id)` — migration 0031 foi no-op silencioso (IF NOT EXISTS encontrou constraints existentes com nome correto mas destino errado). Migration 0032 corrige via DROP + ADD CONSTRAINT. Dart não muda: os hints já usavam os nomes corretos.
-
----
-
 ### M4 Fases 4-5 — CHECK constraints em `people_needed` e `slots_needed`
 
 Sem estes CHECKs, `accept_proposal` pode calcular `slots_needed = people_needed - 1 = -1` se `people_needed = 0` chegar à BD, criando uma help_request com `slots_needed` negativo (imediatamente considerada "filled").
@@ -65,30 +71,6 @@ Sem estes CHECKs, `accept_proposal` pode calcular `slots_needed = people_needed 
 ALTER TABLE job_proposals ADD CONSTRAINT check_people_needed CHECK (people_needed >= 1);
 ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed >= 1);
 ```
-
----
-
-### M4 Fases 6-7 ✅ RESOLVIDO 2026-07-04 — `PendingSignupNotifier` substitui `state.extra` no fluxo de registo
-
-`NotifierProvider<PendingSignupNotifier, PendingSignupState>` criado em `lib/features/auth/application/pending_signup_provider.dart`. `SignupScreen` escreve para o provider antes de `context.go('/choose-role')` (sem extra). `ChooseRoleScreen` lê via `ref.read(pendingSignupProvider)` e chama `.clear()` após `createProfile` com sucesso. Construtor de `ChooseRoleScreen` simplificado (`const ChooseRoleScreen()`); router `/choose-role` builder simplificado para `(_, _) => const ChooseRoleScreen()`.
-
----
-
-### P-10-2 / M2 Fase 10 ✅ RESOLVIDO 2026-07-04 — Contacto do worker principal não visível ao ajudante
-
-`HelpAcceptanceSummary` já tem `principalPhone: String` (default `''`) e `principalWorkerId: String` (default `''`), ambos parsed em `fromJson` via `json['principal_phone']` e `json['principal_worker_id']`. `_AcceptedCard` em `worker_help_requests_screen.dart` já apresenta botão WhatsApp (gated em `principalPhone.isNotEmpty`) e acede a `principalWorkerId`. Implementação completa em modelo + UI — já estava resolvido (provavelmente em migration 0022 / RC3 2026-06-27).
-
----
-
-### P-8-7 / M3 Fase 8 ✅ RESOLVIDO 2026-07-04 — `fetchScheduledWorkerProposals` busca TODAS as propostas `accepted` e filtra no cliente
-
-`proposal_repository.dart` — filtro de job status movido para o servidor via `.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')` na query PostgREST. Bloco `.where()` client-side removido. Sort por `confirmed_date` mantido no cliente (PostgREST não ordena por campo de embedded resource).
-
----
-
-### `fetchCompletedWorkerProposals` — filtro client-side antes de paginação ✅ RESOLVIDO 2026-07-09
-
-Substituído filtro client-side por `.filter('job_requests.status', 'eq', 'completed')` em `proposal_repository.dart`. PostgREST usa semântica INNER JOIN para filtros em embedded resources — LIMIT/RANGE aplicado após o filtro, paginação correcta. Mesmo padrão já usado em `fetchScheduledWorkerProposals`. RPC não necessário.
 
 ---
 
@@ -214,14 +196,6 @@ Número como `"1"` ou `"abc"` passa e fica guardado. Link WhatsApp construído c
 Ambos os ecrãs de perfil usam `_saving = true` para todo o ciclo (upload avatar + update BD). Upload pode demorar 1-5s numa ligação móvel fraca.
 
 **Acção:** estado `_uploadingAvatar` separado com texto "A carregar foto..." nos ecrãs de perfil.
-
----
-
-### B2 Fase 8 — `RescheduleDialog`: confirmar se impede seleção de data passada
-
-A BD bloqueia via regra das 24h em `propose_reschedule`. Validação client-side com `firstDate: DateTime.now().add(Duration(days: 1))` daria feedback imediato.
-
-**Acção:** ler `reschedule_dialog.dart` para confirmar estado atual.
 
 ---
 
@@ -640,6 +614,26 @@ Confirma que o padrão T4 (navegar depois invalidar) funciona quando aplicado co
 ## ✅ Resolvidos
 
 > Referência histórica. Detalhes técnicos em `decisions_log.md`.
+
+### Backlog — itens resolvidos — 2026-07-01 a 2026-07-09
+
+**T6 / P-8-9 ✅ RESOLVIDO 2026-07-01** — Deep-link de notificações completo: auditoria de `notification_handler.dart`, todos os 19 tipos navegam para o destino correto com role-split (lifecycle, client-only, worker discovery, help-request, candidatures). `context.go` substitui `context.push` em lifecycle events — elimina RT1 keyReservation crash.
+
+**Bug 3 ✅ RESOLVIDO 2026-07-06 (migration 0029 — APLICADA 2026-07-07)** — Worker name/avatar "—" em proposal cards. FK `worker_profiles.profile_id → profiles(id)` ausente do live DB (CREATE TABLE IF NOT EXISTS saltou o corpo); PostgREST não resolvia o segundo salto. Migration 0029 + FK hint `profiles!worker_profiles_profile_id_fkey`.
+
+**M4 Fases 6-7 ✅ RESOLVIDO 2026-07-04** — `PendingSignupNotifier` substitui `state.extra` no fluxo de registo. `NotifierProvider` em `pending_signup_provider.dart`; `SignupScreen` escreve; `ChooseRoleScreen` lê e chama `.clear()` após sucesso.
+
+**P-10-2 / M2 Fase 10 ✅ RESOLVIDO 2026-07-04** — Contacto do worker principal visível ao ajudante. `HelpAcceptanceSummary` já tinha `principalPhone`/`principalWorkerId`; `_AcceptedCard` já mostrava botão WhatsApp gated em `principalPhone.isNotEmpty`. Já estava implementado (migration 0022 / RC3).
+
+**P-8-7 / M3 Fase 8 ✅ RESOLVIDO 2026-07-04** — `fetchScheduledWorkerProposals` filtrava no cliente. Movido para servidor via `.filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')`. Sort por `confirmed_date` mantido no cliente.
+
+**`fetchCompletedWorkerProposals` ✅ RESOLVIDO 2026-07-09** — Filtro client-side substituído por `.filter('job_requests.status', 'eq', 'completed')` em `proposal_repository.dart`. Paginação correcta (INNER JOIN semântico do PostgREST aplica LIMIT/RANGE após filtro).
+
+**P-8-2 / M1 Fase 8 ✅ RESOLVIDO 2026-07-09 (migration 0032 — NOT APLICADA)** — N+1 queries de nome/avatar de worker. Joins `profiles!job_proposals_worker_id_fkey` e `profiles!help_acceptances_worker_id_fkey` estavam quebrados porque FKs apontavam para `worker_profiles(profile_id)`. Migration 0031 foi no-op silencioso. Migration 0032 corrige via DROP + ADD CONSTRAINT.
+
+**B2 Fase 8 ✅ RESOLVIDO 2026-07-09** — `RescheduleDialog` já impede seleção de data passada: `firstDate: DateTime.now().add(const Duration(days: 1))` em `reschedule_dialog.dart:27`. Confirmado por leitura direta.
+
+---
 
 ### UX formulário de proposta + mapa nos cards — 2026-07-01
 
