@@ -6,7 +6,12 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/geocoding_service.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
 import '../application/worker_providers.dart';
@@ -60,9 +65,8 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       final locations = await locationFromAddress(text);
       if (!mounted) return;
       if (locations.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Morada não encontrada.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Morada não encontrada.')));
         return;
       }
       final lat = locations.first.latitude;
@@ -77,9 +81,8 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao pesquisar morada.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao pesquisar morada.')));
     } finally {
       if (mounted) setState(() => _geocoding = false);
     }
@@ -103,9 +106,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     });
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Serviço de localização desativado.');
-      }
+      if (!serviceEnabled) throw Exception('Serviço de localização desativado.');
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -186,27 +187,26 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     setState(() => _saving = true);
     try {
       final currentUser = ref.read(currentUserProvider)!;
-      final profileData = await ref
-          .read(authRepositoryProvider)
-          .fetchNameAndPhone(currentUser.id);
+      final profileData =
+          await ref.read(authRepositoryProvider).fetchNameAndPhone(currentUser.id);
       if (profileData == null) {
-        throw Exception('Perfil de utilizador não encontrado. Tenta fazer login novamente.');
+        throw Exception(
+            'Perfil de utilizador não encontrado. Tenta fazer login novamente.');
       }
-      final existingName = profileData.fullName;
-      final existingPhone = profileData.phone;
       final repo = ref.read(workerRepositoryProvider);
       String? avatarUrl;
-      if (_avatar != null) avatarUrl = await repo.uploadAvatar(currentUser.id, _avatar!);
+      if (_avatar != null) {
+        avatarUrl = await repo.uploadAvatar(currentUser.id, _avatar!);
+      }
       await repo.createProfile(WorkerProfile(
         profileId: currentUser.id,
-        fullName: existingName,
-        phone: existingPhone,
+        fullName: profileData.fullName,
+        phone: profileData.phone,
         avatarUrl: avatarUrl,
         bio: _bioController.text.trim().isEmpty
             ? null
             : _bioController.text.trim(),
-        defaultHourlyRate:
-            double.tryParse(_hourlyRateController.text.trim()),
+        defaultHourlyRate: double.tryParse(_hourlyRateController.text.trim()),
         radiusKm: _radiusKm,
         baseLat: _baseLat!,
         baseLng: _baseLng!,
@@ -232,234 +232,450 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
-    final avatarProvider =
-        _avatar != null ? FileImage(_avatar!) as ImageProvider : null;
+
+    final sectionTitleStyle = textTheme.titleLarge?.copyWith(
+      fontSize: 18,
+      fontWeight: FontWeight.w800,
+      color: AppColors.textPrimary,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Completar perfil de jardineiro')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: GestureDetector(
-                  onTap: _pickAvatar,
-                  child: CircleAvatar(
-                    radius: 48,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    backgroundImage: avatarProvider,
-                    child: avatarProvider == null
-                        ? Icon(Icons.person,
-                            size: 48, color: theme.colorScheme.primary)
-                        : null,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton.icon(
-                  onPressed: _pickAvatar,
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Adicionar foto'),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Falta só preencher o teu perfil de jardineiro para começares a receber pedidos.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _bioController,
-                decoration: const InputDecoration(
-                  labelText: 'Apresentação (opcional)',
-                  prefixIcon: Icon(Icons.info_outline),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-              Text('Localização base', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              if (_baseLat != null && _baseLng != null)
-                Chip(
-                  avatar:
-                      Icon(Icons.check_circle, color: theme.colorScheme.primary),
-                  label: Text(
-                      '${_baseLat!.toStringAsFixed(4)}, ${_baseLng!.toStringAsFixed(4)}'),
-                ),
-              if (_locationError != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(_locationError!,
-                      style: TextStyle(color: theme.colorScheme.error)),
-                ),
-              OutlinedButton.icon(
-                onPressed: _loadingLocation ? null : _getLocation,
-                icon: _loadingLocation
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location),
-                label: Text(_baseLat == null
-                    ? 'Usar a minha localização'
-                    : 'Atualizar localização'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _addressSearchController,
-                decoration: InputDecoration(
-                  labelText: 'Pesquisar morada',
-                  prefixIcon: const Icon(Icons.place_outlined),
-                  suffixIcon: _geocoding
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: _geocodeAddress,
-                        ),
-                ),
-                onFieldSubmitted: (_) => _geocodeAddress(),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () =>
-                    setState(() => _showManualCoords = !_showManualCoords),
-                child: Text(_showManualCoords
-                    ? 'Ocultar coordenadas'
-                    : 'Introduzir coordenadas manualmente'),
-              ),
-              if (_showManualCoords) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _latController,
-                        decoration:
-                            const InputDecoration(labelText: 'Latitude'),
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true, signed: true),
-                        onChanged: (_) => _applyManualCoords(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _lngController,
-                        decoration:
-                            const InputDecoration(labelText: 'Longitude'),
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true, signed: true),
-                        onChanged: (_) => _applyManualCoords(),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 24),
-              Text('Raio de atuação: $_radiusKm km',
-                  style: theme.textTheme.titleMedium),
-              Slider(
-                value: _radiusKm.toDouble(),
-                min: 1,
-                max: 50,
-                divisions: 49,
-                label: '$_radiusKm km',
-                onChanged: (v) => setState(() => _radiusKm = v.round()),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _hourlyRateController,
-                decoration: const InputDecoration(
-                  labelText: 'Preço/hora (€) — opcional',
-                  prefixIcon: Icon(Icons.euro_outlined),
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: 24),
-              Text('Serviços que faço', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              serviceTypesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Erro ao carregar serviços: ${friendlyError(e)}'),
-                data: (types) => Wrap(
-                  spacing: 8,
-                  children: types.map((t) {
-                    final selected = _selectedServiceTypeIds.contains(t.id);
-                    return FilterChip(
-                      label: Text(t.name),
-                      selected: selected,
-                      onSelected: (v) => setState(() {
-                        if (v) {
-                          _selectedServiceTypeIds.add(t.id);
-                        } else {
-                          _selectedServiceTypeIds.remove(t.id);
-                        }
-                      }),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text('Ferramentas', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              Row(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header ────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 14, 0),
+              child: Row(
                 children: [
+                  if (context.canPop())
+                    IconButton(
+                      onPressed: context.pop,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
                   Expanded(
-                    child: TextFormField(
-                      controller: _toolController,
-                      decoration: const InputDecoration(
-                        labelText: 'Adicionar ferramenta',
-                        prefixIcon: Icon(Icons.build_outlined),
+                    child: Text(
+                      'Configurar perfil',
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
-                      onFieldSubmitted: (_) => _addTool(),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(onPressed: _addTool, icon: const Icon(Icons.add)),
                 ],
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: _tools
-                    .map((t) => Chip(
-                          label: Text(t),
-                          onDeleted: () => setState(() => _tools.remove(t)),
-                        ))
-                    .toList(),
+            ),
+
+            // ── Form ──────────────────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Photo
+                      Center(
+                        child: _PhotoSection(
+                          avatar: _avatar,
+                          onPick: _pickAvatar,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Preenche o teu perfil para começares a receber pedidos.',
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      // ── Bio ───────────────────────────────────────────
+                      const SizedBox(height: 28),
+                      Text('Apresentação', style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        controller: _bioController,
+                        label: 'Apresentação (opcional)',
+                        maxLines: 5,
+                        minLines: 3,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                      ),
+
+                      // ── Localização ───────────────────────────────────
+                      const SizedBox(height: 28),
+                      Text('Localização base', style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+
+                      if (_baseLat != null && _baseLng != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppStatusColor.success.background,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.input),
+                            border: Border.all(
+                              color: AppStatusColor.success.foreground
+                                  .withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded,
+                                  color: AppStatusColor.success.foreground,
+                                  size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _locationName.isNotEmpty
+                                      ? _locationName
+                                      : '${_baseLat!.toStringAsFixed(4)}, '
+                                          '${_baseLng!.toStringAsFixed(4)}',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: AppStatusColor.success.foreground,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      if (_locationError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            _locationError!,
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: Colors.red),
+                          ),
+                        ),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _loadingLocation ? null : _getLocation,
+                          icon: _loadingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Icon(Icons.my_location_rounded),
+                          label: Text(
+                            _baseLat == null
+                                ? 'Usar a minha localização'
+                                : 'Atualizar localização',
+                            style: textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: AppColors.primary),
+                            foregroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.input),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      AppTextField(
+                        controller: _addressSearchController,
+                        label: 'Pesquisar morada',
+                        keyboardType: TextInputType.streetAddress,
+                        onFieldSubmitted: (_) => _geocodeAddress(),
+                        suffixIcon: _geocoding
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.search,
+                                    color: AppColors.primary),
+                                onPressed: _geocodeAddress,
+                              ),
+                      ),
+                      const SizedBox(height: 4),
+
+                      TextButton(
+                        onPressed: () => setState(
+                            () => _showManualCoords = !_showManualCoords),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primaryPressed,
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          alignment: Alignment.centerLeft,
+                        ),
+                        child: Text(
+                          _showManualCoords
+                              ? 'Ocultar coordenadas'
+                              : 'Introduzir coordenadas manualmente',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: AppColors.primaryPressed,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      if (_showManualCoords) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: AppTextField(
+                                controller: _latController,
+                                label: 'Latitude',
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true, signed: true),
+                                onFieldSubmitted: (_) => _applyManualCoords(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: AppTextField(
+                                controller: _lngController,
+                                label: 'Longitude',
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true, signed: true),
+                                onFieldSubmitted: (_) => _applyManualCoords(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // ── Raio ──────────────────────────────────────────
+                      const SizedBox(height: 28),
+                      Text('Raio de atuação: $_radiusKm km',
+                          style: sectionTitleStyle),
+                      Slider(
+                        value: _radiusKm.toDouble(),
+                        min: 1,
+                        max: 50,
+                        divisions: 49,
+                        label: '$_radiusKm km',
+                        onChanged: (v) =>
+                            setState(() => _radiusKm = v.round()),
+                      ),
+
+                      // ── Preço/hora ────────────────────────────────────
+                      const SizedBox(height: 4),
+                      AppTextField(
+                        controller: _hourlyRateController,
+                        label: 'Preço/hora (€) — opcional',
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                      ),
+
+                      // ── Serviços ──────────────────────────────────────
+                      const SizedBox(height: 28),
+                      Text('Serviços que ofereço', style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+                      serviceTypesAsync.when(
+                        loading: () => const Center(
+                            child: CircularProgressIndicator()),
+                        error: (e, _) => Text(
+                          'Erro ao carregar serviços: ${friendlyError(e)}',
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: Colors.red),
+                        ),
+                        data: (types) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: types.map((t) {
+                              final selected =
+                                  _selectedServiceTypeIds.contains(t.id);
+                              return FilterChip(
+                                selected: selected,
+                                onSelected: (v) => setState(() {
+                                  if (v) {
+                                    _selectedServiceTypeIds.add(t.id);
+                                  } else {
+                                    _selectedServiceTypeIds.remove(t.id);
+                                  }
+                                }),
+                                label: Text(t.name),
+                                showCheckmark: true,
+                                selectedColor: AppColors.primaryContainer,
+                                checkmarkColor: AppColors.primaryPressed,
+                                backgroundColor: AppColors.surface,
+                                side: BorderSide(
+                                  color: selected
+                                      ? Colors.transparent
+                                      : AppColors.divider,
+                                ),
+                                labelStyle: textTheme.bodyMedium?.copyWith(
+                                  color: selected
+                                      ? AppColors.primaryPressed
+                                      : AppColors.textPrimary,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppRadius.pill),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                      // ── Ferramentas ───────────────────────────────────
+                      const SizedBox(height: 28),
+                      Text('Ferramentas', style: sectionTitleStyle),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              controller: _toolController,
+                              label: 'Adicionar ferramenta',
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _addTool(),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton.filled(
+                            onPressed: _addTool,
+                            icon: const Icon(Icons.add),
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.input),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_tools.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _tools
+                              .map((t) => Chip(
+                                    label: Text(t),
+                                    onDeleted: () =>
+                                        setState(() => _tools.remove(t)),
+                                    backgroundColor:
+                                        AppColors.primaryContainer,
+                                    labelStyle:
+                                        textTheme.bodyMedium?.copyWith(
+                                      color: AppColors.primaryPressed,
+                                    ),
+                                    deleteIconColor: AppColors.primaryPressed,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          AppRadius.pill),
+                                      side: BorderSide.none,
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 32),
-              FilledButton(
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Entrar na app'),
+            ),
+
+            // ── Save button ───────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+              child: PrimaryActionButton(
+                label: 'Entrar na app',
+                isLoading: _saving,
+                onPressed: _save,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Photo section ─────────────────────────────────────────────────────────────
+
+class _PhotoSection extends StatelessWidget {
+  const _PhotoSection({required this.avatar, required this.onPick});
+
+  final File? avatar;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final hasPhoto = avatar != null;
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onPick,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 52,
+                backgroundColor: AppColors.primaryContainer,
+                backgroundImage:
+                    hasPhoto ? FileImage(avatar!) as ImageProvider : null,
+                child: hasPhoto
+                    ? null
+                    : const Icon(Icons.person_rounded,
+                        size: 52, color: AppColors.primary),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.surface, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded,
+                      size: 16, color: Colors.white),
+                ),
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(
+          hasPhoto ? 'Alterar foto' : 'Adicionar foto',
+          style: textTheme.bodyMedium?.copyWith(
+            color: AppColors.primaryPressed,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }

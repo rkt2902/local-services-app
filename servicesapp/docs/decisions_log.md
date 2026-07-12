@@ -3,6 +3,44 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-12 — Bug fix AppTextField multiline + reskin landing_screen
+
+**Bug fix `app_text_field.dart`:** `maxLines` alterado de `int` (não-nullable) para `int?` (nullable, default `1`). Adicionado `minLines: int?`. Ambos passados ao `TextFormField`. A versão anterior com `int` causava assertion crash quando se passava `TextInputAction.newline` sem `keyboardType: TextInputType.multiline` — o fix também exige que o caller passe os dois.
+
+**Bug fix `worker_setup_screen.dart` campo bio:** `maxLines: 3 + textInputAction.newline` → `maxLines: 5, minLines: 3, keyboardType: TextInputType.multiline, textInputAction: TextInputAction.newline`. Combinação válida — campo de apresentação expande entre 3 e 5 linhas.
+
+**`landing_screen.dart` reskinned:** `AppBrandBadge(size:100)` substitui `Icon(Icons.yard)`; texto "ProJardim" via `textTheme.displaySmall`; tagline via `textTheme.bodyMedium + AppColors.textSecondary`; `FilledButton` → `PrimaryActionButton`; `OutlinedButton` estilizado com `AppColors.primary` border + `AppRadius.card`. Fundo `AppColors.background`. Navegação inalterada (`context.push`).
+
+**Ocorrências de "LocalServices" ainda por corrigir (aguarda confirmação):**
+- `app.dart:41` → `title: 'LocalServices'` (título do MaterialApp — aparece no task switcher do SO)
+- `worker_home_screen.dart:25` → `AppBar title: Text('LocalServices')`
+- `client_home_screen.dart:30` → `AppBar title: Text('LocalServices')`
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-12 — Reskin visual: 4 ecrãs de auth + 3 widgets partilhados
+
+**Widgets criados em `lib/core/widgets/`:**
+- `primary_action_button.dart` — `FilledButton` full-width, `isLoading` spinner, `AppRadius.card`, disabled via `textSecondary.withValues(alpha:0.4)`
+- `app_text_field.dart` — `TextFormField` com `AppRadius.input`, `AppColors.divider`/`primary`, suporte a `maxLines`/`suffixIcon`/`autofillHints`. Todos os TextStyle via `Theme.of(context).textTheme`.
+- `app_brand_badge.dart` — ícone circular com `AppColors.primaryContainer` e `Icons.eco_outlined`.
+
+**Ecrãs reskinned (lógica intacta, só visual alterado):**
+- `choose_role_screen.dart` — sem AppBar; título "Como quer usar a ProJardim?"; `_RoleSelectionCard` com borda `AppColors.primary`/`divider`, fundo `primaryContainer`/`surface`, radio indicator animado. Usa `UserRole.client/worker` (enum existente).
+- `login_screen.dart` — sem AppBar; `AppBrandBadge` + "Bem-vindo de volta"; `AppTextField` para email/password; botão "Esqueci-me da senha" desativado (`onPressed: null`); botão Google desativado (`onPressed: null`) — ambos visíveis mas não funcionais.
+- `signup_screen.dart` — sem AppBar; header row com back button; `AppTextField` x4; barra de força de password (`_PasswordStrength`) visual usando `AppStatusColor.success`; checkbox de termos com `_acceptedTerms` — botão desativado se não aceite; `TapGestureRecognizer` removido dos termos (links estilizados mas não funcionais por enquanto).
+- `worker_setup_screen.dart` — sem AppBar; header com título; `_PhotoSection` (CircleAvatar 52px + câmara overlay); chips de serviços com `AppColors.primaryContainer`/`primaryPressed`/`AppRadius.pill`; localização mostra container verde `AppStatusColor.success` quando definida; botão guardar fixo no fundo via `PrimaryActionButton`. Toda a lógica (GPS, geocoding, ImagePicker, serviceTypesProvider, _save()) intacta.
+
+**Mapeamento de cores aplicado:** `primaryDark→primaryPressed`, `border→divider`, `borderStrong→primary`, `selectedSurface/surfaceAlt→primaryContainer`, `disabled→textSecondary.withValues(alpha:0.4)`, `success/successSoft→AppStatusColor.success.foreground/.background`.
+
+**BorderRadius:** `16→AppRadius.card` (botões/cards), `12→AppRadius.input` (campos), `999→AppRadius.pill` (chips).
+
+`flutter analyze`: 0 issues.
+
+---
+
 ## 2026-07-12 — Limpeza splash + tokens órfãos + AppStatusColor.cancelled
 
 **splash_screen.dart e projardim_logo_mark.dart eliminados** — o ecrã de splash nunca chegou a ser wired numa rota e a decisão foi não utilizá-lo. `ProJardimLogoMark` (CustomPainter) só era usado pelo splash, pelo que foi removido em conjunto.

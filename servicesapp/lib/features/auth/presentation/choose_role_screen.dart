@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
 import '../application/pending_signup_provider.dart';
@@ -34,7 +37,6 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
       ref.read(pendingSignupProvider.notifier).clear();
-      // Navigate directly — don't wait for router redirect
       if (_selectedRole == UserRole.client) {
         context.go('/client/home');
       } else {
@@ -47,7 +49,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState is AuthLoading;
 
@@ -60,54 +62,51 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go('/'),
-        ),
-        title: const Text('Como queres usar a app?'),
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              Text('Escolhe o teu perfil', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
-                'Podes mudar de ideias mais tarde.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                'Como quer usar\na ProJardim?',
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                  color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 32),
-              _RoleCard(
-                icon: Icons.person_outlined,
-                title: 'Cliente',
-                subtitle: 'Quero encontrar jardineiros e pedir serviços.',
+              const SizedBox(height: 8),
+              Text(
+                'Pode mudar mais tarde nas definições.',
+                style: textTheme.bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              _RoleSelectionCard(
+                title: 'Preciso de jardinagem',
+                description:
+                    'Crio pedidos e escolho o melhor profissional para o meu jardim.',
+                icon: Icons.person_outline_rounded,
                 selected: _selectedRole == UserRole.client,
                 onTap: () => setState(() => _selectedRole = UserRole.client),
               ),
-              const SizedBox(height: 16),
-              _RoleCard(
-                icon: Icons.yard_outlined,
-                title: 'Jardineiro',
-                subtitle: 'Quero oferecer os meus serviços de jardinagem.',
+              const SizedBox(height: 14),
+              _RoleSelectionCard(
+                title: 'Sou jardineiro',
+                description:
+                    'Recebo pedidos, envio propostas e faço trabalhos — sozinho ou como ajudante.',
+                icon: Icons.grass_rounded,
                 selected: _selectedRole == UserRole.worker,
                 onTap: () => setState(() => _selectedRole = UserRole.worker),
               ),
               const Spacer(),
-              FilledButton(
-                onPressed: (_submitting || isLoading || _selectedRole == null) ? null : _submit,
-                child: (_submitting || isLoading)
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Entrar na app'),
+              PrimaryActionButton(
+                label: 'Continuar',
+                isLoading: _submitting || isLoading,
+                onPressed: _selectedRole == null ? null : _submit,
               ),
             ],
           ),
@@ -117,72 +116,97 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
   }
 }
 
-class _RoleCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleCard({
-    required this.icon,
+class _RoleSelectionCard extends StatelessWidget {
+  const _RoleSelectionCard({
     required this.title,
-    required this.subtitle,
+    required this.description,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
+  final String title;
+  final String description;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
+    final textTheme = Theme.of(context).textTheme;
+
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? AppColors.primaryContainer : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant,
-            width: selected ? 2 : 1,
+            color: selected ? AppColors.primary : AppColors.divider,
+            width: selected ? 1.2 : 1,
           ),
-          color: selected
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surface,
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
+            Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    size: 27,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: AppColors.primary, width: 1.6),
+                    color: selected
+                        ? AppColors.primaryContainer
+                        : Colors.transparent,
+                  ),
+                  child: selected
+                      ? const Icon(Icons.check_rounded,
+                          size: 16, color: AppColors.primary)
+                      : null,
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                height: 1.2,
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, color: theme.colorScheme.primary),
+            const SizedBox(height: 6),
+            Text(
+              description,
+              style: textTheme.bodyMedium?.copyWith(
+                height: 1.45,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
