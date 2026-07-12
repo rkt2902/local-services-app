@@ -22,7 +22,7 @@ class WorkerHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LocalServices'),
+        title: const Text('ProJardim'),
         actions: [
           IconButton(
             icon: const Icon(Icons.group_add_outlined),

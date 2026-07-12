@@ -38,7 +38,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     ref.watch(notificationSyncProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'LocalServices',
+      title: 'ProJardim',
       theme: AppTheme.light(),
       routerConfig: router,
     );

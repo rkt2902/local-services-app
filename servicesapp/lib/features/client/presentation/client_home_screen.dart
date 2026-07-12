@@ -27,7 +27,7 @@ class ClientHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LocalServices'),
+        title: const Text('ProJardim'),
         actions: [
           _NotificationButton(),
         ],
