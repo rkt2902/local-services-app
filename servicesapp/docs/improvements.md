@@ -84,12 +84,9 @@ ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed 
 
 ## 🔵 Baixa prioridade / Limpeza — Por resolver
 
-### P2 / M2 Fases 0-3 — Cores hex hardcoded divergentes do seed do tema
+### ~~P2 / M2 Fases 0-3~~ ✅ RESOLVIDO 2026-07-12 — Cores hex hardcoded
 
-- `app_router.dart:44` — `Color(0xFF2E7D32)` para spinner de loading (duplica `AppTheme._seed` sem ligação)
-- `status_timeline.dart:118` — `Color(0xFF43A047)` para círculo "done" (verde diferente do seed)
-
-**Acção:** tornar `_seed` público (`seed`) em `AppTheme` e substituir `Color(0xFF2E7D32)` em `app_router.dart` por `AppTheme.seed`. Uma linha.
+Criado `app_colors.dart` com `AppColors.primary` e `AppColors.statusActive`. `app_router.dart` e `status_timeline.dart` usam agora os tokens. `AppTheme._seed` privado eliminado.
 
 ---
 

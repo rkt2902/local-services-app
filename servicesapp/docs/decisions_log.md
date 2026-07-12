@@ -3,6 +3,62 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-07-12 — Limpeza splash + tokens órfãos + AppStatusColor.cancelled
+
+**splash_screen.dart e projardim_logo_mark.dart eliminados** — o ecrã de splash nunca chegou a ser wired numa rota e a decisão foi não utilizá-lo. `ProJardimLogoMark` (CustomPainter) só era usado pelo splash, pelo que foi removido em conjunto.
+
+**Tokens removidos de app_colors.dart:** `splashTop`, `splashBottom`, `white` — exclusivos do splash eliminado. `logoAccent` mantido: ainda usado por `onboarding_illustration.dart` para os dots decorativos.
+
+**status_timeline.dart:** círculo do estado `cancelled` (`Color(0xFFE53935)`) substituído por `AppStatusColor.cancelled.foreground`. Todos os hardcodes de cor removidos do widget.
+
+`app_colors.dart` final: 10 tokens sem órfãos — `primary`, `accent`, `primaryContainer`, `primaryPressed`, `background`, `surface`, `textPrimary`, `textSecondary`, `divider`, `logoAccent`.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-12 — Tokens de design finais: app_colors, app_typography, app_radius, app_status_color
+
+`AppColors.primary` revertido de `0xFF3F7F2F` para `0xFF2E7D32` (valor oficial confirmado pelo kit visual). Adicionados 9 novos tokens ao `AppColors`: `accent`, `primaryContainer`, `primaryPressed`, `background`, `surface`, `textPrimary`, `textSecondary`, `divider`; removido `statusActive` (substituído por `AppStatusColor`). `splashTop`/`splashBottom`/`logoAccent` mantidos como tokens de splash separados da paleta funcional.
+
+**`app_typography.dart` criado:** 5 estilos constantes (`display`/`title`/`subtitle`/`body`/`caption`) com tamanhos/pesos/espaçamentos oficiais. Integrado em `app_theme.dart` via `GoogleFonts.plusJakartaSans(textStyle: AppTypography.X).copyWith(...)` nos 5 níveis mapeados (`displaySmall`/`titleLarge`/`titleMedium`/`bodyMedium`/`labelMedium`). Nenhum widget usa `AppTypography` diretamente — `Theme.of(context).textTheme` continua a ser a API de acesso.
+
+**`app_radius.dart` criado:** `input=12`, `card=16`, `pill=999`.
+
+**`app_status_color.dart` criado:** enum `AppStatusColor { waiting, success, inProgress, cancelled }` com getters `.background` e `.foreground`. `status_timeline.dart` actualizado: `AppColors.statusActive` removido, ambos os usos (círculo e conector do estado `done`) substituídos por `AppStatusColor.success.foreground`. Nota: círculo do estado `cancelled` (`0xFFE53935`) não foi alterado — valor do kit visual a confirmar.
+
+Gradiente do splash (`splashTop`/`splashBottom`) ainda não foi migrado para `primary`/`primaryPressed` — decisão pendente, a confirmar com o utilizador.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-12 — Onboarding 3 slides + atualização AppColors.primary
+
+`AppColors.primary` atualizado de `0xFF2E7D32` para `0xFF3F7F2F`. Propaga via `ColorScheme.fromSeed` e `AppColors.primary` — sem mais hardcodes na codebase.
+
+Criados `onboarding_illustration.dart` (`OnboardingIllustration` + `_IllustrationBgPainter` CustomPainter com background circular e dots decorativos) e `onboarding_page_indicator.dart` (`OnboardingPageIndicator` com pill animado 220ms). `onboarding_screen.dart` substituído por `ProJardimOnboardingScreen` (ConsumerStatefulWidget, 3 slides, 330ms, modo compacto height < 700, "Saltar"/"Continuar"/"Começar", `markSeen()` + `context.go('/')` no último slide). Router actualizado para usar `ProJardimOnboardingScreen`. Splash (`ProJardimSplashScreen`) permanece em `splash_screen.dart` — ligação splash → slides fica para próxima sessão.
+
+`flutter analyze`: 0 issues.
+
+---
+
+## 2026-07-12 — Splash/Onboarding + tipografia global + tokens de cor
+
+**Dependências adicionadas:** `google_fonts: ^6.2.1` (resolvido 6.3.3), `shared_preferences: ^2.3.3`.
+
+**app_colors.dart criado:** tokens `primary`, `splashTop/Bottom`, `white`, `logoAccent`, `statusActive`. Elimina os dois Color hardcoded (P2/M2 resolvido).
+
+**Tipografia global:** `GoogleFonts.plusJakartaSansTextTheme` aplicado em `AppTheme.light()`. Nenhum widget chama GoogleFonts diretamente — todos usam `Theme.of(context).textTheme`.
+
+**Feature onboarding criada:** `features/onboarding/` com `data/onboarding_prefs_service.dart`, `application/onboarding_providers.dart` (`OnboardingPrefsService` + `OnboardingNotifier` / `hasSeenOnboardingProvider`), `presentation/splash_screen.dart` (`ProJardimSplashScreen` com Fade/Scale/Slide), `presentation/widgets/projardim_logo_mark.dart` (CustomPainter), `presentation/onboarding_screen.dart` (wrapper ConsumerWidget).
+
+**Routing:** rota `/onboarding` adicionada. `RouterNotifier` escuta `hasSeenOnboardingProvider` (pre-warm + reatividade após `markSeen()`). Guard no redirect: utilizadores não autenticados que ainda não viram o onboarding são redirecionados para `/onboarding`; utilizadores autenticados nunca são redirecionados. Leitura da flag é síncrona sobre `AsyncData` já resolvido — se ainda loading, retorna null (mesmo padrão da sessão).
+
+`flutter analyze`: 0 issues.
+
+---
+
 ## 2026-07-10 — P8/B4 resolvido: chamada Supabase em widget movida para AuthRepository.fetchNameAndPhone
 
 `worker_setup_screen.dart:189` — `ref.read(supabaseClientProvider).from('profiles').select('full_name, phone')` movido para `AuthRepository.fetchNameAndPhone(userId)`. Widget usa agora `ref.read(authRepositoryProvider).fetchNameAndPhone(...)`. Comportamento idêntico; 0 violações arquiteturais.

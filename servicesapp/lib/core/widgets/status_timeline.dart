@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_status_color.dart';
 
 enum TimelineStepState { done, current, future, cancelled }
 
@@ -77,8 +78,8 @@ class _TimelineRow extends StatelessWidget {
         TimelineStepState.done => Container(
             width: _circleSize,
             height: _circleSize,
-            decoration: const BoxDecoration(
-              color: Color(0xFF43A047), // green.shade700
+            decoration: BoxDecoration(
+              color: AppStatusColor.success.foreground,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check, color: Colors.white, size: 14),
@@ -105,8 +106,8 @@ class _TimelineRow extends StatelessWidget {
         TimelineStepState.cancelled => Container(
             width: _circleSize,
             height: _circleSize,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE53935), // red.shade700
+            decoration: BoxDecoration(
+              color: AppStatusColor.cancelled.foreground,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.close, color: Colors.white, size: 14),
@@ -115,7 +116,7 @@ class _TimelineRow extends StatelessWidget {
 
   Widget _connector(ThemeData theme) {
     final color = switch (step.state) {
-      TimelineStepState.done => const Color(0xFF43A047),
+      TimelineStepState.done => AppStatusColor.success.foreground,
       TimelineStepState.current => theme.colorScheme.primary,
       TimelineStepState.future || TimelineStepState.cancelled =>
         theme.colorScheme.outlineVariant,

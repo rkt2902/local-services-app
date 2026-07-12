@@ -68,19 +68,6 @@
 
 ## Gaps conhecidos (sem spin)
 
-### CRÍTICO — bloqueia utilizadores reais agora
-
-**Migration 0032 não aplicada à BD viva**
-O live DB ainda tem os FKs antigos (`job_proposals_worker_id_fkey` e
-`help_acceptances_worker_id_fkey` apontam para `worker_profiles(profile_id)` em vez de
-`profiles(id)`). O código Dart usa o hint `profiles!job_proposals_worker_id_fkey` —
-PostgREST não resolve o join porque o FK não aponta para `profiles`. Resultado: nome e
-avatar do worker aparecem como `null`/"—" em todos os cards de proposta visíveis pelo cliente.
-
-**Fix:** aplicar `archive/0032_audit_fixes.sql` via Supabase SQL Editor.
-
----
-
 ### ALTO — antes de mostrar a alguém fora da equipa
 
 **Sem push notifications (FCM)**
@@ -157,11 +144,11 @@ um item por implementar.
 
 ### Obrigatório (bloqueador)
 
-1. **Aplicar migration 0032** — corrige os FKs quebrados no live DB. Esforço: S. `archive/0032_audit_fixes.sql` via SQL Editor.
-2. **FCM push notifications** — workers perdem jobs sem isto. Esforço: L (Firebase project + Edge Function). Prioridade máxima após 0032.
+1. **FCM push notifications** — workers perdem jobs sem isto. Esforço: L (Firebase project + Edge Function). Prioridade máxima após 0032.
 
 ### Recomendado (antes de ir a público)
 
+2. Validação de número de telefone (9 dígitos mínimo) , se possivel validar o telemovel com mensagem com codigo pro whatsapp pelo menos
 3. **Verificação de identidade** — serviços prestados em casa de pessoas. Upload de documento, verificação manual mínima. Sem isto, confiança zero para utilizadores externos à equipa.
 4. **Nome/marca** — "LocalServices" é placeholder. Mudar antes de qualquer exposição pública — depois é caro.
 5. **Testar em dispositivo Android real com utilizadores externos** — Run 1 e Run 2 foram executados pela equipa; cenários de utilizador novo (onboarding, first job, first proposal) precisam de validação externa.
@@ -169,5 +156,5 @@ um item por implementar.
 ### Nice-to-have antes do lançamento
 
 6. Correção SA3 (Storage INSERT path restriction) — S.
-7. Validação de número de telefone (9 dígitos mínimo) — S.
+
 8. CHECK constraints em `people_needed`/`slots_needed` — S (migration manual).

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../theme/app_colors.dart';
 import '../../features/auth/application/session_provider.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -22,6 +23,8 @@ import '../../features/help_requests/presentation/worker_help_requests_lobby_scr
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
+import '../../features/onboarding/application/onboarding_providers.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
@@ -39,10 +42,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const Scaffold(
           body: Center(
             child: CircularProgressIndicator(
-              color: Color(0xFF2E7D32),
+              color: AppColors.primary,
             ),
           ),
         ),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, _) => const ProJardimOnboardingScreen(),
       ),
       GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
@@ -132,6 +139,8 @@ class RouterNotifier extends ChangeNotifier {
 
   RouterNotifier(this._ref) {
     _ref.listen(sessionStatusProvider, (prev, next) => notifyListeners());
+    // Pre-warm the onboarding flag and react to changes (e.g. after markSeen).
+    _ref.listen(hasSeenOnboardingProvider, (prev, next) => notifyListeners());
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -155,8 +164,18 @@ class RouterNotifier extends ChangeNotifier {
     final role = session?.role;
     final workerProfileComplete = session?.workerProfileComplete ?? false;
 
+    // Onboarding gate: only for unauthenticated visitors, shown at most once.
+    // Authenticated users (with or without role) bypass this entirely — they
+    // have already committed to the app; onboarding is for first-time visitors.
     if (!isAuthenticated) {
-      const publicRoutes = ['/', '/login', '/signup'];
+      final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
+      if (onboardingAsync.isLoading) return null;
+      final hasSeen = onboardingAsync.asData?.value ?? false;
+      if (!hasSeen && loc != '/onboarding') return '/onboarding';
+    }
+
+    if (!isAuthenticated) {
+      const publicRoutes = ['/', '/login', '/signup', '/onboarding'];
       return publicRoutes.contains(loc) ? null : '/';
     }
 
