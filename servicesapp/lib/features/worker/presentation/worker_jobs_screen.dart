@@ -12,10 +12,9 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/status_badges.dart';
 
 List<(JobProposal, JobRequest)> _parseEntries(
     List<Map<String, dynamic>> raw) {
@@ -321,7 +320,9 @@ class _JobCard extends StatelessWidget {
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  proposalStatusBadge(proposal.status),
+                  AppStatusBadge.fromPresentation(
+                    presentation: proposal.status.presentation,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -366,9 +367,8 @@ class _JobCard extends StatelessWidget {
               ],
               if (job.rescheduleStatus == RescheduleStatus.pending) ...[
                 const SizedBox(height: 6),
-                const AppStatusBadge(
-                  label: 'Remarcação pendente',
-                  statusColor: AppStatusColor.waiting,
+                AppStatusBadge.fromPresentation(
+                  presentation: RescheduleStatus.pending.presentation,
                 ),
               ],
               if (job.status == JobStatus.completed) ...[

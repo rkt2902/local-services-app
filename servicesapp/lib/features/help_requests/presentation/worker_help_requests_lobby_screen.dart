@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -504,12 +507,9 @@ class _CandidateCard extends ConsumerWidget {
 
     final Color avatarBg = isActing
         ? theme.colorScheme.surfaceContainerHighest
-        : isAccepted
-            ? Colors.green.shade100
-            : Colors.orange.shade100;
+        : acceptance.status.presentation.color.background;
 
-    final Color avatarFg =
-        isAccepted ? Colors.green.shade700 : Colors.orange.shade700;
+    final Color avatarFg = acceptance.status.presentation.color.foreground;
 
     Widget avatar = CircleAvatar(
       radius: 22,
@@ -603,13 +603,17 @@ class _CandidateCard extends ConsumerWidget {
                     style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant),
                   ),
+                  const SizedBox(height: 6),
+                  AppStatusBadge.fromPresentation(
+                    presentation: acceptance.status.presentation,
+                  ),
                   if (isAccepted && acceptance.agreedRate > 0)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         '€${acceptance.agreedRate.toStringAsFixed(2)}/hora',
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.green.shade700,
+                            color: AppStatusColor.success.foreground,
                             fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -618,7 +622,7 @@ class _CandidateCard extends ConsumerWidget {
             ),
             if (isAccepted)
               Icon(Icons.check_circle,
-                  color: Colors.green.shade600, size: 22),
+                  color: AppStatusColor.success.foreground, size: 22),
             if (!isAccepted && !isActing) ...[
               if (onAccept != null)
                 TextButton(

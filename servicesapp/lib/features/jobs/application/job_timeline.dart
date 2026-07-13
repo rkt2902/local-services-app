@@ -1,31 +1,38 @@
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../data/cancel_reasons.dart';
 import '../data/job_model.dart';
 
-List<TimelineStep> buildJobTimeline(JobRequest job) {
+List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
   final fmt = DateFormat('dd/MM/yyyy');
-  final steps = <TimelineStep>[];
+  final steps = <StatusTimelineStepData>[];
 
-  steps.add(TimelineStep(
+  steps.add(StatusTimelineStepData(
     label: 'Pedido criado',
-    state: TimelineStepState.done,
+    statusColor: AppStatusColor.success,
+    state: StatusTimelineStepState.completed,
     subtitle: fmt.format(job.createdAt),
   ));
 
   switch (job.status) {
     case JobStatus.open:
-      steps.add(const TimelineStep(
-        label: 'À espera de proposta',
-        state: TimelineStepState.current,
+      final current = job.status.presentation(proposalCount: job.proposalCount);
+      steps.add(StatusTimelineStepData(
+        label: current.label,
+        statusColor: current.color,
+        state: StatusTimelineStepState.current,
       ));
 
     case JobStatus.noResponse:
-      steps.add(const TimelineStep(
-        label: 'Sem resposta em 48h',
-        state: TimelineStepState.cancelled,
+      final current = job.status.presentation();
+      steps.add(StatusTimelineStepData(
+        label: current.label,
+        statusColor: current.color,
+        state: StatusTimelineStepState.current,
       ));
 
     case JobStatus.confirmed:
@@ -39,9 +46,10 @@ List<TimelineStep> buildJobTimeline(JobRequest job) {
         proposalNote = 'Remarcação pendente';
         noteIsWarning = true;
       }
-      steps.add(TimelineStep(
+      steps.add(StatusTimelineStepData(
         label: 'Proposta aceite',
-        state: TimelineStepState.done,
+        statusColor: AppStatusColor.success,
+        state: StatusTimelineStepState.completed,
         subtitle:
             job.confirmedDate != null ? fmt.format(job.confirmedDate!) : null,
         note: proposalNote,
@@ -50,32 +58,51 @@ List<TimelineStep> buildJobTimeline(JobRequest job) {
 
       final markedDone = job.status == JobStatus.awaitingConfirmation ||
           job.status == JobStatus.completed;
-      steps.add(TimelineStep(
+      steps.add(StatusTimelineStepData(
         label: 'Marcado como concluído',
-        state:
-            markedDone ? TimelineStepState.done : TimelineStepState.future,
+        statusColor:
+            markedDone ? AppStatusColor.success : AppStatusColor.neutral,
+        state: markedDone
+            ? StatusTimelineStepState.completed
+            : StatusTimelineStepState.future,
       ));
 
-      steps.add(TimelineStep(
-        label: 'Confirmado pelo cliente',
-        state: switch (job.status) {
-          JobStatus.completed => TimelineStepState.done,
-          JobStatus.awaitingConfirmation => TimelineStepState.current,
-          _ => TimelineStepState.future,
-        },
-      ));
+      if (job.status == JobStatus.completed) {
+        final current = job.status.presentation();
+        steps.add(StatusTimelineStepData(
+          label: current.label,
+          statusColor: current.color,
+          state: StatusTimelineStepState.completed,
+        ));
+      } else if (job.status == JobStatus.awaitingConfirmation) {
+        final current = job.status.presentation();
+        steps.add(StatusTimelineStepData(
+          label: current.label,
+          statusColor: current.color,
+          state: StatusTimelineStepState.current,
+        ));
+      } else {
+        steps.add(const StatusTimelineStepData(
+          label: 'Concluído',
+          statusColor: AppStatusColor.neutral,
+          state: StatusTimelineStepState.future,
+        ));
+      }
 
     case JobStatus.cancelled:
       if (job.confirmedDate != null) {
-        steps.add(TimelineStep(
+        steps.add(StatusTimelineStepData(
           label: 'Proposta aceite',
-          state: TimelineStepState.done,
+          statusColor: AppStatusColor.success,
+          state: StatusTimelineStepState.completed,
           subtitle: fmt.format(job.confirmedDate!),
         ));
       }
-      steps.add(TimelineStep(
-        label: 'Cancelado',
-        state: TimelineStepState.cancelled,
+      final current = job.status.presentation();
+      steps.add(StatusTimelineStepData(
+        label: current.label,
+        statusColor: current.color,
+        state: StatusTimelineStepState.current,
         subtitle: job.cancelReason != null
             ? CancelReason.label(job.cancelReason!)
             : null,

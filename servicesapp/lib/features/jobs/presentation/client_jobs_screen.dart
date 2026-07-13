@@ -5,10 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/status_badges.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 
@@ -135,7 +134,11 @@ class _JobCard extends StatelessWidget {
                         style: theme.textTheme.titleMedium),
                   ),
                   const SizedBox(width: 8),
-                  jobStatusBadge(job.status, proposalCount: job.proposalCount),
+                  AppStatusBadge.fromPresentation(
+                    presentation: job.status.presentation(
+                      proposalCount: job.proposalCount,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -149,9 +152,8 @@ class _JobCard extends StatelessWidget {
               Text(dateText, style: theme.textTheme.bodySmall),
               if (job.rescheduleStatus == RescheduleStatus.pending) ...[
                 const SizedBox(height: 6),
-                const AppStatusBadge(
-                  label: 'Remarcação pendente',
-                  statusColor: AppStatusColor.waiting,
+                AppStatusBadge.fromPresentation(
+                  presentation: RescheduleStatus.pending.presentation,
                 ),
               ],
             ],

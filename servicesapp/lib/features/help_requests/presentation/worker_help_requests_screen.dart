@@ -5,11 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/status_badges.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
@@ -354,11 +353,12 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Usa o mapeamento único de JobStatus (status_badges.dart) — sem wildcard:
-/// `JobStatus.fromValue` lança para qualquer string fora dos 6 estados
-/// conhecidos, em vez de silenciar num caso genérico "Em aberto".
-Widget _jobStatusBadgeFromRaw(String rawStatus) =>
-    jobStatusBadge(JobStatus.fromValue(rawStatus));
+/// Usa o mapeamento único de JobStatus (app_status_presenters.dart) — sem
+/// wildcard: `JobStatus.fromValue` lança para qualquer string fora dos 6
+/// estados conhecidos, em vez de silenciar num caso genérico "Em aberto".
+Widget _jobStatusBadgeFromRaw(String rawStatus) => AppStatusBadge.fromPresentation(
+      presentation: JobStatus.fromValue(rawStatus).presentation(),
+    );
 
 // ─── Candidature cards ────────────────────────────────────────────────────────
 
@@ -394,9 +394,8 @@ class _PendingCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 10),
-            const AppStatusBadge(
-              label: 'À espera de decisão',
-              statusColor: AppStatusColor.waiting,
+            AppStatusBadge.fromPresentation(
+              presentation: HelpAcceptanceStatus.pending.presentation,
             ),
           ],
         ),
@@ -458,6 +457,10 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 ),
                 _jobStatusBadgeFromRaw(widget.acceptance.jobStatus),
               ],
+            ),
+            const SizedBox(height: 6),
+            AppStatusBadge.fromPresentation(
+              presentation: HelpAcceptanceStatus.accepted.presentation,
             ),
             const SizedBox(height: 6),
             Row(
@@ -623,12 +626,6 @@ class _HistoryCard extends StatelessWidget {
   const _HistoryCard({required this.acceptance});
   final HelpAcceptanceSummary acceptance;
 
-  String get _statusLabel => switch (acceptance.status) {
-        HelpAcceptanceStatus.rejected => 'Não selecionado',
-        HelpAcceptanceStatus.cancelled => 'Desististe',
-        _ => '—',
-      };
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -661,12 +658,8 @@ class _HistoryCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              _statusLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-              ),
+            AppStatusBadge.fromPresentation(
+              presentation: acceptance.status.presentation,
             ),
           ],
         ),

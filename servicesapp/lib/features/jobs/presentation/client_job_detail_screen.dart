@@ -14,7 +14,9 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
-import '../../../core/widgets/status_badges.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/job_timeline.dart';
@@ -543,8 +545,11 @@ class _ClientJobDetailScreenState
             .where((hr) => hr.status == HelpRequestStatus.pendingApproval)
             .toList();
 
-        final statusBadge =
-            jobStatusBadge(job.status, proposalCount: job.proposalCount);
+        final statusBadge = AppStatusBadge.fromPresentation(
+          presentation: job.status.presentation(
+            proposalCount: job.proposalCount,
+          ),
+        );
 
         final photosWidget = photosAsync.when(
           loading: () => const SizedBox.shrink(),
@@ -601,7 +606,7 @@ class _ClientJobDetailScreenState
                   ? 'às ${job.rescheduleProposedTime}'
                   : '');
           rescheduleBanner = Card(
-            color: Colors.orange.shade50,
+            color: AppStatusColor.waiting.background,
             margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -610,14 +615,14 @@ class _ClientJobDetailScreenState
                 children: [
                   Row(children: [
                     Icon(Icons.event_repeat,
-                        color: Colors.orange.shade800, size: 20),
+                        color: AppStatusColor.waiting.foreground, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'O jardineiro propôs remarcar para $dateStr $timeStr'
                             .trim(),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.orange.shade900),
+                            color: AppStatusColor.waiting.foreground),
                       ),
                     ),
                   ]),
@@ -1353,9 +1358,8 @@ class _PendingHelpRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Card(
-      color: theme.colorScheme.secondaryContainer,
+      color: AppStatusColor.waiting.background,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1364,13 +1368,13 @@ class _PendingHelpRequestCard extends StatelessWidget {
           children: [
             Row(children: [
               Icon(Icons.group_add_outlined,
-                  color: theme.colorScheme.onSecondaryContainer, size: 20),
+                  color: AppStatusColor.waiting.foreground, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'O prestador pediu ajuda extra para este trabalho',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: AppStatusColor.waiting.foreground),
                 ),
               ),
             ]),
@@ -1379,8 +1383,8 @@ class _PendingHelpRequestCard extends StatelessWidget {
               '${helpRequest.slotsNeeded} '
               'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
               '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppStatusColor.waiting.foreground),
             ),
             const SizedBox(height: 12),
             FilledButton(

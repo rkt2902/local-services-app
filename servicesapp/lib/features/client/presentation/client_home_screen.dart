@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/widgets/status_badges.dart';
+import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -184,7 +185,11 @@ class _CompactJobCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              jobStatusBadge(job.status, proposalCount: job.proposalCount),
+              AppStatusBadge.fromPresentation(
+                presentation: job.status.presentation(
+                  proposalCount: job.proposalCount,
+                ),
+              ),
             ],
           ),
         ),

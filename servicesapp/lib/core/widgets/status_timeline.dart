@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_status_color.dart';
 
-enum TimelineStepState { done, current, future, cancelled }
+enum StatusTimelineStepState { completed, current, future }
 
-class TimelineStep {
-  const TimelineStep({
+class StatusTimelineStepData {
+  const StatusTimelineStepData({
     required this.label,
+    required this.statusColor,
     required this.state,
     this.subtitle,
     this.note,
@@ -13,7 +15,8 @@ class TimelineStep {
   });
 
   final String label;
-  final TimelineStepState state;
+  final AppStatusColor statusColor;
+  final StatusTimelineStepState state;
   final String? subtitle;
   final String? note;
   final bool noteIsWarning;
@@ -22,7 +25,7 @@ class TimelineStep {
 class StatusTimeline extends StatelessWidget {
   const StatusTimeline({super.key, required this.steps});
 
-  final List<TimelineStep> steps;
+  final List<StatusTimelineStepData> steps;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +43,7 @@ class StatusTimeline extends StatelessWidget {
 class _TimelineRow extends StatelessWidget {
   const _TimelineRow({required this.step, required this.isLast});
 
-  final TimelineStep step;
+  final StatusTimelineStepData step;
   final bool isLast;
 
   static const _circleSize = 24.0;
@@ -57,8 +60,8 @@ class _TimelineRow extends StatelessWidget {
             width: _circleSize,
             child: Column(
               children: [
-                _circle(theme),
-                if (!isLast) Expanded(child: _connector(theme)),
+                _circle(),
+                if (!isLast) Expanded(child: _connector()),
               ],
             ),
           ),
@@ -74,65 +77,59 @@ class _TimelineRow extends StatelessWidget {
     );
   }
 
-  Widget _circle(ThemeData theme) => switch (step.state) {
-        TimelineStepState.done => Container(
+  // Passo concluído e atual usam sempre a cor real do estado
+  // (step.statusColor) — nunca AppColors.primary automaticamente. Passo
+  // futuro é o único que não representa um estado real: outline neutro fixo,
+  // independentemente do statusColor recebido.
+  Widget _circle() => switch (step.state) {
+        StatusTimelineStepState.completed => Container(
             width: _circleSize,
             height: _circleSize,
             decoration: BoxDecoration(
-              color: AppStatusColor.success.foreground,
+              color: step.statusColor.foreground,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check, color: Colors.white, size: 14),
           ),
-        TimelineStepState.current => Container(
+        StatusTimelineStepState.current => Container(
             width: _circleSize,
             height: _circleSize,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
+              color: step.statusColor.background,
               shape: BoxShape.circle,
+              border: Border.all(color: step.statusColor.foreground, width: 2),
             ),
             child: Icon(Icons.circle,
-                color: theme.colorScheme.onPrimary, size: 10),
+                color: step.statusColor.foreground, size: 10),
           ),
-        TimelineStepState.future => Container(
+        StatusTimelineStepState.future => Container(
             width: _circleSize,
             height: _circleSize,
             decoration: BoxDecoration(
-              border: Border.all(
-                  color: theme.colorScheme.outlineVariant, width: 2),
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.divider, width: 2),
               shape: BoxShape.circle,
             ),
-          ),
-        TimelineStepState.cancelled => Container(
-            width: _circleSize,
-            height: _circleSize,
-            decoration: BoxDecoration(
-              color: AppStatusColor.cancelled.foreground,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.close, color: Colors.white, size: 14),
           ),
       };
 
-  Widget _connector(ThemeData theme) {
+  Widget _connector() {
     final color = switch (step.state) {
-      TimelineStepState.done => AppStatusColor.success.foreground,
-      TimelineStepState.current => theme.colorScheme.primary,
-      TimelineStepState.future || TimelineStepState.cancelled =>
-        theme.colorScheme.outlineVariant,
+      StatusTimelineStepState.completed => step.statusColor.foreground,
+      StatusTimelineStepState.current => step.statusColor.foreground,
+      StatusTimelineStepState.future => AppColors.divider,
     };
     return Center(child: Container(width: _lineWidth, color: color));
   }
 
   Widget _content(ThemeData theme) {
-    final labelStyle = switch (step.state) {
-      TimelineStepState.done ||
-      TimelineStepState.current ||
-      TimelineStepState.cancelled =>
-        theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-      TimelineStepState.future => theme.textTheme.bodyMedium
-          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-    };
+    final isFuture = step.state == StatusTimelineStepState.future;
+    final labelStyle = isFuture
+        ? theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)
+        : theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600);
+
+    final noteColor =
+        step.noteIsWarning ? AppStatusColor.waiting : AppStatusColor.success;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,18 +149,13 @@ class _TimelineRow extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: step.noteIsWarning
-                  ? Colors.orange.shade50
-                  : theme.colorScheme.primaryContainer
-                      .withValues(alpha: 0.6),
+              color: noteColor.background,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               step.note!,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: step.noteIsWarning
-                    ? Colors.orange.shade800
-                    : theme.colorScheme.primary,
+                color: noteColor.foreground,
               ),
             ),
           ),

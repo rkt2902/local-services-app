@@ -9,7 +9,9 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
-import '../../../core/widgets/status_badges.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_timeline.dart';
@@ -400,7 +402,9 @@ class _WorkerMyJobDetailScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status badge
-            proposalStatusBadge(liveStatus),
+            AppStatusBadge.fromPresentation(
+              presentation: liveStatus.presentation,
+            ),
             const SizedBox(height: 24),
 
             // Job details
@@ -524,7 +528,7 @@ class _WorkerMyJobDetailScreenState
                 if (job.rescheduleProposedBy != null &&
                     job.rescheduleProposedBy != currentUserId)
                   Card(
-                    color: Colors.orange.shade50,
+                    color: AppStatusColor.waiting.background,
                     margin: const EdgeInsets.only(bottom: 16),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -533,14 +537,14 @@ class _WorkerMyJobDetailScreenState
                         children: [
                           Row(children: [
                             Icon(Icons.event_repeat,
-                                color: Colors.orange.shade800, size: 20),
+                                color: AppStatusColor.waiting.foreground, size: 20),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'O cliente propôs remarcar para ${_proposedRescheduleLabel(job)}'
                                     .trim(),
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.orange.shade900),
+                                    color: AppStatusColor.waiting.foreground),
                               ),
                             ),
                           ]),
@@ -820,7 +824,7 @@ class _WorkerMyJobDetailScreenState
                   padding: const EdgeInsets.all(16),
                   child: Row(children: [
                     Icon(Icons.schedule_outlined,
-                        color: Colors.orange.shade700),
+                        color: AppStatusColor.waiting.foreground),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(

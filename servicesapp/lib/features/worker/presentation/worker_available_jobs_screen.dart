@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
-import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/utils/error_utils.dart';
@@ -180,9 +180,8 @@ class _JobCard extends StatelessWidget {
                     ),
                   ),
                   if (job.urgency == Urgency.urgent)
-                    const AppStatusBadge(
-                      label: 'Urgente',
-                      statusColor: AppStatusColor.cancelled,
+                    AppStatusBadge.fromPresentation(
+                      presentation: urgentStatusPresentation,
                     ),
                 ],
               ),
@@ -210,10 +209,10 @@ class _JobCard extends StatelessWidget {
                 ),
               if (job.proposalCount > 0) ...[
                 const SizedBox(height: 6),
-                AppStatusBadge(
-                  label:
-                      '${job.proposalCount} proposta${job.proposalCount == 1 ? '' : 's'}',
-                  statusColor: AppStatusColor.waiting,
+                AppStatusBadge.fromPresentation(
+                  presentation: job.status.presentation(
+                    proposalCount: job.proposalCount,
+                  ),
                 ),
               ],
             ],

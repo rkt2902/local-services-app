@@ -1,34 +1,34 @@
 import 'package:flutter/material.dart';
 
+import 'package:servicesapp/core/theme/app_colors.dart';
+
 enum AppStatusColor {
-  waiting,
-  success,
-  inProgress,
-  cancelled;
+  waiting(
+    background: Color(0xFFFFF3DB),
+    foreground: Color(0xFFB87300),
+  ),
+  info(
+    background: Color(0xFFEAF1FF),
+    foreground: Color(0xFF3E68B2),
+  ),
+  success(
+    background: AppColors.primaryContainer,
+    foreground: AppColors.primary,
+  ),
+  cancelled(
+    background: Color(0xFFFBEAEA),
+    foreground: Color(0xFFD1493F),
+  ),
+  neutral(
+    background: Color(0xFFEEF1EE),
+    foreground: AppColors.textSecondary,
+  );
 
-  Color get background {
-    switch (this) {
-      case AppStatusColor.waiting:
-        return const Color(0xFFFCEFD8);
-      case AppStatusColor.success:
-        return const Color(0xFFE1F0DC);
-      case AppStatusColor.inProgress:
-        return const Color(0xFFE1E9F7);
-      case AppStatusColor.cancelled:
-        return const Color(0xFFF8E1E1);
-    }
-  }
+  const AppStatusColor({
+    required this.background,
+    required this.foreground,
+  });
 
-  Color get foreground {
-    switch (this) {
-      case AppStatusColor.waiting:
-        return const Color(0xFFB27A13);
-      case AppStatusColor.success:
-        return const Color(0xFF2E7D32);
-      case AppStatusColor.inProgress:
-        return const Color(0xFF4D6FB7);
-      case AppStatusColor.cancelled:
-        return const Color(0xFFC0392B);
-    }
-  }
+  final Color background;
+  final Color foreground;
 }

@@ -8,9 +8,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/status_badges.dart' show jobStatusInfo;
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -153,16 +153,14 @@ class WorkerDashboardScreen extends ConsumerWidget {
       nextJobProposalId = proposal.id;
       final serviceType =
           serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
-      // scheduledWorkerProposalsProvider só devolve confirmed/awaiting_confirmation
-      // — nenhum dos dois é neutro, por isso o fallback nunca é exercido.
-      final (statusLabel, statusColor) = jobStatusInfo(job.status, 0);
+      final current = job.status.presentation();
       nextJob = WorkerDashboardJobSummary(
         id: job.id,
         title: serviceType?.name ?? '—',
         dateTimeLabel: _confirmedScheduleLabel(job),
         clientName: clientInfoAsync?.asData?.value['full_name'] ?? '',
-        statusLabel: statusLabel,
-        statusColor: statusColor ?? AppStatusColor.waiting,
+        statusLabel: current.label,
+        statusColor: current.color,
         icon: _serviceIcon,
       );
     }

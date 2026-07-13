@@ -12,7 +12,10 @@ import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 
 class WorkerJobDetailScreen extends ConsumerStatefulWidget {
@@ -126,17 +129,8 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                       ),
                     ),
                     if (job.urgency == Urgency.urgent)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Urgente',
-                          style: TextStyle(color: Colors.white, fontSize: 13),
-                        ),
+                      AppStatusBadge.fromPresentation(
+                        presentation: urgentStatusPresentation,
                       ),
                   ],
                 ),
@@ -204,13 +198,12 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: AppStatusColor.info.background,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Row(children: [
                       Icon(Icons.info_outline,
-                          color: Colors.blue.shade700, size: 18),
+                          color: AppStatusColor.info.foreground, size: 18),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
