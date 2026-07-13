@@ -4,15 +4,22 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../application/worker_providers.dart';
 
-class WorkerHomeScreen extends ConsumerWidget {
-  const WorkerHomeScreen({super.key});
+/// Lista de jobs disponíveis no raio do worker.
+///
+/// Movido de `worker_home_screen.dart` — o ecrã de "Início" passou a ser o
+/// dashboard (`worker_dashboard_screen.dart`), e este ecrã ficou com a rota
+/// própria "/worker/available-jobs" (aba "Pedidos" da bottom nav).
+class WorkerAvailableJobsScreen extends ConsumerWidget {
+  const WorkerAvailableJobsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +29,7 @@ class WorkerHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ProJardim'),
+        title: const Text('Pedidos'),
         actions: [
           IconButton(
             icon: const Icon(Icons.group_add_outlined),
@@ -173,17 +180,9 @@ class _JobCard extends StatelessWidget {
                     ),
                   ),
                   if (job.urgency == Urgency.urgent)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Urgente',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
+                    const AppStatusBadge(
+                      label: 'Urgente',
+                      statusColor: AppStatusColor.cancelled,
                     ),
                 ],
               ),
@@ -211,16 +210,10 @@ class _JobCard extends StatelessWidget {
                 ),
               if (job.proposalCount > 0) ...[
                 const SizedBox(height: 6),
-                Chip(
-                  avatar: const Icon(Icons.people_outline, size: 14),
-                  label: Text(
-                    '${job.proposalCount} proposta${job.proposalCount == 1 ? '' : 's'}',
-                  ),
-                  backgroundColor: Colors.orange.shade100,
-                  labelStyle: TextStyle(
-                      fontSize: 11, color: Colors.orange.shade900),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
+                AppStatusBadge(
+                  label:
+                      '${job.proposalCount} proposta${job.proposalCount == 1 ? '' : 's'}',
+                  statusColor: AppStatusColor.waiting,
                 ),
               ],
             ],

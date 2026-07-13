@@ -9,6 +9,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
+import '../../../core/widgets/status_badges.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_timeline.dart';
@@ -385,8 +386,6 @@ class _WorkerMyJobDetailScreenState
     final helpersForRatingAsync =
         ref.watch(acceptedHelpersForJobProvider(widget.jobId));
 
-    final (statusLabel, statusColor) = _proposalStatusInfo(liveStatus);
-
     final estimate = _formatEstimate(
       proposal.hourlyRate,
       proposal.estimatedHoursMin,
@@ -401,19 +400,7 @@ class _WorkerMyJobDetailScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status badge
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                statusLabel,
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(color: Colors.white),
-              ),
-            ),
+            proposalStatusBadge(liveStatus),
             const SizedBox(height: 24),
 
             // Job details
@@ -1049,13 +1036,6 @@ String _confirmedScheduleLabel(JobRequest job) {
   if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
   return date;
 }
-
-(String, Color) _proposalStatusInfo(ProposalStatus status) => switch (status) {
-      ProposalStatus.pending => ('Aguarda resposta', Colors.orange.shade700),
-      ProposalStatus.accepted => ('Aceite', Colors.green.shade600),
-      ProposalStatus.rejected => ('Não selecionada', Colors.red.shade600),
-      ProposalStatus.superseded => ('Substituída', Colors.grey.shade500),
-    };
 
 String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';

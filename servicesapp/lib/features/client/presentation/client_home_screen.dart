@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/status_badges.dart';
 import '../application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -151,7 +152,6 @@ class _CompactJobCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (statusLabel, statusColor) = _statusChip(job.status, job.proposalCount);
     final dateText = job.preferredDate == null
         ? 'Flexível'
         : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
@@ -184,19 +184,7 @@ class _CompactJobCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: Colors.white),
-                ),
-              ),
+              jobStatusBadge(job.status, proposalCount: job.proposalCount),
             ],
           ),
         ),
@@ -219,17 +207,3 @@ class _NotificationButton extends ConsumerWidget {
     );
   }
 }
-
-(String, Color) _statusChip(JobStatus status, int proposalCount) =>
-    switch (status) {
-      JobStatus.open when proposalCount > 0 =>
-        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
-        Colors.orange.shade700),
-      JobStatus.open => ('À espera', Colors.blue.shade600),
-      JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
-      JobStatus.awaitingConfirmation =>
-        ('A confirmar', Colors.teal.shade600),
-      JobStatus.completed => ('Concluído', Colors.grey.shade600),
-      JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
-      JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
-    };

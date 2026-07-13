@@ -5,7 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/status_badges.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 
@@ -115,8 +118,6 @@ class _JobCard extends StatelessWidget {
         ? 'Flexível'
         : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
 
-    final (statusLabel, statusColor) = _statusInfo(job.status, job.proposalCount);
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -134,19 +135,7 @@ class _JobCard extends StatelessWidget {
                         style: theme.textTheme.titleMedium),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: Colors.white),
-                    ),
-                  ),
+                  jobStatusBadge(job.status, proposalCount: job.proposalCount),
                 ],
               ),
               const SizedBox(height: 4),
@@ -160,14 +149,9 @@ class _JobCard extends StatelessWidget {
               Text(dateText, style: theme.textTheme.bodySmall),
               if (job.rescheduleStatus == RescheduleStatus.pending) ...[
                 const SizedBox(height: 6),
-                Chip(
-                  avatar: const Icon(Icons.event_repeat, size: 14),
-                  label: const Text('Remarcação pendente'),
-                  backgroundColor: Colors.orange.shade100,
-                  labelStyle: TextStyle(
-                      fontSize: 11, color: Colors.orange.shade900),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
+                const AppStatusBadge(
+                  label: 'Remarcação pendente',
+                  statusColor: AppStatusColor.waiting,
                 ),
               ],
             ],
@@ -177,17 +161,3 @@ class _JobCard extends StatelessWidget {
     );
   }
 }
-
-(String, Color) _statusInfo(JobStatus status, int proposalCount) =>
-    switch (status) {
-      JobStatus.open when proposalCount > 0 =>
-        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
-        Colors.orange.shade700),
-      JobStatus.open => ('À espera de proposta', Colors.blue.shade600),
-      JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
-      JobStatus.awaitingConfirmation =>
-        ('A aguardar confirmação', Colors.teal.shade600),
-      JobStatus.completed => ('Concluído', Colors.grey.shade600),
-      JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
-      JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
-    };

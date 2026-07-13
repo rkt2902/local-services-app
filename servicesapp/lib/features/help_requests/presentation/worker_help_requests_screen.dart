@@ -5,8 +5,11 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/status_badges.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
@@ -351,14 +354,11 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-(String, Color) _jobStatusDisplay(String status) => switch (status) {
-      'confirmed' => ('Confirmado', Colors.green.shade600),
-      'awaiting_confirmation' =>
-        ('A aguardar confirmação', Colors.orange.shade700),
-      'completed' => ('Concluído', Colors.green.shade800),
-      'cancelled' => ('Cancelado', Colors.red.shade400),
-      _ => ('Em aberto', Colors.blue.shade600),
-    };
+/// Usa o mapeamento único de JobStatus (status_badges.dart) — sem wildcard:
+/// `JobStatus.fromValue` lança para qualquer string fora dos 6 estados
+/// conhecidos, em vez de silenciar num caso genérico "Em aberto".
+Widget _jobStatusBadgeFromRaw(String rawStatus) =>
+    jobStatusBadge(JobStatus.fromValue(rawStatus));
 
 // ─── Candidature cards ────────────────────────────────────────────────────────
 
@@ -394,21 +394,9 @@ class _PendingCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 10),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Text(
-                'À espera de decisão',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.orange.shade800,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+            const AppStatusBadge(
+              label: 'À espera de decisão',
+              statusColor: AppStatusColor.waiting,
             ),
           ],
         ),
@@ -441,8 +429,6 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (jobLabel, jobColor) =
-        _jobStatusDisplay(widget.acceptance.jobStatus);
     final isCompleted = widget.acceptance.jobStatus == 'completed';
     final jobId = widget.acceptance.jobId;
 
@@ -470,19 +456,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: jobColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    jobLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                        color: jobColor, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                _jobStatusBadgeFromRaw(widget.acceptance.jobStatus),
               ],
             ),
             const SizedBox(height: 6),

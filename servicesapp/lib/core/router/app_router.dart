@@ -11,7 +11,8 @@ import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
 import '../../features/worker/presentation/worker_shell.dart';
-import '../../features/worker/presentation/worker_home_screen.dart';
+import '../../features/worker/presentation/worker_dashboard_screen.dart';
+import '../../features/worker/presentation/worker_available_jobs_screen.dart';
 import '../../features/worker/presentation/worker_job_detail_screen.dart';
 import '../../features/jobs/presentation/create_job_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
@@ -83,7 +84,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => WorkerShell(child: child),
         routes: [
-          GoRoute(path: '/worker/home', builder: (_, _) => const WorkerHomeScreen()),
+          GoRoute(path: '/worker/home', builder: (_, _) => const WorkerDashboardScreen()),
+          GoRoute(
+            path: '/worker/available-jobs',
+            builder: (_, _) => const WorkerAvailableJobsScreen(),
+          ),
           GoRoute(
             path: '/worker/job/:id',
             builder: (context, state) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_bottom_navigation.dart';
+
 class WorkerShell extends ConsumerWidget {
   const WorkerShell({super.key, required this.child});
 
@@ -15,48 +17,41 @@ class WorkerShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: AppBottomNavigation(
         selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          if (index == 2) {
-            _showComingSoonSheet(context);
-            return;
-          }
+        onItemSelected: (index) {
           switch (index) {
             case 0:
               context.go('/worker/home');
             case 1:
+              context.go('/worker/available-jobs');
+            case 2:
               context.go('/worker/jobs');
             case 3:
-              context.go('/worker/messages');
-            case 4:
               context.go('/worker/profile');
           }
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+        onCentralActionPressed: () => _showComingSoonSheet(context),
+        items: const [
+          AppBottomNavigationItem(
             label: 'Início',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: 'Os meus jobs',
+          AppBottomNavigationItem(
+            label: 'Pedidos',
+            icon: Icons.work_outline_rounded,
+            selectedIcon: Icons.work_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.add),
-            label: '+',
+          AppBottomNavigationItem(
+            label: 'Trabalhos',
+            icon: Icons.event_note_outlined,
+            selectedIcon: Icons.event_note_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_outlined),
-            selectedIcon: Icon(Icons.chat),
-            label: 'Mensagens',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
+          AppBottomNavigationItem(
             label: 'Perfil',
+            icon: Icons.person_outline_rounded,
+            selectedIcon: Icons.person_rounded,
           ),
         ],
       ),
@@ -93,23 +88,13 @@ class WorkerShell extends ConsumerWidget {
     );
   }
 
+  /// Só cobre as rotas de topo (mesmo padrão do WorkerShell anterior): rotas
+  /// de detalhe (job/proposta/help-requests) e "/worker/messages" (removida
+  /// da bottom nav, mas a rota continua a existir) recaem no default (0).
   int _indexFromLocation(String location) {
-    if (location.startsWith('/worker/jobs')) return 1;
-    if (location.startsWith('/worker/messages')) return 3;
-    if (location.startsWith('/worker/profile')) return 4;
+    if (location.startsWith('/worker/available-jobs')) return 1;
+    if (location.startsWith('/worker/jobs')) return 2;
+    if (location.startsWith('/worker/profile')) return 3;
     return 0;
   }
-}
-
-// ignore: unused_element
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Em breve.')),
-      );
 }

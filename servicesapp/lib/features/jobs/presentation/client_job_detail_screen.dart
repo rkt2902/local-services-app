@@ -14,6 +14,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
+import '../../../core/widgets/status_badges.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/job_timeline.dart';
@@ -542,20 +543,8 @@ class _ClientJobDetailScreenState
             .where((hr) => hr.status == HelpRequestStatus.pendingApproval)
             .toList();
 
-        final (statusLabel, statusColor) =
-            _statusInfo(job.status, job.proposalCount);
-
-        final statusBadge = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: statusColor,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            statusLabel,
-            style: theme.textTheme.labelMedium?.copyWith(color: Colors.white),
-          ),
-        );
+        final statusBadge =
+            jobStatusBadge(job.status, proposalCount: job.proposalCount);
 
         final photosWidget = photosAsync.when(
           loading: () => const SizedBox.shrink(),
@@ -1308,20 +1297,6 @@ String _hoursLabel(double? min, double? max) {
   }
   return '';
 }
-
-(String, Color) _statusInfo(JobStatus status, int proposalCount) =>
-    switch (status) {
-      JobStatus.open when proposalCount > 0 =>
-        ('$proposalCount proposta${proposalCount > 1 ? 's' : ''}',
-        Colors.orange.shade700),
-      JobStatus.open => ('À espera de proposta', Colors.blue.shade600),
-      JobStatus.confirmed => ('Confirmado', Colors.green.shade600),
-      JobStatus.awaitingConfirmation =>
-        ('A aguardar confirmação', Colors.teal.shade600),
-      JobStatus.completed => ('Concluído', Colors.grey.shade600),
-      JobStatus.noResponse => ('Sem resposta', Colors.red.shade600),
-      JobStatus.cancelled => ('Cancelado', Colors.grey.shade500),
-    };
 
 Widget _detailRow(
     BuildContext context, IconData icon, String label, String value) {
