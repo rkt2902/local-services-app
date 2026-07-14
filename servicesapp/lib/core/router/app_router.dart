@@ -14,6 +14,7 @@ import '../../features/worker/presentation/worker_shell.dart';
 import '../../features/worker/presentation/worker_dashboard_screen.dart';
 import '../../features/worker/presentation/worker_available_jobs_screen.dart';
 import '../../features/worker/presentation/worker_job_detail_screen.dart';
+import '../../features/worker/presentation/worker_submit_proposal_screen.dart';
 import '../../features/jobs/presentation/create_job_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
@@ -94,6 +95,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final jobId = state.pathParameters['id']!;
               return WorkerJobDetailScreen(jobId: jobId);
+            },
+          ),
+          GoRoute(
+            path: '/worker/job/:id/propose',
+            builder: (context, state) {
+              final jobId = state.pathParameters['id']!;
+              return WorkerSubmitProposalScreen(jobId: jobId);
             },
           ),
           GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),

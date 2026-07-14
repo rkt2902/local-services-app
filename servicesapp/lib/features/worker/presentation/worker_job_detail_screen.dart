@@ -1,68 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/theme/app_status_presentation.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
-import '../../../core/theme/app_status_color.dart';
-import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/address_map_link.dart';
-import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/photo_viewer_screen.dart';
+import 'widgets/worker_job_detail_view.dart' as view;
 
-class WorkerJobDetailScreen extends ConsumerStatefulWidget {
+/// Detalhe de uma oportunidade ("Pedidos disponíveis" → detalhe).
+///
+/// Wrapper que liga os providers reais ao componente apresentacional em
+/// widgets/worker_job_detail_view.dart.
+class WorkerJobDetailScreen extends ConsumerWidget {
   const WorkerJobDetailScreen({super.key, required this.jobId});
 
   final String jobId;
 
   @override
-  ConsumerState<WorkerJobDetailScreen> createState() =>
-      _WorkerJobDetailScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jobAsync = ref.watch(jobByIdProvider(jobId));
 
-class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
-  Future<void> _showProposalSheet() async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-    final success = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _ProposalSheet(jobId: widget.jobId),
-    );
-    if (success != true) return;
-    ref.invalidate(jobsInRadiusProvider);
-    scaffold.showSnackBar(
-      const SnackBar(content: Text('Proposta enviada!')),
-    );
-    router.go('/worker/home');
-  }
-
-  String? _sizeLabel(JobRequest job) => switch (job.sizeEstimate) {
-        SizeEstimate.small => 'Pequeno',
-        SizeEstimate.medium => 'Médio',
-        SizeEstimate.large => 'Grande',
-        null => null,
-      };
-
-  String _dateModeShortLabel(JobRequest job) => switch (job.dateMode) {
-        DateMode.fixed when job.preferredDate != null =>
-          'Data: ${DateFormat('dd/MM/yyyy').format(job.preferredDate!)}',
-        DateMode.fixed => 'Data não definida',
-        DateMode.flexible => 'Cliente flexível quanto à data',
-        DateMode.availability => 'Por disponibilidade',
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
     return jobAsync.when(
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -76,537 +44,113 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
             body: Center(child: Text('Pedido não encontrado.')),
           );
         }
-
-        final theme = Theme.of(context);
-        final serviceTypesAsync = ref.watch(serviceTypesProvider);
-        final workerAsync = ref.watch(workerProfileProvider);
-        final photosAsync = ref.watch(jobPhotosProvider(widget.jobId));
-
-        final currentUserId = ref.watch(currentUserIdProvider) ?? '';
-        final workerProposalAsync = currentUserId.isEmpty
-            ? const AsyncValue<JobProposal?>.data(null)
-            : ref.watch(
-                workerProposalForJobProvider((widget.jobId, currentUserId)));
-        final isCheckingProposal = workerProposalAsync.isLoading;
-        final alreadySent = workerProposalAsync.asData?.value != null;
-
-        final serviceType = serviceTypesAsync.value
-            ?.where((s) => s.id == job.serviceTypeId)
-            .firstOrNull;
-
-        final workerProfile = workerAsync.value;
-        String? distanceStr;
-        if (workerProfile != null) {
-          final meters = Geolocator.distanceBetween(
-            workerProfile.baseLat,
-            workerProfile.baseLng,
-            job.locationLat,
-            job.locationLng,
-          );
-          distanceStr = meters < 1000
-              ? '${meters.round()} m'
-              : '${(meters / 1000).toStringAsFixed(1)} km';
-        }
-
-        final sizeLabel = _sizeLabel(job);
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(serviceType?.name ?? 'Detalhe do pedido'),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        serviceType?.name ?? '',
-                        style: theme.textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    if (job.urgency == Urgency.urgent)
-                      AppStatusBadge.fromPresentation(
-                        presentation: urgentStatusPresentation,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
-                    _DetailChip(
-                        icon: Icons.calendar_today_outlined,
-                        label: _dateModeShortLabel(job)),
-                    if (distanceStr != null)
-                      _DetailChip(
-                          icon: Icons.place_outlined, label: distanceStr),
-                    if (sizeLabel != null)
-                      _DetailChip(
-                          icon: Icons.straighten_outlined, label: sizeLabel),
-                    if (job.proposalCount > 0)
-                      _DetailChip(
-                        icon: Icons.people_outlined,
-                        label:
-                            '${job.proposalCount} proposta${job.proposalCount > 1 ? 's' : ''}',
-                      ),
-                  ],
-                ),
-                // Availability text shown separately (can be long)
-                if (job.dateMode == DateMode.availability &&
-                    job.availabilityText != null &&
-                    job.availabilityText!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.event_note_outlined,
-                          size: 16,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Disponibilidade do cliente:',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant),
-                            ),
-                            Text(job.availabilityText!,
-                                style: theme.textTheme.bodyMedium),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (job.locationLat != 0 || job.locationLng != 0) ...[
-                  const SizedBox(height: 12),
-                  AddressMapLink(
-                    address: job.addressText,
-                    lat: job.locationLat,
-                    lng: job.locationLng,
-                  ),
-                ],
-                if (alreadySent) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppStatusColor.info.background,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(children: [
-                      Icon(Icons.info_outline,
-                          color: AppStatusColor.info.foreground, size: 18),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                            'Já enviaste uma proposta para este pedido.'),
-                      ),
-                    ]),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Text('Descrição', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(job.description, style: theme.textTheme.bodyMedium),
-                photosAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, _) => const SizedBox.shrink(),
-                  data: (photos) {
-                    if (photos.isEmpty) return const SizedBox.shrink();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 24),
-                        Text('Fotos', style: theme.textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 120,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: photos.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (_, i) => GestureDetector(
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => PhotoViewerScreen(
-                                    photoUrls: photos,
-                                    initialIndex: i,
-                                  ),
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  photos[i],
-                                  width: 120,
-                                  height: 120,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                SizedBox(height: alreadySent ? 32 : 80),
-              ],
-            ),
-          ),
-          bottomNavigationBar: alreadySent
-              ? null
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FilledButton(
-                    onPressed: isCheckingProposal ? null : _showProposalSheet,
-                    child: isCheckingProposal
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Enviar proposta'),
-                  ),
-                ),
-        );
+        return _buildDetail(context, ref, job);
       },
     );
   }
-}
 
-class _DetailChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  Widget _buildDetail(BuildContext context, WidgetRef ref, JobRequest job) {
+    final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
+    final workerProfile = ref.watch(workerProfileProvider).asData?.value;
+    final photos = ref.watch(jobPhotosProvider(jobId)).asData?.value ?? [];
+    final clientInfo =
+        ref.watch(clientBasicInfoProvider(job.clientId)).asData?.value;
 
-  const _DetailChip({required this.icon, required this.label});
+    final currentUserId = ref.watch(currentUserIdProvider) ?? '';
+    final workerProposalAsync = currentUserId.isEmpty
+        ? const AsyncValue<JobProposal?>.data(null)
+        : ref.watch(workerProposalForJobProvider((jobId, currentUserId)));
+    final alreadySent = workerProposalAsync.asData?.value != null;
 
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        ],
+    final serviceType =
+        serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
+
+    var distanceLabel = '';
+    if (workerProfile != null) {
+      final meters = Geolocator.distanceBetween(
+        workerProfile.baseLat,
+        workerProfile.baseLng,
+        job.locationLat,
+        job.locationLng,
       );
-}
-
-class _ProposalSheet extends ConsumerStatefulWidget {
-  final String jobId;
-
-  const _ProposalSheet({required this.jobId});
-
-  @override
-  ConsumerState<_ProposalSheet> createState() => _ProposalSheetState();
-}
-
-class _ProposalSheetState extends ConsumerState<_ProposalSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _rateController = TextEditingController();
-  final _hoursMinController = TextEditingController();
-  final _hoursMaxController = TextEditingController();
-  final _notesController = TextEditingController();
-  bool _submitting = false;
-
-  bool _needsHelp = false;
-  int _peopleNeeded = 2;
-  bool _helpersEquipmentRequired = false;
-
-  DateTime? _scheduledDate;
-  TimeOfDay? _scheduledTime;
-  bool _scheduledFlexible = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final profile = ref.read(workerProfileProvider).value;
-    if (profile?.defaultHourlyRate != null && profile!.defaultHourlyRate! > 0) {
-      _rateController.text = profile.defaultHourlyRate!.toStringAsFixed(2);
-    }
-  }
-
-  @override
-  void dispose() {
-    _rateController.dispose();
-    _hoursMinController.dispose();
-    _hoursMaxController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickScheduledDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _scheduledDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) setState(() => _scheduledDate = picked);
-  }
-
-  Future<void> _pickScheduledTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _scheduledTime ?? const TimeOfDay(hour: 9, minute: 0),
-    );
-    if (picked != null) setState(() => _scheduledTime = picked);
-  }
-
-  String _formatScheduledDate() {
-    if (_scheduledDate == null) return 'Data do trabalho';
-    return DateFormat('dd/MM/yyyy').format(_scheduledDate!);
-  }
-
-  String _formatScheduledTime() {
-    if (_scheduledTime == null) return 'Hora de início';
-    return '${_scheduledTime!.hour.toString().padLeft(2, '0')}:'
-        '${_scheduledTime!.minute.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _submit() async {
-    if (_submitting || !_formKey.currentState!.validate()) return;
-
-    if (_scheduledDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Define a data do trabalho.'),
-        backgroundColor: Colors.red,
-      ));
-      return;
-    }
-    if (!_scheduledFlexible && _scheduledTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Define a hora de início ou marca horário flexível.'),
-        backgroundColor: Colors.red,
-      ));
-      return;
+      distanceLabel = meters < 1000
+          ? '${meters.round()} m'
+          : '${(meters / 1000).toStringAsFixed(1)} km';
     }
 
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
-    setState(() => _submitting = true);
-    try {
-      await ref.read(proposalRepositoryProvider).createProposal(
-            jobId: widget.jobId,
-            workerId: user.id,
-            hourlyRate: double.parse(_rateController.text.trim()),
-            estimatedHoursMin:
-                double.tryParse(_hoursMinController.text.trim()),
-            estimatedHoursMax:
-                double.tryParse(_hoursMaxController.text.trim()),
-            peopleNeeded: _needsHelp ? _peopleNeeded : 1,
-            helpersEquipmentRequired:
-                _needsHelp ? _helpersEquipmentRequired : false,
-            notes: _notesController.text.trim().isEmpty
-                ? null
-                : _notesController.text.trim(),
-            scheduledDate: _scheduledDate,
-            scheduledTime: _scheduledTime != null ? _formatScheduledTime() : null,
-            scheduledFlexible: _scheduledFlexible,
-          );
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+    AppStatusPresentation? badge;
+    if (job.urgency == Urgency.urgent) {
+      badge = urgentStatusPresentation;
+    } else if (DateTime.now().difference(job.createdAt).inHours < 24) {
+      badge = const AppStatusPresentation(
+        label: 'Novo',
+        color: AppStatusColor.success,
       );
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final job = ref.watch(jobByIdProvider(widget.jobId)).asData?.value;
+    final avatarUrl = clientInfo?['avatar_url'];
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Enviar proposta', style: theme.textTheme.titleLarge),
-                if (job != null && (job.locationLat != 0 || job.locationLng != 0)) ...[
-                  const SizedBox(height: 8),
-                  AddressMapLink(
-                    address: job.addressText,
-                    lat: job.locationLat,
-                    lng: job.locationLng,
-                  ),
-                ],
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _rateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Preço/hora (€)',
-                    prefixIcon: Icon(Icons.euro_outlined),
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Obrigatório.';
-                    final n = double.tryParse(v.trim());
-                    if (n == null || n <= 0) return 'Valor inválido.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _hoursMinController,
-                  decoration: const InputDecoration(
-                    labelText: 'Horas mínimas',
-                    prefixIcon: Icon(Icons.schedule_outlined),
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Obrigatório.';
-                    final n = double.tryParse(v.trim());
-                    if (n == null || n <= 0) return 'Valor inválido.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _hoursMaxController,
-                  decoration: const InputDecoration(
-                    labelText: 'Horas máximas',
-                    prefixIcon: Icon(Icons.schedule_outlined),
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Obrigatório.';
-                    final n = double.tryParse(v.trim());
-                    if (n == null || n <= 0) return 'Valor inválido.';
-                    final minVal =
-                        double.tryParse(_hoursMinController.text.trim()) ?? 0;
-                    if (n < minVal) return 'Deve ser ≥ horas mínimas.';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  value: _needsHelp,
-                  onChanged: (v) => setState(() {
-                    _needsHelp = v ?? false;
-                    if (!_needsHelp) {
-                      _peopleNeeded = 2;
-                      _helpersEquipmentRequired = false;
-                    }
-                  }),
-                  title: const Text('Preciso de ajuda'),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                if (_needsHelp) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.group_outlined, size: 18),
-                      const SizedBox(width: 8),
-                      const Text('Total de pessoas:'),
-                      const SizedBox(width: 12),
-                      DropdownButton<int>(
-                        value: _peopleNeeded,
-                        items: [2, 3, 4, 5]
-                            .map((n) => DropdownMenuItem(
-                                  value: n,
-                                  child: Text('$n'),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            setState(() => _peopleNeeded = v ?? 2),
-                      ),
-                    ],
-                  ),
-                  SwitchListTile(
-                    value: _helpersEquipmentRequired,
-                    onChanged: (v) =>
-                        setState(() => _helpersEquipmentRequired = v),
-                    title: const Text(
-                        'Ajudantes devem trazer equipamento próprio'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                    prefixIcon: Icon(Icons.notes_outlined),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 24),
+    final data = view.WorkerJobDetailViewData(
+      id: job.id,
+      title: serviceType?.name ?? '',
+      locationLabel: job.addressText.isNotEmpty
+          ? job.addressText
+          : 'Localização não especificada',
+      distanceLabel: distanceLabel,
+      deadlineLabel: _deadlineLabel(job),
+      areaLabel: _areaLabel(job),
+      // O MVP não tem orçamento no pedido (só nasce quando um worker
+      // propõe) — mesma decisão já usada no dashboard e na lista de
+      // pedidos disponíveis.
+      budgetLabel: 'Preço a combinar',
+      description: job.description,
+      serviceIcon: Icons.yard_outlined,
+      clientName: clientInfo?['full_name'] ?? '',
+      clientAvatar: (avatarUrl != null && avatarUrl.isNotEmpty)
+          ? avatarUrl
+          : null,
+      photos: photos.map((url) => NetworkImage(url) as ImageProvider).toList(),
+      badge: badge,
+    );
 
-                // ── Scheduling ─────────────────────────────────────────────
-                Text('Agendamento', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _pickScheduledDate,
-                  icon: const Icon(Icons.event_outlined),
-                  label: Text(_formatScheduledDate()),
+    return view.WorkerJobDetailScreen(
+      data: data,
+      onBack: () => context.pop(),
+      onSendProposalPressed: alreadySent
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Já enviaste uma proposta para este pedido.'),
                 ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  value: _scheduledFlexible,
-                  onChanged: (v) => setState(() {
-                    _scheduledFlexible = v;
-                    if (v) _scheduledTime = null;
-                  }),
-                  title: const Text('Horário flexível neste dia'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                if (!_scheduledFlexible) ...[
-                  OutlinedButton.icon(
-                    onPressed: _pickScheduledTime,
-                    icon: const Icon(Icons.access_time_outlined),
-                    label: Text(_formatScheduledTime()),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                const SizedBox(height: 16),
-
-                FilledButton(
-                  onPressed: _submitting ? null : _submit,
-                  child: _submitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Confirmar proposta'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              )
+          : () => context.push('/worker/job/$jobId/propose'),
     );
   }
 }
+
+/// O pedido nunca tem hora, só data (ou flexível, ou texto livre) — ver
+/// docs (JobRequest.preferredDate é DateTime sem componente de hora útil).
+String _deadlineLabel(JobRequest job) {
+  switch (job.dateMode) {
+    case DateMode.fixed:
+      final date = job.preferredDate;
+      if (date == null) return 'Data a combinar';
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+      final target = DateTime(date.year, date.month, date.day);
+      if (target == today) return 'Hoje';
+      if (target == tomorrow) return 'Amanhã';
+      return DateFormat('dd/MM/yyyy').format(date);
+    case DateMode.flexible:
+      return 'Flexível';
+    case DateMode.availability:
+      return 'Ver disponibilidade';
+  }
+}
+
+String _areaLabel(JobRequest job) => switch (job.sizeEstimate) {
+      SizeEstimate.small => 'Pequeno',
+      SizeEstimate.medium => 'Médio',
+      SizeEstimate.large => 'Grande',
+      null => 'Não especificado',
+    };
