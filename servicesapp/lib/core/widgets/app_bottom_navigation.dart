@@ -49,7 +49,7 @@ class AppBottomNavigation extends StatelessWidget {
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 88,
+        height: 96,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,

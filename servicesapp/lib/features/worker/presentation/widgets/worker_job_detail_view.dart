@@ -93,118 +93,120 @@ class WorkerJobDetailScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ServiceHeader(
-                    title: data.title,
-                    locationLabel: data.locationLabel,
-                    distanceLabel: data.distanceLabel,
-                    icon: data.serviceIcon,
-                    badge: data.badge,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InformationCard(
-                          label: 'Prazo',
-                          value: data.deadlineLabel,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ServiceHeader(
+                      title: data.title,
+                      locationLabel: data.locationLabel,
+                      distanceLabel: data.distanceLabel,
+                      icon: data.serviceIcon,
+                      badge: data.badge,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _InformationCard(
+                            label: 'Prazo',
+                            value: data.deadlineLabel,
+                          ),
                         ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: _InformationCard(
+                            label: 'Área',
+                            value: data.areaLabel,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: _InformationCard(
+                            label: 'Orçam.',
+                            value: data.budgetLabel,
+                            highlighted: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Descrição',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: _InformationCard(
-                          label: 'Área',
-                          value: data.areaLabel,
-                        ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      data.description,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
                       ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: _InformationCard(
-                          label: 'Orçam.',
-                          value: data.budgetLabel,
-                          highlighted: true,
-                        ),
+                    ),
+                    if (data.photos.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _JobPhotos(
+                        photos: data.photos,
                       ),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Descrição',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    data.description,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (data.photos.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.md),
-                    _JobPhotos(
-                      photos: data.photos,
+                    const Divider(
+                      color: AppColors.divider,
+                      height: 1,
                     ),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(
-                    color: AppColors.divider,
-                    height: 1,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Material(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.input,
-                    ),
-                    child: InkWell(
-                      onTap: onClientPressed,
+                    const SizedBox(height: AppSpacing.md),
+                    Material(
+                      color: AppColors.background,
                       borderRadius: BorderRadius.circular(
                         AppRadius.input,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.xs,
+                      child: InkWell(
+                        onTap: onClientPressed,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.input,
                         ),
-                        child: UserAvatarWithName(
-                          name: data.clientName,
-                          avatarUrl: data.clientAvatar,
-                          radius: 22,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
+                          ),
+                          child: UserAvatarWithName(
+                            name: data.clientName,
+                            avatarUrl: data.clientAvatar,
+                            radius: 22,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          Container(
-            color: AppColors.background,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.lg,
+            Container(
+              color: AppColors.background,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.lg,
+              ),
+              child: PrimaryActionButton(
+                label: 'Enviar proposta',
+                onPressed: onSendProposalPressed,
+              ),
             ),
-            child: PrimaryActionButton(
-              label: 'Enviar proposta',
-              onPressed: onSendProposalPressed,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

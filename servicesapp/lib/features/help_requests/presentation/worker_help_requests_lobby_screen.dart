@@ -236,19 +236,19 @@ class _WorkerHelpRequestsLobbyScreenState
     if (anyLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Equipa')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
       );
     }
 
     if (anyError != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Equipa')),
-        body: Center(
+        body: SafeArea(child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(friendlyError(anyError)),
           ),
-        ),
+        )),
       );
     }
 
@@ -354,7 +354,7 @@ class _WorkerHelpRequestsLobbyScreenState
 
     return Scaffold(
       appBar: AppBar(title: const Text('Equipa')),
-      body: RefreshIndicator(
+      body: SafeArea(child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(helpRequestsForJobProvider(widget.jobId));
           for (final hr in helpRequests) {
@@ -395,7 +395,7 @@ class _WorkerHelpRequestsLobbyScreenState
               ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

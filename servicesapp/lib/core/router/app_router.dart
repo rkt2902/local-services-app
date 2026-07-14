@@ -62,6 +62,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
+      // Fora dos ShellRoutes de propósito — ecrãs de sub-fluxo (detalhe,
+      // formulário, lobby), não devem mostrar a bottom nav persistente.
+      GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
+      GoRoute(
+        path: '/worker/job/:id/propose',
+        builder: (context, state) {
+          final jobId = state.pathParameters['id']!;
+          return WorkerSubmitProposalScreen(jobId: jobId);
+        },
+      ),
+      GoRoute(
+        path: '/worker/job/:id/help-requests',
+        builder: (context, state) {
+          final jobId = state.pathParameters['id']!;
+          return WorkerHelpRequestsLobbyScreen(jobId: jobId);
+        },
+      ),
+      GoRoute(
+        path: '/worker/job/:id',
+        builder: (context, state) {
+          final jobId = state.pathParameters['id']!;
+          return WorkerJobDetailScreen(jobId: jobId);
+        },
+      ),
+      GoRoute(
+        path: '/worker/my-job/:id',
+        builder: (context, state) {
+          final proposalId = state.pathParameters['id']!;
+          final jobId = state.uri.queryParameters['jobId']!;
+          return WorkerMyJobDetailScreen(
+            proposalId: proposalId,
+            jobId: jobId,
+          );
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) => ClientShell(child: child),
         routes: [
@@ -75,7 +110,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
           GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
-          GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
           GoRoute(
             path: '/client/messages',
             builder: (_, _) => const _PlaceholderScreen('Mensagens'),
@@ -90,42 +124,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/worker/available-jobs',
             builder: (_, _) => const WorkerAvailableJobsScreen(),
           ),
-          GoRoute(
-            path: '/worker/job/:id',
-            builder: (context, state) {
-              final jobId = state.pathParameters['id']!;
-              return WorkerJobDetailScreen(jobId: jobId);
-            },
-          ),
-          GoRoute(
-            path: '/worker/job/:id/propose',
-            builder: (context, state) {
-              final jobId = state.pathParameters['id']!;
-              return WorkerSubmitProposalScreen(jobId: jobId);
-            },
-          ),
           GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
           GoRoute(
             path: '/worker/jobs',
             builder: (_, _) => const WorkerJobsScreen(),
-          ),
-          GoRoute(
-            path: '/worker/my-job/:id',
-            builder: (context, state) {
-              final proposalId = state.pathParameters['id']!;
-              final jobId = state.uri.queryParameters['jobId']!;
-              return WorkerMyJobDetailScreen(
-                proposalId: proposalId,
-                jobId: jobId,
-              );
-            },
-          ),
-          GoRoute(
-            path: '/worker/job/:id/help-requests',
-            builder: (context, state) {
-              final jobId = state.pathParameters['id']!;
-              return WorkerHelpRequestsLobbyScreen(jobId: jobId);
-            },
           ),
           GoRoute(
             path: '/worker/help-requests',

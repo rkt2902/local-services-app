@@ -8,7 +8,7 @@ class AppTextField extends StatelessWidget {
     required this.label,
     super.key,
     this.hintText,
-    this.keyboardType = TextInputType.text,
+    this.keyboardType,
     this.textInputAction = TextInputAction.next,
     this.obscureText = false,
     this.suffixIcon,
@@ -24,7 +24,12 @@ class AppTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String? hintText;
-  final TextInputType keyboardType;
+
+  /// Se omitido, é escolhido automaticamente: `TextInputType.multiline`
+  /// quando o campo aceita mais de uma linha (`maxLines == null` ou `> 1`),
+  /// senão `TextInputType.text`. Passar um valor explícito continua a
+  /// ganhar sempre — isto só cobre o caso não especificado.
+  final TextInputType? keyboardType;
   final TextInputAction textInputAction;
   final bool obscureText;
   final Widget? suffixIcon;
@@ -39,10 +44,13 @@ class AppTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final isMultiline = maxLines == null || maxLines! > 1;
+    final effectiveKeyboardType = keyboardType ??
+        (isMultiline ? TextInputType.multiline : TextInputType.text);
 
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
+      keyboardType: effectiveKeyboardType,
       textInputAction: textInputAction,
       obscureText: obscureText,
       readOnly: readOnly,

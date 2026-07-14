@@ -287,7 +287,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Novo pedido')),
-      body: SingleChildScrollView(
+      body: SafeArea(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -558,7 +558,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }

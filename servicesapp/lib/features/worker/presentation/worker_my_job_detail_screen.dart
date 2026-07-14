@@ -396,7 +396,7 @@ class _WorkerMyJobDetailScreenState
 
     return Scaffold(
       appBar: AppBar(title: const Text('O meu trabalho')),
-      body: SingleChildScrollView(
+      body: SafeArea(child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,7 +855,7 @@ class _WorkerMyJobDetailScreenState
             const SizedBox(height: 32),
           ],
         ),
-      ),
+      )),
     );
   }
 

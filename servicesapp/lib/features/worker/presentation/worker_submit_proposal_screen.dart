@@ -115,7 +115,7 @@ class _WorkerSubmitProposalScreenState
 
     final suggestedLabel = (defaultRate != null && defaultRate > 0)
         ? '€${defaultRate.toStringAsFixed(0)}/h'
-        : 'sem valor de referência';
+        : null;
 
     return view.WorkerSubmitProposalScreen(
       suggestedHourlyPriceLabel: suggestedLabel,

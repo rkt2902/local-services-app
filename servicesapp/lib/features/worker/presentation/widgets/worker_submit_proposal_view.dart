@@ -9,20 +9,14 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 
 class WorkerProposalDateSelection {
-  const WorkerProposalDateSelection({
-    required this.value,
-    required this.label,
-  });
+  const WorkerProposalDateSelection({required this.value, required this.label});
 
   final DateTime value;
   final String label;
 }
 
 class WorkerProposalTimeSlotViewData {
-  const WorkerProposalTimeSlotViewData({
-    required this.id,
-    required this.label,
-  });
+  const WorkerProposalTimeSlotViewData({required this.id, required this.label});
 
   final String id;
   final String label;
@@ -77,13 +71,13 @@ class WorkerProposalDraft {
 
 class WorkerSubmitProposalScreen extends StatefulWidget {
   const WorkerSubmitProposalScreen({
-    required this.suggestedHourlyPriceLabel,
     required this.timeSlots,
     required this.durationOptions,
     required this.onBack,
     required this.onSelectDate,
     required this.onSubmit,
     super.key,
+    this.suggestedHourlyPriceLabel,
     this.initialHourlyPrice,
     this.initialDate,
     this.initialTimeSlotId,
@@ -97,7 +91,7 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
     this.isSubmitting = false,
   });
 
-  final String suggestedHourlyPriceLabel;
+  final String? suggestedHourlyPriceLabel;
 
   /// Estas opções devem vir da configuração/domínio existente.
   /// O ecrã não cria listas fixas de períodos.
@@ -204,14 +198,11 @@ class _WorkerSubmitProposalScreenState
       text: _formatInitialPrice(widget.initialHourlyPrice),
     );
 
-    _messageController = TextEditingController(
-      text: widget.initialMessage,
-    );
+    _messageController = TextEditingController(text: widget.initialMessage);
 
     _selectedDate = widget.initialDate;
     _selectedTimeSlotId = widget.initialTimeSlotId;
-    _selectedDurationOptionId =
-        widget.initialDurationOptionId;
+    _selectedDurationOptionId = widget.initialDurationOptionId;
 
     _needsHelpers = widget.initialNeedsHelpers;
 
@@ -222,9 +213,7 @@ class _WorkerSubmitProposalScreenState
 
     _equipmentRequired = widget.initialHelpersEquipmentRequired;
 
-    _hourlyPriceController.addListener(
-      _handlePriceChanged,
-    );
+    _hourlyPriceController.addListener(_handlePriceChanged);
   }
 
   void _handlePriceChanged() {
@@ -240,9 +229,7 @@ class _WorkerSubmitProposalScreenState
       return value.toInt().toString();
     }
 
-    return value
-        .toStringAsFixed(2)
-        .replaceAll('.', ',');
+    return value.toStringAsFixed(2).replaceAll('.', ',');
   }
 
   String _formatMoney(double value) {
@@ -250,15 +237,11 @@ class _WorkerSubmitProposalScreenState
       return value.toInt().toString();
     }
 
-    return value
-        .toStringAsFixed(2)
-        .replaceAll('.', ',');
+    return value.toStringAsFixed(2).replaceAll('.', ',');
   }
 
   double? _parsePrice(String value) {
-    return double.tryParse(
-      value.trim().replaceAll(',', '.'),
-    );
+    return double.tryParse(value.trim().replaceAll(',', '.'));
   }
 
   Future<void> _selectDate() async {
@@ -298,8 +281,7 @@ class _WorkerSubmitProposalScreenState
       _showSelectionErrors = true;
     });
 
-    final formIsValid =
-        _formKey.currentState?.validate() ?? false;
+    final formIsValid = _formKey.currentState?.validate() ?? false;
 
     final duration = _selectedDuration;
     final price = _hourlyPrice;
@@ -318,15 +300,11 @@ class _WorkerSubmitProposalScreenState
         scheduledDate: _selectedDate!.value,
         timeSlotId: _selectedTimeSlotId!,
         durationOptionId: duration.id,
-        minimumEstimatedHours:
-            duration.minimumHours,
-        maximumEstimatedHours:
-            duration.maximumHours,
+        minimumEstimatedHours: duration.minimumHours,
+        maximumEstimatedHours: duration.maximumHours,
         needsHelpers: _needsHelpers,
-        helperCount:
-            _needsHelpers ? _helperCount : 0,
-        helpersEquipmentRequired:
-            _needsHelpers ? _equipmentRequired : false,
+        helperCount: _needsHelpers ? _helperCount : 0,
+        helpersEquipmentRequired: _needsHelpers ? _equipmentRequired : false,
         message: _messageController.text.trim(),
       ),
     );
@@ -334,9 +312,7 @@ class _WorkerSubmitProposalScreenState
 
   @override
   void dispose() {
-    _hourlyPriceController.removeListener(
-      _handlePriceChanged,
-    );
+    _hourlyPriceController.removeListener(_handlePriceChanged);
 
     _hourlyPriceController.dispose();
     _messageController.dispose();
@@ -347,8 +323,7 @@ class _WorkerSubmitProposalScreenState
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final estimatedTotalLabel =
-        _estimatedTotalLabel;
+    final estimatedTotalLabel = _estimatedTotalLabel;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -367,231 +342,172 @@ class _WorkerSubmitProposalScreenState
         titleSpacing: 0,
         title: Text(
           'A sua proposta',
-          style: textTheme.titleLarge?.copyWith(
-            color: AppColors.textPrimary,
-          ),
+          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Preço por hora',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    _HourlyPriceField(
-                      controller:
-                          _hourlyPriceController,
-                      suggestedPriceLabel:
-                          widget.suggestedHourlyPriceLabel,
-                    ),
-                    if (estimatedTotalLabel != null) ...[
-                      const SizedBox(
-                        height: AppSpacing.xs,
-                      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        estimatedTotalLabel,
-                        style:
-                            textTheme.labelMedium?.copyWith(
-                          color:
-                              AppColors.textSecondary,
+                        'Preço por hora',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      _HourlyPriceField(
+                        controller: _hourlyPriceController,
+                        suggestedPriceLabel: widget.suggestedHourlyPriceLabel,
+                      ),
+                      if (estimatedTotalLabel != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          estimatedTotalLabel,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Agendamento',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      _DateSelector(
+                        label:
+                            _selectedDate?.label ??
+                            'Escolher dia no calendário',
+                        selected: _selectedDate != null,
+                        onPressed: _selectDate,
+                      ),
+                      if (_showSelectionErrors && _selectedDate == null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        const _SelectionError(message: 'Selecione uma data.'),
+                      ],
+                      const SizedBox(height: AppSpacing.xs),
+                      _TimeSlotSelector(
+                        options: widget.timeSlots,
+                        selectedId: _selectedTimeSlotId,
+                        onSelected: (id) {
+                          setState(() {
+                            _selectedTimeSlotId = id;
+                          });
+                        },
+                      ),
+                      if (_showSelectionErrors &&
+                          _selectedTimeSlotId == null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        const _SelectionError(message: 'Selecione um período.'),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Duração estimada do trabalho',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      _DurationSelector(
+                        options: widget.durationOptions,
+                        selectedId: _selectedDurationOptionId,
+                        onSelected: (id) {
+                          setState(() {
+                            _selectedDurationOptionId = id;
+                          });
+                        },
+                      ),
+                      if (_showSelectionErrors &&
+                          _selectedDurationOptionId == null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        const _SelectionError(
+                          message: 'Selecione uma duração.',
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
+
+                      // O estado 4b é apenas este componente
+                      // com enabled = true.
+                      _HelpersSection(
+                        enabled: _needsHelpers,
+                        helperCount: _helperCount,
+                        canDecrease: _helperCount > widget.minimumHelperCount,
+                        canIncrease: _helperCount < widget.maximumHelperCount,
+                        equipmentRequired: _equipmentRequired,
+                        onEnabledChanged: (value) {
+                          setState(() {
+                            _needsHelpers = value;
+                          });
+                        },
+                        onDecrease: _decreaseHelperCount,
+                        onIncrease: _increaseHelperCount,
+                        onEquipmentRequiredChanged: (value) {
+                          setState(() {
+                            _equipmentRequired = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Mensagem',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      AppTextField(
+                        controller: _messageController,
+                        label: 'Mensagem opcional',
+                        minLines: 2,
+                        maxLines: 4,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Descreva o que inclui a proposta '
+                        '— varia por serviço.',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
-                    const SizedBox(
-                      height: AppSpacing.sm,
-                    ),
-                    Text(
-                      'Agendamento',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    _DateSelector(
-                      label: _selectedDate?.label ??
-                          'Escolher dia no calendário',
-                      selected:
-                          _selectedDate != null,
-                      onPressed: _selectDate,
-                    ),
-                    if (_showSelectionErrors &&
-                        _selectedDate == null) ...[
-                      const SizedBox(
-                        height: AppSpacing.xxs,
-                      ),
-                      const _SelectionError(
-                        message:
-                            'Selecione uma data.',
-                      ),
-                    ],
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    _TimeSlotSelector(
-                      options: widget.timeSlots,
-                      selectedId:
-                          _selectedTimeSlotId,
-                      onSelected: (id) {
-                        setState(() {
-                          _selectedTimeSlotId = id;
-                        });
-                      },
-                    ),
-                    if (_showSelectionErrors &&
-                        _selectedTimeSlotId ==
-                            null) ...[
-                      const SizedBox(
-                        height: AppSpacing.xxs,
-                      ),
-                      const _SelectionError(
-                        message:
-                            'Selecione um período.',
-                      ),
-                    ],
-                    const SizedBox(
-                      height: AppSpacing.sm,
-                    ),
-                    Text(
-                      'Duração estimada do trabalho',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    _DurationSelector(
-                      options:
-                          widget.durationOptions,
-                      selectedId:
-                          _selectedDurationOptionId,
-                      onSelected: (id) {
-                        setState(() {
-                          _selectedDurationOptionId =
-                              id;
-                        });
-                      },
-                    ),
-                    if (_showSelectionErrors &&
-                        _selectedDurationOptionId ==
-                            null) ...[
-                      const SizedBox(
-                        height: AppSpacing.xxs,
-                      ),
-                      const _SelectionError(
-                        message:
-                            'Selecione uma duração.',
-                      ),
-                    ],
-                    const SizedBox(
-                      height: AppSpacing.sm,
-                    ),
-
-                    // O estado 4b é apenas este componente
-                    // com enabled = true.
-                    _HelpersSection(
-                      enabled: _needsHelpers,
-                      helperCount: _helperCount,
-                      canDecrease: _helperCount >
-                          widget.minimumHelperCount,
-                      canIncrease: _helperCount <
-                          widget.maximumHelperCount,
-                      equipmentRequired: _equipmentRequired,
-                      onEnabledChanged: (value) {
-                        setState(() {
-                          _needsHelpers = value;
-                        });
-                      },
-                      onDecrease:
-                          _decreaseHelperCount,
-                      onIncrease:
-                          _increaseHelperCount,
-                      onEquipmentRequiredChanged: (value) {
-                        setState(() {
-                          _equipmentRequired = value;
-                        });
-                      },
-                    ),
-
-                    const SizedBox(
-                      height: AppSpacing.sm,
-                    ),
-                    Text(
-                      'Mensagem',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    AppTextField(
-                      controller: _messageController,
-                      label: 'Mensagem opcional',
-                      minLines: 2,
-                      maxLines: 4,
-                      textInputAction:
-                          TextInputAction.newline,
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
-                    Text(
-                      'Descreva o que inclui a proposta '
-                      '— varia por serviço.',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color:
-                            AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          Container(
-            color: AppColors.background,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.lg,
+            Container(
+              color: AppColors.background,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.lg,
+              ),
+              child: PrimaryActionButton(
+                label: 'Enviar proposta',
+                isLoading: widget.isSubmitting,
+                onPressed: widget.isSubmitting ? null : _submit,
+              ),
             ),
-            child: PrimaryActionButton(
-              label: 'Enviar proposta',
-              isLoading: widget.isSubmitting,
-              onPressed: widget.isSubmitting
-                  ? null
-                  : _submit,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -604,28 +520,28 @@ class _HourlyPriceField extends StatelessWidget {
   });
 
   final TextEditingController controller;
-  final String suggestedPriceLabel;
+
+  /// Null/vazio = sem preço sugerido — o chip "Sugerido: ..." não é
+  /// mostrado (não há orçamento no job_request hoje, ver relatório de
+  /// integração; o wrapper só passa um valor quando o worker tem
+  /// `default_hourly_rate` definido no perfil).
+  final String? suggestedPriceLabel;
 
   double? _parsePrice(String value) {
-    return double.tryParse(
-      value.trim().replaceAll(',', '.'),
-    );
+    return double.tryParse(value.trim().replaceAll(',', '.'));
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final hasSuggestion = suggestedPriceLabel != null &&
+        suggestedPriceLabel!.isNotEmpty;
 
     return TextFormField(
       controller: controller,
-      keyboardType:
-          const TextInputType.numberWithOptions(
-        decimal: true,
-      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: TextInputAction.next,
-      style: textTheme.titleLarge?.copyWith(
-        color: AppColors.textPrimary,
-      ),
+      style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
       validator: (value) {
         final price = _parsePrice(value ?? '');
 
@@ -637,29 +553,25 @@ class _HourlyPriceField extends StatelessWidget {
       },
       decoration: InputDecoration(
         prefixText: '€ ',
-        prefixStyle:
-            textTheme.titleLarge?.copyWith(
-          color: AppColors.primary,
-        ),
-        suffix: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer,
-            borderRadius: BorderRadius.circular(
-              AppRadius.pill,
-            ),
-          ),
-          child: Text(
-            'Sugerido: $suggestedPriceLabel',
-            style:
-                textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
+        prefixStyle: textTheme.titleLarge?.copyWith(color: AppColors.primary),
+        suffix: hasSuggestion
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  'Sugerido: $suggestedPriceLabel',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              )
+            : null,
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
@@ -667,38 +579,21 @@ class _HourlyPriceField extends StatelessWidget {
           vertical: AppSpacing.md,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            AppRadius.input,
-          ),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            AppRadius.input,
-          ),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            AppRadius.input,
-          ),
-          borderSide: BorderSide(
-            color: AppStatusColor
-                .cancelled.foreground,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          borderSide: BorderSide(color: AppStatusColor.cancelled.foreground),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(
-            AppRadius.input,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
           borderSide: BorderSide(
-            color: AppStatusColor
-                .cancelled.foreground,
+            color: AppStatusColor.cancelled.foreground,
             width: 1.5,
           ),
         ),
@@ -724,12 +619,10 @@ class _DateSelector extends StatelessWidget {
 
     return Material(
       color: AppColors.surface,
-      borderRadius:
-          BorderRadius.circular(AppRadius.input),
+      borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: onPressed,
-        borderRadius:
-            BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: Container(
           width: double.infinity,
           constraints: const BoxConstraints(minHeight: 56),
@@ -738,13 +631,9 @@ class _DateSelector extends StatelessWidget {
             vertical: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
-              AppRadius.input,
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.input),
             border: Border.all(
-              color: selected
-                  ? AppColors.primary
-                  : AppColors.divider,
+              color: selected ? AppColors.primary : AppColors.divider,
             ),
           ),
           child: Row(
@@ -754,17 +643,14 @@ class _DateSelector extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      textTheme.bodyMedium?.copyWith(
+                  style: textTheme.bodyMedium?.copyWith(
                     color: selected
                         ? AppColors.textPrimary
                         : AppColors.textSecondary,
                   ),
                 ),
               ),
-              const SizedBox(
-                width: AppSpacing.sm,
-              ),
+              const SizedBox(width: AppSpacing.sm),
               const Icon(
                 Icons.calendar_month_outlined,
                 color: AppColors.primary,
@@ -784,8 +670,7 @@ class _TimeSlotSelector extends StatelessWidget {
     required this.onSelected,
   });
 
-  final List<WorkerProposalTimeSlotViewData>
-      options;
+  final List<WorkerProposalTimeSlotViewData> options;
 
   final String? selectedId;
   final ValueChanged<String> onSelected;
@@ -793,32 +678,22 @@ class _TimeSlotSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) {
-      return const _EmptyOptionsMessage(
-        message: 'Nenhum período disponível.',
-      );
+      return const _EmptyOptionsMessage(message: 'Nenhum período disponível.');
     }
 
     return Row(
       children: [
-        for (
-          var index = 0;
-          index < options.length;
-          index++
-        ) ...[
+        for (var index = 0; index < options.length; index++) ...[
           Expanded(
             child: AppFilterChip(
               label: options[index].label,
-              selected:
-                  selectedId == options[index].id,
+              selected: selectedId == options[index].id,
               onPressed: () {
                 onSelected(options[index].id);
               },
             ),
           ),
-          if (index < options.length - 1)
-            const SizedBox(
-              width: AppSpacing.xs,
-            ),
+          if (index < options.length - 1) const SizedBox(width: AppSpacing.xs),
         ],
       ],
     );
@@ -832,8 +707,7 @@ class _DurationSelector extends StatelessWidget {
     required this.onSelected,
   });
 
-  final List<WorkerProposalDurationViewData>
-      options;
+  final List<WorkerProposalDurationViewData> options;
 
   final String? selectedId;
   final ValueChanged<String> onSelected;
@@ -841,33 +715,22 @@ class _DurationSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) {
-      return const _EmptyOptionsMessage(
-        message:
-            'Nenhuma duração disponível.',
-      );
+      return const _EmptyOptionsMessage(message: 'Nenhuma duração disponível.');
     }
 
     return Row(
       children: [
-        for (
-          var index = 0;
-          index < options.length;
-          index++
-        ) ...[
+        for (var index = 0; index < options.length; index++) ...[
           Expanded(
             child: AppFilterChip(
               label: options[index].label,
-              selected:
-                  selectedId == options[index].id,
+              selected: selectedId == options[index].id,
               onPressed: () {
                 onSelected(options[index].id);
               },
             ),
           ),
-          if (index < options.length - 1)
-            const SizedBox(
-              width: AppSpacing.xs,
-            ),
+          if (index < options.length - 1) const SizedBox(width: AppSpacing.xs),
         ],
       ],
     );
@@ -907,58 +770,37 @@ class _HelpersSection extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return AnimatedContainer(
-      duration: const Duration(
-        milliseconds: 220,
-      ),
+      duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       width: double.infinity,
-      padding: const EdgeInsets.all(
-        AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: enabled
-            ? AppColors.primaryContainer
-            : AppColors.surface,
-        borderRadius:
-            BorderRadius.circular(AppRadius.input),
+        color: enabled ? AppColors.primaryContainer : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.input),
         border: Border.all(
-          color: enabled
-              ? AppColors.primary
-              : AppColors.divider,
+          color: enabled ? AppColors.primary : AppColors.divider,
         ),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.group_add_outlined,
-                color: AppColors.primary,
-              ),
-              const SizedBox(
-                width: AppSpacing.sm,
-              ),
+              const Icon(Icons.group_add_outlined, color: AppColors.primary),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   'Preciso de ajudantes',
-                  style:
-                      textTheme.titleMedium?.copyWith(
-                    color: enabled
-                        ? AppColors.primary
-                        : AppColors.textPrimary,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: enabled ? AppColors.primary : AppColors.textPrimary,
                   ),
                 ),
               ),
               Switch.adaptive(
                 value: enabled,
-                activeTrackColor:
-                    AppColors.primary,
-                activeThumbColor:
-                    AppColors.surface,
-                inactiveTrackColor:
-                    AppColors.divider,
-                inactiveThumbColor:
-                    AppColors.surface,
+                activeTrackColor: AppColors.primary,
+                activeThumbColor: AppColors.surface,
+                inactiveTrackColor: AppColors.divider,
+                inactiveThumbColor: AppColors.surface,
                 onChanged: onEnabledChanged,
               ),
             ],
@@ -966,32 +808,24 @@ class _HelpersSection extends StatelessWidget {
 
           // Este bloco só aparece no estado 4b.
           AnimatedSize(
-            duration: const Duration(
-              milliseconds: 220,
-            ),
+            duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             child: enabled
                 ? Column(
                     children: [
-                      const SizedBox(
-                        height: AppSpacing.sm,
-                      ),
+                      const SizedBox(height: AppSpacing.sm),
                       Row(
                         children: [
                           Expanded(
                             child: Text(
                               'Quantos ajudantes?',
-                              style: textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                color: AppColors
-                                    .textSecondary,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
                           _HelperCountButton(
-                            icon:
-                                Icons.remove_rounded,
+                            icon: Icons.remove_rounded,
                             enabled: canDecrease,
                             onPressed: onDecrease,
                           ),
@@ -999,13 +833,9 @@ class _HelpersSection extends StatelessWidget {
                             width: 38,
                             child: Text(
                               helperCount.toString(),
-                              textAlign:
-                                  TextAlign.center,
-                              style: textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                color: AppColors
-                                    .textPrimary,
+                              textAlign: TextAlign.center,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: AppColors.textPrimary,
                               ),
                             ),
                           ),
@@ -1016,9 +846,7 @@ class _HelpersSection extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(
-                        height: AppSpacing.xs,
-                      ),
+                      const SizedBox(height: AppSpacing.xs),
                       // Switch secundário, discreto — não existia no
                       // mockup de referência, mas o campo já existia no
                       // fluxo antigo (helpersEquipmentRequired) e não
@@ -1028,10 +856,8 @@ class _HelpersSection extends StatelessWidget {
                           Expanded(
                             child: Text(
                               'Ajudantes trazem equipamento próprio',
-                              style: textTheme.labelMedium
-                                  ?.copyWith(
-                                color: AppColors
-                                    .textSecondary,
+                              style: textTheme.labelMedium?.copyWith(
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
@@ -1039,16 +865,11 @@ class _HelpersSection extends StatelessWidget {
                             scale: 0.8,
                             child: Switch.adaptive(
                               value: equipmentRequired,
-                              activeTrackColor:
-                                  AppColors.primary,
-                              activeThumbColor:
-                                  AppColors.surface,
-                              inactiveTrackColor:
-                                  AppColors.divider,
-                              inactiveThumbColor:
-                                  AppColors.surface,
-                              onChanged:
-                                  onEquipmentRequiredChanged,
+                              activeTrackColor: AppColors.primary,
+                              activeThumbColor: AppColors.surface,
+                              inactiveTrackColor: AppColors.divider,
+                              inactiveThumbColor: AppColors.surface,
+                              onChanged: onEquipmentRequiredChanged,
                             ),
                           ),
                         ],
@@ -1078,39 +899,24 @@ class _HelperCountButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: enabled ? onPressed : null,
-      constraints: const BoxConstraints(
-        minWidth: 36,
-        minHeight: 36,
-      ),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
         backgroundColor: AppColors.surface,
-        foregroundColor: enabled
-            ? AppColors.primary
-            : AppColors.textSecondary,
-        disabledForegroundColor:
-            AppColors.textSecondary,
-        side: const BorderSide(
-          color: AppColors.divider,
-        ),
+        foregroundColor: enabled ? AppColors.primary : AppColors.textSecondary,
+        disabledForegroundColor: AppColors.textSecondary,
+        side: const BorderSide(color: AppColors.divider),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(
-            AppRadius.input,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
         ),
       ),
-      icon: Icon(
-        icon,
-        size: 20,
-      ),
+      icon: Icon(icon, size: 20),
     );
   }
 }
 
 class _SelectionError extends StatelessWidget {
-  const _SelectionError({
-    required this.message,
-  });
+  const _SelectionError({required this.message});
 
   final String message;
 
@@ -1121,17 +927,14 @@ class _SelectionError extends StatelessWidget {
     return Text(
       message,
       style: textTheme.labelMedium?.copyWith(
-        color:
-            AppStatusColor.cancelled.foreground,
+        color: AppStatusColor.cancelled.foreground,
       ),
     );
   }
 }
 
 class _EmptyOptionsMessage extends StatelessWidget {
-  const _EmptyOptionsMessage({
-    required this.message,
-  });
+  const _EmptyOptionsMessage({required this.message});
 
   final String message;
 
@@ -1141,9 +944,7 @@ class _EmptyOptionsMessage extends StatelessWidget {
 
     return Text(
       message,
-      style: textTheme.bodyMedium?.copyWith(
-        color: AppColors.textSecondary,
-      ),
+      style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
     );
   }
 }
