@@ -66,6 +66,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // formulário, lobby), não devem mostrar a bottom nav persistente.
       GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
       GoRoute(
+        path: '/client/job/:id',
+        builder: (_, state) {
+          final jobId = state.pathParameters['id']!;
+          return ClientJobDetailScreen(jobId: jobId);
+        },
+      ),
+      GoRoute(
         path: '/worker/job/:id/propose',
         builder: (context, state) {
           final jobId = state.pathParameters['id']!;
@@ -97,18 +104,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      GoRoute(
+        path: '/worker/help-requests',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return WorkerHelpRequestsScreen(
+            initialTabIndex: extra?['initialTabIndex'] as int? ?? 0,
+          );
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) => ClientShell(child: child),
         routes: [
           GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
           GoRoute(path: '/client/jobs', builder: (_, _) => const ClientJobsScreen()),
-          GoRoute(
-            path: '/client/job/:id',
-            builder: (_, state) {
-              final jobId = state.pathParameters['id']!;
-              return ClientJobDetailScreen(jobId: jobId);
-            },
-          ),
           GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
           GoRoute(
             path: '/client/messages',
@@ -128,16 +137,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/jobs',
             builder: (_, _) => const WorkerJobsScreen(),
-          ),
-          GoRoute(
-            path: '/worker/help-requests',
-            builder: (_, state) {
-              final extra = state.extra as Map<String, dynamic>?;
-              return WorkerHelpRequestsScreen(
-                initialTabIndex:
-                    extra?['initialTabIndex'] as int? ?? 0,
-              );
-            },
           ),
           GoRoute(
             path: '/worker/messages',

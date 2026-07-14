@@ -64,9 +64,7 @@ class ClientShell extends ConsumerWidget {
   }
 
   int _indexFromLocation(String location) {
-    if (location == '/client/jobs' || location.startsWith('/client/job/')) {
-      return 1;
-    }
+    if (location == '/client/jobs') return 1;
     if (location.startsWith('/client/messages')) return 3;
     if (location.startsWith('/client/profile')) return 4;
     return 0;

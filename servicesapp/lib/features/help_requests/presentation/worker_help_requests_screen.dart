@@ -160,11 +160,13 @@ class _WorkerHelpRequestsScreenState
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildDiscoverTab(),
-            const _MyApplicationsTab(),
-          ],
+        body: SafeArea(
+          child: TabBarView(
+            children: [
+              _buildDiscoverTab(),
+              const _MyApplicationsTab(),
+            ],
+          ),
         ),
       ),
     );

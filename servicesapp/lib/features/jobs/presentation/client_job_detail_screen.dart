@@ -511,15 +511,15 @@ class _ClientJobDetailScreenState
   Widget build(BuildContext context) {
     return ref.watch(jobByIdProvider(widget.jobId)).when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: SafeArea(child: Center(child: CircularProgressIndicator())),
       ),
       error: (e, _) => Scaffold(
-        body: Center(child: Text(friendlyError(e))),
+        body: SafeArea(child: Center(child: Text(friendlyError(e)))),
       ),
       data: (job) {
         if (job == null) {
           return const Scaffold(
-            body: Center(child: Text('Pedido não encontrado.')),
+            body: SafeArea(child: Center(child: Text('Pedido não encontrado.'))),
           );
         }
 
@@ -812,7 +812,7 @@ class _ClientJobDetailScreenState
                   ],
                 ),
               ),
-              body: TabBarView(
+              body: SafeArea(child: TabBarView(
                 children: [
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
@@ -823,7 +823,7 @@ class _ClientJobDetailScreenState
                   ),
                   proposalsTab,
                 ],
-              ),
+              )),
             ),
           );
         }
@@ -998,13 +998,13 @@ class _ClientJobDetailScreenState
           appBar: AppBar(
             title: Text('Pedido #${widget.jobId.substring(0, 8)}'),
           ),
-          body: SingleChildScrollView(
+          body: SafeArea(child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: detailChildren,
             ),
-          ),
+          )),
         );
       },
     );
