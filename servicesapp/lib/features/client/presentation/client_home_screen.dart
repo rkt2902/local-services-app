@@ -4,211 +4,97 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/utils/error_utils.dart';
 import '../application/client_providers.dart';
+import '../data/client_profile_model.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
+import 'widgets/client_home_view.dart' as view;
 
+/// Ecrã inicial do cliente — wrapper de integração que liga
+/// `clientProfileProvider`/`clientJobsProvider`/`serviceTypesProvider` ao
+/// componente apresentacional em `widgets/client_home_view.dart`.
 class ClientHomeScreen extends ConsumerWidget {
   const ClientHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final profileAsync = ref.watch(clientProfileProvider);
+
+    return profileAsync.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(body: Center(child: Text(friendlyError(e)))),
+      data: (profile) => _buildHome(context, ref, profile),
+    );
+  }
+
+  Widget _buildHome(
+    BuildContext context,
+    WidgetRef ref,
+    ClientProfile? profile,
+  ) {
     final jobsAsync = ref.watch(clientJobsProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
+    final unreadCount = ref.watch(unreadCountProvider);
 
-    final firstName = profileAsync.maybeWhen(
-      data: (p) => p?.fullName.split(' ').first ?? '',
-      orElse: () => '',
-    );
+    final serviceTypes = serviceTypesAsync.asData?.value ?? const [];
+    final loadingActiveJobs =
+        jobsAsync.isLoading || serviceTypesAsync.isLoading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ProJardim'),
-        actions: [
-          _NotificationButton(),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              firstName.isEmpty ? 'Olá!' : 'Olá, $firstName!',
-              style: theme.textTheme.headlineSmall,
+    var activeJobs = <view.ClientHomeActiveJobViewData>[];
+    if (jobsAsync.hasValue) {
+      final activeRaw = jobsAsync.value!
+          .where((j) =>
+              j.status == JobStatus.open || j.status == JobStatus.confirmed)
+          .take(3);
+      activeJobs = [
+        for (final job in activeRaw)
+          view.ClientHomeActiveJobViewData(
+            id: job.id,
+            referenceLabel: '#${job.id.substring(0, 8)}',
+            serviceLabel: serviceTypes
+                    .where((t) => t.id == job.serviceTypeId)
+                    .map((t) => t.name)
+                    .firstOrNull ??
+                'Desconhecido',
+            metadataLabel: _metadataLabel(job),
+            status: job.status.presentation(
+              proposalCount: job.proposalCount,
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Pedidos recentes',
-                    style: theme.textTheme.titleMedium),
-                TextButton(
-                  onPressed: () => context.push('/client/jobs'),
-                  child: const Text('Ver todos →'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            jobsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text(friendlyError(e)),
-              data: (jobs) {
-                final activeJobs = jobs
-                    .where((j) =>
-                        j.status == JobStatus.open ||
-                        j.status == JobStatus.confirmed)
-                    .take(3)
-                    .toList();
-
-                if (activeJobs.isEmpty) {
-                  return _EmptyJobsCard(
-                    onTap: () => context.push('/client/create-job'),
-                  );
-                }
-
-                return serviceTypesAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text(friendlyError(e)),
-                  data: (serviceTypes) => Column(
-                    children: activeJobs.map((job) {
-                      final serviceName = serviceTypes
-                              .where((t) => t.id == job.serviceTypeId)
-                              .map((t) => t.name)
-                              .firstOrNull ??
-                          'Desconhecido';
-                      return _CompactJobCard(
-                        job: job,
-                        serviceName: serviceName,
-                        onTap: () => context.push('/client/job/${job.id}'),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyJobsCard extends StatelessWidget {
-  const _EmptyJobsCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.yard_outlined,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Ainda não tens pedidos ativos.',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: onTap,
-              child: const Text('Criar primeiro pedido'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactJobCard extends StatelessWidget {
-  const _CompactJobCard({
-    required this.job,
-    required this.serviceName,
-    required this.onTap,
-  });
-
-  final JobRequest job;
-  final String serviceName;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dateText = job.preferredDate == null
-        ? 'Flexível'
-        : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(serviceName,
-                        style: theme.textTheme.titleSmall),
-                    Text(
-                      job.addressText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(dateText,
-                        style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              AppStatusBadge.fromPresentation(
-                presentation: job.status.presentation(
-                  proposalCount: job.proposalCount,
-                ),
-              ),
-            ],
+            icon: Icons.yard_outlined,
           ),
-        ),
-      ),
+      ];
+    }
+
+    final data = view.ClientHomeViewData(
+      firstName: profile?.fullName.split(' ').first ?? '',
+      greetingSubtitle: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+      avatarImage:
+          profile?.avatarUrl != null ? NetworkImage(profile!.avatarUrl!) : null,
+      hasUnreadNotifications: unreadCount > 0,
+      activeJobs: activeJobs,
+      loadingActiveJobs: loadingActiveJobs,
+    );
+
+    return view.ClientHomeScreen(
+      data: data,
+      onCreateJobPressed: () => context.push('/client/create-job'),
+      onNotificationsPressed: () => context.push('/notifications'),
+      onViewAllJobsPressed: () => context.push('/client/jobs'),
+      onActiveJobPressed: (jobId) => context.push('/client/job/$jobId'),
     );
   }
 }
 
-class _NotificationButton extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(unreadCountProvider);
-    return IconButton(
-      icon: Badge(
-        label: Text('$count'),
-        isLabelVisible: count > 0,
-        child: const Icon(Icons.notifications_outlined),
-      ),
-      onPressed: () => context.push('/notifications'),
-    );
-  }
+String _metadataLabel(JobRequest job) {
+  final dateLabel = job.preferredDate == null
+      ? 'Flexível'
+      : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
+  final address =
+      job.addressText.isEmpty ? 'Localização por definir' : job.addressText;
+  return '$dateLabel · $address';
 }

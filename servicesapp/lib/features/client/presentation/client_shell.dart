@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_bottom_navigation.dart';
+
 class ClientShell extends ConsumerWidget {
   const ClientShell({super.key, required this.child});
 
@@ -15,48 +17,42 @@ class ClientShell extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: AppBottomNavigation(
         selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          if (index == 2) {
-            context.push('/client/create-job');
-            return;
-          }
+        onItemSelected: (index) {
           switch (index) {
             case 0:
               context.go('/client/home');
             case 1:
               context.go('/client/jobs');
+            case 2:
+              context.push('/notifications');
             case 3:
-              context.go('/client/messages');
-            case 4:
               context.go('/client/profile');
           }
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+        onCentralActionPressed: () => context.push('/client/create-job'),
+        centralActionTooltip: 'Criar pedido',
+        items: const [
+          AppBottomNavigationItem(
             label: 'Início',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
+          AppBottomNavigationItem(
             label: 'Pedidos',
+            icon: Icons.list_alt_outlined,
+            selectedIcon: Icons.list_alt_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.add),
-            label: '+',
+          AppBottomNavigationItem(
+            label: 'Alertas',
+            icon: Icons.notifications_none_rounded,
+            selectedIcon: Icons.notifications_rounded,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_outlined),
-            selectedIcon: Icon(Icons.chat),
-            label: 'Mensagens',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
+          AppBottomNavigationItem(
+            label: 'Conta',
+            icon: Icons.person_outline_rounded,
+            selectedIcon: Icons.person_rounded,
           ),
         ],
       ),
@@ -65,8 +61,8 @@ class ClientShell extends ConsumerWidget {
 
   int _indexFromLocation(String location) {
     if (location == '/client/jobs') return 1;
-    if (location.startsWith('/client/messages')) return 3;
-    if (location.startsWith('/client/profile')) return 4;
+    if (location.startsWith('/notifications')) return 2;
+    if (location.startsWith('/client/profile')) return 3;
     return 0;
   }
 }

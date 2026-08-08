@@ -15,7 +15,9 @@ import '../../features/worker/presentation/worker_dashboard_screen.dart';
 import '../../features/worker/presentation/worker_available_jobs_screen.dart';
 import '../../features/worker/presentation/worker_job_detail_screen.dart';
 import '../../features/worker/presentation/worker_submit_proposal_screen.dart';
-import '../../features/jobs/presentation/create_job_screen.dart';
+import '../../features/client/presentation/client_create_job_service_screen.dart';
+import '../../features/client/presentation/client_create_job_schedule_screen.dart';
+import '../../features/client/presentation/client_create_job_description_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
@@ -64,7 +66,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
       // Fora dos ShellRoutes de propósito — ecrãs de sub-fluxo (detalhe,
       // formulário, lobby), não devem mostrar a bottom nav persistente.
-      GoRoute(path: '/client/create-job', builder: (_, _) => const CreateJobScreen()),
+      GoRoute(
+        path: '/client/create-job',
+        builder: (_, _) => const ClientCreateJobServiceScreen(),
+      ),
+      GoRoute(
+        path: '/client/create-job/schedule',
+        builder: (_, _) => const ClientCreateJobScheduleScreen(),
+      ),
+      GoRoute(
+        path: '/client/create-job/description',
+        builder: (_, _) => const ClientCreateJobDescriptionScreen(),
+      ),
       GoRoute(
         path: '/client/job/:id',
         builder: (_, state) {

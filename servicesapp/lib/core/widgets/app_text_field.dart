@@ -19,6 +19,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.minLines,
     this.onFieldSubmitted,
+    this.maxLength,
   });
 
   final TextEditingController controller;
@@ -41,6 +42,11 @@ class AppTextField extends StatelessWidget {
   final int? minLines;
   final void Function(String)? onFieldSubmitted;
 
+  /// Quando definido, o contador nativo do Flutter é suprimido
+  /// (`counterText: ''`) — os ecrãs que precisam de mostrar a contagem
+  /// constroem o próprio contador (ex. client_create_job_description_screen).
+  final int? maxLength;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -59,11 +65,13 @@ class AppTextField extends StatelessWidget {
       autofillHints: autofillHints,
       maxLines: maxLines,
       minLines: minLines,
+      maxLength: maxLength,
       onFieldSubmitted: onFieldSubmitted,
       style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
+        counterText: maxLength == null ? null : '',
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: AppColors.surface,
