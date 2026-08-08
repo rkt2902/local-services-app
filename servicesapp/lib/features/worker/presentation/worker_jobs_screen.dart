@@ -1,20 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/app_status_presenters.dart';
+import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
-import '../../ratings/application/rating_providers.dart';
-import '../application/worker_providers.dart';
-import '../../../core/widgets/address_map_link.dart';
-import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/app_status_badge.dart';
+import 'widgets/worker_jobs_view.dart' as view;
 
 List<(JobProposal, JobRequest)> _parseEntries(
     List<Map<String, dynamic>> raw) {
@@ -30,138 +28,22 @@ List<(JobProposal, JobRequest)> _parseEntries(
       .toList();
 }
 
-class WorkerJobsScreen extends ConsumerStatefulWidget {
-  const WorkerJobsScreen({super.key});
-
-  @override
-  ConsumerState<WorkerJobsScreen> createState() => _WorkerJobsScreenState();
-}
-
-class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
-  final List<(JobProposal, JobRequest)> _additionalCompleted = [];
-  int _currentCompletedPage = 0;
-  bool _loadingMore = false;
-  bool _hasMore = true;
-
-  Future<void> _onRefresh() async {
-    setState(() {
-      _additionalCompleted.clear();
-      _currentCompletedPage = 0;
-      _hasMore = true;
-    });
-    ref.invalidate(pendingWorkerProposalsProvider);
-    ref.invalidate(scheduledWorkerProposalsProvider);
-    ref.invalidate(completedWorkerProposalsProvider(0));
-    ref.invalidate(jobsInRadiusProvider);
-  }
-
-  Future<void> _loadMore() async {
-    if (_loadingMore || !_hasMore) return;
-    setState(() => _loadingMore = true);
-    final nextPage = _currentCompletedPage + 1;
-    try {
-      final raw =
-          await ref.read(completedWorkerProposalsProvider(nextPage).future);
-      if (!mounted) return;
-      final parsed = _parseEntries(raw);
-      setState(() {
-        _currentCompletedPage = nextPage;
-        _additionalCompleted.addAll(parsed);
-        _hasMore = parsed.length >= 20;
-        _loadingMore = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loadingMore = false);
-    }
-  }
-
-  Widget _buildTabBody({
-    required AsyncValue<List<Map<String, dynamic>>> async,
-    required String emptyText,
-  }) {
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
-      data: (raw) => _JobList(
-        items: _parseEntries(raw),
-        emptyText: emptyText,
-        onRefresh: _onRefresh,
-      ),
-    );
-  }
-
-  Widget _buildCompletedTab(
-      AsyncValue<List<Map<String, dynamic>>> completedAsync) {
-    return completedAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(friendlyError(e))),
-      data: (raw) {
-        final page0Items = _parseEntries(raw);
-        final allItems = [...page0Items, ..._additionalCompleted];
-        final showLoadMore = allItems.length >= 20 && _hasMore;
-        return _JobList(
-          items: allItems,
-          emptyText: 'Ainda não tens trabalhos concluídos.',
-          onRefresh: _onRefresh,
-          onLoadMore: showLoadMore ? _loadMore : null,
-          loadingMore: _loadingMore,
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pendingAsync = ref.watch(pendingWorkerProposalsProvider);
-    final scheduledAsync = ref.watch(scheduledWorkerProposalsProvider);
-    final completedAsync = ref.watch(completedWorkerProposalsProvider(0));
-
-    // Reset pagination state whenever page 0 is invalidated externally
-    // (e.g. by notificationSyncProvider) so stale pages don't mix with fresh data.
-    ref.listen(completedWorkerProposalsProvider(0), (prev, next) {
-      if (next.isLoading && mounted) {
-        setState(() {
-          _additionalCompleted.clear();
-          _currentCompletedPage = 0;
-          _hasMore = true;
-        });
-      }
-    });
-
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Trabalhos'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Por confirmar'),
-              Tab(text: 'Agendados'),
-              Tab(text: 'Concluídos'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildTabBody(
-              async: pendingAsync,
-              emptyText: 'Nenhuma proposta a aguardar resposta.',
-            ),
-            _buildTabBody(
-              async: scheduledAsync,
-              emptyText: 'Sem trabalhos agendados.',
-            ),
-            _buildCompletedTab(completedAsync),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
+}
+
+/// Para "Agendados", a data confirmada é mais relevante que a preferida do
+/// pedido original — mesma preferência já usada no dashboard
+/// (`_confirmedScheduleLabel`).
+String _scheduleLabel(JobRequest job) {
+  if (job.confirmedDate != null) {
+    final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
+    if (job.confirmedFlexible) return '$date (flexível)';
+    if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
+    return date;
+  }
+  return _formatDate(job.preferredDate);
 }
 
 String _formatEstimate(double rate, double? min, double? max) {
@@ -176,250 +58,193 @@ String _formatEstimate(double rate, double? min, double? max) {
   return '';
 }
 
-class _JobList extends ConsumerWidget {
-  final List<(JobProposal, JobRequest)> items;
-  final String emptyText;
-  final Future<void> Function() onRefresh;
-  final VoidCallback? onLoadMore;
-  final bool loadingMore;
-
-  const _JobList({
-    required this.items,
-    required this.emptyText,
-    required this.onRefresh,
-    this.onLoadMore,
-    this.loadingMore = false,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final workerAsync = ref.watch(workerProfileProvider);
-    final serviceTypes = ref.watch(serviceTypesProvider).value ?? [];
-    final workerLat = workerAsync.value?.baseLat;
-    final workerLng = workerAsync.value?.baseLng;
-
-    if (items.isEmpty) {
-      return LayoutBuilder(
-        builder: (context, constraints) => RefreshIndicator(
-          onRefresh: onRefresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: constraints.maxHeight,
-              child: Center(
-                child: Text(emptyText,
-                    style: Theme.of(context).textTheme.bodyLarge),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final showFooter = onLoadMore != null || loadingMore;
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length + (showFooter ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == items.length) {
-            if (loadingMore) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TextButton(
-                  onPressed: onLoadMore,
-                  child: const Text('Carregar mais'),
-                ),
-              ),
-            );
-          }
-
-          final (proposal, job) = items[index];
-          final serviceType =
-              serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
-
-          double? distanceMeters;
-          if (workerLat != null && workerLng != null) {
-            distanceMeters = Geolocator.distanceBetween(
-              workerLat,
-              workerLng,
-              job.locationLat,
-              job.locationLng,
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _JobCard(
-              proposal: proposal,
-              job: job,
-              serviceTypeName: serviceType?.name ?? '—',
-              distanceMeters: distanceMeters,
-            ),
-          );
-        },
-      ),
-    );
-  }
+view.WorkerJobsTab? _tabFromName(String? name) {
+  return switch (name) {
+    'pending' => view.WorkerJobsTab.pending,
+    'scheduled' => view.WorkerJobsTab.scheduled,
+    'completed' => view.WorkerJobsTab.completed,
+    _ => null,
+  };
 }
 
-class _JobCard extends StatelessWidget {
-  final JobProposal proposal;
-  final JobRequest job;
-  final String serviceTypeName;
-  final double? distanceMeters;
-
-  const _JobCard({
-    required this.proposal,
-    required this.job,
-    required this.serviceTypeName,
-    this.distanceMeters,
+/// Ecrã "Os meus trabalhos" (Flow 5) — wrapper de integração que liga os
+/// providers reais (`pendingWorkerProposalsProvider`,
+/// `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`)
+/// ao componente apresentacional em `widgets/worker_jobs_view.dart`.
+class WorkerJobsScreen extends ConsumerStatefulWidget {
+  const WorkerJobsScreen({
+    super.key,
+    this.highlightedJobId,
+    this.initialTab,
   });
+
+  /// Suporte a deep-link de notificações — ver `app_router.dart` (extra da
+  /// rota `/worker/jobs`) e `notification_handler.dart`.
+  final String? highlightedJobId;
+  final String? initialTab;
+
+  @override
+  ConsumerState<WorkerJobsScreen> createState() => _WorkerJobsScreenState();
+}
+
+class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
+  late view.WorkerJobsTab _selectedTab;
+  String? _highlightedJobId;
+  Timer? _highlightTimer;
+
+  final List<(JobProposal, JobRequest)> _additionalCompleted = [];
+  int _currentCompletedPage = 0;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = _tabFromName(widget.initialTab) ?? view.WorkerJobsTab.pending;
+    _highlightedJobId = widget.highlightedJobId;
+    if (_highlightedJobId != null) {
+      _highlightTimer = Timer(const Duration(milliseconds: 1300), () {
+        if (mounted) setState(() => _highlightedJobId = null);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _highlightTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() {
+      _additionalCompleted.clear();
+      _currentCompletedPage = 0;
+      _hasMore = true;
+    });
+    ref.invalidate(pendingWorkerProposalsProvider);
+    ref.invalidate(scheduledWorkerProposalsProvider);
+    ref.invalidate(completedWorkerProposalsProvider(0));
+    ref.invalidate(jobsInRadiusProvider);
+  }
+
+  void _loadMore() {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    final nextPage = _currentCompletedPage + 1;
+    ref.read(completedWorkerProposalsProvider(nextPage).future).then((raw) {
+      if (!mounted) return;
+      final parsed = _parseEntries(raw);
+      setState(() {
+        _currentCompletedPage = nextPage;
+        _additionalCompleted.addAll(parsed);
+        _hasMore = parsed.length >= 20;
+        _loadingMore = false;
+      });
+    }).catchError((_) {
+      if (mounted) setState(() => _loadingMore = false);
+    });
+  }
+
+  view.WorkerJobListItemViewData _toViewData(
+    JobProposal proposal,
+    JobRequest job,
+    List<ServiceType> serviceTypes,
+  ) {
+    final serviceType =
+        serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
+    final clientInfo =
+        ref.watch(clientBasicInfoProvider(job.clientId)).asData?.value;
+
+    return view.WorkerJobListItemViewData(
+      id: proposal.id,
+      title: serviceType?.name ?? '—',
+      personName: clientInfo?['full_name'] ?? '',
+      locationLabel: _scheduleLabel(job),
+      secondaryLabel: job.addressText.isNotEmpty
+          ? job.addressText
+          : 'Localização não especificada',
+      priceLabel: _formatEstimate(
+        proposal.hourlyRate,
+        proposal.estimatedHoursMin,
+        proposal.estimatedHoursMax,
+      ),
+      status: proposal.status.presentation,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final estimate = _formatEstimate(
-        proposal.hourlyRate, proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+    final pendingAsync = ref.watch(pendingWorkerProposalsProvider);
+    final scheduledAsync = ref.watch(scheduledWorkerProposalsProvider);
+    final completedAsync = ref.watch(completedWorkerProposalsProvider(0));
+    final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
 
-    String? distanceStr;
-    if (distanceMeters != null) {
-      distanceStr = distanceMeters! < 1000
-          ? '${distanceMeters!.round()} m'
-          : '${(distanceMeters! / 1000).toStringAsFixed(1)} km';
+    // Reset pagination state whenever page 0 is invalidated externally
+    // (e.g. by notificationSyncProvider) so stale pages don't mix with fresh data.
+    ref.listen(completedWorkerProposalsProvider(0), (prev, next) {
+      if (next.isLoading && mounted) {
+        setState(() {
+          _additionalCompleted.clear();
+          _currentCompletedPage = 0;
+          _hasMore = true;
+        });
+      }
+    });
+
+    final selectedAsync = switch (_selectedTab) {
+      view.WorkerJobsTab.pending => pendingAsync,
+      view.WorkerJobsTab.scheduled => scheduledAsync,
+      view.WorkerJobsTab.completed => completedAsync,
+    };
+
+    final completedPage0 = completedAsync.asData?.value ?? const [];
+
+    var entries = <(JobProposal, JobRequest)>[];
+    final loading = selectedAsync.isLoading && !selectedAsync.hasValue;
+    final errorMessage =
+        selectedAsync.hasError ? friendlyError(selectedAsync.error!) : null;
+
+    if (selectedAsync.hasValue) {
+      entries = _parseEntries(selectedAsync.value!);
+      if (_selectedTab == view.WorkerJobsTab.completed) {
+        entries = [...entries, ..._additionalCompleted];
+      }
     }
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push(
-          '/worker/my-job/${proposal.id}?jobId=${job.id}',
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      serviceTypeName,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  AppStatusBadge.fromPresentation(
-                    presentation: proposal.status.presentation,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 16,
-                runSpacing: 4,
-                children: [
-                  _MetaItem(
-                      icon: Icons.calendar_today_outlined,
-                      label: _formatDate(job.preferredDate)),
-                  if (distanceStr != null)
-                    _MetaItem(
-                        icon: Icons.place_outlined, label: distanceStr),
-                  if (estimate.isNotEmpty)
-                    _MetaItem(icon: Icons.euro_outlined, label: estimate),
-                ],
-              ),
-              if (job.locationLat != 0 || job.locationLng != 0) ...[
-                const SizedBox(height: 4),
-                AddressMapLink(
-                  address: job.addressText,
-                  lat: job.locationLat,
-                  lng: job.locationLng,
-                ),
-              ],
-              if (proposal.peopleNeeded > 1) ...[
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: () => context.push(
-                    '/worker/job/${job.id}/help-requests',
-                  ),
-                  child: Chip(
-                    avatar: const Icon(Icons.group, size: 16),
-                    label: Text(
-                      'Equipa: ${proposal.peopleNeeded} pessoas',
-                      style: theme.textTheme.labelSmall,
-                    ),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ],
-              if (job.rescheduleStatus == RescheduleStatus.pending) ...[
-                const SizedBox(height: 6),
-                AppStatusBadge.fromPresentation(
-                  presentation: RescheduleStatus.pending.presentation,
-                ),
-              ],
-              if (job.status == JobStatus.completed) ...[
-                const SizedBox(height: 6),
-                _RatingChip(jobId: job.id),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final jobIdByProposalId = {
+      for (final entry in entries) entry.$1.id: entry.$2.id,
+    };
 
-class _RatingChip extends ConsumerWidget {
-  const _RatingChip({required this.jobId});
-  final String jobId;
+    final jobs = [
+      for (final entry in entries)
+        _toViewData(entry.$1, entry.$2, serviceTypes),
+    ];
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rating = ref.watch(myRatingForJobProvider(jobId)).asData?.value;
-    if (rating == null) return const SizedBox.shrink();
-    return Chip(
-      avatar: const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
-      label: Text(
-        '${rating.stars}/5',
-        style: const TextStyle(fontSize: 11),
-      ),
-      padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-}
-
-class _MetaItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MetaItem({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon,
-            size: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
-        const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
+    return view.WorkerJobsScreen(
+      selectedTab: _selectedTab,
+      pendingCount: pendingAsync.asData?.value.length ?? 0,
+      scheduledCount: scheduledAsync.asData?.value.length ?? 0,
+      completedCount: completedPage0.length + _additionalCompleted.length,
+      jobs: jobs,
+      loading: loading,
+      errorMessage: errorMessage,
+      onRetry: () {
+        ref.invalidate(pendingWorkerProposalsProvider);
+        ref.invalidate(scheduledWorkerProposalsProvider);
+        ref.invalidate(completedWorkerProposalsProvider(0));
+      },
+      onRefresh: _onRefresh,
+      highlightedJobId: _highlightedJobId,
+      onLoadMore: _selectedTab == view.WorkerJobsTab.completed && _hasMore
+          ? _loadMore
+          : null,
+      loadingMore: _loadingMore,
+      onTabSelected: (tab) => setState(() => _selectedTab = tab),
+      onJobPressed: (proposalId) {
+        final jobId = jobIdByProposalId[proposalId];
+        if (jobId == null) return;
+        context.push('/worker/my-job/$proposalId?jobId=$jobId');
+      },
     );
   }
 }

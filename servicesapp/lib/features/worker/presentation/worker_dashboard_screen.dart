@@ -10,6 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -108,8 +109,10 @@ class WorkerDashboardScreen extends ConsumerWidget {
     final workerAsync = ref.watch(workerProfileProvider);
 
     return workerAsync.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(bottom: false, child: _DashboardSkeleton()),
+      ),
       error: (e, _) => Scaffold(body: Center(child: Text(friendlyError(e)))),
       data: (workerProfile) =>
           _buildDashboard(context, ref, workerProfile),
@@ -212,36 +215,60 @@ class WorkerDashboardScreen extends ConsumerWidget {
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _DashboardHeader(
-                      workerFirstName: data.workerFirstName,
-                      dateLabel: data.dateLabel,
-                      avatarImage: data.avatarImage,
-                      hasUnreadNotifications: data.hasUnreadNotifications,
-                      onNotificationsPressed: () =>
-                          context.push('/notifications'),
+                    AppStaggeredEntrance(
+                      index: 0,
+                      child: _DashboardHeader(
+                        workerFirstName: data.workerFirstName,
+                        dateLabel: data.dateLabel,
+                        avatarImage: data.avatarImage,
+                        hasUnreadNotifications: data.hasUnreadNotifications,
+                        onNotificationsPressed: () =>
+                            context.push('/notifications'),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _DashboardMetrics(
-                      pendingCount: data.pendingCount,
-                      scheduledCount: data.scheduledCount,
+                    AppStaggeredEntrance(
+                      index: 1,
+                      child: _DashboardMetrics(
+                        pendingCount: data.pendingCount,
+                        scheduledCount: data.scheduledCount,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _SectionHeader(
-                      title: 'Próximo trabalho',
-                      actionLabel: 'Ver todos',
-                      onActionPressed: () => context.go('/worker/jobs'),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _NextJobSection(
-                      job: data.nextJob,
-                      onPressed: nextJobProposalId == null
-                          ? null
-                          : (jobId) => context.push(
-                              '/worker/my-job/$nextJobProposalId?jobId=$jobId'),
+                    AppStaggeredEntrance(
+                      index: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SectionHeader(
+                            title: 'Próximo trabalho',
+                            actionLabel: 'Ver todos',
+                            onActionPressed: () => context.go(
+                              '/worker/jobs',
+                              extra: {
+                                'initialTab': 'scheduled',
+                                if (nextJobProposalId != null)
+                                  'highlightedJobId': nextJobProposalId,
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _NextJobSection(
+                            job: data.nextJob,
+                            onPressed: nextJobProposalId == null
+                                ? null
+                                : (jobId) => context.push(
+                                    '/worker/my-job/$nextJobProposalId?jobId=$jobId'),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    const _SectionHeader(
-                      title: 'Oportunidades perto de si',
+                    AppStaggeredEntrance(
+                      index: 3,
+                      child: const _SectionHeader(
+                        title: 'Oportunidades perto de si',
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _NearbyOpportunitiesSection(
@@ -632,9 +659,12 @@ class _NearbyOpportunitiesSection extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, index) {
           final opportunity = opportunities[index];
-          return _OpportunityCard(
-            opportunity: opportunity,
-            onPressed: () => onOpportunityPressed(opportunity.id),
+          return AppStaggeredEntrance(
+            index: index,
+            child: _OpportunityCard(
+              opportunity: opportunity,
+              onPressed: () => onOpportunityPressed(opportunity.id),
+            ),
           );
         },
       ),
@@ -755,6 +785,81 @@ class _DashboardEmptyCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSkeletonShimmer(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const CircleAvatar(radius: 22, backgroundColor: AppColors.divider),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      _SkeletonBlock(width: 140, height: 16),
+                      SizedBox(height: AppSpacing.xxs),
+                      _SkeletonBlock(width: 90, height: 12),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Row(
+              children: [
+                Expanded(child: _SkeletonBlock(width: double.infinity, height: 96)),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(child: _SkeletonBlock(width: double.infinity, height: 96)),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _SkeletonBlock(width: 140, height: 18),
+            const SizedBox(height: AppSpacing.sm),
+            const _SkeletonBlock(width: double.infinity, height: 74),
+            const SizedBox(height: AppSpacing.md),
+            const _SkeletonBlock(width: 180, height: 18),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: const [
+                Expanded(child: _SkeletonBlock(width: double.infinity, height: 142)),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(child: _SkeletonBlock(width: double.infinity, height: 142)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(AppRadius.input),
       ),
     );
   }

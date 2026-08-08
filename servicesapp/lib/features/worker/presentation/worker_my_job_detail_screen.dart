@@ -6,13 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/widgets/address_map_link.dart';
-import '../../../core/widgets/user_avatar_with_name.dart';
-import '../../../core/widgets/photo_viewer_screen.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/app_status_badge.dart';
-import '../../../core/widgets/status_timeline.dart';
+import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_timeline.dart';
 import '../../client/application/client_providers.dart';
@@ -23,7 +18,7 @@ import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/rating_sheet.dart';
+import 'widgets/worker_my_job_detail_view.dart' as view;
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
   const WorkerMyJobDetailScreen({
@@ -42,7 +37,6 @@ class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
 
 class _WorkerMyJobDetailScreenState
     extends ConsumerState<WorkerMyJobDetailScreen> {
-  bool _completing = false;
   bool _withdrawing = false;
   bool _cancellingJob = false;
   bool _proposingReschedule = false;
@@ -188,6 +182,7 @@ class _WorkerMyJobDetailScreenState
   }
 
   Future<void> _openWhatsApp(String phone) async {
+    if (phone.isEmpty) return;
     final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
     final uri = Uri.parse('https://wa.me/$clean');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -302,54 +297,50 @@ class _WorkerMyJobDetailScreenState
     );
   }
 
-  Future<void> _markCompleted() async {
-    await showDialog<void>(
+  /// AlertDialog de confirmação → RPC mark_job_done. Devolve true só depois
+  /// da RPC confirmar sucesso — a view (AppSuccessFeedback) só aparece
+  /// depois disso, e a navegação/invalidação fica em
+  /// [_onCompletionFeedbackFinished], chamado pela view depois do feedback.
+  Future<bool> _markCompleted() async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('Tens a certeza?'),
         content: const Text('Esta ação não pode ser desfeita.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
             child: const Text('Não'),
           ),
           FilledButton(
-            onPressed: _completing ? null : () async {
-              final dialogNavigator = Navigator.of(dialogCtx);
-              final scaffold = ScaffoldMessenger.of(context);
-              final router = GoRouter.of(context);
-              setState(() => _completing = true);
-              var navigatedAway = false;
-              try {
-                await ref
-                    .read(proposalRepositoryProvider)
-                    .markJobCompleted(widget.jobId);
-                dialogNavigator.pop();
-                navigatedAway = true;
-                router.go('/worker/home');
-                scaffold.showSnackBar(
-                  const SnackBar(
-                      content: Text('Trabalho marcado como concluído!')),
-                );
-                ref.invalidate(scheduledWorkerProposalsProvider);
-                ref.invalidate(completedWorkerProposalsProvider);
-                ref.invalidate(jobsInRadiusProvider);
-              } catch (e) {
-                dialogNavigator.pop();
-                scaffold.showSnackBar(
-                  SnackBar(
-                      content: Text(friendlyError(e)),
-                      backgroundColor: Colors.red),
-                );
-              } finally {
-                if (!navigatedAway && mounted) setState(() => _completing = false);
-              }
-            },
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
             child: const Text('Confirmar'),
           ),
         ],
       ),
     );
+    if (confirmed != true || !mounted) return false;
+
+    try {
+      await ref.read(proposalRepositoryProvider).markJobCompleted(widget.jobId);
+      return true;
+    } catch (e) {
+      if (mounted) {
+        scaffold.showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        );
+      }
+      return false;
+    }
+  }
+
+  void _onCompletionFeedbackFinished() {
+    if (!mounted) return;
+    GoRouter.of(context).go('/worker/home');
+    ref.invalidate(scheduledWorkerProposalsProvider);
+    ref.invalidate(completedWorkerProposalsProvider);
+    ref.invalidate(jobsInRadiusProvider);
   }
 
   @override
@@ -372,21 +363,16 @@ class _WorkerMyJobDetailScreenState
           body: Center(child: Text('Não encontrado.')));
     }
 
-    final theme = Theme.of(context);
     final currentUserId = ref.watch(currentUserIdProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
     final photosAsync = ref.watch(jobPhotosProvider(widget.jobId));
     final clientInfoAsync = ref.watch(clientBasicInfoProvider(job.clientId));
+    final helpersForRatingAsync =
+        ref.watch(acceptedHelpersForJobProvider(widget.jobId));
 
     final serviceType = serviceTypesAsync.value
         ?.where((s) => s.id == job.serviceTypeId)
         .firstOrNull;
-
-    final liveStatus = proposal.status;
-    final liveJobStatus = job.status;
-
-    final helpersForRatingAsync =
-        ref.watch(acceptedHelpersForJobProvider(widget.jobId));
 
     final estimate = _formatEstimate(
       proposal.hourlyRate,
@@ -394,630 +380,77 @@ class _WorkerMyJobDetailScreenState
       proposal.estimatedHoursMax,
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('O meu trabalho')),
-      body: SafeArea(child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status badge
-            AppStatusBadge.fromPresentation(
-              presentation: liveStatus.presentation,
-            ),
-            const SizedBox(height: 24),
+    final clientInfo = clientInfoAsync.asData?.value;
+    final photos = photosAsync.asData?.value ?? const <String>[];
+    final avatarUrl = clientInfo?['avatar_url'];
 
-            // Job details
-            Text('Trabalho', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _SectionCard(children: [
-              _infoRow(context, Icons.yard_outlined, 'Serviço',
-                  serviceType?.name ?? '—'),
-              _infoRow(context, Icons.calendar_today_outlined, 'Data',
-                  _formatDate(job.preferredDate)),
-              if (job.locationLat != 0 || job.locationLng != 0)
-                AddressMapLink(
-                  address: job.addressText,
-                  lat: job.locationLat,
-                  lng: job.locationLng,
-                ),
-              _infoRow(
-                  context,
-                  Icons.bolt_outlined,
-                  'Urgência',
-                  job.urgency == Urgency.urgent
-                      ? 'Urgente'
-                      : 'Normal'),
-              if (job.sizeEstimate != null)
-                _infoRow(context, Icons.straighten_outlined, 'Dimensão',
-                    _sizeLabel(job.sizeEstimate!)),
-            ]),
-            const SizedBox(height: 20),
+    final cancelBlockedBy24h = job.confirmedDate != null &&
+        job.confirmedDate!.difference(DateTime.now()).inHours < 24;
 
-            // Description
-            Text('Descrição', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(job.description,
-                style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 20),
-
-            // Photos
-            photosAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (photos) {
-                if (photos.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Fotos', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: photos.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (_, i) => GestureDetector(
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => PhotoViewerScreen(
-                                photoUrls: photos,
-                                initialIndex: i,
-                              ),
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              photos[i],
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                );
-              },
-            ),
-
-            // Proposal details
-            Text('A minha proposta', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _SectionCard(children: [
-              _infoRow(context, Icons.euro_outlined, 'Taxa/hora',
-                  proposal.hourlyRate > 0
-                      ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
-                      : 'Preço a definir'),
-              if (proposal.estimatedHoursMin != null ||
-                  proposal.estimatedHoursMax != null)
-                _infoRow(
-                    context,
-                    Icons.schedule_outlined,
-                    'Horas estimadas',
-                    _hoursLabel(proposal.estimatedHoursMin,
-                        proposal.estimatedHoursMax)),
-              if (estimate.isNotEmpty)
-                _infoRow(context, Icons.calculate_outlined,
-                    'Total estimado', estimate),
-              _infoRow(context, Icons.group_outlined, 'Pessoas',
-                  '${proposal.peopleNeeded}'),
-              if (proposal.notes?.isNotEmpty == true)
-                _infoRow(context, Icons.notes_outlined, 'Notas',
-                    proposal.notes!),
-            ]),
-            const SizedBox(height: 20),
-
-            // Job state timeline
-            Text('Estado do pedido', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            StatusTimeline(
-              steps: buildJobTimeline(job),
-            ),
-            const SizedBox(height: 20),
-
-            // === ACCEPTED ===
-            if (liveStatus == ProposalStatus.accepted) ...[
-              // Reschedule banner
-              if (job.rescheduleStatus == RescheduleStatus.pending) ...[
-                if (job.rescheduleProposedBy != null &&
-                    job.rescheduleProposedBy != currentUserId)
-                  Card(
-                    color: AppStatusColor.waiting.background,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(children: [
-                            Icon(Icons.event_repeat,
-                                color: AppStatusColor.waiting.foreground, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'O cliente propôs remarcar para ${_proposedRescheduleLabel(job)}'
-                                    .trim(),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: AppStatusColor.waiting.foreground),
-                              ),
-                            ),
-                          ]),
-                          const SizedBox(height: 12),
-                          Row(children: [
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: _acceptingReschedule
-                                    ? null
-                                    : _acceptReschedule,
-                                child: _acceptingReschedule
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white),
-                                      )
-                                    : const Text('Aceitar nova data'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _rejectingReschedule
-                                    ? null
-                                    : _rejectReschedule,
-                                child: const Text('Recusar'),
-                              ),
-                            ),
-                          ]),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Card(
-                    color: Colors.grey.shade100,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(children: [
-                        Icon(Icons.schedule_outlined,
-                            color: Colors.grey.shade600),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Aguarda resposta à remarcação que propuseste para ${_proposedRescheduleLabel(job)}'
-                                .trim(),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-              ],
-              if ((job.status == JobStatus.confirmed ||
-                      job.status == JobStatus.awaitingConfirmation) &&
-                  job.confirmedDate != null) ...[
-                Text('Agendamento', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                _SectionCard(children: [
-                  _infoRow(
-                    context,
-                    Icons.event_available_outlined,
-                    'Agendado para',
-                    _confirmedScheduleLabel(job),
-                  ),
-                ]),
-                const SizedBox(height: 20),
-              ],
-              Text('Cliente', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              clientInfoAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const Text(
-                    'Não foi possível carregar o contacto.'),
-                data: (info) {
-                  final phone = info['phone'] ?? '';
-                  return Card(
-                    color: theme.colorScheme.primaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          UserAvatarWithName(
-                            name: info['full_name'] ?? '',
-                            avatarUrl: info['avatar_url']?.isNotEmpty == true
-                                ? info['avatar_url']
-                                : null,
-                            nameStyle: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.onPrimaryContainer),
-                          ),
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
-                            onPressed: phone.isEmpty
-                                ? null
-                                : () => _openWhatsApp(phone),
-                            icon: const Icon(Icons.chat_outlined),
-                            label:
-                                const Text('Contactar via WhatsApp'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              // Cancel + reschedule buttons — only when job is live-confirmed
-              if (liveJobStatus == JobStatus.confirmed) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _showAddHelperSheet,
-                    icon: const Icon(Icons.group_add_outlined),
-                    label: const Text('Adicionar ajudante'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (job.rescheduleStatus == RescheduleStatus.pending)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Aguarda resposta da remarcação',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: (job.rescheduleStatus == RescheduleStatus.pending ||
-                              _proposingReschedule)
-                          ? null
-                          : _proposeReschedule,
-                      icon: const Icon(Icons.event_repeat),
-                      label: const Text('Remarcar'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: (job.rescheduleStatus == RescheduleStatus.pending ||
-                              _cancellingJob ||
-                              (job.confirmedDate != null &&
-                               job.confirmedDate!.difference(DateTime.now()).inHours < 24))
-                          ? null
-                          : _cancelJob,
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Cancelar'),
-                    ),
-                  ),
-                ]),
-                if (job.confirmedDate != null &&
-                    job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Cancelamento disponível até 24h antes da data confirmada.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                const SizedBox(height: 16),
-              ],
-              if (liveJobStatus == JobStatus.awaitingConfirmation)
-                Card(
-                  color: theme.colorScheme.primaryContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Icon(Icons.hourglass_top,
-                          color: theme.colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Aguarda confirmação do cliente. Já marcaste este trabalho como concluído.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
-                    ]),
-                  ),
-                )
-              else if (liveJobStatus == JobStatus.confirmed)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _completing ? null : _markCompleted,
-                    child: _completing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Marcar como concluído'),
-                  ),
-                )
-              else if (liveJobStatus == JobStatus.completed)
-                _buildCompletedSection(job, theme, helpersForRatingAsync),
-            ],
-
-            // === REJECTED ===
-            if (liveStatus == ProposalStatus.rejected) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    Icon(Icons.info_outline,
-                        color: theme.colorScheme.error),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                          'A tua proposta não foi selecionada. O cliente escolheu outra proposta.'),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 12),
-              clientInfoAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const SizedBox.shrink(),
-                data: (info) {
-                  final phone = info['phone'] ?? '';
-                  if (phone.isEmpty) return const SizedBox.shrink();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () => _openWhatsApp(phone),
-                        icon: const Icon(Icons.chat_outlined),
-                        label: const Text(
-                            'Contactar cliente para novo pedido'),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Podes contactar o cliente para negociar e enviar uma nova proposta.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color:
-                                theme.colorScheme.onSurfaceVariant),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-
-            // === SUPERSEDED ===
-            if (liveStatus == ProposalStatus.superseded) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    Icon(Icons.undo,
-                        color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                          'Retiraste a tua proposta para este pedido.'),
-                    ),
-                  ]),
-                ),
-              ),
-            ],
-
-            // === PENDING ===
-            if (liveStatus == ProposalStatus.pending) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(children: [
-                    Icon(Icons.schedule_outlined,
-                        color: AppStatusColor.waiting.foreground),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                          'A tua proposta está a aguardar resposta do cliente.'),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _withdrawing ? null : _withdrawProposal,
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red),
-                  child: _withdrawing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Retirar proposta'),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      )),
+    final data = view.WorkerMyJobDetailViewData(
+      jobId: job.id,
+      proposalStatus: proposal.status,
+      jobStatus: job.status,
+      statusPresentation: proposal.status.presentation,
+      serviceLabel: serviceType?.name ?? '—',
+      dateLabel: _formatDate(job.preferredDate),
+      confirmedScheduleLabel: _confirmedScheduleLabel(job),
+      addressLabel: job.addressText,
+      locationLat: job.locationLat,
+      locationLng: job.locationLng,
+      urgent: job.urgency == Urgency.urgent,
+      sizeLabel: job.sizeEstimate != null ? _sizeLabel(job.sizeEstimate!) : null,
+      description: job.description,
+      photoUrls: photos,
+      hourlyRateLabel: proposal.hourlyRate > 0
+          ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
+          : 'Preço a definir',
+      estimatedHoursLabel: (proposal.estimatedHoursMin != null ||
+              proposal.estimatedHoursMax != null)
+          ? _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax)
+          : null,
+      estimatedTotalLabel: estimate,
+      peopleNeeded: proposal.peopleNeeded,
+      notes: proposal.notes,
+      timelineSteps: buildJobTimeline(job),
+      clientId: job.clientId,
+      clientName: clientInfo?['full_name'] ?? '',
+      clientAvatarUrl:
+          (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
+      clientPhone: clientInfo?['phone'] ?? '',
+      rescheduleStatus: job.rescheduleStatus,
+      rescheduleProposedByMe: job.rescheduleProposedBy == currentUserId,
+      proposedRescheduleLabel: _proposedRescheduleLabel(job),
+      cancelBlockedBy24h: cancelBlockedBy24h,
+      helpersForRating: helpersForRatingAsync.asData?.value ?? const [],
+      proposingReschedule: _proposingReschedule,
+      acceptingReschedule: _acceptingReschedule,
+      rejectingReschedule: _rejectingReschedule,
+      cancellingJob: _cancellingJob,
+      withdrawing: _withdrawing,
     );
-  }
 
-  Widget _buildCompletedSection(
-    JobRequest job,
-    ThemeData theme,
-    AsyncValue<List<AcceptedHelper>> helpersAsync,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        Card(
-          color: theme.colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Icon(Icons.task_alt, color: theme.colorScheme.primary),
-              const SizedBox(width: 12),
-              const Expanded(
-                  child: Text('Trabalho concluído. Obrigado pelo teu trabalho!')),
-            ]),
+    return view.WorkerMyJobDetailScreen(
+      data: data,
+      onBack: () => context.pop(),
+      onCallClientPressed: () => _openWhatsApp(data.clientPhone),
+      onRequestHelpersPressed: _showAddHelperSheet,
+      onMarkCompleted: _markCompleted,
+      onCompletionFeedbackFinished: _onCompletionFeedbackFinished,
+      onProposeReschedule: _proposeReschedule,
+      onAcceptReschedule: _acceptReschedule,
+      onRejectReschedule: _rejectReschedule,
+      onCancelJob: _cancelJob,
+      onWithdrawProposal: _withdrawProposal,
+      onPhotoTap: (index) => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PhotoViewerScreen(
+            photoUrls: photos,
+            initialIndex: index,
           ),
         ),
-        const SizedBox(height: 20),
-        Text('Deixa a tua avaliação', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        _PrincipalRatingCard(
-          jobId: job.id,
-          rateeId: job.clientId,
-          title: 'Avaliar o cliente',
-          submittedLabel: 'Cliente avaliado ✓',
-          onSubmit: (stars, comment) =>
-              ref.read(ratingRepositoryProvider).submitPrincipalRating(
-                    jobId: job.id,
-                    rateeId: job.clientId,
-                    stars: stars,
-                    comment: comment,
-                  ),
-        ),
-        ...helpersAsync.when(
-          loading: () =>
-              [const SizedBox(height: 8, child: LinearProgressIndicator())],
-          error: (_, _) => <Widget>[],
-          data: (helpers) => [
-            for (final h in helpers)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _PrincipalRatingCard(
-                  jobId: job.id,
-                  rateeId: h.workerId,
-                  title: 'Avaliar: ${h.fullName}',
-                  submittedLabel: '${h.fullName} avaliado ✓',
-                  onSubmit: (stars, comment) =>
-                      ref.read(ratingRepositoryProvider).submitPrincipalRating(
-                            jobId: job.id,
-                            rateeId: h.workerId,
-                            stars: stars,
-                            comment: comment,
-                          ),
-                ),
-              ),
-          ],
-        ),
-      ],
+      ),
     );
-  }
-}
-
-// ── _PrincipalRatingCard ──────────────────────────────────────────────────────
-
-class _PrincipalRatingCard extends ConsumerStatefulWidget {
-  const _PrincipalRatingCard({
-    required this.jobId,
-    required this.rateeId,
-    required this.title,
-    required this.submittedLabel,
-    required this.onSubmit,
-  });
-
-  final String jobId;
-  final String rateeId;
-  final String title;
-  final String submittedLabel;
-  final Future<void> Function(int stars, String? comment) onSubmit;
-
-  @override
-  ConsumerState<_PrincipalRatingCard> createState() =>
-      _PrincipalRatingCardState();
-}
-
-class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ratingAsync = ref.watch(
-        myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)));
-
-    return ratingAsync.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (existing) {
-        if (existing != null) {
-          return Card(
-            color: theme.colorScheme.primaryContainer,
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(children: [
-                Icon(Icons.check_circle,
-                    color: theme.colorScheme.primary, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(widget.submittedLabel,
-                        style: theme.textTheme.bodyMedium)),
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => Icon(
-                      i < existing.stars
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 16,
-                      color: Colors.amber,
-                    ),
-                  ),
-                ),
-              ]),
-            ),
-          );
-        }
-        return Card(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(children: [
-              Expanded(
-                  child: Text(widget.title,
-                      style: theme.textTheme.bodyMedium)),
-              FilledButton.tonal(
-                onPressed: _showSheet,
-                child: const Text('Avaliar'),
-              ),
-            ]),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showSheet() async {
-    final submitted = await showRatingSheet(
-      context: context,
-      title: widget.title,
-      onSubmit: widget.onSubmit,
-    );
-    if (submitted != true || !mounted) return;
-    ref.invalidate(
-        myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Avaliação enviada!')));
   }
 }
 
@@ -1034,7 +467,7 @@ String _proposedRescheduleLabel(JobRequest job) {
 }
 
 String _confirmedScheduleLabel(JobRequest job) {
-  if (job.confirmedDate == null) return '';
+  if (job.confirmedDate == null) return 'Data a combinar';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return '$date (horário flexível)';
   if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
@@ -1072,45 +505,4 @@ String _hoursLabel(double? min, double? max) {
     return '${max.toStringAsFixed(1)} h';
   }
   return '';
-}
-
-Widget _infoRow(
-    BuildContext context, IconData icon, String label, String value) {
-  final theme = Theme.of(context);
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
-              Text(value, style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(children: children),
-        ),
-      );
 }

@@ -6,6 +6,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/app_filter_chip.dart';
+import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -402,11 +403,7 @@ class _JobsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.primary,
-        ),
-      );
+      return const _JobsSkeletonList();
     }
 
     if (errorMessage != null) {
@@ -439,9 +436,13 @@ class _JobsContent extends StatelessWidget {
       itemBuilder: (context, index) {
         final job = jobs[index];
 
-        return _AvailableJobCard(
-          job: job,
-          onPressed: () => onJobPressed(job.id),
+        return AppStaggeredEntrance(
+          key: ValueKey<String>(job.id),
+          index: index,
+          child: _AvailableJobCard(
+            job: job,
+            onPressed: () => onJobPressed(job.id),
+          ),
         );
       },
     );
@@ -541,6 +542,86 @@ class _AvailableJobCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _JobsSkeletonList extends StatelessWidget {
+  const _JobsSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      itemCount: 4,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, index) {
+        return AppStaggeredEntrance(
+          index: index,
+          child: const AppSkeletonShimmer(
+            child: _JobCardSkeleton(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _JobCardSkeleton extends StatelessWidget {
+  const _JobCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 108,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 14,
+                  width: 140,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  height: 12,
+                  width: 90,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

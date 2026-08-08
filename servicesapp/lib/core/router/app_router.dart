@@ -136,7 +136,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
           GoRoute(
             path: '/worker/jobs',
-            builder: (_, _) => const WorkerJobsScreen(),
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              return WorkerJobsScreen(
+                highlightedJobId: extra?['highlightedJobId'] as String?,
+                initialTab: extra?['initialTab'] as String?,
+              );
+            },
           ),
           GoRoute(
             path: '/worker/messages',
