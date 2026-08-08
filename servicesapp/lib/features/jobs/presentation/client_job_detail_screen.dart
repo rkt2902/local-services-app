@@ -14,9 +14,15 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/widgets/app_filter_chip.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/job_timeline.dart';
@@ -43,9 +49,20 @@ class _ClientJobDetailScreenState
   bool _saving = false;
   bool _proposingReschedule = false;
   bool _confirming = false;
+  bool _showCompletedFeedback = false;
+  String? _selectedProblemId;
   final Map<String, bool> _accepting = {};
   final Set<String> _approvingHelp = {};
   String _sortBy = 'price';
+
+  /// Lista fixa só do lado do Flutter — sem coluna nova em `job_reports`
+  /// (que só tem id/job_id/reporter_id/description/created_at). Ao
+  /// selecionar, pré-preenche o texto livre existente; não muda o schema.
+  static const _commonProblems = [
+    (id: 'no_show', label: 'Não apareceu', prefill: 'O prestador não apareceu — '),
+    (id: 'late', label: 'Atraso', prefill: 'O prestador chegou com atraso — '),
+    (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto — '),
+  ];
 
   Future<void> _cancelJob() async {
     final job = ref.read(jobByIdProvider(widget.jobId)).value;
@@ -216,7 +233,10 @@ class _ClientJobDetailScreenState
     }
   }
 
-  Future<void> _confirmJobCompletion() async {
+  /// Devolve true só depois da RPC confirmar sucesso — a navegação/snackbar
+  /// ficam em [_handleConfirmCompleted], que mostra o AppSuccessFeedback
+  /// antes de sair do ecrã.
+  Future<bool> _confirmJobCompletion() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -235,33 +255,53 @@ class _ClientJobDetailScreenState
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) return false;
 
     setState(() => _confirming = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
           .confirmJobCompletion(widget.jobId);
       ref.invalidate(clientJobsProvider);
-      scaffold.showSnackBar(
-        const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
-      );
-      router.go('/client/jobs');
+      return true;
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(
             content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _confirming = false);
     }
   }
 
-  Future<void> _reportProblem() async {
+  Future<void> _handleConfirmCompleted() async {
+    final success = await _confirmJobCompletion();
+    if (!mounted || !success) return;
+
+    setState(() => _showCompletedFeedback = true);
+    final scaffold = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    await Future<void>.delayed(
+      disableAnimations ? Duration.zero : const Duration(milliseconds: 900),
+    );
+    if (!mounted) return;
+
+    setState(() => _showCompletedFeedback = false);
+    scaffold.showSnackBar(
+      const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
+    );
+    router.go('/client/jobs');
+  }
+
+  Future<void> _reportProblem({String prefillText = ''}) async {
     final formKey = GlobalKey<FormState>();
-    final descController = TextEditingController();
+    final descController = TextEditingController(text: prefillText)
+      ..selection = TextSelection.collapsed(offset: prefillText.length);
     final scaffold = ScaffoldMessenger.of(context);
 
     bool submitting = false;
@@ -369,7 +409,7 @@ class _ClientJobDetailScreenState
       ),
     );
     if (confirmAnyway == true && mounted) {
-      await _confirmJobCompletion();
+      await _handleConfirmCompleted();
     }
   }
 
@@ -381,11 +421,15 @@ class _ClientJobDetailScreenState
       await ref
           .read(proposalRepositoryProvider)
           .acceptProposal(proposal.id, widget.jobId);
-      router.go('/client/jobs');
-      scaffold.showSnackBar(const SnackBar(content: Text('Proposta aceite!')));
       ref.invalidate(clientJobsProvider);
       ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
       ref.invalidate(jobByIdProvider(widget.jobId));
+      // Ecrã de celebração em vez do antigo "snackbar + /client/jobs" —
+      // pushReplacement porque este detalhe (na tab "Propostas") já não
+      // deve ficar na stack quando o utilizador voltar.
+      router.pushReplacement(
+        '/client/job/${widget.jobId}/confirmed?workerId=${proposal.workerId}',
+      );
     } catch (e) {
       scaffold.showSnackBar(
           SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
@@ -556,38 +600,48 @@ class _ClientJobDetailScreenState
           error: (e, _) => const SizedBox.shrink(),
           data: (urls) {
             if (urls.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Fotos', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 120,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: urls.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) => GestureDetector(
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => PhotoViewerScreen(
-                          photoUrls: urls,
-                          initialIndex: i,
-                        ),
-                      )),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          urls[i],
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
+            return AppStaggeredEntrance(
+              index: 4,
+              child: Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fotos',
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(
+                      height: 72,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: urls.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(width: AppSpacing.xs),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => PhotoViewerScreen(
+                              photoUrls: urls,
+                              initialIndex: i,
+                            ),
+                          )),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.input),
+                            child: Image.network(
+                              urls[i],
+                              width: 72,
+                              height: 72,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-              ],
+              ),
             );
           },
         );
@@ -650,81 +704,119 @@ class _ClientJobDetailScreenState
           );
         }
 
-        // Shared: status badge + info card + description + photos
+        final serviceTypesForDetail =
+            ref.watch(serviceTypesProvider).asData?.value ?? const [];
+        final serviceTypeName = serviceTypesForDetail
+                .where((s) => s.id == job.serviceTypeId)
+                .map((s) => s.name)
+                .firstOrNull ??
+            '—';
+
+        // "Publicado→Propostas→Escolher→Confirmado" só faz sentido enquanto
+        // o pedido ainda não tem worker escolhido — para os restantes
+        // estados usa-se buildJobTimeline (inalterado, partilhado com o
+        // lado do worker).
+        final timelineSteps = job.status == JobStatus.open
+            ? _buildOpenStepperSteps(job)
+            : buildJobTimeline(job);
+
+        // Shared: banners + timeline + resumo + metadata + descrição + fotos
         final detailChildren = <Widget>[
           if (job.reopenedFrom != null)
             Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: theme.colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                color: AppColors.primaryContainer,
+                borderRadius: BorderRadius.circular(AppRadius.input),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      color: theme.colorScheme.secondary, size: 18),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.info_outline,
+                      color: AppColors.primary, size: 18),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
                       'Este pedido foi criado automaticamente após o cancelamento de um pedido anterior.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.primaryPressed),
                     ),
                   ),
                 ],
               ),
             ),
           ?rescheduleBanner,
-          statusBadge,
-          const SizedBox(height: 24),
-          _DetailSection(
-            children: [
-              _detailRow(
-                context,
-                Icons.calendar_today_outlined,
-                'Data',
-                job.preferredDate == null
-                    ? 'Flexível'
-                    : DateFormat('dd/MM/yyyy').format(job.preferredDate!),
-              ),
-              _detailRow(
-                context,
-                Icons.bolt_outlined,
-                'Urgência',
-                job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
-              ),
-              if (job.sizeEstimate != null)
-                _detailRow(
-                  context,
-                  Icons.straighten_outlined,
-                  'Dimensão',
-                  switch (job.sizeEstimate!) {
-                    SizeEstimate.small => 'Pequeno',
-                    SizeEstimate.medium => 'Médio',
-                    SizeEstimate.large => 'Grande',
-                  },
-                ),
-            ],
+          AppStaggeredEntrance(
+            index: 0,
+            child: StatusTimeline(steps: timelineSteps),
+          ),
+          if (job.status == JobStatus.open) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _openExpiryNotice(job),
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          AppStaggeredEntrance(
+            index: 1,
+            child: _ServiceSummaryRow(
+              icon: Icons.yard_outlined,
+              serviceLabel: serviceTypeName,
+              metadataLabel: job.addressText.isNotEmpty
+                  ? job.addressText
+                  : 'Localização não especificada',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppStaggeredEntrance(
+            index: 2,
+            child: _JobMetadataCard(
+              preferredDateLabel: job.preferredDate == null
+                  ? 'Flexível'
+                  : DateFormat('dd/MM/yyyy').format(job.preferredDate!),
+              urgencyLabel: job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
+              sizeLabel: job.sizeEstimate == null
+                  ? null
+                  : switch (job.sizeEstimate!) {
+                      SizeEstimate.small => 'Pequeno',
+                      SizeEstimate.medium => 'Médio',
+                      SizeEstimate.large => 'Grande',
+                    },
+            ),
           ),
           if (job.locationLat != 0 || job.locationLng != 0) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             AddressMapLink(
               address: job.addressText,
               lat: job.locationLat,
               lng: job.locationLng,
             ),
           ],
-          const SizedBox(height: 20),
-          Text('Descrição', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(job.description, style: theme.textTheme.bodyMedium),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.md),
+          const Divider(height: 1, color: AppColors.divider),
+          const SizedBox(height: AppSpacing.md),
+          AppStaggeredEntrance(
+            index: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Descrição',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  job.description,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+              ],
+            ),
+          ),
           photosWidget,
-          Text('Estado do pedido', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          StatusTimeline(steps: buildJobTimeline(job)),
-          const SizedBox(height: 20),
         ];
 
         // ── Open status: two-tab layout ─────────────────────────────────────────
@@ -757,6 +849,24 @@ class _ClientJobDetailScreenState
                 });
               }
               final anyAccepting = _accepting.values.any((v) => v);
+
+              // "Recomendada" é só um marcador de ranking da app — não é
+              // ProposalStatus/JobStatus. Critério simples: rating mais alto
+              // entre workers com >= 3 avaliações (evita destacar 5★/1 review
+              // por acaso). Sem nenhum worker a qualificar, ninguém é marcado.
+              String? recommendedWorkerId;
+              double bestRating = 0;
+              for (final p in sorted) {
+                final summary =
+                    ref.watch(ratingSummaryProvider(p.workerId)).asData?.value;
+                if (summary != null &&
+                    summary.ratingCount >= 3 &&
+                    summary.avgRating > bestRating) {
+                  bestRating = summary.avgRating;
+                  recommendedWorkerId = p.workerId;
+                }
+              }
+
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -779,14 +889,20 @@ class _ClientJobDetailScreenState
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    ...sorted.map((p) => _ProposalCard(
-                          key: ValueKey(p.id),
-                          proposal: p,
-                          accepting: _accepting[p.id] == true,
-                          onAccept:
-                              anyAccepting ? null : () => _acceptProposal(p),
-                        )),
+                    const SizedBox(height: AppSpacing.md),
+                    for (var i = 0; i < sorted.length; i++)
+                      AppStaggeredEntrance(
+                        key: ValueKey(sorted[i].id),
+                        index: i,
+                        child: _ProposalCard(
+                          proposal: sorted[i],
+                          recommended: sorted[i].workerId == recommendedWorkerId,
+                          accepting: _accepting[sorted[i].id] == true,
+                          onAccept: anyAccepting
+                              ? null
+                              : () => _acceptProposal(sorted[i]),
+                        ),
+                      ),
                   ],
                 ),
               );
@@ -799,6 +915,12 @@ class _ClientJobDetailScreenState
               appBar: AppBar(
                 title: Text('Pedido #${widget.jobId.substring(0, 8)}'),
                 actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                    child: Center(child: statusBadge),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: 'Cancelar pedido',
@@ -934,54 +1056,91 @@ class _ClientJobDetailScreenState
         // ── Awaiting confirmation: worker marked done, client confirms or reports ──
 
         if (job.status == JobStatus.awaitingConfirmation) {
+          final selectedProblem = _commonProblems
+              .where((p) => p.id == _selectedProblemId)
+              .firstOrNull;
+
           detailChildren.add(
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _workerContactCard(job, workerInfoAsync, theme),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.task_alt,
-                                color: theme.colorScheme.primary, size: 24),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'O prestador marcou este trabalho como concluído',
-                                style: theme.textTheme.titleMedium,
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 5,
+                  child: Text(
+                    'Como correu o trabalho?',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Confirma a conclusão ou relate um problema. Assim que '
+                  'confirmares, podes avaliar o profissional.',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 6,
+                  child: PrimaryActionButton(
+                    label: 'Trabalho concluído',
+                    isLoading: _confirming,
+                    onPressed: _confirming ? null : _handleConfirmCompleted,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppStaggeredEntrance(
+                  index: 7,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _confirming
+                          ? null
+                          : () => _reportProblem(
+                                prefillText: selectedProblem?.prefill ?? '',
                               ),
-                            ),
-                          ],
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppStatusColor.cancelled.foreground,
+                        side: BorderSide(
+                          color: AppStatusColor.cancelled.foreground,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Confirma se o trabalho foi feito conforme esperado.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.input),
                         ),
-                      ],
+                      ),
+                      icon: const Icon(Icons.error_outline_rounded),
+                      label: const Text('Reportar problema'),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _confirming ? null : _confirmJobCompletion,
-                  style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary),
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Confirmar conclusão'),
+                const SizedBox(height: AppSpacing.lg),
+                Text(
+                  'Problemas comuns',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: AppColors.textSecondary),
                 ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: _confirming ? null : _reportProblem,
-                  icon: const Icon(Icons.flag_outlined),
-                  label: const Text('Reportar problema'),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final problem in _commonProblems)
+                      AppFilterChip(
+                        label: problem.label,
+                        selected: _selectedProblemId == problem.id,
+                        onPressed: () {
+                          setState(() {
+                            _selectedProblemId =
+                                _selectedProblemId == problem.id
+                                    ? null
+                                    : problem.id;
+                          });
+                        },
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -991,20 +1150,55 @@ class _ClientJobDetailScreenState
         if (job.status == JobStatus.completed) {
           detailChildren.add(_workerContactCard(job, workerInfoAsync, theme));
           detailChildren.add(const SizedBox(height: 16));
+          // Direção inversa de _buildClientRatingSection logo abaixo (essa
+          // é o worker/ajudantes a avaliarem o CLIENTE); este botão abre um
+          // ecrã novo para o cliente avaliar o WORKER principal —
+          // submit_principal_rating, já usada do lado do worker para
+          // avaliar ajudantes, nunca antes chamada a partir do cliente.
+          if (workerId.isNotEmpty) {
+            detailChildren.add(
+              OutlinedButton.icon(
+                onPressed: () => context.push(
+                  '/client/job/${widget.jobId}/rate-worker?workerId=$workerId',
+                ),
+                icon: const Icon(Icons.star_outline_rounded),
+                label: const Text('Avaliar profissional'),
+              ),
+            );
+            detailChildren.add(const SizedBox(height: 16));
+          }
           detailChildren.add(_buildClientRatingSection(theme, ratingAsync));
         }
 
         return Scaffold(
           appBar: AppBar(
             title: Text('Pedido #${widget.jobId.substring(0, 8)}'),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.md),
+                child: Center(child: statusBadge),
+              ),
+            ],
           ),
-          body: SafeArea(child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: detailChildren,
-            ),
-          )),
+          body: Stack(
+            children: [
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: detailChildren,
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: AppSuccessFeedback(
+                  visible: _showCompletedFeedback,
+                  message: 'Trabalho confirmado',
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1104,128 +1298,217 @@ class _ClientJobDetailScreenState
 
 class _ProposalCard extends ConsumerWidget {
   const _ProposalCard({
-    super.key,
     required this.proposal,
     required this.accepting,
     required this.onAccept,
+    this.recommended = false,
   });
 
   final JobProposal proposal;
   final bool accepting;
   final VoidCallback? onAccept;
 
+  /// Não é ProposalStatus/JobStatus — só um marcador de ranking da app
+  /// (ver cálculo em `_ClientJobDetailScreenState.build`).
+  final bool recommended;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final workerName =
         proposal.workerName?.isNotEmpty == true ? proposal.workerName! : '—';
     final workerAvatarUrl = proposal.workerAvatarUrl ?? '';
     final ratingSummary =
         ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
 
-    final estimateStr = _formatEstimate(
-        proposal.hourlyRate,
-        proposal.estimatedHoursMin,
-        proposal.estimatedHoursMax);
     final hoursStr =
         _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
     final scheduleStr = _formatProposedSchedule(proposal);
     final teamEstimateStr = _teamTotalEstimate(proposal);
+    final priceLabel = proposal.hourlyRate > 0
+        ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
+        : 'Preço a definir';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundImage: workerAvatarUrl.isNotEmpty
-                    ? NetworkImage(workerAvatarUrl)
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(
+              color: recommended ? AppColors.primary : AppColors.divider,
+            ),
+          ),
+          child: Column(
+            children: [
+              InkWell(
+                onTap: ratingSummary != null && ratingSummary.ratingCount > 0
+                    ? () => showRatingsSheet(
+                          context,
+                          workerId: proposal.workerId,
+                          workerName: workerName,
+                        )
                     : null,
-                child: workerAvatarUrl.isEmpty
-                    ? Text(
-                        workerName.isNotEmpty
-                            ? workerName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(workerName, style: theme.textTheme.titleMedium),
-              ),
-              if (ratingSummary != null && ratingSummary.ratingCount > 0)
-                GestureDetector(
-                  onTap: () => showRatingsSheet(
-                    context,
-                    workerId: proposal.workerId,
-                    workerName: workerName,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          size: 14, color: Colors.amber),
-                      const SizedBox(width: 2),
-                      Text(
-                        ratingSummary.avgRating.toStringAsFixed(1),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                borderRadius: BorderRadius.circular(AppRadius.input),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primaryContainer,
+                      backgroundImage: workerAvatarUrl.isNotEmpty
+                          ? NetworkImage(workerAvatarUrl)
+                          : null,
+                      child: workerAvatarUrl.isEmpty
+                          ? const Icon(
+                              Icons.person_outline_rounded,
+                              color: AppColors.primary,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            workerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium
+                                ?.copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            ratingSummary != null && ratingSummary.ratingCount > 0
+                                ? '★ ${ratingSummary.avgRating.toStringAsFixed(1)} '
+                                    '(${ratingSummary.ratingCount})'
+                                : 'Sem avaliações ainda',
+                            style: textTheme.labelMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          priceLabel,
+                          style: textTheme.titleLarge
+                              ?.copyWith(color: AppColors.primary),
+                        ),
+                        if (hoursStr.isNotEmpty)
+                          Text(
+                            hoursStr,
+                            style: textTheme.labelMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (scheduleStr.isNotEmpty ||
+                  proposal.peopleNeeded > 1 ||
+                  teamEstimateStr.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    if (scheduleStr.isNotEmpty)
+                      _MetaChip(icon: Icons.event_outlined, label: scheduleStr),
+                    if (proposal.peopleNeeded > 1)
+                      _MetaChip(
+                        icon: Icons.group_outlined,
+                        label: 'Equipa: ${proposal.peopleNeeded} pessoas',
+                      ),
+                    if (teamEstimateStr.isNotEmpty)
+                      _MetaChip(
+                        icon: Icons.calculate_outlined,
+                        label: teamEstimateStr,
+                      ),
+                  ],
+                ),
+              ],
+              if (proposal.notes?.isNotEmpty == true) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    proposal.notes!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
                   ),
                 ),
-            ]),
-            const Divider(height: 20),
-            _cardRow(context, Icons.euro_outlined,
-                proposal.hourlyRate > 0
-                    ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
-                    : 'Preço a definir'),
-            if (estimateStr.isNotEmpty)
-              _cardRow(context, Icons.calculate_outlined, estimateStr),
-            if (hoursStr.isNotEmpty)
-              _cardRow(context, Icons.schedule_outlined, hoursStr),
-            if (scheduleStr.isNotEmpty)
-              _cardRow(context, Icons.event_outlined, 'Propõe: $scheduleStr'),
-            if (proposal.peopleNeeded > 1)
-              _cardRow(context, Icons.group_outlined,
-                  'Equipa: ${proposal.peopleNeeded} pessoas'),
-            if (teamEstimateStr.isNotEmpty)
-              _cardRow(context, Icons.calculate_outlined, teamEstimateStr),
-            if (proposal.notes?.isNotEmpty == true) ...[
-              const SizedBox(height: 8),
-              Text(
-                proposal.notes!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              PrimaryActionButton(
+                label: 'Escolher',
+                isLoading: accepting,
+                onPressed: accepting ? null : onAccept,
               ),
             ],
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: accepting ? null : onAccept,
-                child: accepting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Aceitar esta proposta'),
+          ),
+        ),
+        if (recommended)
+          Positioned(
+            top: -8,
+            left: AppSpacing.sm,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Text(
+                'Recomendada',
+                style: textTheme.labelMedium?.copyWith(color: AppColors.surface),
               ),
             ),
-          ],
-        ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }
@@ -1303,44 +1586,176 @@ String _hoursLabel(double? min, double? max) {
   return '';
 }
 
-Widget _detailRow(
-    BuildContext context, IconData icon, String label, String value) {
-  final theme = Theme.of(context);
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+// ── Ecrã 5 — timeline de 4 estágios (só JobStatus.open) ───────────────────
+
+/// "Publicado → Propostas → Escolher → Confirmado".
+///
+/// Propostas/Escolher são dois estágios visuais sobre o mesmo
+/// `JobStatus.open` — distinguidos só por `job.proposalCount`, sem estado
+/// novo no backend. "Confirmado" está sempre `future` aqui porque, por
+/// definição, um job com este stepper ainda não tem proposta aceite.
+List<StatusTimelineStepData> _buildOpenStepperSteps(JobRequest job) {
+  final hasProposals = job.proposalCount > 0;
+  return [
+    StatusTimelineStepData(
+      label: 'Publicado',
+      statusColor: AppStatusColor.success,
+      state: StatusTimelineStepState.completed,
+      subtitle: DateFormat('dd/MM/yyyy').format(job.createdAt),
+    ),
+    StatusTimelineStepData(
+      label: 'Propostas',
+      statusColor: AppStatusColor.waiting,
+      state: hasProposals
+          ? StatusTimelineStepState.completed
+          : StatusTimelineStepState.current,
+      subtitle: hasProposals
+          ? '${job.proposalCount} ${job.proposalCount == 1 ? 'proposta' : 'propostas'}'
+          : null,
+    ),
+    StatusTimelineStepData(
+      label: 'Escolher',
+      statusColor: AppStatusColor.waiting,
+      state: hasProposals
+          ? StatusTimelineStepState.current
+          : StatusTimelineStepState.future,
+    ),
+    const StatusTimelineStepData(
+      label: 'Confirmado',
+      statusColor: AppStatusColor.neutral,
+      state: StatusTimelineStepState.future,
+    ),
+  ];
+}
+
+/// `expires_at` é o prazo de expiração do PEDIDO INTEIRO (`created_at` +
+/// 48h, para `no_response`), não um prazo dedicado a propostas — a frase
+/// evita implicar o contrário.
+String _openExpiryNotice(JobRequest job) {
+  final formatted = DateFormat("dd/MM 'às' HH:mm").format(job.expiresAt);
+  return 'Expira a $formatted se não houver nenhuma proposta aceite até lá';
+}
+
+class _ServiceSummaryRow extends StatelessWidget {
+  const _ServiceSummaryRow({
+    required this.icon,
+    required this.serviceLabel,
+    required this.metadataLabel,
+  });
+
+  final IconData icon;
+  final String serviceLabel;
+  final String metadataLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
       children: [
-        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 12),
+        Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+          ),
+          child: Icon(icon, color: AppColors.primary),
+        ),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
-              Text(value, style: theme.textTheme.bodyMedium),
+              Text(
+                serviceLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                metadataLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
-class _DetailSection extends StatelessWidget {
-  const _DetailSection({required this.children});
+class _JobMetadataCard extends StatelessWidget {
+  const _JobMetadataCard({
+    required this.preferredDateLabel,
+    required this.urgencyLabel,
+    this.sizeLabel,
+  });
 
-  final List<Widget> children;
+  final String preferredDateLabel;
+  final String urgencyLabel;
+  final String? sizeLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(children: children),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
+      child: Column(
+        children: [
+          _MetadataRow(label: 'Data preferida', value: preferredDateLabel),
+          const SizedBox(height: AppSpacing.sm),
+          _MetadataRow(label: 'Urgência', value: urgencyLabel),
+          if (sizeLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _MetadataRow(label: 'Dimensão', value: sizeLabel!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetadataRow extends StatelessWidget {
+  const _MetadataRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          value,
+          style: textTheme.bodyMedium?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }

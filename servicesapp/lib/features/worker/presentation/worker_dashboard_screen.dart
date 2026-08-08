@@ -247,8 +247,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                               '/worker/jobs',
                               extra: {
                                 'initialTab': 'scheduled',
-                                if (nextJobProposalId != null)
-                                  'highlightedJobId': nextJobProposalId,
+                                'highlightedJobId': ?nextJobProposalId,
                               },
                             ),
                           ),

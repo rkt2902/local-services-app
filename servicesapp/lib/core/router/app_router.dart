@@ -20,6 +20,8 @@ import '../../features/client/presentation/client_create_job_schedule_screen.dar
 import '../../features/client/presentation/client_create_job_description_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
+import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
+import '../../features/jobs/presentation/client_rate_worker_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
@@ -83,6 +85,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final jobId = state.pathParameters['id']!;
           return ClientJobDetailScreen(jobId: jobId);
+        },
+      ),
+      GoRoute(
+        path: '/client/job/:id/confirmed',
+        builder: (_, state) {
+          final jobId = state.pathParameters['id']!;
+          final workerId = state.uri.queryParameters['workerId']!;
+          return ClientJobConfirmedScreen(jobId: jobId, workerId: workerId);
+        },
+      ),
+      GoRoute(
+        path: '/client/job/:id/rate-worker',
+        builder: (_, state) {
+          final jobId = state.pathParameters['id']!;
+          final workerId = state.uri.queryParameters['workerId']!;
+          return ClientRateWorkerScreen(jobId: jobId, workerId: workerId);
         },
       ),
       GoRoute(
