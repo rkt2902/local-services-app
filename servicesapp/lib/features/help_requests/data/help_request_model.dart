@@ -13,6 +13,10 @@ class HelpRequestSummary {
   final double locationLng;
   final String serviceTypeId;
   final String principalName;
+  // Added by migration 0034 — 0.0/null when the RPC has not yet been updated.
+  final double paymentPerHelper;
+  final DateTime? confirmedDate;
+  final String? confirmedTime; // "HH:MM:SS" from DB
 
   const HelpRequestSummary({
     required this.id,
@@ -27,6 +31,9 @@ class HelpRequestSummary {
     required this.locationLng,
     required this.serviceTypeId,
     required this.principalName,
+    this.paymentPerHelper = 0.0,
+    this.confirmedDate,
+    this.confirmedTime,
   });
 
   factory HelpRequestSummary.fromJson(Map<String, dynamic> json) =>
@@ -43,6 +50,11 @@ class HelpRequestSummary {
         locationLng: (json['location_lng'] as num).toDouble(),
         serviceTypeId: json['service_type_id'] as String,
         principalName: json['principal_name'] as String? ?? '',
+        paymentPerHelper: (json['payment_per_helper'] as num?)?.toDouble() ?? 0.0,
+        confirmedDate: json['confirmed_date'] != null
+            ? DateTime.parse(json['confirmed_date'] as String)
+            : null,
+        confirmedTime: json['confirmed_time'] as String?,
       );
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
+import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/app_status_badge.dart';
@@ -11,6 +12,15 @@ enum WorkerJobsTab {
   pending,
   scheduled,
   completed,
+}
+
+/// Papel do worker autenticado nesse trabalho específico — deriva de estar
+/// em `job_proposals` (responsável) ou em `help_acceptances` (ajudante).
+/// Ver `docs/database_schema.md` — um worker nunca é as duas coisas no
+/// mesmo job.
+enum WorkerJobRole {
+  responsible,
+  helper,
 }
 
 class WorkerJobListItemViewData {
@@ -22,6 +32,7 @@ class WorkerJobListItemViewData {
     required this.secondaryLabel,
     required this.priceLabel,
     required this.status,
+    this.role = WorkerJobRole.responsible,
     this.muted = false,
   });
 
@@ -32,6 +43,7 @@ class WorkerJobListItemViewData {
   final String secondaryLabel;
   final String priceLabel;
   final AppStatusPresentation status;
+  final WorkerJobRole role;
 
   /// Exemplo: proposta rejeitada ou substituída.
   final bool muted;
@@ -486,19 +498,33 @@ class _WorkerJobCard extends StatelessWidget {
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
                   children: [
+                    _RoleIcon(role: job.role),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
                             CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            job.title,
-                            maxLines: 2,
-                            overflow:
-                                TextOverflow.ellipsis,
-                            style: textTheme.titleMedium?.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
+                          Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  job.title,
+                                  maxLines: 2,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              if (job.role == WorkerJobRole.helper) ...[
+                                const SizedBox(width: AppSpacing.xxs),
+                                const _HelperBadge(),
+                              ],
+                            ],
                           ),
                           const SizedBox(
                             height: AppSpacing.xxs,
@@ -554,6 +580,64 @@ class _WorkerJobCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ícone do card com tom diferente por papel: `primary` quando o worker é o
+/// responsável, `AppStatusColor.info` quando é ajudante — mesma paleta usada
+/// no selo "Ajudante" e no ecrã de candidatura.
+class _RoleIcon extends StatelessWidget {
+  const _RoleIcon({required this.role});
+
+  final WorkerJobRole role;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHelper = role == WorkerJobRole.helper;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: isHelper
+            ? AppStatusColor.info.background
+            : AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        isHelper ? Icons.groups_outlined : Icons.person_outline,
+        color: isHelper ? AppStatusColor.info.foreground : AppColors.primary,
+        size: 20,
+      ),
+    );
+  }
+}
+
+/// Selo "Ajudante" — só aparece quando o worker não é o responsável do
+/// trabalho. Ausente nos cards onde é responsável (nada a mostrar).
+class _HelperBadge extends StatelessWidget {
+  const _HelperBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppStatusColor.info.background,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        'Ajudante',
+        style: textTheme.labelSmall?.copyWith(
+          color: AppStatusColor.info.foreground,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

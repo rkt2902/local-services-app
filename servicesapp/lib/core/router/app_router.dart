@@ -30,6 +30,7 @@ import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
+import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
@@ -162,6 +163,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return WorkerHelpRequestsScreen(
             initialTabIndex: extra?['initialTabIndex'] as int? ?? 0,
           );
+        },
+      ),
+      GoRoute(
+        path: '/worker/help-requests/:id/apply',
+        builder: (context, state) {
+          final helpRequestId = state.pathParameters['id']!;
+          return ApplyAsHelperScreen(helpRequestId: helpRequestId);
         },
       ),
       ShellRoute(

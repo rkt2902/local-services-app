@@ -94,6 +94,7 @@ class HelpRequestRepository {
   Future<void> applyToHelpRequest({
     required String helpRequestId,
     required bool broughtEquipment,
+    String? message,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Não autenticado');
@@ -103,6 +104,7 @@ class HelpRequestRepository {
       'status': 'pending',
       'brought_equipment': broughtEquipment,
       'agreed_rate': 0,
+      if (message != null && message.isNotEmpty) 'message': message,
     });
   }
 

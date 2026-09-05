@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
@@ -31,34 +39,27 @@ class WorkerHelpRequestsScreen extends ConsumerStatefulWidget {
 class _WorkerHelpRequestsScreenState
     extends ConsumerState<WorkerHelpRequestsScreen> {
   final Set<String> _appliedIds = {};
-  final Map<String, bool> _applying = {};
+  final Set<String> _opening = {};
 
   Future<void> _onDiscoverRefresh() async =>
       ref.invalidate(helpRequestSummariesInRadiusProvider);
 
-  Future<void> _apply(HelpRequestSummary summary) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final broughtEquipment = summary.equipmentRequired;
-    setState(() => _applying[summary.id] = true);
+  /// Abre o ecrã dedicado "Candidatar-me" (rota `/worker/help-requests/:id/apply`)
+  /// em vez de submeter inline. O ecrã devolve `true` via `context.pop(true)`
+  /// só depois de o INSERT em `help_acceptances` ser confirmado — aqui só
+  /// marcamos o estado local otimista de "já candidatado".
+  Future<void> _openApplyScreen(HelpRequestSummary summary) async {
+    if (_opening.contains(summary.id)) return;
+    setState(() => _opening.add(summary.id));
     try {
-      await ref.read(helpRequestRepositoryProvider).applyToHelpRequest(
-            helpRequestId: summary.id,
-            broughtEquipment: broughtEquipment,
-          );
-      if (!mounted) return;
-      setState(() => _appliedIds.add(summary.id));
-      ref.invalidate(helpRequestSummariesInRadiusProvider);
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Candidatura enviada')));
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(SnackBar(
-          content: Text(friendlyError(e)),
-          backgroundColor: Colors.red,
-        ));
+      final applied = await context.push<bool>(
+        '/worker/help-requests/${summary.id}/apply',
+      );
+      if (applied == true && mounted) {
+        setState(() => _appliedIds.add(summary.id));
       }
     } finally {
-      if (mounted) setState(() => _applying.remove(summary.id));
+      if (mounted) setState(() => _opening.remove(summary.id));
     }
   }
 
@@ -134,8 +135,8 @@ class _WorkerHelpRequestsScreenState
                   serviceTypeName: serviceTypeName,
                   distanceMeters: distanceMeters,
                   isApplied: _appliedIds.contains(s.id),
-                  isApplying: _applying[s.id] == true,
-                  onApply: () => _apply(s),
+                  isApplying: _opening.contains(s.id),
+                  onApply: () => _openApplyScreen(s),
                 ),
               );
             },
@@ -371,36 +372,65 @@ class _PendingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              acceptance.serviceTypeName,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppStatusColor.waiting.background,
+              borderRadius: BorderRadius.circular(AppRadius.input),
             ),
-            const SizedBox(height: 6),
-            _Meta(
-              icon: Icons.person_outline,
-              label: 'Principal: ${acceptance.principalName}',
+            alignment: Alignment.center,
+            child: Icon(Icons.hourglass_top_outlined,
+                color: AppStatusColor.waiting.foreground),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        acceptance.serviceTypeName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    AppStatusBadge.fromPresentation(
+                      presentation: HelpAcceptanceStatus.pending.presentation,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                _Meta(
+                  icon: Icons.person_outline,
+                  label: 'Principal: ${acceptance.principalName}',
+                ),
+                if (acceptance.broughtEquipment) ...[
+                  const SizedBox(height: 4),
+                  _Meta(
+                    icon: Icons.build_outlined,
+                    label: 'Levo equipamento',
+                  ),
+                ],
+              ],
             ),
-            if (acceptance.broughtEquipment) ...[
-              const SizedBox(height: 4),
-              _Meta(
-                icon: Icons.build_outlined,
-                label: 'Levo equipamento',
-              ),
-            ],
-            const SizedBox(height: 10),
-            AppStatusBadge.fromPresentation(
-              presentation: HelpAcceptanceStatus.pending.presentation,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -441,11 +471,14 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
         ? ref.watch(ratingSummaryProvider(principalId)).asData?.value
         : null;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppStatusColor.success.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppStatusColor.success.foreground),
+      ),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -453,8 +486,10 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 Expanded(
                   child: Text(
                     widget.acceptance.serviceTypeName,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 _jobStatusBadgeFromRaw(widget.acceptance.jobStatus),
@@ -598,7 +633,6 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
               ),
           ],
         ),
-      ),
     );
   }
 
@@ -631,40 +665,38 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    acceptance.serviceTypeName,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.7),
-                    ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppStatusColor.neutral.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  acceptance.serviceTypeName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Principal: ${acceptance.principalName}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Principal: ${acceptance.principalName}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
             ),
-            AppStatusBadge.fromPresentation(
-              presentation: acceptance.status.presentation,
-            ),
-          ],
-        ),
+          ),
+          AppStatusBadge.fromPresentation(
+            presentation: acceptance.status.presentation,
+          ),
+        ],
       ),
     );
   }
@@ -696,127 +728,181 @@ class _HelpRequestCard extends StatelessWidget {
         : '${(distanceMeters! / 1000).toStringAsFixed(1)} km';
   }
 
+  /// Ex.: "12/09/2026 às 09:00 · 8 km". Horário vem da migration 0034
+  /// (`confirmed_date`/`confirmed_time` do job, ainda antes da candidatura).
+  String _scheduleAndDistanceLabel() {
+    final schedule = summary.confirmedDate != null
+        ? _scheduleLabel(summary.confirmedDate!, summary.confirmedTime)
+        : 'Horário a combinar';
+    final dist = _distanceStr();
+    return dist == null ? schedule : '$schedule · $dist';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final distStr = _distanceStr();
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    serviceTypeName,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: UserAvatarWithName(
+                  name: summary.principalName,
+                  radius: 18,
+                  nameStyle: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${summary.slotsNeeded} vaga${summary.slotsNeeded == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              children: [
-                if (distStr != null)
-                  _Meta(icon: Icons.place_outlined, label: distStr),
-                _Meta(
-                  icon: Icons.person_outline,
-                  label: 'Com: ${summary.principalName}',
-                ),
-              ],
-            ),
-            if (summary.locationLat != 0 || summary.locationLng != 0) ...[
-              const SizedBox(height: 4),
-              InkWell(
-                onTap: () async {
-                  final uri = Uri.parse(
-                    'https://www.google.com/maps/search/?api=1'
-                    '&query=${Uri.encodeComponent('${summary.locationLat},${summary.locationLng}')}',
-                  );
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                },
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.map_outlined, size: 16,
-                          color: theme.colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Ver no mapa',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          decoration: TextDecoration.underline,
-                          decorationColor: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              AppStatusBadge.fromPresentation(
+                presentation: AppStatusPresentation(
+                  label:
+                      '${summary.slotsNeeded} vaga${summary.slotsNeeded == 1 ? '' : 's'}',
+                  color: AppStatusColor.info,
                 ),
               ),
             ],
-            const SizedBox(height: 8),
-            if (summary.equipmentRequired)
-              Row(children: [
-                Icon(Icons.build, size: 16, color: theme.colorScheme.primary),
-                const SizedBox(width: 6),
-                Text(
-                  'Equipamento obrigatório',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.input),
                 ),
-              ])
-            else
-              Row(children: [
-                Icon(Icons.check_circle_outline,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-                const SizedBox(width: 6),
-                const Text('Sem equipamento necessário'),
-              ]),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: isApplied || isApplying ? null : onApply,
-                child: isApplying
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(isApplied ? 'Já candidatado' : 'Candidatar-me'),
+                alignment: Alignment.center,
+                child:
+                    const Icon(Icons.yard_outlined, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceTypeName,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      _scheduleAndDistanceLabel(),
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (summary.locationLat != 0 || summary.locationLng != 0) ...[
+            const SizedBox(height: AppSpacing.xs),
+            InkWell(
+              onTap: () async {
+                final uri = Uri.parse(
+                  'https://www.google.com/maps/search/?api=1'
+                  '&query=${Uri.encodeComponent('${summary.locationLat},${summary.locationLng}')}',
+                );
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.map_outlined,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ver no mapa',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
-        ),
+          const SizedBox(height: AppSpacing.xs),
+          if (summary.equipmentRequired)
+            Row(children: [
+              const Icon(Icons.build, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Equipamento obrigatório',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ])
+          else
+            Row(children: [
+              const Icon(Icons.check_circle_outline,
+                  size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Text('Sem equipamento necessário',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ]),
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Pagamento por ajudante',
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+                Text(
+                  summary.paymentPerHelper > 0
+                      ? '€${summary.paymentPerHelper.toStringAsFixed(2)}/hora'
+                      : 'A combinar',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          PrimaryActionButton(
+            label: isApplied ? 'Já candidatado' : 'Candidatar-me',
+            isLoading: isApplying,
+            onPressed: isApplied || isApplying ? null : onApply,
+          ),
+        ],
       ),
     );
   }
