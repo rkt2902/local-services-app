@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'worker_profile_model.dart';
+import 'worker_public_card_model.dart';
 import 'service_type_model.dart';
 
 class WorkerRepository {
@@ -131,6 +132,16 @@ class WorkerRepository {
       'full_name': data['full_name'] as String?,
       'avatar_url': data['avatar_url'] as String?,
     };
+  }
+
+  Future<WorkerPublicCard?> fetchPublicCard(String workerId) async {
+    final data = await _client
+        .from('worker_public_card')
+        .select()
+        .eq('worker_id', workerId)
+        .maybeSingle();
+    if (data == null) return null;
+    return WorkerPublicCard.fromJson(data);
   }
 
   Future<String> uploadAvatar(String userId, File file) async {

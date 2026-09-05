@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/worker_repository.dart';
 import '../data/worker_profile_model.dart';
+import '../data/worker_public_card_model.dart';
 import '../data/service_type_model.dart';
 
 final workerRepositoryProvider = Provider<WorkerRepository>(
@@ -37,4 +38,11 @@ final workerNameProvider =
 final profileSummaryProvider =
     FutureProvider.family<Map<String, String?>, String>((ref, profileId) {
   return ref.read(workerRepositoryProvider).fetchProfileSummary(profileId);
+});
+
+/// Perfil público mínimo (cartão partilhável) — sem sessão necessária,
+/// fonte: view `worker_public_card` (migration 0033).
+final workerPublicCardProvider =
+    FutureProvider.family<WorkerPublicCard?, String>((ref, workerId) {
+  return ref.read(workerRepositoryProvider).fetchPublicCard(workerId);
 });

@@ -10,6 +10,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
+import '../../features/client/presentation/client_edit_profile_screen.dart';
 import '../../features/worker/presentation/worker_shell.dart';
 import '../../features/worker/presentation/worker_dashboard_screen.dart';
 import '../../features/worker/presentation/worker_available_jobs_screen.dart';
@@ -23,6 +24,8 @@ import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
 import '../../features/jobs/presentation/client_rate_worker_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
+import '../../features/worker/presentation/worker_edit_profile_screen.dart';
+import '../../features/worker/presentation/worker_public_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
@@ -65,9 +68,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ChooseRoleScreen(),
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
+      GoRoute(
+        path: '/worker/profile/edit',
+        builder: (_, _) => const WorkerEditProfileScreen(),
+      ),
       GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
+      // Rota pública — cartão digital partilhável do worker. Sem guard de
+      // autenticação/role (ver publicPathPrefixes no redirect abaixo).
+      GoRoute(
+        path: '/w/:workerId',
+        builder: (_, state) {
+          final workerId = state.pathParameters['workerId']!;
+          return WorkerPublicProfileScreen(workerId: workerId);
+        },
+      ),
       // Fora dos ShellRoutes de propósito — ecrãs de sub-fluxo (detalhe,
       // formulário, lobby), não devem mostrar a bottom nav persistente.
+      GoRoute(
+        path: '/client/profile/edit',
+        builder: (_, _) => const ClientEditProfileScreen(),
+      ),
       GoRoute(
         path: '/client/create-job',
         builder: (_, _) => const ClientCreateJobServiceScreen(),
@@ -218,7 +238,7 @@ class RouterNotifier extends ChangeNotifier {
     // Onboarding gate: only for unauthenticated visitors, shown at most once.
     // Authenticated users (with or without role) bypass this entirely — they
     // have already committed to the app; onboarding is for first-time visitors.
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !loc.startsWith('/w/')) {
       final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
       if (onboardingAsync.isLoading) return null;
       final hasSeen = onboardingAsync.asData?.value ?? false;
@@ -227,7 +247,10 @@ class RouterNotifier extends ChangeNotifier {
 
     if (!isAuthenticated) {
       const publicRoutes = ['/', '/login', '/signup', '/onboarding'];
-      return publicRoutes.contains(loc) ? null : '/';
+      if (publicRoutes.contains(loc)) return null;
+      // Cartão digital do worker — visível sem sessão (link/QR partilhado).
+      if (loc.startsWith('/w/')) return null;
+      return '/';
     }
 
     // Authenticated but no profile yet (fresh signup, role not chosen)
