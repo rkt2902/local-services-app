@@ -6,47 +6,32 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/utils/error_utils.dart';
+import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
-import '../../client/application/client_providers.dart';
-import '../../help_requests/application/help_request_providers.dart';
-import '../../help_requests/data/help_request_model.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../jobs/application/job_providers.dart';
-import '../../jobs/data/job_model.dart';
-import '../../proposals/application/proposal_providers.dart';
-import '../../proposals/data/proposal_model.dart';
+import '../application/worker_job_board_providers.dart';
+import '../data/worker_job_board_entry_model.dart';
 import 'widgets/worker_jobs_view.dart' as view;
 
-List<(JobProposal, JobRequest)> _parseEntries(
-    List<Map<String, dynamic>> raw) {
-  return raw
-      .where((m) => m['job_requests'] != null)
-      .map((m) {
-        final job = JobRequest.fromJson(
-            Map<String, dynamic>.from(m['job_requests'] as Map));
-        final proposal =
-            JobProposal.fromJson(Map<String, dynamic>.from(m));
-        return (proposal, job);
-      })
-      .toList();
+String _tabParam(view.WorkerJobsTab tab) => switch (tab) {
+      view.WorkerJobsTab.pending => 'pending',
+      view.WorkerJobsTab.scheduled => 'scheduled',
+      view.WorkerJobsTab.completed => 'completed',
+    };
+
+view.WorkerJobsTab? _tabFromName(String? name) {
+  return switch (name) {
+    'pending' => view.WorkerJobsTab.pending,
+    'scheduled' => view.WorkerJobsTab.scheduled,
+    'completed' => view.WorkerJobsTab.completed,
+    _ => null,
+  };
 }
 
 String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
-}
-
-/// Para "Agendados", a data confirmada é mais relevante que a preferida do
-/// pedido original — mesma preferência já usada no dashboard
-/// (`_confirmedScheduleLabel`).
-String _scheduleLabel(JobRequest job) {
-  if (job.confirmedDate != null) {
-    final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
-    if (job.confirmedFlexible) return '$date (flexível)';
-    if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
-    return date;
-  }
-  return _formatDate(job.preferredDate);
 }
 
 String _formatEstimate(double rate, double? min, double? max) {
@@ -61,88 +46,76 @@ String _formatEstimate(double rate, double? min, double? max) {
   return '';
 }
 
-String _helperScheduleLabel(DateTime? date, String? time) {
-  if (date == null) return 'Horário a combinar';
-  final dateStr = DateFormat('dd/MM/yyyy').format(date);
-  if (time == null || time.isEmpty) return dateStr;
-  final timeStr = time.length >= 5 ? time.substring(0, 5) : time;
-  return '$dateStr às $timeStr';
-}
-
-/// Mapeia candidaturas de ajudante (`HelpAcceptanceSummary`) para a mesma
-/// tab de estado que o papel de responsável usa — ver docs/state_machine.md.
-/// Um help_acceptance só existe depois de o job já estar `confirmed` (ou
-/// mais adiante), por isso não há equivalente a "Pendentes" no sentido de
-/// job `open`: aqui "pending" significa candidatura enviada, a aguardar
-/// decisão do responsável, com o job já confirmado.
-/// `rejected`/`cancelled` ficam de fora de propósito — continuam visíveis
-/// só na tab "As minhas candidaturas" (secção Histórico).
-List<HelpAcceptanceSummary> _helperEntriesForTab(
-  List<HelpAcceptanceSummary> all,
-  view.WorkerJobsTab tab,
-) {
-  switch (tab) {
-    case view.WorkerJobsTab.pending:
-      return all
-          .where((a) => a.status == HelpAcceptanceStatus.pending)
-          .toList();
-    case view.WorkerJobsTab.scheduled:
-      return all
-          .where((a) =>
-              a.status == HelpAcceptanceStatus.accepted &&
-              (a.jobStatus == 'confirmed' ||
-                  a.jobStatus == 'awaiting_confirmation'))
-          .toList();
-    case view.WorkerJobsTab.completed:
-      return all
-          .where((a) =>
-              a.status == HelpAcceptanceStatus.accepted &&
-              a.jobStatus == 'completed')
-          .toList();
+/// Data/hora do card. Fallback para a data preferida do pedido original só
+/// faz sentido para o responsável (job ainda `open`, sem data confirmada) —
+/// um ajudante só existe depois de o job já estar `confirmed`, por isso
+/// nunca há "preferida" do lado dele; o fallback é um texto neutro.
+String _scheduleLabelFor(WorkerJobBoardEntry e) {
+  if (e.confirmedDate != null) {
+    final date = DateFormat('dd/MM/yyyy').format(e.confirmedDate!);
+    if (e.confirmedFlexible) return '$date (flexível)';
+    if (e.confirmedTime != null) return '$date às ${e.confirmedTime}';
+    return date;
   }
+  if (e.role == WorkerJobBoardRole.helper) return 'Horário a combinar';
+  return _formatDate(e.preferredDate);
 }
 
-view.WorkerJobListItemViewData _toHelperViewData(
-  HelpAcceptanceSummary a,
+/// "Pendentes" significa coisas diferentes consoante o papel: para o
+/// responsável o job ainda está `open`, a aguardar decisão do cliente; para
+/// o ajudante o job já está `confirmed` — quem decide agora é o
+/// responsável. Texto adaptado só nesse cruzamento específico; nas outras
+/// tabs os dois papéis mostram o endereço do job.
+String _secondaryLabelFor(WorkerJobBoardEntry e, view.WorkerJobsTab tab) {
+  if (e.role == WorkerJobBoardRole.helper &&
+      tab == view.WorkerJobsTab.pending) {
+    return 'Trabalho já confirmado — a aguardar decisão do responsável';
+  }
+  return e.addressText.isNotEmpty
+      ? e.addressText
+      : 'Localização não especificada';
+}
+
+String _priceLabelFor(WorkerJobBoardEntry e) {
+  if (e.role == WorkerJobBoardRole.helper) {
+    final rate = e.agreedRate ?? 0;
+    return rate > 0 ? '€${rate.toStringAsFixed(2)}/h' : 'A combinar';
+  }
+  return _formatEstimate(
+      e.hourlyRate ?? 0, e.estimatedHoursMin, e.estimatedHoursMax);
+}
+
+/// `status` guarda o valor bruto do enum específico do papel — resolve-se
+/// com `ProposalStatus` (responsável) ou `HelpAcceptanceStatus` (ajudante).
+AppStatusPresentation _statusPresentationFor(WorkerJobBoardEntry e) {
+  if (e.role == WorkerJobBoardRole.helper) {
+    return HelpAcceptanceStatus.fromValue(e.status).presentation;
+  }
+  return ProposalStatus.fromValue(e.status).presentation;
+}
+
+view.WorkerJobListItemViewData _toViewData(
+  WorkerJobBoardEntry e,
   view.WorkerJobsTab tab,
 ) {
-  // "Pendentes" tem um significado diferente para um ajudante: o job já
-  // está confirmado, não está em aberto — quem decide agora é o
-  // responsável, não o cliente. Texto secundário adaptado para não sugerir
-  // que o job ainda não tem data/cliente.
-  final secondaryLabel = tab == view.WorkerJobsTab.pending
-      ? 'Trabalho já confirmado — a aguardar decisão do responsável'
-      : (a.addressText.isNotEmpty
-          ? a.addressText
-          : 'Localização não especificada');
-
   return view.WorkerJobListItemViewData(
-    id: a.id,
-    title: a.serviceTypeName,
-    personName: a.principalName,
-    locationLabel: _helperScheduleLabel(a.confirmedDate, a.confirmedTime),
-    secondaryLabel: secondaryLabel,
-    priceLabel: a.agreedRate > 0
-        ? '€${a.agreedRate.toStringAsFixed(2)}/h'
-        : 'A combinar',
-    status: a.status.presentation,
-    role: view.WorkerJobRole.helper,
+    id: e.entryId,
+    title: e.serviceTypeName,
+    personName: e.personName,
+    locationLabel: _scheduleLabelFor(e),
+    secondaryLabel: _secondaryLabelFor(e, tab),
+    priceLabel: _priceLabelFor(e),
+    status: _statusPresentationFor(e),
+    role: e.role == WorkerJobBoardRole.helper
+        ? view.WorkerJobRole.helper
+        : view.WorkerJobRole.responsible,
   );
 }
 
-view.WorkerJobsTab? _tabFromName(String? name) {
-  return switch (name) {
-    'pending' => view.WorkerJobsTab.pending,
-    'scheduled' => view.WorkerJobsTab.scheduled,
-    'completed' => view.WorkerJobsTab.completed,
-    _ => null,
-  };
-}
-
-/// Ecrã "Os meus trabalhos" (Flow 5) — wrapper de integração que liga os
-/// providers reais (`pendingWorkerProposalsProvider`,
-/// `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`)
-/// ao componente apresentacional em `widgets/worker_jobs_view.dart`.
+/// Ecrã "Os meus trabalhos" (Flow 5) — wrapper de integração que liga o
+/// board unificado (`get_worker_job_board`, migration 0035: responsável +
+/// ajudante, filtrado/ordenado/paginado inteiramente server-side) ao
+/// componente apresentacional em `widgets/worker_jobs_view.dart`.
 class WorkerJobsScreen extends ConsumerStatefulWidget {
   const WorkerJobsScreen({
     super.key,
@@ -151,7 +124,8 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
   });
 
   /// Suporte a deep-link de notificações — ver `app_router.dart` (extra da
-  /// rota `/worker/jobs`) e `notification_handler.dart`.
+  /// rota `/worker/jobs`) e `notification_handler.dart`. Compara-se contra
+  /// `entry_id` (proposta ou candidatura), nunca `job_id`.
   final String? highlightedJobId;
   final String? initialTab;
 
@@ -164,15 +138,25 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
   String? _highlightedJobId;
   Timer? _highlightTimer;
 
-  final List<(JobProposal, JobRequest)> _additionalCompleted = [];
-  int _currentCompletedPage = 0;
-  bool _loadingMore = false;
-  bool _hasMore = true;
+  /// Paginação por tab. A página 0 vem sempre do provider (`ref.watch`);
+  /// páginas seguintes acumulam-se aqui — mesmo padrão que antes existia só
+  /// para "Concluídos", agora generalizado às 3 tabs porque
+  /// `get_worker_job_board` pagina qualquer uma delas igualmente bem.
+  final Map<view.WorkerJobsTab, int> _pageByTab = {
+    for (final t in view.WorkerJobsTab.values) t: 0,
+  };
+  final Map<view.WorkerJobsTab, List<WorkerJobBoardEntry>> _extraByTab = {
+    for (final t in view.WorkerJobsTab.values) t: [],
+  };
+  final Map<view.WorkerJobsTab, bool> _loadingMoreByTab = {
+    for (final t in view.WorkerJobsTab.values) t: false,
+  };
 
   @override
   void initState() {
     super.initState();
-    _selectedTab = _tabFromName(widget.initialTab) ?? view.WorkerJobsTab.pending;
+    _selectedTab =
+        _tabFromName(widget.initialTab) ?? view.WorkerJobsTab.pending;
     _highlightedJobId = widget.highlightedJobId;
     if (_highlightedJobId != null) {
       _highlightTimer = Timer(const Duration(milliseconds: 1300), () {
@@ -187,189 +171,116 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     super.dispose();
   }
 
+  void _resetPagination(view.WorkerJobsTab tab) {
+    _pageByTab[tab] = 0;
+    _extraByTab[tab] = [];
+    _loadingMoreByTab[tab] = false;
+  }
+
   Future<void> _onRefresh() async {
     setState(() {
-      _additionalCompleted.clear();
-      _currentCompletedPage = 0;
-      _hasMore = true;
+      for (final t in view.WorkerJobsTab.values) {
+        _resetPagination(t);
+      }
     });
-    ref.invalidate(pendingWorkerProposalsProvider);
-    ref.invalidate(scheduledWorkerProposalsProvider);
-    ref.invalidate(completedWorkerProposalsProvider(0));
+    for (final t in view.WorkerJobsTab.values) {
+      ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
+    }
     ref.invalidate(jobsInRadiusProvider);
-    ref.invalidate(myHelpAcceptancesProvider);
   }
 
   void _loadMore() {
-    if (_loadingMore || !_hasMore) return;
-    setState(() => _loadingMore = true);
-    final nextPage = _currentCompletedPage + 1;
-    ref.read(completedWorkerProposalsProvider(nextPage).future).then((raw) {
+    final tab = _selectedTab;
+    if (_loadingMoreByTab[tab] == true) return;
+    setState(() => _loadingMoreByTab[tab] = true);
+    final nextPage = (_pageByTab[tab] ?? 0) + 1;
+    ref
+        .read(workerJobBoardPageProvider((_tabParam(tab), nextPage)).future)
+        .then((page) {
       if (!mounted) return;
-      final parsed = _parseEntries(raw);
       setState(() {
-        _currentCompletedPage = nextPage;
-        _additionalCompleted.addAll(parsed);
-        _hasMore = parsed.length >= 20;
-        _loadingMore = false;
+        _pageByTab[tab] = nextPage;
+        _extraByTab[tab] = [...?_extraByTab[tab], ...page];
+        _loadingMoreByTab[tab] = false;
       });
     }).catchError((_) {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted) setState(() => _loadingMoreByTab[tab] = false);
     });
-  }
-
-  view.WorkerJobListItemViewData _toViewData(
-    JobProposal proposal,
-    JobRequest job,
-    List<ServiceType> serviceTypes,
-  ) {
-    final serviceType =
-        serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
-    final clientInfo =
-        ref.watch(clientBasicInfoProvider(job.clientId)).asData?.value;
-
-    return view.WorkerJobListItemViewData(
-      id: proposal.id,
-      title: serviceType?.name ?? '—',
-      personName: clientInfo?['full_name'] ?? '',
-      locationLabel: _scheduleLabel(job),
-      secondaryLabel: job.addressText.isNotEmpty
-          ? job.addressText
-          : 'Localização não especificada',
-      priceLabel: _formatEstimate(
-        proposal.hourlyRate,
-        proposal.estimatedHoursMin,
-        proposal.estimatedHoursMax,
-      ),
-      status: proposal.status.presentation,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final pendingAsync = ref.watch(pendingWorkerProposalsProvider);
-    final scheduledAsync = ref.watch(scheduledWorkerProposalsProvider);
-    final completedAsync = ref.watch(completedWorkerProposalsProvider(0));
-    final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
-    // Trabalhos como ajudante — lista única (RPC sem paginação, ver nota em
-    // _loadMore mais abaixo), fatiada client-side pela mesma regra de estado
-    // que as 3 tabs já usam para o papel de responsável.
-    final helperAcceptances =
-        ref.watch(myHelpAcceptancesProvider).asData?.value ??
-            const <HelpAcceptanceSummary>[];
-
-    // Reset pagination state whenever page 0 is invalidated externally
-    // (e.g. by notificationSyncProvider) so stale pages don't mix with fresh data.
-    ref.listen(completedWorkerProposalsProvider(0), (prev, next) {
-      if (next.isLoading && mounted) {
-        setState(() {
-          _additionalCompleted.clear();
-          _currentCompletedPage = 0;
-          _hasMore = true;
-        });
-      }
-    });
-
-    final selectedAsync = switch (_selectedTab) {
-      view.WorkerJobsTab.pending => pendingAsync,
-      view.WorkerJobsTab.scheduled => scheduledAsync,
-      view.WorkerJobsTab.completed => completedAsync,
+    // Página 0 das 3 tabs é sempre observada — os badges de contagem
+    // precisam do `total_count` de todas, não só da tab selecionada (mesmo
+    // comportamento que já existia antes desta refactor).
+    final page0ByTab = {
+      for (final t in view.WorkerJobsTab.values)
+        t: ref.watch(workerJobBoardPageProvider((_tabParam(t), 0))),
     };
 
-    final completedPage0 = completedAsync.asData?.value ?? const [];
+    // Reinicia a paginação de uma tab sempre que a respetiva página 0 for
+    // invalidada externamente (ex.: notificationSyncProvider), para não
+    // misturar páginas extra antigas com dados novos.
+    for (final t in view.WorkerJobsTab.values) {
+      ref.listen(workerJobBoardPageProvider((_tabParam(t), 0)), (prev, next) {
+        if (next.isLoading && mounted) {
+          setState(() => _resetPagination(t));
+        }
+      });
+    }
 
-    var entries = <(JobProposal, JobRequest)>[];
+    int totalCountFor(view.WorkerJobsTab tab) {
+      final page0 = page0ByTab[tab]!.asData?.value ?? const [];
+      return page0.isNotEmpty ? page0.first.totalCount : 0;
+    }
+
+    final selectedAsync = page0ByTab[_selectedTab]!;
     final loading = selectedAsync.isLoading && !selectedAsync.hasValue;
     final errorMessage =
         selectedAsync.hasError ? friendlyError(selectedAsync.error!) : null;
 
-    if (selectedAsync.hasValue) {
-      entries = _parseEntries(selectedAsync.value!);
-      if (_selectedTab == view.WorkerJobsTab.completed) {
-        entries = [...entries, ..._additionalCompleted];
-      }
-    }
+    final page0 = selectedAsync.asData?.value ?? const [];
+    final extra = _extraByTab[_selectedTab] ?? const [];
+    final entries = [...page0, ...extra];
+    final totalCount = totalCountFor(_selectedTab);
+    final hasMore = entries.length < totalCount;
 
-    final jobIdByProposalId = {
-      for (final entry in entries) entry.$1.id: entry.$2.id,
-    };
-
-    final principalJobs = [
-      for (final entry in entries)
-        _toViewData(entry.$1, entry.$2, serviceTypes),
-    ];
-
-    // Candidaturas de ajudante para a tab atual — fundidas na mesma lista.
-    // Ordem: propostas como responsável primeiro, ajudante depois. Não há
-    // interleaving cronológico entre as duas fontes (ver nota de paginação
-    // abaixo); dentro de cada tab isto é aceitável porque o volume por
-    // worker é baixo neste MVP.
-    final helperEntriesForTab =
-        _helperEntriesForTab(helperAcceptances, _selectedTab);
-    final helperJobIds = {for (final a in helperEntriesForTab) a.id};
-    final helperJobs = [
-      for (final a in helperEntriesForTab) _toHelperViewData(a, _selectedTab),
-    ];
-
-    final jobs = [...principalJobs, ...helperJobs];
-
-    // Contagens dos badges das tabs somam sempre os dois papéis, independente
-    // da tab selecionada (mesma forma como já eram calculadas antes, só que
-    // agora incluindo `_helperEntriesForTab` para as outras duas tabs).
-    final pendingHelperCount =
-        _helperEntriesForTab(helperAcceptances, view.WorkerJobsTab.pending)
-            .length;
-    final scheduledHelperCount =
-        _helperEntriesForTab(helperAcceptances, view.WorkerJobsTab.scheduled)
-            .length;
-    final completedHelperCount =
-        _helperEntriesForTab(helperAcceptances, view.WorkerJobsTab.completed)
-            .length;
+    final jobs = [for (final e in entries) _toViewData(e, _selectedTab)];
 
     return view.WorkerJobsScreen(
       selectedTab: _selectedTab,
-      pendingCount: (pendingAsync.asData?.value.length ?? 0) + pendingHelperCount,
-      scheduledCount:
-          (scheduledAsync.asData?.value.length ?? 0) + scheduledHelperCount,
-      completedCount: completedPage0.length +
-          _additionalCompleted.length +
-          completedHelperCount,
+      pendingCount: totalCountFor(view.WorkerJobsTab.pending),
+      scheduledCount: totalCountFor(view.WorkerJobsTab.scheduled),
+      completedCount: totalCountFor(view.WorkerJobsTab.completed),
       jobs: jobs,
       loading: loading,
       errorMessage: errorMessage,
       onRetry: () {
-        ref.invalidate(pendingWorkerProposalsProvider);
-        ref.invalidate(scheduledWorkerProposalsProvider);
-        ref.invalidate(completedWorkerProposalsProvider(0));
-        ref.invalidate(myHelpAcceptancesProvider);
+        for (final t in view.WorkerJobsTab.values) {
+          ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
+        }
       },
       onRefresh: _onRefresh,
       highlightedJobId: _highlightedJobId,
-      // Scroll infinito continua a paginar só o lado "responsável"
-      // (job_proposals via .range()). `get_my_help_acceptances` não tem
-      // LIMIT/OFFSET (ver improvements.md — B1 Fase 9); em vez de acoplar
-      // essa paginação aqui, a lista de ajudante é carregada inteira de
-      // uma vez (mesmo padrão já usado na tab "As minhas candidaturas") e
-      // fica sempre visível, por cima ou por baixo consoante a página do
-      // lado responsável já carregada. `_hasMore`/`_loadMore` não contam
-      // itens de ajudante — continuam a refletir só as páginas de
-      // `job_proposals`, por isso nunca ficam incorretos.
-      onLoadMore: _selectedTab == view.WorkerJobsTab.completed && _hasMore
-          ? _loadMore
-          : null,
-      loadingMore: _loadingMore,
+      // Scroll infinito real nas 3 tabs — a RPC pagina qualquer uma delas
+      // da mesma forma, por isso deixou de haver razão para restringir a
+      // "Concluídos" como acontecia com a paginação anterior (só do lado
+      // job_proposals). `hasMore` vem do `total_count` devolvido pela RPC
+      // (COUNT(*) OVER()), não de um heurístico de "página cheia".
+      onLoadMore: hasMore ? _loadMore : null,
+      loadingMore: _loadingMoreByTab[_selectedTab] ?? false,
       onTabSelected: (tab) => setState(() => _selectedTab = tab),
       onJobPressed: (id) {
-        if (helperJobIds.contains(id)) {
+        final entry = entries.where((e) => e.entryId == id).firstOrNull;
+        if (entry == null) return;
+        if (entry.role == WorkerJobBoardRole.helper) {
           // Ainda não existe um ecrã de detalhe próprio para o papel de
           // ajudante — reaproveita a tab "As minhas candidaturas", onde já
           // vivem as ações (Desistir, WhatsApp, avaliação).
           context.push('/worker/help-requests', extra: {'initialTabIndex': 1});
           return;
         }
-        final jobId = jobIdByProposalId[id];
-        if (jobId == null) return;
-        context.push('/worker/my-job/$id?jobId=$jobId');
+        context.push('/worker/my-job/$id?jobId=${entry.jobId}');
       },
     );
   }

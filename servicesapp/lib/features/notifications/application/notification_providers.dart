@@ -5,9 +5,24 @@ import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
+import '../../worker/application/worker_job_board_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 import '../data/notification_types.dart';
+
+/// "Os meus trabalhos" (`worker_jobs_screen.dart`) passou a ler
+/// `workerJobBoardPageProvider` (migration 0035 — board unificado
+/// responsável + ajudante) em vez das 3 tabs separadas + candidaturas.
+/// Sempre que um evento já invalidava algum desses providers antigos
+/// (mantidos vivos para o dashboard e o detalhe do job — ver
+/// `worker_dashboard_screen.dart`/`worker_my_job_detail_screen.dart`),
+/// invalida também a página 0 das 3 tabs do board, para o ecrã continuar a
+/// refletir mudanças em tempo real sem precisar de pull-to-refresh manual.
+void _invalidateWorkerJobBoard(Ref ref) {
+  ref.invalidate(workerJobBoardPageProvider(('pending', 0)));
+  ref.invalidate(workerJobBoardPageProvider(('scheduled', 0)));
+  ref.invalidate(workerJobBoardPageProvider(('completed', 0)));
+}
 
 final notificationRepositoryProvider = Provider<NotificationRepository>(
   (ref) => NotificationRepository(ref.watch(supabaseClientProvider)),
@@ -62,6 +77,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
         case NotificationType.proposalWithdrawn:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
@@ -75,6 +91,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           ref.invalidate(proposalByIdProvider);
           ref.invalidate(workerProposalForJobProvider);
           ref.invalidate(jobByIdProvider);
@@ -84,6 +101,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           ref.invalidate(proposalByIdProvider);
           ref.invalidate(workerProposalForJobProvider);
         case NotificationType.jobCancelled:
@@ -93,6 +111,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(jobByIdProvider);
         case NotificationType.rescheduleProposed:
@@ -103,6 +122,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobMarkedDone:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
@@ -112,6 +132,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
+          _invalidateWorkerJobBoard(ref);
           ref.invalidate(jobByIdProvider);
           ref.invalidate(clientJobsProvider);
           if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!));
@@ -127,6 +148,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobByIdProvider);
           ref.invalidate(myHelpAcceptancesProvider);
+          _invalidateWorkerJobBoard(ref);
         case NotificationType.helpRejected:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(myHelpAcceptancesProvider);
@@ -137,6 +159,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(helpRequestSummariesInRadiusProvider);
           ref.invalidate(helpRequestsInRadiusProvider);
           ref.invalidate(myHelpAcceptancesProvider);
+          _invalidateWorkerJobBoard(ref);
         case NotificationType.helpRequestReopened:
           debugPrint('notificationSync: invalidating for type=${notification.type}');
           // A slot reopened for a help_request the candidate was rejected from.

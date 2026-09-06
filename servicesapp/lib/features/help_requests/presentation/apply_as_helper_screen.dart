@@ -18,12 +18,20 @@ import '../application/help_request_providers.dart';
 
 /// Dados já resolvidos para preencher o formulário — montados a partir de
 /// [helpRequestSummaryByIdProvider] + [serviceTypesProvider].
+///
+/// `paymentPerHelper` é o valor devolvido pela RPC (migration 0034) para o
+/// cenário por omissão: taxa cheia se `equipmentRequired`, ou 70% da taxa
+/// caso contrário (mesma fórmula usada em
+/// `WorkerHelpRequestsLobbyScreen._suggestedRate`). Quando o equipamento não
+/// é obrigatório, o ecrã deixa o worker escolher se ainda assim leva o seu
+/// — nesse caso o pagamento sobe para a taxa cheia, derivada aqui como
+/// `paymentPerHelper / 0.7` (a RPC só devolve o valor já reduzido).
 class _ApplyViewData {
   const _ApplyViewData({
     required this.helpRequestId,
     required this.title,
     required this.responsibleName,
-    required this.paymentPerHelperLabel,
+    required this.paymentPerHelper,
     required this.scheduleLabel,
     required this.equipmentRequired,
   });
@@ -31,7 +39,7 @@ class _ApplyViewData {
   final String helpRequestId;
   final String title;
   final String responsibleName;
-  final String paymentPerHelperLabel;
+  final double paymentPerHelper;
   final String scheduleLabel;
   final bool equipmentRequired;
 }
@@ -60,11 +68,35 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
   bool _showSuccessFeedback = false;
   Timer? _successTimer;
 
+  /// Se o worker vai levar equipamento próprio. Quando o pedido exige
+  /// equipamento (`equipmentRequired == true`) isto é obrigatório e fica
+  /// bloqueado a `true` — não há escolha real, só confirmação. Quando não é
+  /// exigido, é uma escolha genuína do worker que muda o pagamento (ver
+  /// `_displayedRate`).
+  bool _bringOwnEquipment = false;
+
   /// Snapshot da última leitura válida — evita que o ecrã "desapareça" depois
   /// de submeter com sucesso, já que o submit invalida
   /// `helpRequestSummariesInRadiusProvider` (o pedido deixa de constar da
   /// lista, por já existir uma candidatura do próprio worker).
   _ApplyViewData? _snapshot;
+
+  /// `true` só na primeira vez que os dados de [helpRequestId] resolvem —
+  /// usado para inicializar `_bringOwnEquipment` sem sobrepor uma escolha
+  /// já feita pelo worker em builds seguintes.
+  String? _initializedHelpRequestId;
+
+  /// Taxa efetivamente paga: cheia se o equipamento é obrigatório, ou se o
+  /// worker escolheu trazer o seu por iniciativa própria; 70% caso
+  /// contrário. A RPC só devolve o valor já reduzido (`paymentPerHelper`)
+  /// para o cenário por omissão — a taxa cheia deriva-se dividindo por 0.7,
+  /// evitando expor `hourly_rate` bruto numa RPC pensada para descoberta.
+  double _displayedRate(_ApplyViewData data) {
+    if (data.equipmentRequired) return data.paymentPerHelper;
+    if (data.paymentPerHelper <= 0) return 0;
+    final fullRate = data.paymentPerHelper / 0.7;
+    return _bringOwnEquipment ? fullRate : data.paymentPerHelper;
+  }
 
   @override
   void dispose() {
@@ -97,9 +129,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
       helpRequestId: summary.id,
       title: serviceTypeName,
       responsibleName: summary.principalName,
-      paymentPerHelperLabel: summary.paymentPerHelper > 0
-          ? '€${summary.paymentPerHelper.toStringAsFixed(2)}/hora'
-          : 'A combinar',
+      paymentPerHelper: summary.paymentPerHelper,
       scheduleLabel: _scheduleLabel(summary.confirmedDate, summary.confirmedTime),
       equipmentRequired: summary.equipmentRequired,
     );
@@ -114,9 +144,10 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
     try {
       await ref.read(helpRequestRepositoryProvider).applyToHelpRequest(
             helpRequestId: data.helpRequestId,
-            // Mantido igual ao comportamento atual: o worker não escolhe —
-            // copia sempre a exigência do pedido. Ver nota no relatório.
-            broughtEquipment: data.equipmentRequired,
+            // Obrigatório → sempre true (bloqueado na UI). Opcional → o que
+            // o worker escolheu no _EquipmentCard.
+            broughtEquipment:
+                data.equipmentRequired ? true : _bringOwnEquipment,
             message: _messageController.text.trim().isEmpty
                 ? null
                 : _messageController.text.trim(),
@@ -156,6 +187,11 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
     final resolved = _resolveViewData();
     if (resolved != null) _snapshot = resolved;
     final data = _snapshot;
+
+    if (data != null && _initializedHelpRequestId != data.helpRequestId) {
+      _initializedHelpRequestId = data.helpRequestId;
+      _bringOwnEquipment = data.equipmentRequired;
+    }
 
     final radiusAsync = ref.watch(helpRequestSummariesInRadiusProvider);
     final hasError = data == null && radiusAsync.hasError;
@@ -257,11 +293,43 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     AppStaggeredEntrance(
                       index: 1,
-                      child: _PaymentCard(data: data),
+                      child: _PaymentCard(
+                        paymentLabel: _displayedRate(data) > 0
+                            ? '€${_displayedRate(data).toStringAsFixed(2)}/hora'
+                            : 'A combinar',
+                        scheduleLabel: data.scheduleLabel,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Equipamento',
+                            style: textTheme.titleMedium
+                                ?.copyWith(color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          _EquipmentCard(
+                            required: data.equipmentRequired,
+                            bringOwnEquipment: _bringOwnEquipment,
+                            fullRateLabel: data.paymentPerHelper > 0
+                                ? '€${(data.paymentPerHelper / 0.7).toStringAsFixed(2)}/hora'
+                                : null,
+                            reducedRateLabel: data.paymentPerHelper > 0
+                                ? '€${data.paymentPerHelper.toStringAsFixed(2)}/hora'
+                                : null,
+                            onChanged: (value) =>
+                                setState(() => _bringOwnEquipment = value),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -284,7 +352,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
-                      index: 3,
+                      index: 4,
                       child: AppTextField(
                         controller: _messageController,
                         label: 'Mensagem ao responsável (opcional)',
@@ -296,7 +364,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     AppStaggeredEntrance(
-                      index: 4,
+                      index: 5,
                       child: _InfoBox(),
                     ),
                   ],
@@ -384,9 +452,14 @@ class _JobSummaryCard extends StatelessWidget {
 }
 
 class _PaymentCard extends StatelessWidget {
-  const _PaymentCard({required this.data});
+  const _PaymentCard({
+    required this.paymentLabel,
+    required this.scheduleLabel,
+  });
 
-  final _ApplyViewData data;
+  /// Reativo à escolha de equipamento — ver `_displayedRate` no ecrã.
+  final String paymentLabel;
+  final String scheduleLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -412,10 +485,14 @@ class _PaymentCard extends StatelessWidget {
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  data.paymentPerHelperLabel,
-                  style:
-                      textTheme.displaySmall?.copyWith(color: AppColors.primary),
+                AppFadeThroughSwitcher(
+                  switchKey: paymentLabel,
+                  child: Text(
+                    paymentLabel,
+                    key: ValueKey(paymentLabel),
+                    style: textTheme.displaySmall
+                        ?.copyWith(color: AppColors.primary),
+                  ),
                 ),
               ],
             ),
@@ -432,7 +509,7 @@ class _PaymentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  data.scheduleLabel,
+                  scheduleLabel,
                   textAlign: TextAlign.end,
                   style: textTheme.titleMedium
                       ?.copyWith(color: AppColors.textPrimary),
@@ -441,6 +518,132 @@ class _PaymentCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Mostra a exigência de equipamento do pedido e, quando não é obrigatório,
+/// deixa o worker escolher se ainda assim leva o seu — essa escolha muda o
+/// pagamento mostrado em [_PaymentCard] (ver `_displayedRate`).
+class _EquipmentCard extends StatelessWidget {
+  const _EquipmentCard({
+    required this.required,
+    required this.bringOwnEquipment,
+    required this.onChanged,
+    this.fullRateLabel,
+    this.reducedRateLabel,
+  });
+
+  final bool required;
+  final bool bringOwnEquipment;
+  final ValueChanged<bool> onChanged;
+  final String? fullRateLabel;
+  final String? reducedRateLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    if (required) {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppStatusColor.waiting.background,
+          borderRadius: BorderRadius.circular(AppRadius.input),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.build, color: AppStatusColor.waiting.foreground),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Este trabalho requer equipamento próprio',
+                    style: textTheme.titleSmall?.copyWith(
+                      color: AppStatusColor.waiting.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    'Vais precisar de levar as tuas ferramentas para este trabalho.',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppStatusColor.waiting.foreground),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final subtitle = fullRateLabel != null && reducedRateLabel != null
+        ? 'Se levares, o pagamento sobe para $fullRateLabel (em vez de $reducedRateLabel).'
+        : 'Levar equipamento próprio aumenta o pagamento por hora.';
+
+    return Material(
+      color: bringOwnEquipment ? AppColors.primaryContainer : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        onTap: () => onChanged(!bringOwnEquipment),
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(
+              color:
+                  bringOwnEquipment ? AppColors.primary : AppColors.divider,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.build_outlined,
+                color: bringOwnEquipment
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vou levar o meu equipamento',
+                      style: textTheme.titleMedium
+                          ?.copyWith(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              AppFadeThroughSwitcher(
+                switchKey: bringOwnEquipment,
+                child: bringOwnEquipment
+                    ? const AppPulseScale(
+                        child: Icon(Icons.check_circle_outline,
+                            color: AppColors.primary),
+                      )
+                    : const Icon(Icons.circle_outlined,
+                        color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
