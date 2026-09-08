@@ -171,6 +171,36 @@ extension RescheduleStatusPresentationExtension on RescheduleStatus {
   }
 }
 
+extension FleetCardStatusPresentationExtension on FleetCardStatus {
+  AppStatusPresentation get presentation {
+    switch (this) {
+      case FleetCardStatus.notRequested:
+        return const AppStatusPresentation(
+          label: 'Não pedido',
+          color: AppStatusColor.neutral,
+        );
+
+      case FleetCardStatus.pending:
+        return const AppStatusPresentation(
+          label: 'Pendente',
+          color: AppStatusColor.waiting,
+        );
+
+      case FleetCardStatus.active:
+        return const AppStatusPresentation(
+          label: 'Ativo',
+          color: AppStatusColor.success,
+        );
+
+      case FleetCardStatus.rejected:
+        return const AppStatusPresentation(
+          label: 'Rejeitado',
+          color: AppStatusColor.cancelled,
+        );
+    }
+  }
+}
+
 const AppStatusPresentation urgentStatusPresentation =
     AppStatusPresentation(
   label: 'Urgente',

@@ -5,11 +5,14 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/config/app_links.dart';
+import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/worker_providers.dart';
@@ -90,6 +93,7 @@ class WorkerProfileScreen extends ConsumerWidget {
     final ratingSummaryAsync = userId == null
         ? null
         : ref.watch(ratingSummaryProvider(userId));
+    final fleetCardAsync = ref.watch(myFleetCardProvider);
 
     if (profileAsync.isLoading || serviceTypesAsync.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -127,6 +131,11 @@ class WorkerProfileScreen extends ConsumerWidget {
 
     final publicUrl = AppLinks.publicWorkerProfileUrl(userId);
 
+    final fleetCard = fleetCardAsync.asData?.value;
+    final fleetCardStatus =
+        fleetCard == null ? FleetCardStatus.notRequested : fleetCard.status;
+    final fleetCardStatusLabel = fleetCardStatus.presentation.label;
+
     return WorkerAccountScreen(
       data: WorkerAccountViewData(
         name: profile.fullName,
@@ -136,6 +145,7 @@ class WorkerProfileScreen extends ConsumerWidget {
         avatarImage: profile.avatarUrl != null
             ? NetworkImage(profile.avatarUrl!)
             : null,
+        fleetCardStatusLabel: fleetCardStatusLabel,
       ),
       onSettingsPressed: () => context.push('/worker/profile/edit'),
       onDefinitionsPressed: () => context.push('/worker/profile/edit'),
@@ -151,6 +161,7 @@ class WorkerProfileScreen extends ConsumerWidget {
         workerId: userId,
         workerName: 'As minhas avaliações',
       ),
+      onFleetCardPressed: () => context.push('/worker/fleet-card'),
       onSupportPressed: () => _showSupportSheet(context),
       onAboutPressed: () => showAboutDialog(
         context: context,

@@ -457,9 +457,10 @@ Notificação ao fim do dia: "Hoje recebeste 2 propostas, ganhaste €X."
 
 ### Pós-MVP / Dependência de parceria externa
 
-**Carteira digital de cartões (combustível/seguro)**
-Bloqueado por decisão de NEGÓCIO — precisa de pelo menos uma parceria de benefícios fechada (business_strategy.md secção 2, todas "Estado: Ideia" atualmente). Versão viável: foto do cartão + campos de texto livre, mostrado em full-screen para leitura manual. Sem integração NFC nem emissão de pagamento.
-Modelo de dados (rascunho, não implementar): `worker_benefit_cards(id, worker_id, card_type, label, photo_front_url, photo_back_url nullable, card_number nullable, created_at)`.
+**Cartão frota (combustível) — IMPLEMENTADO (dados fictícios)**
+Deixou de estar bloqueado por parceria de negócio: em vez de depender de uma integração real com um emissor de cartões frota, o worker faz OCR local ao seu próprio cartão (`google_mlkit_text_recognition`) e submete um pedido `pending` que é ativado manualmente via SQL Editor — o mesmo padrão de moderação já usado em `job_reports`. A foto nunca é enviada nem guardada em Storage; serve só para extrair `card_number`/`barcode_value`/`holder_name` e é apagada logo a seguir ao OCR, sucesso ou falha.
+Tabela: `worker_fleet_cards` (migração `0037_worker_fleet_cards.sql`, não aplicada). Sem `UPDATE` policy para `authenticated` de propósito — só admin via service role muda `status` para `active`/`rejected`, tal como em `job_reports`. Ecrã de estado ativo mostra o `barcode_value` como QR code (`qr_flutter`, já usado no cartão partilhável do worker) em vez de um 1D-barcode, para não introduzir uma dependência nova só para isto.
+Quando (e se) surgir uma parceria real de combustível/seguro, isto pode evoluir para uma integração automática (leitura NFC, emissão real) — a base ficou pronta para isso: basta trocar a ativação manual por um webhook do parceiro.
 
 ---
 

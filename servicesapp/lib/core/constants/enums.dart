@@ -172,6 +172,33 @@ enum Urgency {
   static Urgency fromString(String value) => fromValue(value);
 }
 
+/// `notRequested` não é persistido — é o caso "nenhuma linha em
+/// worker_fleet_cards para este worker". Os outros 3 espelham a coluna
+/// `status` da tabela (migration 0037).
+enum FleetCardStatus {
+  notRequested,
+  pending,
+  active,
+  rejected;
+
+  String get value => switch (this) {
+        FleetCardStatus.notRequested =>
+          throw StateError('notRequested não é persistido na BD.'),
+        FleetCardStatus.pending => 'pending',
+        FleetCardStatus.active => 'active',
+        FleetCardStatus.rejected => 'rejected',
+      };
+
+  /// `null` mapeia para `notRequested` — usar sempre que não houver linha.
+  static FleetCardStatus fromValue(String? value) => switch (value) {
+        null => FleetCardStatus.notRequested,
+        'pending' => FleetCardStatus.pending,
+        'active' => FleetCardStatus.active,
+        'rejected' => FleetCardStatus.rejected,
+        _ => throw ArgumentError('Unknown FleetCardStatus: $value'),
+      };
+}
+
 enum SizeEstimate {
   small,
   medium,

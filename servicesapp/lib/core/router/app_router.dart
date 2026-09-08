@@ -32,6 +32,9 @@ import '../../features/worker/presentation/worker_edit_profile_screen.dart';
 import '../../features/worker/presentation/worker_public_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
+import '../../features/fleet_card/presentation/fleet_card_screen.dart';
+import '../../features/fleet_card/presentation/fleet_card_scan_screen.dart';
+import '../../features/fleet_card/presentation/fleet_card_confirm_data_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
@@ -213,6 +216,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final helpRequestId = state.pathParameters['id']!;
           return ApplyAsHelperScreen(helpRequestId: helpRequestId);
+        },
+      ),
+      // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
+      // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
+      GoRoute(
+        path: '/worker/fleet-card',
+        builder: (_, _) => const FleetCardScreen(),
+      ),
+      GoRoute(
+        path: '/worker/fleet-card/scan',
+        builder: (_, _) => const FleetCardScanScreen(),
+      ),
+      GoRoute(
+        path: '/worker/fleet-card/confirm',
+        builder: (_, state) {
+          final params = state.uri.queryParameters;
+          return FleetCardConfirmDataScreen(
+            initialBarcodeNumber: params['barcode'] ?? '',
+            initialCustomerCardNumber: params['cardNumber'] ?? '',
+            initialCardHolderName: params['holderName'] ?? '',
+            barcodeWasRead: params['barcodeWasRead'] == 'true',
+          );
         },
       ),
       ShellRoute(

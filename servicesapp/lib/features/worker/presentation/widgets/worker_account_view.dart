@@ -12,6 +12,7 @@ class WorkerAccountViewData {
     required this.professionLocationLabel,
     required this.ratingLabel,
     required this.reviewsLabel,
+    required this.fleetCardStatusLabel,
     this.avatarImage,
   });
 
@@ -20,6 +21,11 @@ class WorkerAccountViewData {
 
   final String ratingLabel;
   final String reviewsLabel;
+
+  /// Já formatado pela integração (`FleetCardStatus.presentation.label` —
+  /// "Não pedido"/"Pendente"/"Ativo"/"Rejeitado"). Texto simples, não
+  /// widget: `AppAccountMenuItem.trailingLabel` só aceita `String?`.
+  final String fleetCardStatusLabel;
 
   final ImageProvider? avatarImage;
 }
@@ -32,6 +38,7 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onQrPressed,
     required this.onJobsPressed,
     required this.onReviewsPressed,
+    required this.onFleetCardPressed,
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
@@ -46,6 +53,7 @@ class WorkerAccountScreen extends StatelessWidget {
 
   final VoidCallback onJobsPressed;
   final VoidCallback onReviewsPressed;
+  final VoidCallback onFleetCardPressed;
 
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
@@ -180,6 +188,12 @@ class WorkerAccountScreen extends StatelessWidget {
                     trailingLabel:
                         '${data.ratingLabel} · ${data.reviewsLabel}',
                   ),
+                  AppAccountMenuItem(
+                    id: 'fleet_card',
+                    label: 'Cartão frota',
+                    icon: Icons.local_gas_station_outlined,
+                    trailingLabel: data.fleetCardStatusLabel,
+                  ),
                 ],
                 onItemPressed: (id) {
                   switch (id) {
@@ -187,6 +201,8 @@ class WorkerAccountScreen extends StatelessWidget {
                       onJobsPressed();
                     case 'reviews':
                       onReviewsPressed();
+                    case 'fleet_card':
+                      onFleetCardPressed();
                   }
                 },
               ),

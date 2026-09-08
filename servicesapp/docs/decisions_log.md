@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-09-08 — Cartão frota (fuel card): OCR local + aprovação manual (migration 0037)
+
+**Contexto:** item "Carteira digital de cartões" em `improvements.md` estava bloqueado por decisão de negócio (falta de parceria com emissor de cartões frota). Desbloqueado ao trocar a integração real por um fluxo com dados fictícios: o worker fotografa o seu próprio cartão, o telemóvel faz OCR local (`google_mlkit_text_recognition`), e o pedido fica `pending` até ser ativado manualmente via SQL Editor — reaproveita o padrão de moderação já existente em `job_reports`.
+
+**Nova tabela `worker_fleet_cards`** (migration `0037_worker_fleet_cards.sql`, **não aplicada**): `id, worker_id, card_number nullable, barcode_value, holder_name nullable, status ('pending'|'active'|'rejected'), created_at`. RLS: `authenticated` só tem SELECT/INSERT do próprio `worker_id`; **sem policy de UPDATE nem DELETE** — só o service role muda `status`, exatamente como em `job_reports`. Sem `UNIQUE` em `worker_id`: um pedido `rejected` seguido de "tentar novamente" cria uma nova linha em vez de fazer upsert; o repositório lê sempre a mais recente (`ORDER BY created_at DESC LIMIT 1`), preservando o histórico de tentativas.
+
+**A foto nunca é enviada nem guardada:** sem bucket de Storage novo. `FleetCardTextExtractor.extract()` corre o `TextRecognizer` sobre o ficheiro temporário do `image_picker` e apaga-o no `finally`, sucesso ou falha, antes do ecrã de scan sequer navegar para o de confirmação.
+
+**Barcode renderizado como QR (`qr_flutter`)**, não como código de barras 1D — evita introduzir uma dependência nova só para isto, reaproveitando o padrão já usado no cartão partilhável do worker (`worker_profile_screen._showQrDialog`).
+
+**Pequenos desvios face ao pedido original:** `gen_random_uuid()` → `uuid_generate_v4()` (consistência com `0001_consolidated_baseline.sql`, que usa `uuid_generate_v4()` em todas as tabelas); adicionado `CHECK (status IN (...))` e um índice em `worker_id` (convenção já usada nas outras tabelas do projeto, não estava no pedido). Ecrã de confirmação (`FleetCardConfirmDataScreen`) não tem campo `cardId` — o fluxo só cria, nunca edita (RLS bloqueia UPDATE), por isso um `cardId` sintético não teria consumidor real.
+
+`flutter analyze`: 0 issues.
+
 ## 2026-07-12 — Bug fix AppTextField multiline + reskin landing_screen
 
 **Bug fix `app_text_field.dart`:** `maxLines` alterado de `int` (não-nullable) para `int?` (nullable, default `1`). Adicionado `minLines: int?`. Ambos passados ao `TextFormField`. A versão anterior com `int` causava assertion crash quando se passava `TextInputAction.newline` sem `keyboardType: TextInputType.multiline` — o fix também exige que o caller passe os dois.
