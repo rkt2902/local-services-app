@@ -142,6 +142,46 @@ class AuthRepository {
     }
   }
 
+  // ── Confirmação de email (preparação — Confirm email ainda desativado
+  // no dashboard, ver decisions_log.md 2026-06-05) ───────────────────────
+  //
+  // Reutiliza o mesmo `_throwClassified` do fluxo de recuperação — a
+  // classificação (rede / código inválido-expirado / inesperado) não é
+  // específica de nenhum dos dois fluxos.
+
+  Future<void> resendSignupConfirmation(String email) async {
+    try {
+      await _client.auth.resend(type: OtpType.signup, email: email);
+    } catch (e) {
+      _throwClassified(e);
+    }
+  }
+
+  /// Verificação via deep link — usada por `email_confirmed_screen.dart`
+  /// quando (no futuro, com app_links instalado) a rota `/email-confirmed`
+  /// receber os parâmetros reais do template de confirmação. Aceita tanto
+  /// o padrão recomendado pelo Supabase (`token_hash` + `type`, que por si
+  /// só já satisfaz os asserts internos de `verifyOTP`) como `token` +
+  /// `email` explícitos, para cobrir uma customização diferente do
+  /// template — confirmar exatamente qual dos dois quando o deep link for
+  /// configurado a sério (ver TODO em `email_confirmed_screen.dart`).
+  Future<void> verifySignupEmail({
+    String? tokenHash,
+    String? token,
+    String? email,
+  }) async {
+    try {
+      await _client.auth.verifyOTP(
+        type: OtpType.signup,
+        tokenHash: tokenHash,
+        token: token,
+        email: email,
+      );
+    } catch (e) {
+      _throwClassified(e);
+    }
+  }
+
   /// Classifica o erro e relança sempre um [AuthException] com mensagem em
   /// português e `code` de uma das 3 tags de [PasswordResetErrorCode].
   ///

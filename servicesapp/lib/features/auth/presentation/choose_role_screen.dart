@@ -37,11 +37,10 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
       ref.read(pendingSignupProvider.notifier).clear();
-      if (_selectedRole == UserRole.client) {
-        context.go('/client/home');
-      } else {
-        context.go('/worker/setup');
-      }
+      // Preparação para confirmação de email (ver verify_email_screen.dart)
+      // — sessão continua ativa (sem signOut), o utilizador entra na app
+      // normalmente a partir dali; nada aqui bloqueia o acesso.
+      context.go('/verify-email?email=${Uri.encodeComponent(user.email ?? '')}');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

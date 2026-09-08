@@ -47,6 +47,19 @@
 			</array>
 		</dict>
 	</dict>
+	<!--
+	  TODO(confirmação de email — deep link real): quando "Confirm email"
+	  for ligado no Supabase (ver
+	  lib/features/auth/presentation/verify_email_screen.dart), o link do
+	  email de confirmação vai precisar de abrir esta app. Falta adicionar
+	  aqui uma entrada CFBundleURLTypes com um scheme customizado
+	  (ex.: projardim://email-confirmed) ou configurar Associated Domains
+	  (Universal Links, recomendado) em Runner.entitlements, mais o pacote
+	  app_links (ou uni_links) no pubspec.yaml e o handler correspondente
+	  no lado Dart. Nada disto está instalado hoje — ver TODO equivalente
+	  em android/app/src/main/AndroidManifest.xml e a nota no topo de
+	  email_confirmed_screen.dart.
+	-->
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

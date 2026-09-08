@@ -9,6 +9,8 @@ import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/auth/presentation/request_password_reset_screen.dart';
 import '../../features/auth/presentation/password_reset_screen.dart';
+import '../../features/auth/presentation/verify_email_screen.dart';
+import '../../features/auth/presentation/email_confirmed_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
@@ -86,6 +88,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final email = state.uri.queryParameters['email'] ?? '';
           return PasswordResetScreen(email: email);
+        },
+      ),
+      // Preparação para confirmação de email — ver comentário no topo de
+      // verify_email_screen.dart. Rotas públicas por serem alcançáveis com
+      // ou sem sessão (deep link futuro pode chegar sem sessão nenhuma).
+      GoRoute(
+        path: '/verify-email',
+        builder: (_, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          return VerifyEmailScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/email-confirmed',
+        builder: (_, state) {
+          final params = state.uri.queryParameters;
+          return EmailConfirmedScreen(
+            email: params['email'],
+            tokenHash: params['token_hash'],
+            token: params['token'],
+          );
         },
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
@@ -281,6 +304,8 @@ class RouterNotifier extends ChangeNotifier {
         '/onboarding',
         '/forgot-password/request',
         '/forgot-password/reset',
+        '/verify-email',
+        '/email-confirmed',
       ];
       if (publicRoutes.contains(loc)) return null;
       // Cartão digital do worker — visível sem sessão (link/QR partilhado).
@@ -314,7 +339,19 @@ class RouterNotifier extends ChangeNotifier {
     }
 
     if (role.value == 'worker' && !workerProfileComplete) {
-      if (loc == '/worker/setup') return null;
+      // Isenções de sub-fluxo: um worker recém-registado com perfil ainda
+      // incompleto passa por /verify-email antes de chegar a
+      // /worker/setup — sem esta isenção o guard empurrava-o para
+      // /worker/setup assim que sessionStatusProvider terminava de
+      // recarregar (ver verify_email_screen.dart), fazendo o ecrã piscar
+      // e desaparecer sozinho. /email-confirmed fica isento pela mesma
+      // razão (alvo do deep link futuro, também alcançável nesta janela).
+      const workerSetupExemptRoutes = [
+        '/worker/setup',
+        '/verify-email',
+        '/email-confirmed',
+      ];
+      if (workerSetupExemptRoutes.contains(loc)) return null;
       return '/worker/setup';
     }
 

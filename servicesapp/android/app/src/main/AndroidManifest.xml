@@ -29,6 +29,20 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!--
+              TODO(confirmação de email — deep link real): quando "Confirm
+              email" for ligado no Supabase (ver
+              lib/features/auth/presentation/verify_email_screen.dart), o
+              link do email de confirmação vai precisar de abrir esta app.
+              Falta adicionar aqui um segundo <intent-filter> com
+              android:autoVerify="true" (App Link https://, recomendado) ou
+              um <data android:scheme="..."/> de scheme customizado
+              (ex.: projardim://email-confirmed), mais o pacote app_links
+              (ou uni_links) no pubspec.yaml e o handler correspondente no
+              lado Dart. Nada disto está instalado hoje — ver TODO
+              equivalente em ios/Runner/Info.plist e a nota no topo de
+              email_confirmed_screen.dart.
+            -->
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
