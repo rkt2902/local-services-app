@@ -7,6 +7,8 @@ import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/choose_role_screen.dart';
+import '../../features/auth/presentation/request_password_reset_screen.dart';
+import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
@@ -67,6 +69,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/choose-role',
         builder: (_, _) => const ChooseRoleScreen(),
+      ),
+      // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
+      // /forgot-password/reset. Os passos 2-4 (verificar código, nova
+      // senha, confirmação) trocam-se dentro de PasswordResetScreen sem
+      // navegação — ver o comentário nesse ficheiro.
+      GoRoute(
+        path: '/forgot-password/request',
+        builder: (_, state) {
+          final email = state.uri.queryParameters['email'];
+          return RequestPasswordResetScreen(prefilledEmail: email);
+        },
+      ),
+      GoRoute(
+        path: '/forgot-password/reset',
+        builder: (_, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          return PasswordResetScreen(email: email);
+        },
       ),
       GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
       GoRoute(
@@ -254,7 +274,14 @@ class RouterNotifier extends ChangeNotifier {
     }
 
     if (!isAuthenticated) {
-      const publicRoutes = ['/', '/login', '/signup', '/onboarding'];
+      const publicRoutes = [
+        '/',
+        '/login',
+        '/signup',
+        '/onboarding',
+        '/forgot-password/request',
+        '/forgot-password/reset',
+      ];
       if (publicRoutes.contains(loc)) return null;
       // Cartão digital do worker — visível sem sessão (link/QR partilhado).
       if (loc.startsWith('/w/')) return null;

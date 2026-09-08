@@ -128,8 +128,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          // Password recovery not yet implemented
-                          onPressed: null,
+                          onPressed: () {
+                            final email = _emailController.text.trim();
+                            context.push(
+                              '/forgot-password/request'
+                              '${email.isNotEmpty ? '?email=${Uri.encodeComponent(email)}' : ''}',
+                            );
+                          },
                           child: Text(
                             'Esqueci-me da senha',
                             style: textTheme.labelLarge?.copyWith(

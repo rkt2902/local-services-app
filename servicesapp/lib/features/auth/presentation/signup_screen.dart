@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radius.dart';
-import '../../../core/theme/app_status_color.dart';
+import '../../../core/widgets/app_password_strength_meter.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/pending_signup_provider.dart';
-
-enum _PasswordStrength { weak, medium, good }
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -45,31 +43,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
-  _PasswordStrength get _passwordStrength {
-    final value = _passwordController.text;
-    int score = 0;
-    if (value.length >= 8) score++;
-    if (RegExp(r'[A-Z]').hasMatch(value) || RegExp(r'[0-9]').hasMatch(value)) {
-      score++;
-    }
-    if (RegExp(r'[!@#\$&*~%^()_\-+=,.?":{}|<>]').hasMatch(value)) score++;
-    if (score <= 1) return _PasswordStrength.weak;
-    if (score == 2) return _PasswordStrength.medium;
-    return _PasswordStrength.good;
-  }
-
-  String _strengthLabel(_PasswordStrength s) => switch (s) {
-        _PasswordStrength.weak => 'Fraca',
-        _PasswordStrength.medium => 'Média',
-        _PasswordStrength.good => 'Boa',
-      };
-
-  int _strengthBars(_PasswordStrength s) => switch (s) {
-        _PasswordStrength.weak => 1,
-        _PasswordStrength.medium => 2,
-        _PasswordStrength.good => 3,
-      };
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || !_acceptedTerms) return;
     await ref.read(authControllerProvider.notifier).signUp(
@@ -93,8 +66,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState is AuthLoading;
-    final strength = _passwordStrength;
-    final activeBars = _strengthBars(strength);
 
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
@@ -182,47 +153,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        validator: (v) {
-                          if ((v ?? '').isEmpty) return 'Introduza uma password.';
-                          if ((v ?? '').length < 6) return 'Mínimo 6 caracteres.';
-                          return null;
-                        },
+                        // Mesma regra em toda a app onde se pode CRIAR uma
+                        // password (aqui e no passo "nova senha" da
+                        // recuperação) — password_policy.dart é o único
+                        // sítio onde a regra vive. Login fica de fora: ali
+                        // valida-se uma password já existente, criada
+                        // possivelmente sob a regra antiga.
+                        validator: passwordPolicyValidator,
                       ),
                       if (_passwordController.text.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: List.generate(3, (i) {
-                                  final active = i < activeBars;
-                                  return Expanded(
-                                    child: Container(
-                                      height: 5,
-                                      margin: EdgeInsets.only(
-                                          right: i == 2 ? 0 : 6),
-                                      decoration: BoxDecoration(
-                                        color: active
-                                            ? AppStatusColor.success.foreground
-                                            : AppStatusColor.success.background,
-                                        borderRadius: BorderRadius.circular(
-                                            AppRadius.pill),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              _strengthLabel(strength),
-                              style: textTheme.labelLarge?.copyWith(
-                                color: AppStatusColor.success.foreground,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
+                        AppPasswordStrengthMeter(password: _passwordController.text),
                       ],
                       const SizedBox(height: 14),
                       Row(
