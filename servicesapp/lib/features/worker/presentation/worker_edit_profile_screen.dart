@@ -1,21 +1,38 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/worker_providers.dart';
+import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
+import 'widgets/worker_edit_profile_view.dart' as view;
 
 /// Formulário de edição do perfil do worker — extraído do antigo
 /// `WorkerProfileScreen` quando este passou a ser um ecrã de resumo
 /// (`WorkerAccountScreen`). Acedido via "Definições" na conta do worker.
+///
+/// Wrapper que liga os providers reais ao componente apresentacional em
+/// widgets/worker_edit_profile_view.dart — este ficheiro é o único que fala
+/// com Supabase; o widget de apresentação não sabe que Riverpod existe.
+///
+/// O formulário está organizado em 3 secções navegadas dentro do próprio
+/// ecrã (sem trocar de rota) — este wrapper é quem guarda em memória o
+/// rascunho completo (nome/telefone/bio/preço/localização/raio/serviços/
+/// ferramentas), não cada secção isoladamente. Isto garante que uma
+/// alteração feita numa secção não se perde ao navegar para outra sem
+/// gravar essa primeira — `WorkerRepository.updateProfile` reescreve sempre
+/// o perfil completo (não aceita update parcial por coluna), por isso
+/// qualquer botão "Guardar", de qualquer secção, envia sempre o estado
+/// atual de todas as outras.
 class WorkerEditProfileScreen extends ConsumerStatefulWidget {
   const WorkerEditProfileScreen({super.key});
 
@@ -26,46 +43,63 @@ class WorkerEditProfileScreen extends ConsumerStatefulWidget {
 
 class _WorkerEditProfileScreenState
     extends ConsumerState<WorkerEditProfileScreen> {
-  final _nameController = TextEditingController();
+  view.WorkerProfileEditSection _section = view.WorkerProfileEditSection.overview;
+
+  final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
   final _hourlyRateController = TextEditingController();
-  final _toolController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
 
-  int _radiusKm = 10;
-  double? _baseLat;
-  double? _baseLng;
-  bool _loadingLocation = false;
-  String? _locationError;
-  File? _newAvatar;
-  final List<String> _tools = [];
-  final List<String> _selectedServiceTypeIds = [];
-  bool _saving = false;
-  String _locationName = '';
-  bool _initialized = false;
-  bool _geocoding = false;
-  bool _showManualCoords = false;
   final _addressSearchController = TextEditingController();
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
 
+  final _toolController = TextEditingController();
+  final _serviceSearchController = TextEditingController();
+
+  bool _initialized = false;
+
+  int _radiusKm = 10;
+  double? _baseLat;
+  double? _baseLng;
+  String _locationName = '';
+  bool _showManualCoords = false;
+  bool _loadingLocation = false;
+  bool _geocoding = false;
+  String? _locationError;
+
+  File? _newAvatar;
+  final List<String> _tools = [];
+  final List<String> _selectedServiceTypeIds = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Comportamento já existente: coordenadas manuais aplicam-se a cada
+    // alteração, não só ao gravar (ver `_applyManualCoords`).
+    _latController.addListener(_applyManualCoords);
+    _lngController.addListener(_applyManualCoords);
+  }
+
   @override
   void dispose() {
-    _nameController.dispose();
+    _latController.removeListener(_applyManualCoords);
+    _lngController.removeListener(_applyManualCoords);
+    _fullNameController.dispose();
     _phoneController.dispose();
     _bioController.dispose();
     _hourlyRateController.dispose();
-    _toolController.dispose();
     _addressSearchController.dispose();
     _latController.dispose();
     _lngController.dispose();
+    _toolController.dispose();
+    _serviceSearchController.dispose();
     super.dispose();
   }
 
   void _initFields(WorkerProfile profile) {
     if (_initialized) return;
-    _nameController.text = profile.fullName;
+    _fullNameController.text = profile.fullName;
     _phoneController.text = profile.phone;
     _bioController.text = profile.bio ?? '';
     _hourlyRateController.text =
@@ -85,6 +119,8 @@ class _WorkerEditProfileScreenState
     _initialized = true;
   }
 
+  // ── Localização (idêntico ao comportamento já existente) ─────────────────
+
   Future<void> _geocodeAddress() async {
     final text = _addressSearchController.text.trim();
     if (text.isEmpty) return;
@@ -93,9 +129,8 @@ class _WorkerEditProfileScreenState
       final locations = await locationFromAddress(text);
       if (!mounted) return;
       if (locations.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Morada não encontrada.'),
-        ));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Morada não encontrada.')));
         return;
       }
       final lat = locations.first.latitude;
@@ -110,9 +145,8 @@ class _WorkerEditProfileScreenState
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao pesquisar morada.'),
-      ));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Erro ao pesquisar morada.')));
     } finally {
       if (mounted) setState(() => _geocoding = false);
     }
@@ -147,8 +181,7 @@ class _WorkerEditProfileScreenState
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        throw Exception(
-            'Permissão negada permanentemente. Ativa nas definições.');
+        throw Exception('Permissão negada permanentemente. Ativa nas definições.');
       }
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
@@ -163,12 +196,21 @@ class _WorkerEditProfileScreenState
       });
     } catch (e) {
       if (!mounted) return;
-      setState(
-          () => _locationError = e.toString().replaceAll('Exception: ', ''));
+      setState(() => _locationError = e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
     }
   }
+
+  void _toggleManualCoordinates(bool enabled) {
+    setState(() => _showManualCoords = enabled);
+  }
+
+  void _changeRadius(int value) {
+    setState(() => _radiusKm = value);
+  }
+
+  // ── Foto (idêntico ao comportamento já existente) ─────────────────────────
 
   Future<void> _pickAvatar() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -192,10 +234,22 @@ class _WorkerEditProfileScreenState
       ),
     );
     if (source == null) return;
-    final picked = await ImagePicker()
-        .pickImage(source: source, imageQuality: 70, maxWidth: 400);
+    final picked =
+        await ImagePicker().pickImage(source: source, imageQuality: 70, maxWidth: 400);
     if (!mounted) return;
     if (picked != null) setState(() => _newAvatar = File(picked.path));
+  }
+
+  // ── Serviços/ferramentas (idêntico ao comportamento já existente) ─────────
+
+  void _toggleService(String id) {
+    setState(() {
+      if (_selectedServiceTypeIds.contains(id)) {
+        _selectedServiceTypeIds.remove(id);
+      } else {
+        _selectedServiceTypeIds.add(id);
+      }
+    });
   }
 
   void _addTool() {
@@ -207,358 +261,215 @@ class _WorkerEditProfileScreenState
     });
   }
 
-  Future<void> _save(WorkerProfile current) async {
-    if (!_formKey.currentState!.validate()) return;
+  void _removeTool(String tool) {
+    setState(() => _tools.remove(tool));
+  }
+
+  // ── Navegação entre secções ────────────────────────────────────────────────
+
+  void _openSection(view.WorkerProfileEditSection section) {
+    setState(() => _section = section);
+  }
+
+  void _backToOverview() {
+    setState(() => _section = view.WorkerProfileEditSection.overview);
+  }
+
+  void _openRatings() {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    showRatingsSheet(context, workerId: userId, workerName: 'As minhas avaliações');
+  }
+
+  Future<void> _signOut() async {
+    final router = GoRouter.of(context);
+    await ref.read(authControllerProvider.notifier).signOut();
+    if (!mounted) return;
+    router.go('/');
+  }
+
+  // ── Guardar ────────────────────────────────────────────────────────────────
+
+  /// Estado atual de TODOS os campos, de todas as secções — inclui os que
+  /// não pertencem à secção que está a gravar, para nenhuma alteração feita
+  /// noutro sítio se perder (ver doc comment da classe).
+  WorkerProfile _currentDraft(WorkerProfile loaded) => loaded.copyWith(
+        fullName: _fullNameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+        defaultHourlyRate: double.tryParse(_hourlyRateController.text.trim()),
+        baseLat: _baseLat,
+        baseLng: _baseLng,
+        locationName: _locationName,
+        radiusKm: _radiusKm,
+        tools: List.of(_tools),
+        serviceTypeIds: List.of(_selectedServiceTypeIds),
+      );
+
+  Future<bool> _persist({bool uploadAvatarIfNeeded = false}) async {
+    final profile = ref.read(workerProfileProvider).value;
+    if (profile == null) return false;
+    final scaffold = ScaffoldMessenger.of(context);
+    try {
+      final repo = ref.read(workerRepositoryProvider);
+      var draft = _currentDraft(profile);
+      if (uploadAvatarIfNeeded && _newAvatar != null) {
+        final user = ref.read(currentUserProvider)!;
+        final avatarUrl = await repo.uploadAvatar(user.id, _newAvatar!);
+        draft = draft.copyWith(avatarUrl: avatarUrl);
+      }
+      await repo.updateProfile(draft);
+      ref.invalidate(workerProfileProvider);
+      return true;
+    } catch (e) {
+      if (mounted) {
+        scaffold.showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _saveOverview() => _persist(uploadAvatarIfNeeded: true);
+
+  Future<bool> _saveBaseLocation() async {
     if (_baseLat == null || _baseLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Localização em falta.'),
         backgroundColor: Colors.red,
       ));
-      return;
+      return false;
     }
-    setState(() => _saving = true);
-    try {
-      final user = ref.read(currentUserProvider)!;
-      final repo = ref.read(workerRepositoryProvider);
-      String? avatarUrl = current.avatarUrl;
-      if (_newAvatar != null) {
-        avatarUrl = await repo.uploadAvatar(user.id, _newAvatar!);
-      }
-      await repo.updateProfile(current.copyWith(
-        fullName: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        avatarUrl: avatarUrl,
-        bio: _bioController.text.trim().isEmpty
-            ? null
-            : _bioController.text.trim(),
-        defaultHourlyRate:
-            double.tryParse(_hourlyRateController.text.trim()),
-        radiusKm: _radiusKm,
-        baseLat: _baseLat,
-        baseLng: _baseLng,
-        locationName: _locationName,
-        tools: List.from(_tools),
-        serviceTypeIds: List.from(_selectedServiceTypeIds),
-      ));
-      ref.invalidate(workerProfileProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil atualizado.')),
-      );
-    } catch (e) {
-      debugPrint('[BUG1_DIAG] ${e.runtimeType}: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    return _persist();
   }
+
+  Future<bool> _saveServicesAndTools() => _persist();
+
+  String? _fullNameValidator(String? value) =>
+      (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
+
+  String? _phoneValidator(String? value) =>
+      (value == null || value.trim().isEmpty) ? 'Introduz o teu telefone.' : null;
+
+  // ── Resumos formatados ───────────────────────────────────────────────────
+
+  String get _locationSummaryLabel {
+    if (_baseLat == null || _baseLng == null) return 'Ainda não definida';
+    if (_locationName.isNotEmpty) return _locationName;
+    return '${_baseLat!.toStringAsFixed(4)}, ${_baseLng!.toStringAsFixed(4)}';
+  }
+
+  String get _coordinatesLabel => (_baseLat != null && _baseLng != null)
+      ? '${_baseLat!.toStringAsFixed(4)}, ${_baseLng!.toStringAsFixed(4)}'
+      : '';
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final profileAsync = ref.watch(workerProfileProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
+    final userId = ref.watch(currentUserProvider)?.id;
+    final ratingSummary =
+        userId == null ? null : ref.watch(ratingSummaryProvider(userId)).asData?.value;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Definições'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () async {
-              final router = GoRouter.of(context);
-              await ref.read(authControllerProvider.notifier).signOut();
-              if (!mounted) return;
-              router.go('/');
-            },
-          ),
-        ],
-      ),
-      body: profileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
-        data: (profile) {
-          if (profile == null) {
-            return const Center(child: Text('Perfil não encontrado.'));
-          }
-          _initFields(profile);
-          final avatarProvider = _newAvatar != null
-              ? FileImage(_newAvatar!) as ImageProvider
-              : (profile.avatarUrl != null
-                  ? NetworkImage(profile.avatarUrl!)
-                  : null);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: GestureDetector(
-                      onTap: _pickAvatar,
-                      child: CircleAvatar(
-                        radius: 48,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        backgroundImage: avatarProvider,
-                        child: avatarProvider == null
-                            ? Icon(Icons.person,
-                                size: 48, color: theme.colorScheme.primary)
-                            : null,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _pickAvatar,
-                      icon: const Icon(Icons.edit, size: 16),
-                      label: const Text('Alterar foto'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome completo',
-                      prefixIcon: Icon(Icons.person_outlined),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Introduz o teu nome.'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Telefone',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Introduz o teu telefone.'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _bioController,
-                    decoration: const InputDecoration(
-                      labelText: 'Apresentação (opcional)',
-                      prefixIcon: Icon(Icons.info_outline),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Localização base', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (_baseLat != null && _baseLng != null)
-                    Chip(
-                      avatar: Icon(Icons.check_circle,
-                          color: theme.colorScheme.primary),
-                      label: Text(
-                          '${_baseLat!.toStringAsFixed(4)}, ${_baseLng!.toStringAsFixed(4)}'),
-                    ),
-                  if (_locationError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(_locationError!,
-                          style:
-                              TextStyle(color: theme.colorScheme.error)),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: _loadingLocation ? null : _getLocation,
-                    icon: _loadingLocation
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.my_location),
-                    label: const Text('Atualizar localização'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _addressSearchController,
-                    decoration: InputDecoration(
-                      labelText: 'Pesquisar morada',
-                      prefixIcon: const Icon(Icons.place_outlined),
-                      suffixIcon: _geocoding
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2),
-                              ),
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.search),
-                              onPressed: _geocodeAddress,
-                            ),
-                    ),
-                    onFieldSubmitted: (_) => _geocodeAddress(),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () =>
-                        setState(() => _showManualCoords = !_showManualCoords),
-                    child: Text(_showManualCoords
-                        ? 'Ocultar coordenadas'
-                        : 'Introduzir coordenadas manualmente'),
-                  ),
-                  if (_showManualCoords) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _latController,
-                            decoration: const InputDecoration(
-                                labelText: 'Latitude'),
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true, signed: true),
-                            onChanged: (_) => _applyManualCoords(),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _lngController,
-                            decoration: const InputDecoration(
-                                labelText: 'Longitude'),
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true, signed: true),
-                            onChanged: (_) => _applyManualCoords(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  Text('Raio de atuação: $_radiusKm km',
-                      style: theme.textTheme.titleMedium),
-                  Slider(
-                    value: _radiusKm.toDouble(),
-                    min: 1,
-                    max: 50,
-                    divisions: 49,
-                    label: '$_radiusKm km',
-                    onChanged: (v) => setState(() => _radiusKm = v.round()),
-                  ),
-                  const SizedBox(height: 24),
-                  TextFormField(
-                    controller: _hourlyRateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Preço/hora (€) — opcional',
-                      prefixIcon: Icon(Icons.euro_outlined),
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Serviços que faço',
-                      style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  serviceTypesAsync.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) =>
-                        Text('Erro ao carregar serviços: ${friendlyError(e)}'),
-                    data: (types) => Wrap(
-                      spacing: 8,
-                      children: types.map((t) {
-                        final selected =
-                            _selectedServiceTypeIds.contains(t.id);
-                        return FilterChip(
-                          label: Text(t.name),
-                          selected: selected,
-                          onSelected: (v) => setState(() {
-                            if (v) {
-                              _selectedServiceTypeIds.add(t.id);
-                            } else {
-                              _selectedServiceTypeIds.remove(t.id);
-                            }
-                          }),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Ferramentas', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _toolController,
-                          decoration: const InputDecoration(
-                            labelText: 'Adicionar ferramenta',
-                            prefixIcon: Icon(Icons.build_outlined),
-                          ),
-                          onFieldSubmitted: (_) => _addTool(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                          onPressed: _addTool,
-                          icon: const Icon(Icons.add)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: _tools
-                        .map((t) => Chip(
-                              label: Text(t),
-                              onDeleted: () =>
-                                  setState(() => _tools.remove(t)),
-                            ))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 32),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      final userId = ref
-                          .read(supabaseClientProvider)
-                          .auth
-                          .currentUser
-                          ?.id;
-                      if (userId == null) return;
-                      showRatingsSheet(
-                        context,
-                        workerId: userId,
-                        workerName: 'As minhas avaliações',
-                      );
-                    },
-                    icon: const Icon(Icons.star_outline_rounded),
-                    label: const Text('Ver as minhas avaliações'),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: _saving ? null : () => _save(profile),
-                    child: _saving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Guardar alterações'),
-                  ),
-                ],
-              ),
-            ),
+    final AsyncValue<view.WorkerProfileEditViewData?> dataAsync = profileAsync.when(
+      loading: () => const AsyncValue.loading(),
+      error: AsyncValue.error,
+      data: (profile) {
+        if (profile == null) return const AsyncValue.data(null);
+        if (serviceTypesAsync.isLoading) return const AsyncValue.loading();
+        if (serviceTypesAsync.hasError) {
+          return AsyncValue.error(
+            serviceTypesAsync.error!,
+            serviceTypesAsync.stackTrace ?? StackTrace.current,
           );
-        },
-      ),
+        }
+
+        _initFields(profile);
+
+        final serviceTypes = serviceTypesAsync.value ?? const <ServiceType>[];
+        final ratingLabel =
+            ratingSummary == null ? '—' : ratingSummary.avgRating.toStringAsFixed(1);
+        final reviewsLabel = ratingSummary == null
+            ? '0 avaliações'
+            : '${ratingSummary.ratingCount} avaliações';
+
+        return AsyncValue.data(view.WorkerProfileEditViewData(
+          profileId: profile.profileId,
+          avatarImage: _newAvatar != null
+              ? FileImage(_newAvatar!) as ImageProvider
+              : (profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null),
+          locationSummaryLabel: _locationSummaryLabel,
+          locationNeedsDefinition: _baseLat == null || _baseLng == null,
+          radiusKm: _radiusKm,
+          radiusSummaryLabel: '$_radiusKm km',
+          servicesSummaryLabel: _selectedServiceTypeIds.isEmpty
+              ? 'Nenhum selecionado'
+              : '${_selectedServiceTypeIds.length} selecionados',
+          toolsSummaryLabel:
+              _tools.isEmpty ? 'Nenhuma ferramenta' : '${_tools.length} ferramentas',
+          ratingsSummaryLabel: '$ratingLabel · $reviewsLabel',
+          baseLocation: view.WorkerBaseLocationViewData(
+            manualCoordinatesEnabled: _showManualCoords,
+            isResolvingLocation: _loadingLocation || _geocoding,
+            resolvedLocationLabel: (_baseLat != null && _baseLng != null)
+                ? (_locationName.isNotEmpty ? _locationName : 'Localização definida')
+                : null,
+            resolvedCoordinatesLabel:
+                _coordinatesLabel.isEmpty ? null : _coordinatesLabel,
+            radiusKm: _radiusKm,
+            errorMessage: _locationError,
+          ),
+          servicesAndTools: view.WorkerServicesToolsViewData(
+            selectedServicesCountLabel: _selectedServiceTypeIds.isEmpty
+                ? 'Nenhum selecionado'
+                : '${_selectedServiceTypeIds.length} selecionados',
+            services: serviceTypes
+                .map((t) => view.WorkerServiceSelectionViewData(
+                      id: t.id,
+                      label: t.name,
+                      selected: _selectedServiceTypeIds.contains(t.id),
+                    ))
+                .toList(),
+            tools: List.of(_tools),
+          ),
+        ));
+      },
+    );
+
+    return view.WorkerProfileEditScreen(
+      dataAsync: dataAsync,
+      section: _section,
+      onBack: () => context.pop(),
+      onSectionBack: _backToOverview,
+      onSignOut: _signOut,
+      fullNameController: _fullNameController,
+      phoneController: _phoneController,
+      bioController: _bioController,
+      hourlyRateController: _hourlyRateController,
+      fullNameValidator: _fullNameValidator,
+      phoneValidator: _phoneValidator,
+      onChangePhoto: _pickAvatar,
+      onOpenBaseLocation: () => _openSection(view.WorkerProfileEditSection.baseLocation),
+      onOpenServicesAndTools: () =>
+          _openSection(view.WorkerProfileEditSection.servicesAndTools),
+      onOpenRatings: _openRatings,
+      onSaveOverview: _saveOverview,
+      addressSearchController: _addressSearchController,
+      latitudeController: _latController,
+      longitudeController: _lngController,
+      onUseGps: _getLocation,
+      onSubmitAddressSearch: _geocodeAddress,
+      onToggleManualCoordinates: _toggleManualCoordinates,
+      onRadiusChanged: _changeRadius,
+      onSaveBaseLocation: _saveBaseLocation,
+      serviceSearchController: _serviceSearchController,
+      toolInputController: _toolController,
+      onToggleService: _toggleService,
+      onAddTool: _addTool,
+      onRemoveTool: _removeTool,
+      onSaveServicesAndTools: _saveServicesAndTools,
+      onRetry: () => ref.invalidate(workerProfileProvider),
     );
   }
 }
