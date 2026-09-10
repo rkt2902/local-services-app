@@ -22,16 +22,16 @@
 
 ## Live DB delta
 
-The live DB still has the **pre-0032 FK targets** for `job_proposals.worker_id`
-and `help_acceptances.worker_id` (they point to `worker_profiles(profile_id)`
-instead of `profiles(id)`). Before applying 0001_consolidated_baseline to a
-**new** project this is irrelevant. To fix the **live** DB, apply:
+**UPDATE 2026-09-09:** `archive/0032_audit_fixes.sql` has been applied to the
+live DB, confirmed by the user. The live DB now has the post-0032 FK targets
+for `job_proposals.worker_id` and `help_acceptances.worker_id` (pointing to
+`profiles(id)`), matching `0001_consolidated_baseline.sql`. Migrations
+0033–0037 (worker public card, helper discovery payment/message, unified
+worker job board RPC, profiles cascade + confirm backfill, worker fleet
+cards) have also been applied — see each file's own header.
 
-```
-archive/0032_audit_fixes.sql
-```
-
-via the Supabase SQL Editor. This is tracked as NOT APPLIED as of 2026-07-09.
+No known delta between the live DB and `0001_consolidated_baseline.sql` as
+of 2026-09-09.
 
 ## Sources used for consolidation
 

@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0036_profiles_cascade_and_confirm_backfill.sql
--- NOT APLICADA — aplicar manualmente via SQL Editor.
+-- APLICADA — confirmado pelo utilizador via SQL Editor (2026-09-09).
 --
 -- Contexto: preparação para reativar "Confirm email" no Supabase no
 -- futuro (hoje desativado — ver decisions_log.md 2026-06-05: "Confirmação

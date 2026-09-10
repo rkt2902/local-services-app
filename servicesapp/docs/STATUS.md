@@ -1,160 +1,199 @@
-# LocalServices — Project Status
+# LocalServices (ProJardim) — Project Status
 
-> Snapshot honesto do estado do projeto. Atualizado em 2026-07-09.
-> Sem spin — o que funciona, o que não funciona, o que bloqueia utilizadores reais.
+> Snapshot honesto do estado do projeto. Atualizado em 2026-09-08.
+> Sem spin — o que funciona, o que não funciona, o que é placeholder, o que bloqueia utilizadores reais.
+> Esta atualização é o resultado de uma auditoria completa (código + RLS + navegação + cobertura do redesign) pedida em 2026-09-08. Auditoria só de leitura — nenhum ficheiro de código foi alterado; o registo detalhado fica no relatório dessa conversa, não replicado aqui linha a linha.
 
 ---
 
 ## O que funciona end-to-end hoje
 
-**Autenticação**
-- Registo (email + password), escolha de role, login, logout.
-- Prevenção de alteração de role após registo (trigger `tg_prevent_profile_role_change`).
+Tudo o que já estava descrito na versão anterior deste ficheiro (2026-07-09) continua válido:
+autenticação, perfil de worker, criação de pedido, descoberta de jobs, propostas, ajudantes,
+ciclo de vida do job (incl. remarcação — **RC/"Remarcação" está implementada de ponta a ponta**,
+RPCs `propose_reschedule`/`accept_reschedule`/`reject_reschedule` + UI em ambos os lados,
+`RescheduleDialog` no cliente), avaliações, notificações (19 tipos com deep-link), RLS em
+todas as tabelas.
 
-**Perfil de worker**
-- Setup com avatar, tipos de serviço, localização base (geocoding via Nominatim), raio de atuação, ferramentas.
-- Avatar: upload com compressão, cache-busting por timestamp, invalidação de provider após setup.
-- Edição posterior do perfil.
-- `worker_profiles_public` view expõe apenas campos seguros (sem `base_lat`/`base_lng`).
+**Desde 2026-07-09, adicionado:**
 
-**Criação de pedido (cliente)**
-- Serviço, morada (geocoding), data/disponibilidade/urgência/dimensão, descrição, até 2 fotos.
-- Fotos comprimidas antes do upload (máx. 800px, qualidade 60%).
+- **Rebrand completo** para "ProJardim" (nome ainda placeholder de produto, mas já não
+  "LocalServices" na UI).
+- **Redesign visual** com sistema de design próprio (`AppColors`, `AppTypography`, `AppRadius`,
+  `AppSpacing`, `AppStatusColor`/`AppStatusBadge`, motion system em `app_motion.dart`) aplicado
+  a auth, onboarding, dashboards, contas e vários sub-fluxos — cobertura detalhada na secção
+  seguinte, porque é desigual.
+- **Ecrãs de conta** (`WorkerAccountScreen`/`ClientAccountScreen`) — resumo, cartão partilhável
+  (QR via `qr_flutter`), menu de definições, "Contacto & suporte", "Sobre a app".
+- **Cartão público do worker** (`/w/:workerId`, migration 0033, view `worker_public_card`) —
+  perfil mínimo pensado para acesso sem sessão. **Nota:** a rota existe e funciona se
+  visitada, mas nada na app gera um link/QR que resolva para ela de facto — ver "Rotas órfãs".
+- **Ecrã dedicado de candidatura a ajudante** (`apply_as_helper_screen.dart`) — mostra
+  pagamento/hora e data/hora confirmada ANTES de candidatar (migration 0034).
+- **RPC única de "Os meus trabalhos"** (`get_worker_job_board`, migration 0035) — substitui a
+  fusão client-side de propostas + candidaturas por paginação e ordenação server-side.
+- **Recuperação de password** — fluxo completo com bypass de dev (`kDebugMode`), sem SMTP real.
+- **Confirmação de email** — UI pronta, mas a funcionalidade **está desativada no dashboard
+  Supabase** (decisão deliberada, ver `decisions_log.md` 2026-06-05); migration 0036 prepara o
+  terreno (cascade `profiles→auth.users`, backfill de `email_confirmed_at`) para quando for
+  ligada, mas não a liga.
+- **Cartão Frota (combustível)** — dados 100% fictícios/demo, sem parceria real. OCR local
+  (`google_mlkit_text_recognition`), a foto nunca é guardada nem enviada. Ativação de estado
+  sempre manual via SQL Editor (migration 0037). Ver `improvements.md`.
+- **Média de estrelas no perfil do worker** — item que `improvements.md` ainda lista como
+  "falta calcular e mostrar" (Fase 11 deferred) **já está implementado**: `ratingSummaryProvider`
+  alimenta tanto o ecrã de conta do próprio worker como o cartão público (`worker_public_card`
+  expõe `avg_rating`/`rating_count`). Doc desatualizado, não o código — corrigir em `improvements.md`.
 
-**Descoberta de jobs (worker)**
-- `get_jobs_in_radius` (PostgREST RPC) filtra por raio e exclui jobs onde o worker já tem proposta.
-- Mapa com ícone de localização abre Google Maps com coordenadas do job.
-- Lista + detalhe de job com `AddressMapLink`.
+---
 
-**Propostas**
-- Worker cria proposta (preço/hora, horas estimadas, data/hora, necessidade de ajuda).
-- Cliente vê lista de propostas com nome e avatar do worker.
-- Cliente aceita ou recusa; rejeição devolve o job ao mercado.
-- `create_proposal` via RPC atómica com check `auth.uid()`.
+## Cobertura do redesign visual — auditoria 2026-09-08
 
-**Ajudantes (help requests)**
-- Worker principal cria `help_request` com nº de vagas e equipamento necessário.
-- Workers próximos candidatam-se; principal aprova/rejeita via lobby.
-- `help_acceptances.status DEFAULT 'pending'` correto.
-- Ajudante vê nome do worker principal (contacto telefónico não surfacado — MVP intencional).
+39 rotas ao todo. O redesign (tokens oficiais + motion system) cobre a maior parte dos ecrãs de
+maior tráfego, mas **não é uniforme**. Critério usado: um ecrã conta como "reskinned" só se usa
+`AppColors`/`AppTypography`/`AppRadius`/`AppSpacing` de forma consistente (não apenas
+`AppStatusBadge` herdado da unificação de estados de 2026-07-12).
 
-**Ciclo de vida do job**
-- `open → confirmed → awaiting_confirmation → completed`.
-- Auto-expiração para `no_response` ao fim de 48h (pg_cron, a cada 3h).
-- Auto-confirmação para `completed` ao fim de 3 dias em `awaiting_confirmation` (pg_cron, a cada 3h).
-- Remarcação: qualquer das partes propõe, a outra aceita/rejeita.
-- Cancelamento: cliente cancela job `open` ou `confirmed` (com opção de reabertura).
+**Totalmente reskinned (tokens +, na maioria, motion system):** landing, login, signup,
+choose-role, onboarding (ver nota sobre `fontSize: 23` abaixo), verify-email,
+email-confirmed, todo o fluxo de recuperação de password (5 ecrãs), worker/client dashboards
+e contas (`worker_account_view`/`client_account_view`), `worker_jobs_view`,
+`worker_available_jobs_view`, `worker_my_job_detail_view`, `client_home_view`,
+apply-as-helper, notifications, worker_public_profile, client_create_job (3 passos),
+client_job_detail/confirmed/rate-worker, fleet card (scan/confirm/status).
 
-**Avaliações**
-- Cliente avalia worker principal (propaga a todos os ajudantes aceites).
-- Worker principal avalia cada ajudante.
-- `worker_rating_summary` view com `security_invoker = true`.
-- Avaliações visíveis no histórico de jobs.
+**NUNCA redesenhados — ainda Material 3 puro ou vintage Fase 8/9 (funcionalmente corretos,
+visualmente destoantes):**
 
-**Notificações**
-- 19 tipos de notificação com navegação deep-link correta.
-- `context.go` nos lifecycle events (elimina RT1 keyReservation crash).
-- Invalidação correta de providers ao receber cada tipo de notificação.
-- Funciona apenas com a app aberta (sem push quando em background — ver Gaps).
+| Ecrã | Rota | Nota |
+|---|---|---|
+| `client_edit_profile_screen.dart` | `/client/profile/edit` | Ficheiro **novo** (extraído do antigo `ClientProfileScreen`, doc comment próprio confirma), mas escrito em Material puro — sem `AppColors`/`AppRadius`/`PrimaryActionButton`/`AppTextField`. |
+| `worker_edit_profile_screen.dart` | `/worker/profile/edit` | Mesmo caso — nenhum import de tokens do design system. |
+| `client_jobs_screen.dart` | `/client/jobs` | Fase 8, só tocado pela unificação de `AppStatusBadge` (2026-07-12). `BorderRadius.circular(12)` hardcoded em vez de `AppRadius.input`. |
+| `worker_job_detail_screen.dart` (+ `worker_job_detail_view.dart`) | `/worker/job/:id` | Idem — só passou pela unificação de status badges. |
+| `worker_submit_proposal_screen.dart` (+ view) | `/worker/job/:id/propose` | Criado antes do motion system (commit `88286ae`), nunca revisitado. |
+| `worker_help_requests_lobby_screen.dart` | `/worker/job/:id/help-requests` | Fase 9 vintage. `TextStyle(fontSize: 16, fontWeight: bold)` hardcoded (não via `Theme.of(context).textTheme`). |
+| `worker_help_requests_screen.dart` | `/worker/help-requests` | Ganhou a funcionalidade das tabs de ajudante (2026-09-05) mas não um reskin visual. |
 
-**Segurança de dados**
-- RLS ativa em todas as tabelas.
-- `accept_proposal`, `create_proposal`, `sync_worker_service_types` com check `auth.uid()`.
-- `job_reports` restrito a participantes do job.
-- RPCs de avaliação verificam participação.
-- Alteração de role impedida por trigger.
+**Parcialmente reskinned (mistura de código novo e antigo no mesmo ficheiro):**
+
+- `client_job_detail_screen.dart` — ficheiro grande (1750+ linhas), a maior parte usa motion
+  system e tokens (integrado em `ccd293e`), mas retém `BorderRadius.circular(12)` hardcoded
+  (linha 984) e um `.copyWith(fontWeight: FontWeight.w700)` cru (linha 1755) — resíduo de
+  secções mais antigas que sobreviveram à integração.
+- `onboarding_screen.dart` — ✅ RESOLVIDO 2026-09-09: as 3 cores `Color(0xFF...)` (`0xFF888878`,
+  `0xFF111411`, `0xFF6F746D`) foram trocadas por `AppColors.textSecondary`/`textPrimary`. Fica
+  só o `fontSize: 23` literal por cima de `headlineSmall` — deixado de propósito, é uma decisão
+  de design já tomada e documentada no próprio código, não uma inconsistência.
+
+**Não é um problema (decorativo, não precisa de token):** raios de 2/4/6/8px em indicadores de
+página, splash de `InkWell`, badge circular proporcional (`app_brand_badge.dart`), e o timeline
+de estados (`status_timeline.dart`) — este último já está documentado em `improvements.md` como
+"será refeito do zero no redesign visual, não vale a pena polir agora".
+
+**Sistema de shimmer (`AppSkeletonShimmer`) usado de forma inconsistente:** só 4 ecrãs o adotam
+(`worker_dashboard`, `worker_jobs_view`, `worker_available_jobs_view`, `apply_as_helper`) — outros
+ecrãs de lista já reskinned (`client_home_view`, `worker_my_job_detail_view`) continuam a usar
+`CircularProgressIndicator` simples para o estado de loading da lista. Não é um bug, é uma
+adoção parcial do componente.
 
 ---
 
 ## Gaps conhecidos (sem spin)
 
-### ALTO — antes de mostrar a alguém fora da equipa
+### ✅ RESOLVIDO 2026-09-09 — estado de aplicação das migrations 0032–0037
 
-**Sem push notifications (FCM)**
-Notificações in-app funcionam enquanto a app está aberta (Supabase Realtime). Quando a
-app está em background ou fechada, o worker não recebe novos jobs, o cliente não recebe
-propostas. Workers ativos perdem trabalho. Bloqueador funcional real.
+Confirmado pelo utilizador: as migrations 0032 (via `archive/0032_audit_fixes.sql`) a 0037
+foram todas aplicadas manualmente via SQL Editor. Cabeçalhos atualizados em cada ficheiro,
+em `0001_consolidated_baseline.sql` e em `supabase/migrations/README.md` (secção "Live DB
+delta"). Não foi possível confirmar de forma independente por leitura direta da BD viva nesta
+sessão (sem acesso a Supabase — nem MCP, nem CLI, nem credenciais no ambiente) — esta
+confirmação assenta na palavra do utilizador, não numa query executada. `accept_proposal`
+não foi lido diretamente; se surgir dúvida futura, confirmar via SQL Editor
+(`SELECT prosrc FROM pg_proc WHERE proname = 'accept_proposal'`).
 
-**SA3 — Storage INSERT sem verificação de path**
-Qualquer utilizador autenticado pode fazer upload para qualquer path em `avatars` e
-`job-photos`. Policy de UPDATE já verifica o path; INSERT não. Risco: overwrite de avatar
-de outro utilizador. Mitigação parcial: o app só faz upload para o próprio path; sem interface
-de exploração de paths. Aceite no MVP.
+### 🟠 ALTO — antes de mostrar a alguém fora da equipa
 
-**SA2 — ratings INSERT sem verificação de participação**
-Policy `"Utilizador cria a sua avaliação"` verifica apenas `rater_id = auth.uid()`. Via
-REST direto (bypass das RPCs), qualquer utilizador autenticado pode inserir uma avaliação
-para qualquer `(job_id, ratee_id)`. As RPCs verificam participação e são o único caminho
-no código Dart. Aceite no MVP.
+(Os 4 itens já conhecidos continuam válidos e estão detalhados em `improvements.md`: push
+notifications/FCM, SA3 Storage path, SA2 ratings participação, contacto do worker principal —
+nenhum mudou de estado nesta auditoria.)
 
-**Contacto do worker principal não visível aos ajudantes**
-Ajudantes veem o nome do worker principal (via `HelpAcceptanceSummary`) mas não o seu
-contacto (telefone/WhatsApp). A regra de negócio está correta; a exibição do contacto é
-um item por implementar.
+**Rotas órfãs — declaradas, sem nenhum caminho de navegação real**
+- `/client/messages` e `/worker/messages` — só `_PlaceholderScreen('Mensagens')`. Confirmado
+  por leitura direta de `client_shell.dart` e `worker_shell.dart`: a bottom nav tem só 4 itens
+  em ambos, "Mensagens" não é um deles. `worker_shell.dart` documenta isto explicitamente no
+  seu próprio comentário ("removida da bottom nav, mas a rota continua a existir"). Nenhum
+  botão em lado nenhum da app aponta para estas duas rotas.
+- `/w/:workerId` (cartão público do worker) — a rota e o ecrã funcionam se visitados
+  diretamente, mas **nada na app gera internamente um `context.push`/`go` para lá**.
+  `AppLinks.publicWorkerProfileUrl()` só produz uma string de texto (`https://projardim.pt/w/...`)
+  usada para mostrar num QR/partilhar — como o domínio é placeholder (ver abaixo) e não há
+  universal links/deep link handler configurado, esta rota é hoje inalcançável tanto de dentro
+  como de fora da app. Não é um bug de navegação — é infraestrutura de partilha que ainda não
+  tem para onde apontar.
 
----
+### 🟡 MÉDIO — gaps de UX/segurança antes do lançamento mais amplo
 
-### MÉDIO — gaps de UX/segurança antes do lançamento mais amplo
+(Os itens já existentes em `improvements.md` — `JobStatus` labels, CHECKs em falta, validação
+de telefone, etc. — continuam válidos, sem mudança.)
 
-- Labels de `JobStatus` inconsistentes entre ecrãs (P1/A1 — 4 implementações independentes).
-- Sem CHECK constraints em `job_proposals.people_needed` e `help_requests.slots_needed`.
-- Jobs cancelados antes de qualquer proposta aceite não aparecem no histórico do cliente
-  (`acceptedProposalId = null`) — pode ser intencional, não está documentado.
-- SA1: `auto_confirm_completed_jobs` e `auto_expire_jobs` sem verificação de `auth.uid()`.
-- Validação de número de telefone fraca (aceita qualquer string, incluso "1").
-- `worker_setup_screen.dart` chama Supabase diretamente no widget (único violation arquitetural).
+- **Dois ecrãs de edição de perfil sem reskin** — `client_edit_profile_screen.dart` e
+  `worker_edit_profile_screen.dart` (ver tabela acima). Funcionalmente corretos (Supabase real,
+  upload de avatar real), visualmente Material 3 default — destoam do resto da app já
+  reskinned. Provavelmente o próximo alvo natural do redesign.
+- **`friendlyError()` vs `AuthController._mapError()` continuam por consolidar** — confirmado
+  ainda coexistem (`_mapError` privado, só 4 call sites dentro de `auth_controller.dart`;
+  `friendlyError` usado em 26 outros ficheiros). Sem sinal de urgência, mas é duplicação real.
+- **Notificações: 3 de 19 tipos usam `context.push` em vez de `context.go`**
+  (`helpRequestApproved`, `helpRequestReopened`, `helpWithdrew`) — os outros 16 usam `go`. Isto
+  é uma decisão deliberada e documentada (estes 3 casos preservam o botão de recuar de
+  propósito), não um esquecimento — mas vale a pena ter presente que a regra "notificações
+  usam go" tem exceções.
+- **Duas funções de rating sheet com nomes quase idênticos** — `rating_sheet.dart`
+  (`showRatingSheet`, singular — submeter uma avaliação nova) e `ratings_sheet.dart`
+  (`showRatingsSheet`, plural — ver avaliações já recebidas). Ambos ativamente usados, nenhum
+  é código morto, mas o nome quase igual é uma armadilha fácil ao navegar o código.
 
----
+### 🔵 BAIXO — limpeza conhecida
 
-### BAIXO — limpeza conhecida
-
-- Cores hex hardcoded divergentes do seed do tema (P2/P3).
-- Wildcard silencioso em `_HistoryCard._statusLabel` (P4).
-- Diagrama de pastas em `architecture.md` desatualizado (P7).
-- Falta CHECK `hourly_rate >= 0` em `job_proposals` (B4).
-- `estimated_hours` legacy nullable em `job_proposals` por remover (B3).
+(Os itens já existentes continuam válidos.) Achados desta auditoria, ambos já corrigidos em
+2026-09-09:
+- ✅ `_PlaceholderScreen` duplicado em `client_shell.dart` — removido, só sobra a versão
+  usada em `app_router.dart`.
+- ✅ `BorderRadius.circular(12)` hardcoded em `onboarding_screen.dart`, `client_jobs_screen.dart`
+  e `client_job_detail_screen.dart` — trocado por `AppRadius.input` (mesmo valor, 12.0, zero
+  mudança visível).
 
 ---
 
 ## Postura de segurança
 
-### O que está protegido
+### RLS — tabelas/views criadas desde 2026-07-09 (migrations 0033–0037)
 
-| Área | Mecanismo |
-|---|---|
-| Acesso a dados | RLS em todas as tabelas; sem acesso público a nenhuma |
-| Mutações críticas | SECURITY DEFINER RPCs com check `auth.uid()` |
-| Coordenadas do worker | `worker_profiles_public` view exclui `base_lat`/`base_lng` |
-| Denúncias de job | Restrito a cliente e worker com proposta aceite |
-| Avaliações | RPCs verificam participação no job |
-| Alteração de role | Trigger BEFORE UPDATE bloqueia qualquer tentativa |
-| Perfil de worker | SELECT restrito ao próprio; view pública sem coordenadas |
-
-### Riscos aceites (revisitar antes do lançamento público)
-
-| Código | Risco | Impacto real | Fix futuro |
+| Objeto | Owner-only onde aplicável? | Self-approve possível? | Nota |
 |---|---|---|---|
-| SA1 | auto_confirm/auto_expire sem check auth | Funções idempotentes; abuso = acelerar o que cron faria | `IF auth.uid() IS NULL THEN RAISE EXCEPTION` |
-| SA2 | ratings INSERT sem participação via REST | RPCs verificam; bypass requer chamada REST direta | Policy INSERT com verificação de participação |
-| SA3 | Storage INSERT sem verificação de path | Upload para path alheio possível; sem UI que exponha paths | Restringir INSERT a `own uid` no filename |
+| `worker_public_card` (view, 0033) | N/A — pensada para ser pública (`anon`+`authenticated`) | N/A | Expõe só nome/avatar/bio/zona/serviços/rating agregado. Sem telefone, sem coordenadas, sem raio, sem ferramentas — confirmado por leitura da definição. |
+| `get_help_requests_in_radius` (0034) | Sim — filtra por `auth.uid()`, sem parâmetro de identidade vindo do cliente | N/A | `jp.worker_id <> auth.uid()` e `NOT EXISTS (... ha.worker_id = auth.uid())`. |
+| `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). |
+| `get_worker_job_board` (0035) | Sim — **sem parâmetro `p_worker_id`**, só `auth.uid()` | N/A | O cabeçalho da migration cita explicitamente a 0032 como razão de desenho. |
+| `worker_fleet_cards` (0037) | Sim — SELECT/INSERT só do próprio (`worker_id = auth.uid()`) | **Não** — sem policy de UPDATE/DELETE para `authenticated`; só service role muda `status` | Mesmo padrão de moderação manual que `job_reports`. |
+
+**Conclusão da auditoria de RLS:** nenhuma migration desde a 0028 reintroduz a classe de
+vulnerabilidade corrigida em 0032 (parâmetro de identidade vindo do cliente em vez de
+`auth.uid()`). A 0032 está confirmada como aplicada à BD viva desde 2026-09-09 (ver secção
+"Gaps conhecidos" acima) — o código está certo e a correção já chegou à BD viva.
+
+### Riscos aceites (sem mudança desde 2026-07-09)
+
+SA1, SA2, SA3 — ver tabela completa em `improvements.md`. Nenhum foi corrigido nem piorado
+nesta auditoria.
 
 ---
 
 ## O que é preciso antes do primeiro utilizador real fora da equipa
 
-### Obrigatório (bloqueador)
+Sem mudanças na lista de bloqueadores desde 2026-07-09 (FCM push continua o nº 1). O item
+"confirmar se 0032–0037 estão aplicadas" foi resolvido em 2026-09-09 (ver "Gaps conhecidos").
 
-1. **FCM push notifications** — workers perdem jobs sem isto. Esforço: L (Firebase project + Edge Function). Prioridade máxima após 0032.
-
-### Recomendado (antes de ir a público)
-
-2. Validação de número de telefone (9 dígitos mínimo) , se possivel validar o telemovel com mensagem com codigo pro whatsapp pelo menos
-3. **Verificação de identidade** — serviços prestados em casa de pessoas. Upload de documento, verificação manual mínima. Sem isto, confiança zero para utilizadores externos à equipa.
-4. **Nome/marca** — "LocalServices" é placeholder. Mudar antes de qualquer exposição pública — depois é caro.
-5. **Testar em dispositivo Android real com utilizadores externos** — Run 1 e Run 2 foram executados pela equipa; cenários de utilizador novo (onboarding, first job, first proposal) precisam de validação externa.
-
-### Nice-to-have antes do lançamento
-
-6. Correção SA3 (Storage INSERT path restriction) — S.
-
-8. CHECK constraints em `people_needed`/`slots_needed` — S (migration manual).
+Ver `improvements.md` para a lista completa (FCM, validação de telefone, verificação de
+identidade, nome de marca definitivo, testes com utilizadores externos).

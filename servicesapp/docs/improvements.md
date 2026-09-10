@@ -459,7 +459,7 @@ Notificação ao fim do dia: "Hoje recebeste 2 propostas, ganhaste €X."
 
 **Cartão frota (combustível) — IMPLEMENTADO (dados fictícios)**
 Deixou de estar bloqueado por parceria de negócio: em vez de depender de uma integração real com um emissor de cartões frota, o worker faz OCR local ao seu próprio cartão (`google_mlkit_text_recognition`) e submete um pedido `pending` que é ativado manualmente via SQL Editor — o mesmo padrão de moderação já usado em `job_reports`. A foto nunca é enviada nem guardada em Storage; serve só para extrair `card_number`/`barcode_value`/`holder_name` e é apagada logo a seguir ao OCR, sucesso ou falha.
-Tabela: `worker_fleet_cards` (migração `0037_worker_fleet_cards.sql`, não aplicada). Sem `UPDATE` policy para `authenticated` de propósito — só admin via service role muda `status` para `active`/`rejected`, tal como em `job_reports`. Ecrã de estado ativo mostra o `barcode_value` como QR code (`qr_flutter`, já usado no cartão partilhável do worker) em vez de um 1D-barcode, para não introduzir uma dependência nova só para isto.
+Tabela: `worker_fleet_cards` (migração `0037_worker_fleet_cards.sql`, aplicada 2026-09-09). Sem `UPDATE` policy para `authenticated` de propósito — só admin via service role muda `status` para `active`/`rejected`, tal como em `job_reports`. Ecrã de estado ativo mostra o `barcode_value` como QR code (`qr_flutter`, já usado no cartão partilhável do worker) em vez de um 1D-barcode, para não introduzir uma dependência nova só para isto.
 Quando (e se) surgir uma parceria real de combustível/seguro, isto pode evoluir para uma integração automática (leitura NFC, emissão real) — a base ficou pronta para isso: basta trocar a ativação manual por um webhook do parceiro.
 
 ---
@@ -468,7 +468,7 @@ Quando (e se) surgir uma parceria real de combustível/seguro, isto pode evoluir
 
 As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021 — aplicar manualmente se ainda não aplicado). Ver `decisions_log.md` 2026-06-26.
 
-**Exibir média de estrelas no perfil do worker:** `fetchRatingsForProfile` já existe em `RatingRepository`. Falta calcular a média e exibi-la em `worker_profile_screen.dart` e nos cards de propostas.
+**Exibir média de estrelas no perfil do worker:** ✅ RESOLVIDO — confirmado na auditoria de 2026-09-08. `ratingSummaryProvider` já alimenta o ecrã de conta do próprio worker (`worker_profile_screen.dart` → `WorkerAccountViewData.ratingLabel`/`reviewsLabel`) e o cartão público (`worker_public_card`, migration 0033, expõe `avg_rating`/`rating_count`). **Ainda em falta:** os cards de proposta (`proposals/`) continuam sem mostrar a rating do worker — um cliente a comparar propostas não vê a nota de nenhum dos candidatos.
 
 **Resposta a avaliações:** worker responde publicamente a uma avaliação. Requer nova coluna `reply_text` na tabela `ratings` e UI dedicada.
 

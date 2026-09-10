@@ -981,7 +981,7 @@ class _ClientJobDetailScreenState
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadius.input),
                     ),
                     child: Row(
                       children: [

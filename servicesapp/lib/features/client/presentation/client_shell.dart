@@ -66,16 +66,3 @@ class ClientShell extends ConsumerWidget {
     return 0;
   }
 }
-
-// ignore: unused_element
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Em breve.')),
-      );
-}

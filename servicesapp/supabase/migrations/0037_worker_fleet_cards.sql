@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0037_worker_fleet_cards.sql
--- NOT APLICADA — aplicar manualmente via SQL Editor.
+-- APLICADA — confirmado pelo utilizador via SQL Editor (2026-09-09).
 --
 -- "Cartão Frota" — sem parceria real com nenhuma gasolineira ainda (ver
 -- improvements.md, secção "Carteira digital de cartões" — anteriormente

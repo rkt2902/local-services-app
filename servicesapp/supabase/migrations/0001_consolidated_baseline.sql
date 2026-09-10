@@ -15,11 +15,14 @@
 -- NOTE: snapshot_a.csv and snapshot_b.csv do NOT exist. All snapshot
 -- data was read from a single snapshot_tables.csv file.
 --
--- IMPORTANT: This file reproduces the schema AFTER applying 0032 fixes,
--- even though 0032 has not yet been applied to the live DB. See:
---   archive/0032_audit_fixes.sql — apply this to the live DB manually.
+-- IMPORTANT: This file reproduces the schema AFTER applying 0032 fixes.
+-- UPDATE 2026-09-09: 0032 (see archive/0032_audit_fixes.sql) has since been
+-- applied to the live DB, confirmed by the user — the live DB now matches
+-- this file's assumed shape on that point.
 --
--- NOT APPLIED — Henrique reviews and applies manually.
+-- This consolidated file itself is a reference/reproduction script for
+-- fresh Supabase projects (see README.md) — it has not been run as-is
+-- against the live production DB, nor does it need to be.
 -- ==============================================================
 
 

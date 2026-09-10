@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/address_map_link.dart';
@@ -121,7 +122,7 @@ class _JobCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () => context.push('/client/job/${job.id}'),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

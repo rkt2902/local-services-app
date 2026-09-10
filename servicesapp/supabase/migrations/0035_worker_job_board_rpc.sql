@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0035_worker_job_board_rpc.sql
--- NOT APLICADA — aplicar manualmente via SQL Editor.
+-- APLICADA — confirmado pelo utilizador via SQL Editor (2026-09-09).
 --
 -- Contexto: "Os meus trabalhos" (worker_jobs_screen.dart) mostrava 3 tabs
 -- (Pendentes/Agendados/Concluídos) alimentadas só pelo papel de responsável

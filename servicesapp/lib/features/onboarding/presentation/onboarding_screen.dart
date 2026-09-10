@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../application/onboarding_providers.dart';
 import 'widgets/onboarding_illustration.dart';
 import 'widgets/onboarding_page_indicator.dart';
@@ -160,7 +161,7 @@ class _SkipRow extends StatelessWidget {
               child: Text(
                 'Saltar',
                 style: textTheme.labelLarge?.copyWith(
-                  color: const Color(0xFF888878),
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -210,7 +211,7 @@ class _OnboardingPage extends StatelessWidget {
                 Text(
                   data.title,
                   style: textTheme.headlineSmall?.copyWith(
-                    color: const Color(0xFF111411),
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w800,
                     height: 1.16,
                     letterSpacing: -0.65,
@@ -221,7 +222,7 @@ class _OnboardingPage extends StatelessWidget {
                 Text(
                   data.description,
                   style: textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6F746D),
+                    color: AppColors.textSecondary,
                     height: 1.5,
                     letterSpacing: -0.1,
                   ),
@@ -273,7 +274,7 @@ class _BottomBar extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.input),
                 ),
               ),
               child: Text(

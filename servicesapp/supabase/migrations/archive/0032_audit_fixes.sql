@@ -28,7 +28,7 @@
 --   from 0001_baseline via interactive SQL Editor sessions. Absent from
 --   all previous migrations — DB not reproducible without them.
 --
--- NOT APPLIED — apply manually via Supabase SQL Editor.
+-- APLICADA — confirmado pelo utilizador via Supabase SQL Editor (2026-09-09).
 -- ==============================================================
 
 

@@ -1,5 +1,5 @@
 -- 0033_worker_public_card.sql
--- NOT APLICADA — aplicar manualmente via SQL Editor.
+-- APLICADA — confirmado pelo utilizador via SQL Editor (2026-09-09).
 --
 -- Suporte ao cartão digital partilhável do worker (perfil público mínimo,
 -- acessível sem sessão via link/QR). View definer-style (sem

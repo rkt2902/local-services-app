@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0034_helper_discovery_payment_and_message.sql
--- NOT APLICADA — aplicar manualmente via SQL Editor.
+-- APLICADA — confirmado pelo utilizador via SQL Editor (2026-09-09).
 --
 -- Contexto: hoje um worker candidata-se a um pedido de ajuda
 -- (get_help_requests_in_radius) sem saber quanto vai receber nem em que
