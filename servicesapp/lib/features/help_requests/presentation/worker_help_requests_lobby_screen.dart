@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/widgets/app_status_badge.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -13,18 +12,24 @@ import '../../ratings/presentation/ratings_sheet.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
+import 'widgets/worker_help_requests_lobby_view.dart';
 
-// ── Pure helper ────────────────────────────────────────────────────────────────
-
-double _suggestedRate(
-    HelpRequest hr, HelpAcceptance candidate, JobProposal? proposal) {
-  final rate = proposal?.hourlyRate ?? 0;
-  if (hr.equipmentRequired) return rate;
-  return candidate.broughtEquipment ? rate : rate * 0.7;
-}
-
-// ── Screen ────────────────────────────────────────────────────────────────────
-
+/// "Equipa" — lobby de ajudantes do worker responsável por um job.
+///
+/// Wrapper que liga os providers reais ao componente apresentacional em
+/// widgets/worker_help_requests_lobby_view.dart — este ficheiro é o único
+/// que fala com Supabase; o widget de apresentação não sabe que Riverpod
+/// existe.
+///
+/// Nota de navegação (2026-09): confirmado que hoje este ecrã só é
+/// alcançável a partir de 2 tipos de notificação (`helpRequestApproved`,
+/// `helpWithdrew`) — ambos só disparam quando já existe um `HelpRequest`
+/// para o job. Não há nenhum botão em nenhum outro ecrã que abra este
+/// lobby diretamente. Isto significa que o estado vazio ("Sem vagas neste
+/// trabalho") é hoje inalcançável através da navegação normal da app —
+/// mantido por robustez (ex.: um deep link futuro, ou se o worker chegar
+/// aqui e o único `HelpRequest` for cancelado entretanto), não porque haja
+/// um caminho real que o produza agora.
 class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
   const WorkerHelpRequestsLobbyScreen({
     super.key,
@@ -40,610 +45,209 @@ class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
 
 class _WorkerHelpRequestsLobbyScreenState
     extends ConsumerState<WorkerHelpRequestsLobbyScreen> {
-  final Map<String, bool> _actingOn = {};
+  double _suggestedRate(
+      HelpRequest hr, HelpAcceptance candidate, JobProposal? proposal) {
+    final rate = proposal?.hourlyRate ?? 0;
+    if (hr.equipmentRequired) return rate;
+    return candidate.broughtEquipment ? rate : rate * 0.7;
+  }
 
-  Future<void> _showAcceptSheet(
-    HelpRequest hr,
-    HelpAcceptance acceptance,
-    String candidateName,
-    JobProposal? proposal,
-  ) async {
-    final suggested = _suggestedRate(hr, acceptance, proposal);
-    final controller =
-        TextEditingController(text: suggested.toStringAsFixed(2));
-    bool submitting = false;
-    final scaffold = ScaffoldMessenger.of(context);
+  /// `null` quando a proposta não tem horas estimadas (o ecrã não inventa
+  /// uma duração — ver instrução original).
+  String? _estimateLabel(JobProposal? proposal, double rate) {
+    final min = proposal?.estimatedHoursMin;
+    if (min == null) return null;
+    final max = proposal?.estimatedHoursMax;
+    final minTotal = rate * min;
+    if (max == null) {
+      return '≈ ${_hours(min)}h estimadas · total aproximado a partir de '
+          '€${minTotal.toStringAsFixed(2)}';
+    }
+    final maxTotal = rate * max;
+    return '≈ ${_hours(min)}–${_hours(max)}h estimadas · total aproximado '
+        '€${minTotal.toStringAsFixed(2)}–€${maxTotal.toStringAsFixed(2)}';
+  }
 
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Aceitar candidato',
-                    style: Theme.of(ctx).textTheme.titleLarge),
-                const SizedBox(height: 6),
-                Text(candidateName,
-                    style: Theme.of(ctx).textTheme.bodyLarge),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Icon(
-                    acceptance.broughtEquipment
-                        ? Icons.build_outlined
-                        : Icons.person_outline,
-                    size: 16,
-                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    acceptance.broughtEquipment
-                        ? 'Traz equipamento'
-                        : 'Sem equipamento',
-                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-                  ),
-                ]),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Taxa acordada (€/hora)',
-                    prefixText: '€ ',
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Taxa sugerida: €${suggested.toStringAsFixed(2)}/hora',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: submitting
-                      ? null
-                      : () async {
-                          final parsed = double.tryParse(
-                            controller.text.replaceAll(',', '.'),
-                          );
-                          if (parsed != null && parsed <= 0) {
-                            scaffold.showSnackBar(const SnackBar(
-                              content: Text('A taxa deve ser maior que zero.'),
-                            ));
-                            return;
-                          }
-                          final rate = parsed ?? suggested;
-                          setSheetState(() => submitting = true);
-                          try {
-                            await ref
-                                .read(helpRequestRepositoryProvider)
-                                .acceptCandidate(
-                                  helpAcceptanceId: acceptance.id,
-                                  agreedRate: rate,
-                                );
-                            if (ctx.mounted) Navigator.pop(ctx, true);
-                          } catch (e) {
-                            setSheetState(() => submitting = false);
-                            scaffold.showSnackBar(SnackBar(
-                              content: Text(friendlyError(e)),
-                              backgroundColor: Colors.red,
-                            ));
-                          }
-                        },
-                  child: submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Confirmar'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancelar'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  String _hours(double value) =>
+      value == value.roundToDouble() ? value.toInt().toString() : value.toString();
 
-    controller.dispose();
-    if (confirmed == true) {
-      ref.invalidate(candidatesForHelpRequestProvider(hr.id));
-      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+  Future<bool> _acceptCandidate(String helpAcceptanceId, String rateInput) async {
+    final parsed = double.tryParse(rateInput.replaceAll(',', '.'));
+    if (parsed == null || parsed <= 0) return false;
+    try {
+      await ref.read(helpRequestRepositoryProvider).acceptCandidate(
+            helpAcceptanceId: helpAcceptanceId,
+            agreedRate: parsed,
+          );
+      _invalidateAfterAction();
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        );
+      }
+      return false;
     }
   }
 
-  Future<void> _confirmReject(
-    HelpRequest hr,
-    HelpAcceptance acceptance,
-    String candidateName,
-  ) async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Recusar candidato?'),
-        content: Text('Tens a certeza que queres recusar $candidateName?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Voltar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            style: TextButton.styleFrom(
-                foregroundColor: Theme.of(dialogCtx).colorScheme.error),
-            child: const Text('Recusar'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true || !mounted) return;
-
-    setState(() => _actingOn[acceptance.id] = true);
+  Future<bool> _rejectCandidate(String helpAcceptanceId) async {
     try {
-      await ref
-          .read(helpRequestRepositoryProvider)
-          .rejectHelpCandidate(acceptance.id);
-      ref.invalidate(candidatesForHelpRequestProvider(hr.id));
-      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+      await ref.read(helpRequestRepositoryProvider).rejectHelpCandidate(helpAcceptanceId);
+      _invalidateAfterAction();
+      return true;
     } catch (e) {
       if (mounted) {
-        scaffold.showSnackBar(SnackBar(
-          content: Text(friendlyError(e)),
-          backgroundColor: Colors.red,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        );
       }
-    } finally {
-      if (mounted) setState(() => _actingOn.remove(acceptance.id));
+      return false;
     }
+  }
+
+  void _invalidateAfterAction() {
+    ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+    final helpRequests = ref.read(helpRequestsForJobProvider(widget.jobId)).value ?? [];
+    for (final hr in helpRequests) {
+      ref.invalidate(candidatesForHelpRequestProvider(hr.id));
+    }
+  }
+
+  String? _rateValidator(String? value) {
+    final parsed = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+    if (parsed == null || parsed <= 0) return 'A taxa deve ser maior que zero.';
+    return null;
+  }
+
+  void _viewRatings(String workerId, String name) {
+    showRatingsSheet(context, workerId: workerId, workerName: name);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final workerAsync = ref.watch(workerProfileProvider);
     final proposalAsync = ref.watch(acceptedProposalForJobProvider(widget.jobId));
     final proposal = proposalAsync.asData?.value;
-    final helpRequestsAsync =
-        ref.watch(helpRequestsForJobProvider(widget.jobId));
+    final helpRequestsAsync = ref.watch(helpRequestsForJobProvider(widget.jobId));
     final helpRequests = helpRequestsAsync.asData?.value ?? [];
 
     var anyLoading = helpRequestsAsync.isLoading;
-    Object? anyError =
-        helpRequestsAsync.hasError ? helpRequestsAsync.error : null;
-    final candidatesByHr = <String, List<HelpAcceptance>>{};
+    Object? anyError = helpRequestsAsync.hasError ? helpRequestsAsync.error : null;
+    StackTrace? anyStack = helpRequestsAsync.hasError ? helpRequestsAsync.stackTrace : null;
 
+    final candidatesByHr = <String, List<HelpAcceptance>>{};
     for (final hr in helpRequests) {
       final cAsync = ref.watch(candidatesForHelpRequestProvider(hr.id));
       if (cAsync.isLoading) anyLoading = true;
-      if (cAsync.hasError) anyError ??= cAsync.error;
+      if (cAsync.hasError) {
+        anyError ??= cAsync.error;
+        anyStack ??= cAsync.stackTrace;
+      }
       candidatesByHr[hr.id] = cAsync.asData?.value ?? [];
     }
 
+    final AsyncValue<WorkerHelpLobbyViewData> dataAsync;
     if (anyLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Equipa')),
-        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
-      );
-    }
+      dataAsync = const AsyncValue.loading();
+    } else if (anyError != null) {
+      dataAsync = AsyncValue.error(anyError, anyStack ?? StackTrace.current);
+    } else {
+      final workerProfile = workerAsync.asData?.value;
 
-    if (anyError != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Equipa')),
-        body: SafeArea(child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(friendlyError(anyError)),
-          ),
-        )),
-      );
-    }
+      final sections = <HelpRequestSectionViewData>[];
+      for (final hr in helpRequests) {
+        final all = List<HelpAcceptance>.from(candidatesByHr[hr.id] ?? [])
+          ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final accepted =
+            all.where((c) => c.status == HelpAcceptanceStatus.accepted).toList();
+        final pending =
+            all.where((c) => c.status == HelpAcceptanceStatus.pending).toList();
+        // Guarda defensiva: se accepted_count >= slots_needed o backend
+        // (migration 0017) já auto-rejeitou os pending restantes. Evita
+        // mostrar "Aceitar" acionável na janela breve antes do refetch.
+        final isFilled = accepted.length >= hr.slotsNeeded;
+        final isAwaitingApproval = hr.status == HelpRequestStatus.pendingApproval;
 
-    final workerProfile = workerAsync.asData?.value;
-
-    // Build per-HR section widgets
-    final sectionWidgets = <Widget>[];
-    for (final hr in helpRequests) {
-      final all = List<HelpAcceptance>.from(candidatesByHr[hr.id] ?? [])
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final accepted =
-          all.where((c) => c.status == HelpAcceptanceStatus.accepted).toList();
-      final pending =
-          all.where((c) => c.status == HelpAcceptanceStatus.pending).toList();
-      // Defensive client-side guard: if accepted_count >= slots_needed the
-      // backend (migration 0017) will have already auto-rejected remaining
-      // pending candidates. The guard prevents accept-button rendering in the
-      // brief window between the action and the provider invalidation/refetch.
-      final isFilled = accepted.length >= hr.slotsNeeded;
-
-      sectionWidgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Slot count summary
-            Text(
-              '${accepted.length} de ${hr.slotsNeeded} '
-              'vaga${hr.slotsNeeded == 1 ? '' : 's'} '
+        sections.add(HelpRequestSectionViewData(
+          helpRequestId: hr.id,
+          displayMode: isAwaitingApproval
+              ? WorkerHelpSectionDisplayMode.awaitingClientApproval
+              : (isFilled
+                  ? WorkerHelpSectionDisplayMode.filled
+                  : WorkerHelpSectionDisplayMode.active),
+          statusPresentation: hr.status.presentation,
+          filledPlacesLabel:
+              '${accepted.length} de ${hr.slotsNeeded} vaga${hr.slotsNeeded == 1 ? '' : 's'} '
               'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
-              style: theme.textTheme.titleMedium,
-            ),
-
-            if (hr.status == HelpRequestStatus.pendingApproval) ...[
-              const SizedBox(height: 6),
-              Text(
-                'A aguardar aprovação do cliente.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          filledProgress: hr.slotsNeeded == 0 ? 0 : accepted.length / hr.slotsNeeded,
+          acceptedHelpers: accepted
+              .map((c) => WorkerAcceptedHelperViewData(
+                    workerId: c.workerId,
+                    name: c.fullName ?? 'Sem nome',
+                    avatarUrl: c.avatarUrl,
+                    ratingLabel: _ratingLabelFor(c.workerId),
+                    equipmentLabel:
+                        c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
+                    rateLabel: c.agreedRate > 0
+                        ? '€${c.agreedRate.toStringAsFixed(2)}/hora'
+                        : null,
+                    statusPresentation: c.status.presentation,
+                  ))
+              .toList(),
+          pendingCandidates: pending.map((c) {
+            final suggested = _suggestedRate(hr, c, proposal);
+            return WorkerHelpCandidateViewData(
+              applicationId: c.id,
+              workerId: c.workerId,
+              name: c.fullName ?? 'Sem nome',
+              avatarUrl: c.avatarUrl,
+              ratingLabel: _ratingLabelFor(c.workerId),
+              equipmentLabel: c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
+              statusPresentation: c.status.presentation,
+              actionsBlocked: isFilled || isAwaitingApproval,
+              blockedReasonLabel: isFilled
+                  ? 'Vagas já preenchidas.'
+                  : (isAwaitingApproval ? 'Aguarda aprovação do cliente.' : null),
+              acceptance: AcceptHelperViewData(
+                initialRateInput: suggested.toStringAsFixed(2),
+                suggestedRateLabel: 'Sugerido: €${suggested.toStringAsFixed(2)}/hora',
+                estimateLabel: _estimateLabel(proposal, suggested),
               ),
-            ],
+            );
+          }).toList(),
+        ));
+      }
 
-            // Accepted candidates
-            if (accepted.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text('Aceites',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 8),
-              ...accepted.map((c) => _CandidateCard(
-                    acceptance: c,
-                    candidateName: c.fullName ?? 'Sem nome',
-                    candidateAvatarUrl: c.avatarUrl,
-                    isActing: _actingOn[c.id] == true,
-                    isAccepted: true,
-                    isActionable: false,
-                    onAccept: null,
-                    onReject: null,
-                  )),
-            ],
-
-            // Pending candidates — all shown as individual actionable list items.
-            // Any candidate with status = pending is acceptable as long as
-            // accepted_count < slots_needed; arrival order does not matter.
-            if (pending.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text('Por decidir',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 8),
-              ...pending.map((c) {
-                final isActing = _actingOn[c.id] == true;
-                final isActionable = !isFilled && !isActing;
-                final name = c.fullName ?? 'Sem nome';
-                return _CandidateCard(
-                  acceptance: c,
-                  candidateName: name,
-                  candidateAvatarUrl: c.avatarUrl,
-                  isActing: isActing,
-                  isAccepted: false,
-                  isActionable: isActionable,
-                  onAccept: isActionable
-                      ? () => _showAcceptSheet(hr, c, name, proposal)
-                      : null,
-                  // Reject remains available regardless of slot status.
-                  onReject: !isActing ? () => _confirmReject(hr, c, name) : null,
-                );
-              }),
-            ],
-
-            if (accepted.isEmpty && pending.isEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Sem candidatos ainda.',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-          ],
-        ),
+      dataAsync = AsyncValue.data(WorkerHelpLobbyViewData(
+        jobReferenceLabel:
+            'Job #${widget.jobId.length >= 8 ? widget.jobId.substring(0, 8) : widget.jobId}',
+        responsibleName: workerProfile?.fullName ?? '',
+        responsibleAvatarUrl: workerProfile?.avatarUrl,
+        sections: sections,
       ));
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Equipa')),
-      body: SafeArea(child: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(helpRequestsForJobProvider(widget.jobId));
-          for (final hr in helpRequests) {
-            ref.invalidate(candidatesForHelpRequestProvider(hr.id));
-          }
-        },
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _PrincipalHeader(
-                avatarUrl: workerProfile?.avatarUrl,
-                name: workerProfile?.fullName ?? '',
-                jobId: widget.jobId,
-              ),
-            ),
-
-            if (helpRequests.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      'Nenhuma vaga de ajudante para este trabalho.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              )
-            else
-              SliverList(
-                delegate: SliverChildListDelegate([
-                  ...sectionWidgets,
-                  const SizedBox(height: 40),
-                ]),
-              ),
-          ],
-        ),
-      )),
+    return WorkerHelpRequestsLobbyView(
+      dataAsync: dataAsync,
+      onBack: () => context.pop(),
+      onRequestHelpers: () => context.pop(),
+      onAcceptCandidate: _acceptCandidate,
+      onRejectCandidate: _rejectCandidate,
+      onViewRatings: _viewRatings,
+      rateValidator: _rateValidator,
+      onRetry: () {
+        ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+        for (final hr in helpRequests) {
+          ref.invalidate(candidatesForHelpRequestProvider(hr.id));
+        }
+      },
     );
   }
-}
 
-// ── Principal header ───────────────────────────────────────────────────────────
-
-class _PrincipalHeader extends StatelessWidget {
-  const _PrincipalHeader({
-    required this.avatarUrl,
-    required this.name,
-    required this.jobId,
-  });
-
-  final String? avatarUrl;
-  final String name;
-  final String jobId;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-    final initials = name.isNotEmpty ? name.trim()[0].toUpperCase() : '?';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      color: theme.colorScheme.surfaceContainerLow,
-      child: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
-                backgroundColor: theme.colorScheme.primary,
-                child: hasAvatar
-                    ? null
-                    : Text(
-                        initials,
-                        style: theme.textTheme.headlineMedium
-                            ?.copyWith(color: Colors.white),
-                      ),
-              ),
-              Positioned(
-                bottom: -4,
-                right: -4,
-                child: CircleAvatar(
-                  radius: 12,
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  child: const Icon(Icons.star, size: 14),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            name.isNotEmpty ? name : 'Tu',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Responsável · Job #${jobId.length >= 8 ? jobId.substring(0, 8) : jobId}',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Candidate card ─────────────────────────────────────────────────────────────
-
-class _CandidateCard extends ConsumerWidget {
-  const _CandidateCard({
-    required this.acceptance,
-    required this.candidateName,
-    this.candidateAvatarUrl,
-    required this.isActing,
-    required this.isAccepted,
-    required this.isActionable,
-    required this.onAccept,
-    required this.onReject,
-  });
-
-  final HelpAcceptance acceptance;
-  final String candidateName;
-  final String? candidateAvatarUrl;
-  final bool isActing;
-  final bool isAccepted;
-  final bool isActionable;
-  final VoidCallback? onAccept;
-  final VoidCallback? onReject;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final ratingSummary =
-        ref.watch(ratingSummaryProvider(acceptance.workerId)).asData?.value;
-
-    final hasAvatar =
-        candidateAvatarUrl != null && candidateAvatarUrl!.isNotEmpty;
-    final initial = candidateName.isNotEmpty
-        ? candidateName.trim()[0].toUpperCase()
-        : '?';
-
-    final Color avatarBg = isActing
-        ? theme.colorScheme.surfaceContainerHighest
-        : acceptance.status.presentation.color.background;
-
-    final Color avatarFg = acceptance.status.presentation.color.foreground;
-
-    Widget avatar = CircleAvatar(
-      radius: 22,
-      backgroundColor: avatarBg,
-      backgroundImage:
-          hasAvatar && !isActing ? NetworkImage(candidateAvatarUrl!) : null,
-      child: isActing
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: theme.colorScheme.primary),
-            )
-          : hasAvatar
-              ? null
-              : Text(
-                  initial,
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: avatarFg),
-                ),
-    );
-
-    if (acceptance.broughtEquipment) {
-      avatar = Stack(
-        clipBehavior: Clip.none,
-        children: [
-          avatar,
-          Positioned(
-            bottom: -2,
-            right: -2,
-            child: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.primary,
-              ),
-              child: const Icon(Icons.build, size: 8, color: Colors.white),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            avatar,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    candidateName,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  if (ratingSummary != null && ratingSummary.ratingCount > 0)
-                    GestureDetector(
-                      onTap: () => showRatingsSheet(
-                        context,
-                        workerId: acceptance.workerId,
-                        workerName: candidateName,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star_rounded,
-                              size: 12, color: Colors.amber),
-                          const SizedBox(width: 2),
-                          Text(
-                            ratingSummary.avgRating.toStringAsFixed(1),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 2),
-                  Text(
-                    acceptance.broughtEquipment
-                        ? 'Traz equipamento'
-                        : 'Sem equipamento',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 6),
-                  AppStatusBadge.fromPresentation(
-                    presentation: acceptance.status.presentation,
-                  ),
-                  if (isAccepted && acceptance.agreedRate > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '€${acceptance.agreedRate.toStringAsFixed(2)}/hora',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppStatusColor.success.foreground,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (isAccepted)
-              Icon(Icons.check_circle,
-                  color: AppStatusColor.success.foreground, size: 22),
-            if (!isAccepted && !isActing) ...[
-              if (onAccept != null)
-                TextButton(
-                  onPressed: onAccept,
-                  child: const Text('Aceitar'),
-                ),
-              if (onReject != null)
-                IconButton(
-                  onPressed: onReject,
-                  icon: Icon(Icons.close,
-                      color: theme.colorScheme.error, size: 20),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
+  String? _ratingLabelFor(String workerId) {
+    final summary = ref.watch(ratingSummaryProvider(workerId)).asData?.value;
+    if (summary == null || summary.ratingCount == 0) return null;
+    return summary.avgRating.toStringAsFixed(1);
   }
 }
