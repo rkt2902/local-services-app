@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
@@ -97,7 +97,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
           ? job.addressText
           : 'Localização não especificada',
       distanceLabel: distanceLabel,
-      deadlineLabel: _deadlineLabel(job),
+      deadlineLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),
       areaLabel: _areaLabel(job),
       // O MVP não tem orçamento no pedido (só nasce quando um worker
       // propõe) — mesma decisão já usada no dashboard e na lista de
@@ -124,27 +124,6 @@ class WorkerJobDetailScreen extends ConsumerWidget {
               )
           : () => context.push('/worker/job/$jobId/propose'),
     );
-  }
-}
-
-/// O pedido nunca tem hora, só data (ou flexível, ou texto livre) — ver
-/// docs (JobRequest.preferredDate é DateTime sem componente de hora útil).
-String _deadlineLabel(JobRequest job) {
-  switch (job.dateMode) {
-    case DateMode.fixed:
-      final date = job.preferredDate;
-      if (date == null) return 'Data a combinar';
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final tomorrow = today.add(const Duration(days: 1));
-      final target = DateTime(date.year, date.month, date.day);
-      if (target == today) return 'Hoje';
-      if (target == tomorrow) return 'Amanhã';
-      return DateFormat('dd/MM/yyyy').format(date);
-    case DateMode.flexible:
-      return 'Flexível';
-    case DateMode.availability:
-      return 'Ver disponibilidade';
   }
 }
 

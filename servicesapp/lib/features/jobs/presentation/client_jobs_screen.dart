@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/theme/app_radius.dart';
-import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/address_map_link.dart';
-import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/utils/date_labels.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
+import 'widgets/client_jobs_view.dart' as view;
 
+/// "Os meus pedidos" (cliente).
+///
+/// Wrapper que liga `clientJobsProvider`/`serviceTypesProvider` ao
+/// componente apresentacional em widgets/client_jobs_view.dart — este
+/// ficheiro é o único que fala com Supabase; o widget de apresentação não
+/// sabe que Riverpod existe.
+///
+/// Nota de path: o documento de referência assumia
+/// `features/client/presentation/client_jobs_screen.dart`; o ficheiro real
+/// sempre viveu em `features/jobs/presentation/` (é aqui que o resto do
+/// domínio de jobs do cliente já está — `client_job_detail_screen.dart`,
+/// `client_job_confirmed_screen.dart`). Mantive o path real, só adaptei o
+/// conteúdo.
 class ClientJobsScreen extends ConsumerWidget {
   const ClientJobsScreen({super.key});
 
@@ -20,147 +30,78 @@ class ClientJobsScreen extends ConsumerWidget {
     final jobsAsync = ref.watch(clientJobsProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Os meus pedidos'),
-          bottom: const TabBar(
-            tabs: [Tab(text: 'Ativos'), Tab(text: 'Histórico')],
-          ),
-        ),
-        body: jobsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erro: $e')),
-          data: (jobs) => serviceTypesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text(friendlyError(e))),
-            data: (serviceTypes) {
-              final activeJobs = jobs
-                  .where((j) =>
-                      j.status == JobStatus.open ||
-                      j.status == JobStatus.confirmed ||
-                      j.status == JobStatus.awaitingConfirmation)
-                  .toList();
-              final historyJobs = jobs
-                  .where((j) =>
-                      j.status == JobStatus.completed ||
-                      j.status == JobStatus.noResponse ||
-                      (j.status == JobStatus.cancelled &&
-                          j.acceptedProposalId != null))
-                  .toList();
-              return TabBarView(
-                children: [
-                  _JobList(
-                    jobs: activeJobs,
-                    serviceTypes: serviceTypes,
-                    emptyText: 'Ainda não tens pedidos ativos.',
-                  ),
-                  _JobList(
-                    jobs: historyJobs,
-                    serviceTypes: serviceTypes,
-                    emptyText: 'Sem histórico.',
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+    final AsyncValue<view.ClientJobsViewData> dataAsync = jobsAsync.when(
+      loading: () => const AsyncValue.loading(),
+      error: AsyncValue.error,
+      data: (jobs) {
+        if (serviceTypesAsync.isLoading) return const AsyncValue.loading();
+        if (serviceTypesAsync.hasError) {
+          return AsyncValue.error(
+            serviceTypesAsync.error!,
+            serviceTypesAsync.stackTrace ?? StackTrace.current,
+          );
+        }
+        final serviceTypes = serviceTypesAsync.value ?? const <ServiceType>[];
+
+        // Condições exatas de sempre — P-8-8 (jobs cancelados sem proposta
+        // aceite ficam invisíveis nas duas tabs) é uma decisão de produto
+        // pendente, não corrigida aqui.
+        final activeJobs = jobs
+            .where((j) =>
+                j.status == JobStatus.open ||
+                j.status == JobStatus.confirmed ||
+                j.status == JobStatus.awaitingConfirmation)
+            .toList();
+        final historyJobs = jobs
+            .where((j) =>
+                j.status == JobStatus.completed ||
+                j.status == JobStatus.noResponse ||
+                (j.status == JobStatus.cancelled && j.acceptedProposalId != null))
+            .toList();
+
+        view.ClientJobListItemViewData mapJob(JobRequest job) {
+          final serviceName = serviceTypes
+                  .where((t) => t.id == job.serviceTypeId)
+                  .map((t) => t.name)
+                  .firstOrNull ??
+              'Desconhecido';
+
+          return view.ClientJobListItemViewData(
+            jobId: job.id,
+            title: serviceName,
+            addressText: job.addressText,
+            locationLat: job.locationLat,
+            locationLng: job.locationLng,
+            dateLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),
+            // Sem mapeamento por serviço — mesma decisão já usada em
+            // worker_job_detail_screen.dart (o MVP não tem ícone por
+            // categoria, só o genérico de jardinagem).
+            serviceIcon: Icons.yard_outlined,
+            statusPresentation:
+                job.status.presentation(proposalCount: job.proposalCount),
+            secondaryStatusPresentation: job.rescheduleStatus == RescheduleStatus.pending
+                ? RescheduleStatus.pending.presentation
+                : null,
+          );
+        }
+
+        return AsyncValue.data(view.ClientJobsViewData(
+          activeTabLabel: 'Ativos · ${activeJobs.length}',
+          historyTabLabel: 'Histórico · ${historyJobs.length}',
+          activeJobs: activeJobs.map(mapJob).toList(),
+          historyJobs: historyJobs.map(mapJob).toList(),
+        ));
+      },
     );
-  }
-}
 
-class _JobList extends StatelessWidget {
-  const _JobList({
-    required this.jobs,
-    required this.serviceTypes,
-    required this.emptyText,
-  });
-
-  final List<JobRequest> jobs;
-  final List<ServiceType> serviceTypes;
-  final String emptyText;
-
-  @override
-  Widget build(BuildContext context) {
-    if (jobs.isEmpty) {
-      return Center(
-        child: Text(emptyText, style: Theme.of(context).textTheme.bodyLarge),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: jobs.length,
-      itemBuilder: (_, index) =>
-          _JobCard(job: jobs[index], serviceTypes: serviceTypes),
-    );
-  }
-}
-
-class _JobCard extends StatelessWidget {
-  const _JobCard({required this.job, required this.serviceTypes});
-
-  final JobRequest job;
-  final List<ServiceType> serviceTypes;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final serviceName = serviceTypes
-            .where((t) => t.id == job.serviceTypeId)
-            .map((t) => t.name)
-            .firstOrNull ??
-        'Desconhecido';
-
-    final dateText = job.preferredDate == null
-        ? 'Flexível'
-        : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () => context.push('/client/job/${job.id}'),
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(serviceName,
-                        style: theme.textTheme.titleMedium),
-                  ),
-                  const SizedBox(width: 8),
-                  AppStatusBadge.fromPresentation(
-                    presentation: job.status.presentation(
-                      proposalCount: job.proposalCount,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              if (job.locationLat != 0 || job.locationLng != 0)
-                AddressMapLink(
-                  address: job.addressText,
-                  lat: job.locationLat,
-                  lng: job.locationLng,
-                ),
-              const SizedBox(height: 4),
-              Text(dateText, style: theme.textTheme.bodySmall),
-              if (job.rescheduleStatus == RescheduleStatus.pending) ...[
-                const SizedBox(height: 6),
-                AppStatusBadge.fromPresentation(
-                  presentation: RescheduleStatus.pending.presentation,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return view.ClientJobsScreen(
+      dataAsync: dataAsync,
+      onOpenJob: (jobId) => context.push('/client/job/$jobId'),
+      onCreateJob: () => context.push('/client/create-job'),
+      onRetry: () {
+        ref.invalidate(clientJobsProvider);
+        ref.invalidate(serviceTypesProvider);
+      },
     );
   }
 }
