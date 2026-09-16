@@ -14,6 +14,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
@@ -38,8 +39,15 @@ class WorkerHelpRequestsScreen extends ConsumerStatefulWidget {
 
 class _WorkerHelpRequestsScreenState
     extends ConsumerState<WorkerHelpRequestsScreen> {
+  late int _selectedTab = widget.initialTabIndex;
+
   final Set<String> _appliedIds = {};
   final Set<String> _opening = {};
+
+  void _selectTab(int tab) {
+    if (_selectedTab == tab) return;
+    setState(() => _selectedTab = tab);
+  }
 
   Future<void> _onDiscoverRefresh() async =>
       ref.invalidate(helpRequestSummariesInRadiusProvider);
@@ -69,33 +77,35 @@ class _WorkerHelpRequestsScreenState
     final serviceTypes = ref.watch(serviceTypesProvider).value ?? [];
 
     return summaryAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(friendlyError(e)),
-        ),
-      ),
+      loading: () => const _HelpRequestsListLoading(),
+      error: (e, _) => _HelpRequestsError(message: friendlyError(e)),
       data: (summaries) {
         if (summaries.isEmpty) {
           return LayoutBuilder(
             builder: (context, constraints) => RefreshIndicator(
+              color: AppColors.primary,
               onRefresh: _onDiscoverRefresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: SizedBox(
                   height: constraints.maxHeight,
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group_off, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Não há pedidos de ajuda na tua zona.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                  child: _HelpRequestsEmptyState(
+                    icon: Icons.group_off_outlined,
+                    title: 'Sem pedidos de ajuda agora',
+                    message: 'Não há pedidos de ajuda na tua zona.',
+                    action: TextButton.icon(
+                      onPressed: () => _onDiscoverRefresh(),
+                      icon: const Icon(
+                        Icons.refresh_rounded,
+                        color: AppColors.primary,
+                      ),
+                      label: Text(
+                        'Puxar para atualizar',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
                     ),
                   ),
                 ),
@@ -148,26 +158,34 @@ class _WorkerHelpRequestsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      initialIndex: widget.initialTabIndex,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Pedidos de ajuda'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Descobrir'),
-              Tab(text: 'As minhas candidaturas'),
-            ],
-          ),
-        ),
-        body: SafeArea(
-          child: TabBarView(
-            children: [
-              _buildDiscoverTab(),
-              const _MyApplicationsTab(),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _HelpRequestsHeader(
+              selectedTab: _selectedTab,
+              onSelected: _selectTab,
+            ),
+            Expanded(
+              // Nota: o mockup de referência optou por NÃO usar
+              // AppFadeThroughSwitcher aqui, para preservar o scroll de
+              // cada lista quando os dados são atualizados em segundo
+              // plano (PageStorageKey própria por tab). Mantive o pedido
+              // explícito de motion na troca de tabs — a chave é o índice
+              // da tab (não os dados), por isso um refresh em segundo
+              // plano na MESMA tab não re-anima nada; só troca ao mudar
+              // de tab.
+              child: AppFadeThroughSwitcher(
+                switchKey: _selectedTab,
+                child: _selectedTab == 0
+                    ? _buildDiscoverTab()
+                    : _MyApplicationsTab(
+                        onGoToDiscover: () => _selectTab(0),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -177,7 +195,9 @@ class _WorkerHelpRequestsScreenState
 // ─── "As minhas candidaturas" tab ────────────────────────────────────────────
 
 class _MyApplicationsTab extends ConsumerStatefulWidget {
-  const _MyApplicationsTab();
+  const _MyApplicationsTab({required this.onGoToDiscover});
+
+  final VoidCallback onGoToDiscover;
 
   @override
   ConsumerState<_MyApplicationsTab> createState() => _MyApplicationsTabState();
@@ -237,36 +257,25 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
   Widget build(BuildContext context) {
     final async = ref.watch(myHelpAcceptancesProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(friendlyError(e)),
-        ),
-      ),
+      loading: () => const _HelpRequestsListLoading(),
+      error: (e, _) => _HelpRequestsError(message: friendlyError(e)),
       data: (acceptances) {
         if (acceptances.isEmpty) {
           return LayoutBuilder(
             builder: (context, constraints) => RefreshIndicator(
+              color: AppColors.primary,
               onRefresh: _onRefresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: SizedBox(
                   height: constraints.maxHeight,
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group_off, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 32),
-                          child: Text(
-                            'Ainda não te candidataste a nenhum pedido de ajuda.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
+                  child: _HelpRequestsEmptyState(
+                    icon: Icons.assignment_outlined,
+                    title: 'Ainda sem candidaturas',
+                    message: 'Ainda não te candidataste a nenhum pedido de ajuda.',
+                    action: PrimaryActionButton(
+                      label: 'Descobrir pedidos',
+                      onPressed: widget.onGoToDiscover,
                     ),
                   ),
                 ),
@@ -331,6 +340,255 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
           ),
         );
       },
+    );
+  }
+}
+
+// ─── Casca: cabeçalho, loading, vazio, erro ──────────────────────────────────
+//
+// Só isto foi tocado nesta sessão — os 4 cards (_HelpRequestCard,
+// _PendingCard, _AcceptedCard, _HistoryCard) e os helpers que eles usam
+// (_SectionHeader, _jobStatusBadgeFromRaw, _Meta, _scheduleLabel) ficam
+// exatamente como estavam, mais abaixo neste ficheiro.
+
+class _HelpRequestsHeader extends StatelessWidget {
+  const _HelpRequestsHeader({
+    required this.selectedTab,
+    required this.onSelected,
+  });
+
+  final int selectedTab;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final canPop = Navigator.of(context).canPop();
+
+    return Container(
+      width: double.infinity,
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (canPop)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xxs),
+                  child: IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Voltar',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                  ),
+                ),
+              Text(
+                'Pedidos de ajuda',
+                style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xxs),
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _TabPill(
+                    label: 'Descobrir',
+                    selected: selectedTab == 0,
+                    onPressed: () => onSelected(0),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(
+                  child: _TabPill(
+                    label: 'As minhas candidaturas',
+                    selected: selectedTab == 1,
+                    onPressed: () => onSelected(1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabPill extends StatelessWidget {
+  const _TabPill({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: selected ? AppColors.surface : AppColors.divider,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: textTheme.bodyMedium?.copyWith(
+              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HelpRequestsListLoading extends StatelessWidget {
+  const _HelpRequestsListLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      itemCount: 3,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (_, index) => AppSkeletonShimmer(
+        child: Container(
+          height: index == 0 ? 176 : 150,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HelpRequestsEmptyState extends StatelessWidget {
+  const _HelpRequestsEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: AppStatusColor.neutral.background,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 34, color: AppStatusColor.neutral.foreground),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HelpRequestsError extends StatelessWidget {
+  const _HelpRequestsError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppStatusColor.cancelled.background,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.cloud_off_outlined,
+                color: AppStatusColor.cancelled.foreground,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
