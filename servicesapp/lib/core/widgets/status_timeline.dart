@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_motion_tokens.dart';
 import '../theme/app_status_color.dart';
 import 'app_motion.dart';
 
@@ -73,7 +76,11 @@ class _StatusTimelineState extends State<StatusTimeline> {
   }
 }
 
-class _TimelineRow extends StatelessWidget {
+/// Duração do preenchimento do trilho quando um passo transita — bespoke a
+/// este componente (docs/motion_spec.md §3, "Timeline · avanço": "1s").
+const _fillDuration = Duration(milliseconds: 1000);
+
+class _TimelineRow extends StatefulWidget {
   const _TimelineRow({
     required this.step,
     required this.isLast,
@@ -88,6 +95,59 @@ class _TimelineRow extends StatelessWidget {
   static const _lineWidth = 2.0;
 
   @override
+  State<_TimelineRow> createState() => _TimelineRowState();
+}
+
+class _TimelineRowState extends State<_TimelineRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _popController;
+  Timer? _popTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _popController = AnimationController(
+      vsync: this,
+      duration: AppMotionDuration.fast,
+      // Sem transição real (primeiro build, ou rebuild sem mudança de
+      // estado): o nó aparece já na escala final, sem pop.
+      value: widget.animateFill ? 0 : 1,
+    );
+    if (widget.animateFill) _schedulePop();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TimelineRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animateFill && !oldWidget.animateFill) {
+      _popController.value = 0;
+      _schedulePop();
+    }
+  }
+
+  /// O nó só "aparece com pop" DEPOIS do trilho terminar de se preencher —
+  /// nunca em simultâneo (ver docs/motion_spec.md §3, "Timeline · avanço").
+  void _schedulePop() {
+    _popTimer?.cancel();
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (disableAnimations) {
+      _popController.value = 1;
+      return;
+    }
+    _popTimer = Timer(_fillDuration, () {
+      if (mounted) _popController.forward(from: 0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _popTimer?.cancel();
+    _popController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return IntrinsicHeight(
@@ -95,21 +155,28 @@ class _TimelineRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: _circleSize,
+            width: _TimelineRow._circleSize,
             child: Column(
               children: [
-                AppPulseScale(
-                  enabled: step.state == StatusTimelineStepState.current,
-                  child: _circle(),
+                ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: _popController,
+                    curve: AppMotionCurve.standard,
+                  ),
+                  child: AppPulseScale(
+                    enabled:
+                        widget.step.state == StatusTimelineStepState.current,
+                    child: _circle(),
+                  ),
                 ),
-                if (!isLast) Expanded(child: _connector(context)),
+                if (!widget.isLast) Expanded(child: _connector(context)),
               ],
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(top: 2, bottom: isLast ? 0 : 16),
+              padding: EdgeInsets.only(top: 2, bottom: widget.isLast ? 0 : 16),
               child: _content(theme),
             ),
           ),
@@ -118,14 +185,16 @@ class _TimelineRow extends StatelessWidget {
     );
   }
 
+  StatusTimelineStepData get step => widget.step;
+
   // Passo concluído e atual usam sempre a cor real do estado
   // (step.statusColor) — nunca AppColors.primary automaticamente. Passo
   // futuro é o único que não representa um estado real: outline neutro fixo,
   // independentemente do statusColor recebido.
   Widget _circle() => switch (step.state) {
         StatusTimelineStepState.completed => Container(
-            width: _circleSize,
-            height: _circleSize,
+            width: _TimelineRow._circleSize,
+            height: _TimelineRow._circleSize,
             decoration: BoxDecoration(
               color: step.statusColor.foreground,
               shape: BoxShape.circle,
@@ -133,8 +202,8 @@ class _TimelineRow extends StatelessWidget {
             child: const Icon(Icons.check, color: Colors.white, size: 14),
           ),
         StatusTimelineStepState.current => Container(
-            width: _circleSize,
-            height: _circleSize,
+            width: _TimelineRow._circleSize,
+            height: _TimelineRow._circleSize,
             decoration: BoxDecoration(
               color: step.statusColor.background,
               shape: BoxShape.circle,
@@ -144,8 +213,8 @@ class _TimelineRow extends StatelessWidget {
                 color: step.statusColor.foreground, size: 10),
           ),
         StatusTimelineStepState.future => Container(
-            width: _circleSize,
-            height: _circleSize,
+            width: _TimelineRow._circleSize,
+            height: _TimelineRow._circleSize,
             decoration: BoxDecoration(
               color: AppColors.surface,
               border: Border.all(color: AppColors.divider, width: 2),
@@ -163,13 +232,13 @@ class _TimelineRow extends StatelessWidget {
         step.state == StatusTimelineStepState.future ? 0.0 : 1.0;
     final disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final duration = (disableAnimations || !animateFill)
+    final duration = (disableAnimations || !widget.animateFill)
         ? Duration.zero
-        : const Duration(milliseconds: 1000);
+        : _fillDuration;
 
     return Center(
       child: SizedBox(
-        width: _lineWidth,
+        width: _TimelineRow._lineWidth,
         height: double.infinity,
         child: Stack(
           fit: StackFit.expand,
@@ -178,7 +247,7 @@ class _TimelineRow extends StatelessWidget {
             TweenAnimationBuilder<double>(
               tween: Tween<double>(begin: 0, end: targetProgress),
               duration: duration,
-              curve: Curves.easeOutCubic,
+              curve: AppMotionCurve.enter,
               builder: (context, animatedProgress, child) {
                 return FractionallySizedBox(
                   heightFactor: animatedProgress,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
+import 'package:servicesapp/core/theme/app_motion_tokens.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
@@ -448,7 +449,14 @@ class _JobsTabContentState extends State<_JobsTabContent> {
   }
 }
 
-class _WorkerJobCard extends StatelessWidget {
+/// Duração do realce de deep-link — bespoke (docs/motion_spec.md §4,
+/// "Deep-link de notificação": "durante 1,3 s"). O desvanecer preenche TODA
+/// esta janela (não fica sólido e só depois esbate rápido no fim) — quando
+/// [worker_jobs_screen.dart] limpa `highlightedJobId` ao fim de 1,3 s, o
+/// card já chegou naturalmente ao branco.
+const _highlightFadeDuration = Duration(milliseconds: 1300);
+
+class _WorkerJobCard extends StatefulWidget {
   const _WorkerJobCard({
     required this.job,
     required this.highlighted,
@@ -460,8 +468,71 @@ class _WorkerJobCard extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  State<_WorkerJobCard> createState() => _WorkerJobCardState();
+}
+
+class _WorkerJobCardState extends State<_WorkerJobCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _highlightController;
+  bool _disableAnimations = false;
+  bool _configured = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _highlightController = AnimationController(
+      vsync: this,
+      duration: _highlightFadeDuration,
+      value: widget.highlighted ? 1 : 0,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (!_configured) {
+      _configured = true;
+      // Card já entra realçado (é o caso real de um deep-link): arranca o
+      // desvanecer agora, não à espera de um didUpdateWidget que nunca vem.
+      if (widget.highlighted && !_disableAnimations) _startFade();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkerJobCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.highlighted == oldWidget.highlighted) return;
+    if (widget.highlighted) {
+      _highlightController.value = 1;
+      if (!_disableAnimations) _startFade();
+    } else {
+      // Redução de movimento: sem fade progressivo (docs/motion_spec.md
+      // §5) — o corte para o estado normal é instantâneo, aqui.
+      _highlightController
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  void _startFade() {
+    _highlightController.animateTo(
+      0,
+      duration: _highlightFadeDuration,
+      curve: AppMotionCurve.enter,
+    );
+  }
+
+  @override
+  void dispose() {
+    _highlightController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final job = widget.job;
 
     return Opacity(
       opacity: job.muted ? 0.58 : 1,
@@ -471,27 +542,38 @@ class _WorkerJobCard extends StatelessWidget {
           AppRadius.card,
         ),
         child: InkWell(
-          onTap: onPressed,
+          onTap: widget.onPressed,
           borderRadius: BorderRadius.circular(
             AppRadius.card,
           ),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: highlighted
-                  ? AppColors.primaryContainer
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(
-                AppRadius.card,
-              ),
-              border: Border.all(
-                color: highlighted
-                    ? AppColors.primary
-                    : AppColors.divider,
-              ),
-            ),
+          child: AnimatedBuilder(
+            animation: _highlightController,
+            builder: (context, child) {
+              final t = _highlightController.value;
+              // Fundo âmbar claro (mesmo token dos badges "waiting") a
+              // desvanecer para a superfície normal do card.
+              final background = Color.lerp(
+                AppColors.surface,
+                AppStatusColor.waiting.background,
+                t,
+              )!;
+              final border = Color.lerp(
+                AppColors.divider,
+                AppStatusColor.waiting.foreground,
+                t,
+              )!;
+              return Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.card,
+                  ),
+                  border: Border.all(color: border),
+                ),
+                child: child,
+              );
+            },
             child: Column(
               children: [
                 Row(
