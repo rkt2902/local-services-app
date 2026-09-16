@@ -40,10 +40,10 @@ todas as tabelas.
 - **Cartão Frota (combustível)** — dados 100% fictícios/demo, sem parceria real. OCR local
   (`google_mlkit_text_recognition`), a foto nunca é guardada nem enviada. Ativação de estado
   sempre manual via SQL Editor (migration 0037). Ver `improvements.md`.
-- **Média de estrelas no perfil do worker** — item que `improvements.md` ainda lista como
-  "falta calcular e mostrar" (Fase 11 deferred) **já está implementado**: `ratingSummaryProvider`
+- **Média de estrelas no perfil do worker** — já está implementado: `ratingSummaryProvider`
   alimenta tanto o ecrã de conta do próprio worker como o cartão público (`worker_public_card`
-  expõe `avg_rating`/`rating_count`). Doc desatualizado, não o código — corrigir em `improvements.md`.
+  expõe `avg_rating`/`rating_count`). `improvements.md` corrigido em 2026-09-09 para refletir
+  isto (já lá dizia "falta calcular e mostrar" por engano).
 
 ---
 
@@ -62,18 +62,34 @@ e contas (`worker_account_view`/`client_account_view`), `worker_jobs_view`,
 apply-as-helper, notifications, worker_public_profile, client_create_job (3 passos),
 client_job_detail/confirmed/rate-worker, fleet card (scan/confirm/status).
 
-**NUNCA redesenhados — ainda Material 3 puro ou vintage Fase 8/9 (funcionalmente corretos,
-visualmente destoantes):**
+**Adicionados a "totalmente reskinned" desde 2026-09-09:**
+- `worker_job_detail_screen.dart` (+ `worker_job_detail_view.dart`) e `worker_submit_proposal_screen.dart`
+  (+ `worker_submit_proposal_view.dart`) — **correção de auditoria, não trabalho novo**: já
+  estavam corretamente reskinned (`AppColors`/`AppRadius`/`AppSpacing`/`PrimaryActionButton`)
+  desde antes de 2026-09-08. O grep original desta auditoria usava um `glob` que excluía
+  `presentation/widgets/`, onde os ficheiros `_view.dart` reais vivem — por isso apareciam
+  como "nunca redesenhados" por engano. Confirmado por leitura direta em 2026-09-09.
+- `client_edit_profile_screen.dart` (`/client/profile/edit`) e `worker_edit_profile_screen.dart`
+  (`/worker/profile/edit`) — reskin real feito em sessões dedicadas (2026-09-09/10): split
+  screen+`widgets/*_view.dart`, `AppTextField`/`PrimaryActionButton`/`AppSuccessFeedback`. O de
+  worker ficou reorganizado em 3 secções navegadas dentro do próprio ecrã (overview, localização
+  base, serviços e ferramentas), slider de raio contínuo preservado (1–50 km, sem chips).
+- `worker_help_requests_lobby_screen.dart` (`/worker/job/:id/help-requests`) — reskin real
+  (2026-09-15): avatares por `AppStatusColor` via `HelpAcceptanceStatus.presentation` (já estava
+  correto antes, preservado), bottom sheet de aceitação com taxa sugerida editável + estimativa
+  de duração/total quando a proposta tem horas estimadas.
+- `worker_help_requests_screen.dart` (`/worker/help-requests`) — os 4 cards internos
+  (`_HelpRequestCard`/`_PendingCard`/`_AcceptedCard`/`_HistoryCard`) já estavam reskinned antes
+  de 2026-09-08 (a nota anterior estava errada); a "casca" (AppBar/TabBar → header + pills,
+  loading → `AppSkeletonShimmer`, vazios reskinned, `AppFadeThroughSwitcher` na troca de tabs)
+  foi reskinned em 2026-09-16, completando o ecrã.
+
+**NUNCA redesenhado — ainda Material 3 puro, vintage Fase 8 (funcionalmente correto,
+visualmente destoante):**
 
 | Ecrã | Rota | Nota |
 |---|---|---|
-| `client_edit_profile_screen.dart` | `/client/profile/edit` | Ficheiro **novo** (extraído do antigo `ClientProfileScreen`, doc comment próprio confirma), mas escrito em Material puro — sem `AppColors`/`AppRadius`/`PrimaryActionButton`/`AppTextField`. |
-| `worker_edit_profile_screen.dart` | `/worker/profile/edit` | Mesmo caso — nenhum import de tokens do design system. |
-| `client_jobs_screen.dart` | `/client/jobs` | Fase 8, só tocado pela unificação de `AppStatusBadge` (2026-07-12). `BorderRadius.circular(12)` hardcoded em vez de `AppRadius.input`. |
-| `worker_job_detail_screen.dart` (+ `worker_job_detail_view.dart`) | `/worker/job/:id` | Idem — só passou pela unificação de status badges. |
-| `worker_submit_proposal_screen.dart` (+ view) | `/worker/job/:id/propose` | Criado antes do motion system (commit `88286ae`), nunca revisitado. |
-| `worker_help_requests_lobby_screen.dart` | `/worker/job/:id/help-requests` | Fase 9 vintage. `TextStyle(fontSize: 16, fontWeight: bold)` hardcoded (não via `Theme.of(context).textTheme`). |
-| `worker_help_requests_screen.dart` | `/worker/help-requests` | Ganhou a funcionalidade das tabs de ajudante (2026-09-05) mas não um reskin visual. |
+| `client_jobs_screen.dart` | `/client/jobs` | Fase 8, só tocado pela unificação de `AppStatusBadge` (2026-07-12) e por uma correção pontual de `BorderRadius.circular(12)` → `AppRadius.input` (2026-09-09, mesmo valor, sem mudança visual). `Scaffold`/`AppBar`/`TabBar`/`Card` continuam Material puro — sem `AppColors`/`AppSpacing`/`PrimaryActionButton`/motion. **Nota 2026-09-16:** foi mencionado como já integrado junto com outros 4 ecrãs reskinned nesta mesma ronda — confirmado por leitura direta que isso está errado, este ecrã não fez parte de nenhuma sessão de reskin; continua exatamente como estava. |
 
 **Parcialmente reskinned (mistura de código novo e antigo no mesmo ficheiro):**
 
@@ -137,10 +153,6 @@ nenhum mudou de estado nesta auditoria.)
 (Os itens já existentes em `improvements.md` — `JobStatus` labels, CHECKs em falta, validação
 de telefone, etc. — continuam válidos, sem mudança.)
 
-- **Dois ecrãs de edição de perfil sem reskin** — `client_edit_profile_screen.dart` e
-  `worker_edit_profile_screen.dart` (ver tabela acima). Funcionalmente corretos (Supabase real,
-  upload de avatar real), visualmente Material 3 default — destoam do resto da app já
-  reskinned. Provavelmente o próximo alvo natural do redesign.
 - **`friendlyError()` vs `AuthController._mapError()` continuam por consolidar** — confirmado
   ainda coexistem (`_mapError` privado, só 4 call sites dentro de `auth_controller.dart`;
   `friendlyError` usado em 26 outros ficheiros). Sem sinal de urgência, mas é duplicação real.

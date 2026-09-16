@@ -23,10 +23,11 @@
 //   6. ios/Runner/Info.plist — CFBundleURLTypes (ver TODO deixado no
 //      ficheiro).
 //
-// O que já está feito e não precisa de mais nada: migration 0036 (ainda
-// não aplicada) reforça profiles.id → auth.users(id) ON DELETE CASCADE e
-// faz backfill de email_confirmed_at para todos os utilizadores já
-// registados, para nenhum ficar preso no dia em que isto for ligado.
+// O que já está feito e não precisa de mais nada: migration 0036 (já
+// aplicada, confirmado pelo utilizador em 2026-09-09) reforça profiles.id
+// → auth.users(id) ON DELETE CASCADE e faz backfill de email_confirmed_at
+// para todos os utilizadores já registados, para nenhum ficar preso no
+// dia em que isto for ligado.
 // ============================================================
 
 import 'dart:async';
