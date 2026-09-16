@@ -10,14 +10,20 @@ import '../data/notification_types.dart';
 
 class NotificationHandler {
   static Future<void> handle(
-      BuildContext context, WidgetRef ref, AppNotification notification) async {
+    BuildContext context,
+    WidgetRef ref,
+    AppNotification notification,
+  ) async {
     switch (notification.type) {
       // ── Job discovery ─────────────────────────────────────────────────────
       case NotificationType.newJobInRadius:
         // relatedId = job_id — go (not push) to avoid keyReservation crash on
         // duplicate push when the worker is already viewing this job.
         if (notification.relatedId == null) break;
-        context.go('/worker/job/${notification.relatedId}');
+        context.go(
+          '/worker/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       // ── Proposal lifecycle (client-facing) ────────────────────────────────
       case NotificationType.proposalReceived:
@@ -26,7 +32,10 @@ class NotificationHandler {
         // already on this job's screen, we replace rather than stack — this
         // prevents the RT1 keyReservation assertion crash on duplicate push.
         if (notification.relatedId == null) break;
-        context.go('/client/job/${notification.relatedId}');
+        context.go(
+          '/client/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       // ── Proposal lifecycle (worker-facing) ────────────────────────────────
       case NotificationType.proposalAccepted:
@@ -41,13 +50,15 @@ class NotificationHandler {
         if (acceptedProposal != null) {
           context.go(
             '/worker/my-job/${acceptedProposal.id}?jobId=${notification.relatedId}',
+            extra: {'entryTransition': 'sharedAxis'},
           );
         } else {
           context.go('/worker/home');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Não foi possível abrir o job. Verifica a lista de jobs.'),
+                'Não foi possível abrir o job. Verifica a lista de jobs.',
+              ),
             ),
           );
         }
@@ -55,7 +66,10 @@ class NotificationHandler {
       case NotificationType.proposalRejected:
         // relatedId = job_id — go (not push) to avoid keyReservation crash.
         if (notification.relatedId == null) break;
-        context.go('/worker/job/${notification.relatedId}');
+        context.go(
+          '/worker/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       // ── Job lifecycle ─────────────────────────────────────────────────────
       case NotificationType.jobCancelled:
@@ -65,7 +79,10 @@ class NotificationHandler {
         if (notification.relatedId == null) break;
         final sessionCancelled = ref.read(sessionStatusProvider).asData?.value;
         if (sessionCancelled?.role == UserRole.client) {
-          context.go('/client/job/${notification.relatedId}');
+          context.go(
+            '/client/job/${notification.relatedId}',
+            extra: {'entryTransition': 'sharedAxis'},
+          );
         } else {
           final proposal = await ref
               .read(proposalRepositoryProvider)
@@ -73,7 +90,9 @@ class NotificationHandler {
           if (!context.mounted) break;
           if (proposal != null) {
             context.go(
-                '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}');
+              '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}',
+              extra: {'entryTransition': 'sharedAxis'},
+            );
           } else {
             context.go('/worker/home');
           }
@@ -83,7 +102,10 @@ class NotificationHandler {
         // Sent to workers whose proposals were on the original cancelled job.
         // relatedId = job_id — go (not push) to avoid keyReservation crash.
         if (notification.relatedId == null) break;
-        context.go('/worker/job/${notification.relatedId}');
+        context.go(
+          '/worker/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.rescheduleProposed:
       case NotificationType.rescheduleAccepted:
@@ -91,10 +113,12 @@ class NotificationHandler {
         // Sent to the OTHER party (the one who did not initiate the reschedule).
         // relatedId = job_id. Client: go directly. Worker: resolve proposalId first.
         if (notification.relatedId == null) break;
-        final sessionReschedule =
-            ref.read(sessionStatusProvider).asData?.value;
+        final sessionReschedule = ref.read(sessionStatusProvider).asData?.value;
         if (sessionReschedule?.role == UserRole.client) {
-          context.go('/client/job/${notification.relatedId}');
+          context.go(
+            '/client/job/${notification.relatedId}',
+            extra: {'entryTransition': 'sharedAxis'},
+          );
         } else {
           final proposal = await ref
               .read(proposalRepositoryProvider)
@@ -102,7 +126,9 @@ class NotificationHandler {
           if (!context.mounted) break;
           if (proposal != null) {
             context.go(
-                '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}');
+              '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}',
+              extra: {'entryTransition': 'sharedAxis'},
+            );
           } else {
             context.go('/worker/home');
           }
@@ -112,7 +138,10 @@ class NotificationHandler {
         // Sent to client only — worker marked the job done, awaiting confirmation.
         // relatedId = job_id — client goes directly to confirm or report a problem.
         if (notification.relatedId == null) break;
-        context.go('/client/job/${notification.relatedId}');
+        context.go(
+          '/client/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.jobCompleted:
         // Sent to both sides when the job is fully confirmed. relatedId = job_id.
@@ -120,7 +149,10 @@ class NotificationHandler {
         if (notification.relatedId == null) break;
         final sessionCompleted = ref.read(sessionStatusProvider).asData?.value;
         if (sessionCompleted?.role == UserRole.client) {
-          context.go('/client/job/${notification.relatedId}');
+          context.go(
+            '/client/job/${notification.relatedId}',
+            extra: {'entryTransition': 'sharedAxis'},
+          );
         } else {
           final proposal = await ref
               .read(proposalRepositoryProvider)
@@ -128,7 +160,9 @@ class NotificationHandler {
           if (!context.mounted) break;
           if (proposal != null) {
             context.go(
-                '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}');
+              '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}',
+              extra: {'entryTransition': 'sharedAxis'},
+            );
           } else {
             context.go('/worker/home');
           }
@@ -137,7 +171,10 @@ class NotificationHandler {
       case NotificationType.jobNoResponse:
         // Sent to client only — job expired without proposals. relatedId = job_id.
         if (notification.relatedId == null) break;
-        context.go('/client/job/${notification.relatedId}');
+        context.go(
+          '/client/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       // ── Help-request lifecycle ────────────────────────────────────────────
       case NotificationType.helpRequestApproved:
@@ -150,26 +187,39 @@ class NotificationHandler {
         if (!context.mounted) break;
         if (helpRequestApproved != null) {
           context.push(
-              '/worker/job/${helpRequestApproved.jobId}/help-requests');
+            '/worker/job/${helpRequestApproved.jobId}/help-requests',
+          );
         } else {
           context.go('/worker/home');
         }
 
       case NotificationType.helpAccepted:
         // relatedId = help_request_id. Helper sees their candidatures.
-        context.go('/worker/help-requests', extra: {'initialTabIndex': 1});
+        context.go(
+          '/worker/help-requests',
+          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.helpRejected:
         // Helper was rejected — navigate to candidatures tab to see the update.
-        context.go('/worker/help-requests', extra: {'initialTabIndex': 1});
+        context.go(
+          '/worker/help-requests',
+          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.helpJobCancelled:
         // Helper's accepted job was cancelled — navigate to candidatures.
-        context.go('/worker/help-requests', extra: {'initialTabIndex': 1});
+        context.go(
+          '/worker/help-requests',
+          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.helpRequestReopened:
         // A slot reopened — push to discovery so the candidate can re-apply.
-        context.push('/worker/help-requests');
+        context.push(
+          '/worker/help-requests',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
 
       case NotificationType.helpWithdrew:
         // Principal is told a helper withdrew. relatedId = help_request_id.
@@ -181,7 +231,8 @@ class NotificationHandler {
         if (!context.mounted) break;
         if (helpRequestWithdrew != null) {
           context.push(
-              '/worker/job/${helpRequestWithdrew.jobId}/help-requests');
+            '/worker/job/${helpRequestWithdrew.jobId}/help-requests',
+          );
         } else {
           context.go('/worker/home');
         }

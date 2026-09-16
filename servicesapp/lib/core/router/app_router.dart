@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'app_page_transitions.dart';
 import '../theme/app_colors.dart';
 import '../../features/auth/application/session_provider.dart';
 import '../../features/auth/presentation/landing_screen.dart';
@@ -64,16 +65,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
+      // Fade-through, não shared-axis: chega sempre de /loading (só um
+      // spinner, sem conteúdo real a "avançar de"), nunca de um passo
+      // anterior com sentido de progressão — ver nota no relatório.
       GoRoute(
         path: '/onboarding',
-        builder: (_, _) => const ProJardimOnboardingScreen(),
+        pageBuilder: (context, state) => buildFadeThroughPage(
+          context,
+          state,
+          const ProJardimOnboardingScreen(),
+        ),
       ),
       GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-      GoRoute(path: '/signup', builder: (_, _) => const SignupScreen()),
+      // Passos do fluxo de registo — sempre alcançados a partir do passo
+      // anterior, nunca de um card de lista: shared-axis (docs/motion_spec.md
+      // §4). '/' e '/login' ficam de fora de propósito: têm origens
+      // semanticamente distintas (reset não-autenticado, logout, "voltar"),
+      // sem um tipo único que sirva a todas.
+      GoRoute(
+        path: '/signup',
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const SignupScreen()),
+      ),
       GoRoute(
         path: '/choose-role',
-        builder: (_, _) => const ChooseRoleScreen(),
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const ChooseRoleScreen()),
       ),
       // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
       // /forgot-password/reset. Os passos 2-4 (verificar código, nova
@@ -81,16 +99,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // navegação — ver o comentário nesse ficheiro.
       GoRoute(
         path: '/forgot-password/request',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final email = state.uri.queryParameters['email'];
-          return RequestPasswordResetScreen(prefilledEmail: email);
+          return buildSharedAxisPage(
+            context,
+            state,
+            RequestPasswordResetScreen(prefilledEmail: email),
+          );
         },
       ),
       GoRoute(
         path: '/forgot-password/reset',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final email = state.uri.queryParameters['email'] ?? '';
-          return PasswordResetScreen(email: email);
+          return buildSharedAxisPage(
+            context,
+            state,
+            PasswordResetScreen(email: email),
+          );
         },
       ),
       // Preparação para confirmação de email — ver comentário no topo de
@@ -98,19 +124,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ou sem sessão (deep link futuro pode chegar sem sessão nenhuma).
       GoRoute(
         path: '/verify-email',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final email = state.uri.queryParameters['email'] ?? '';
-          return VerifyEmailScreen(email: email);
+          return buildSharedAxisPage(
+            context,
+            state,
+            VerifyEmailScreen(email: email),
+          );
         },
       ),
       GoRoute(
         path: '/email-confirmed',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final params = state.uri.queryParameters;
-          return EmailConfirmedScreen(
-            email: params['email'],
-            tokenHash: params['token_hash'],
-            token: params['token'],
+          return buildSharedAxisPage(
+            context,
+            state,
+            EmailConfirmedScreen(
+              email: params['email'],
+              tokenHash: params['token_hash'],
+              token: params['token'],
+            ),
           );
         },
       ),
@@ -119,7 +153,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/worker/profile/edit',
         builder: (_, _) => const WorkerEditProfileScreen(),
       ),
-      GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
+      // Fade-through: alcançado a partir de um ícone de sino em 4 ecrãs
+      // diferentes, nunca de um card — destino sem relação direta com a
+      // origem, exatamente o exemplo dado em docs/motion_spec.md §4.
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) =>
+            buildFadeThroughPage(context, state, const NotificationsScreen()),
+      ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
       // autenticação/role (ver publicPathPrefixes no redirect abaixo).
       GoRoute(
@@ -135,108 +176,182 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/client/profile/edit',
         builder: (_, _) => const ClientEditProfileScreen(),
       ),
+      // Wizard "criar pedido" — 3 passos sempre sequenciais, cada um só
+      // alcançado a partir do anterior: shared-axis.
       GoRoute(
         path: '/client/create-job',
-        builder: (_, _) => const ClientCreateJobServiceScreen(),
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          const ClientCreateJobServiceScreen(),
+        ),
       ),
       GoRoute(
         path: '/client/create-job/schedule',
-        builder: (_, _) => const ClientCreateJobScheduleScreen(),
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          const ClientCreateJobScheduleScreen(),
+        ),
       ),
       GoRoute(
         path: '/client/create-job/description',
-        builder: (_, _) => const ClientCreateJobDescriptionScreen(),
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          const ClientCreateJobDescriptionScreen(),
+        ),
       ),
+      // Origem ambígua: card de lista (client_home_screen,
+      // client_jobs_screen) OU notificação. Default = container-transform
+      // (o mais comum); notification_handler.dart passa
+      // extra: {'entryTransition': 'sharedAxis'} para o caso de deep-link.
       GoRoute(
         path: '/client/job/:id',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          return ClientJobDetailScreen(jobId: jobId);
+          final child = ClientJobDetailScreen(jobId: jobId);
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildContainerTransformPage(context, state, child);
         },
       ),
+      // Só alcançado a partir de client_job_detail_screen (aceitar
+      // proposta) — sem card de lista nem notificação envolvidos.
       GoRoute(
         path: '/client/job/:id/confirmed',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
           final workerId = state.uri.queryParameters['workerId']!;
-          return ClientJobConfirmedScreen(jobId: jobId, workerId: workerId);
+          return buildSharedAxisPage(
+            context,
+            state,
+            ClientJobConfirmedScreen(jobId: jobId, workerId: workerId),
+          );
         },
       ),
       GoRoute(
         path: '/client/job/:id/rate-worker',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
           final workerId = state.uri.queryParameters['workerId']!;
-          return ClientRateWorkerScreen(jobId: jobId, workerId: workerId);
+          return buildSharedAxisPage(
+            context,
+            state,
+            ClientRateWorkerScreen(jobId: jobId, workerId: workerId),
+          );
         },
       ),
+      // Só alcançado a partir de worker_job_detail_screen (botão
+      // "Propor-me") — sem outra origem.
       GoRoute(
         path: '/worker/job/:id/propose',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          return WorkerSubmitProposalScreen(jobId: jobId);
+          return buildSharedAxisPage(
+            context,
+            state,
+            WorkerSubmitProposalScreen(jobId: jobId),
+          );
         },
       ),
+      // Só alcançado a partir de notificações (helpRequestApproved,
+      // helpWithdrew) — sem card in-app que abra este lobby diretamente.
       GoRoute(
         path: '/worker/job/:id/help-requests',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          return WorkerHelpRequestsLobbyScreen(jobId: jobId);
+          return buildSharedAxisPage(
+            context,
+            state,
+            WorkerHelpRequestsLobbyScreen(jobId: jobId),
+          );
         },
       ),
+      // Origem ambígua: card de lista (worker_dashboard_screen,
+      // worker_available_jobs_screen) OU notificação. Mesmo mecanismo de
+      // /client/job/:id acima.
       GoRoute(
         path: '/worker/job/:id',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          return WorkerJobDetailScreen(jobId: jobId);
+          final child = WorkerJobDetailScreen(jobId: jobId);
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildContainerTransformPage(context, state, child);
         },
       ),
+      // Origem ambígua: card de lista (worker_dashboard_screen,
+      // worker_jobs_screen) OU notificação. Mesmo mecanismo.
       GoRoute(
         path: '/worker/my-job/:id',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final proposalId = state.pathParameters['id']!;
           final jobId = state.uri.queryParameters['jobId']!;
-          return WorkerMyJobDetailScreen(
+          final child = WorkerMyJobDetailScreen(
             proposalId: proposalId,
             jobId: jobId,
           );
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildContainerTransformPage(context, state, child);
         },
       ),
+      // Origem ambígua em tipo (não em código): botões CTA (não são cards)
+      // em worker_available_jobs_screen/worker_jobs_screen — nenhum deles
+      // pede shared-axis nem container-transform — OU notificação, que
+      // pede shared-axis (deep-link). Default = fade-through.
       GoRoute(
         path: '/worker/help-requests',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          return WorkerHelpRequestsScreen(
+          final child = WorkerHelpRequestsScreen(
             initialTabIndex: extra?['initialTabIndex'] as int? ?? 0,
           );
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildFadeThroughPage(context, state, child);
         },
       ),
+      // Só alcançado a partir de um card na tab "Descobrir" de
+      // worker_help_requests_screen — lista → detalhe, sem ambiguidade.
       GoRoute(
         path: '/worker/help-requests/:id/apply',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final helpRequestId = state.pathParameters['id']!;
-          return ApplyAsHelperScreen(helpRequestId: helpRequestId);
+          return buildContainerTransformPage(
+            context,
+            state,
+            ApplyAsHelperScreen(helpRequestId: helpRequestId),
+          );
         },
       ),
       // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
       // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
+      // Cadeia sequencial de fluxo único: shared-axis.
       GoRoute(
         path: '/worker/fleet-card',
-        builder: (_, _) => const FleetCardScreen(),
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const FleetCardScreen()),
       ),
       GoRoute(
         path: '/worker/fleet-card/scan',
-        builder: (_, _) => const FleetCardScanScreen(),
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const FleetCardScanScreen()),
       ),
       GoRoute(
         path: '/worker/fleet-card/confirm',
-        builder: (_, state) {
+        pageBuilder: (context, state) {
           final params = state.uri.queryParameters;
-          return FleetCardConfirmDataScreen(
-            initialBarcodeNumber: params['barcode'] ?? '',
-            initialCustomerCardNumber: params['cardNumber'] ?? '',
-            initialCardHolderName: params['holderName'] ?? '',
-            barcodeWasRead: params['barcodeWasRead'] == 'true',
+          return buildSharedAxisPage(
+            context,
+            state,
+            FleetCardConfirmDataScreen(
+              initialBarcodeNumber: params['barcode'] ?? '',
+              initialCustomerCardNumber: params['cardNumber'] ?? '',
+              initialCardHolderName: params['holderName'] ?? '',
+              barcodeWasRead: params['barcodeWasRead'] == 'true',
+            ),
           );
         },
       ),
@@ -382,6 +497,17 @@ class RouterNotifier extends ChangeNotifier {
 
     return null;
   }
+}
+
+/// Hint opcional em `extra` para escolher a transição de entrada nas
+/// rotas com mais de uma origem (docs/motion_spec.md §4 — um deep-link de
+/// notificação pede shared-axis mesmo numa rota cujo default é
+/// container-transform quando vem de um card). Ausente, não-Map, ou valor
+/// desconhecido → null; cada rota decide o próprio default nesse caso.
+String? _entryTransitionHint(GoRouterState state) {
+  final extra = state.extra;
+  if (extra is Map) return extra['entryTransition'] as String?;
+  return null;
 }
 
 class _PlaceholderScreen extends StatelessWidget {
