@@ -15,6 +15,16 @@ import 'package:servicesapp/core/theme/app_status_color.dart';
 /// de cards"): sobe 18px e faz fade-in, com atraso incremental de
 /// [AppMotionDuration.stagger] por item. A partir do 7.º item (índice
 /// >= 6) entra sem atraso — evita que listas longas pareçam lentas.
+///
+/// Quando este widget nasce enquanto a rota-mãe ainda está a fazer a
+/// transição de entrada (`duration.screen`, 300ms — docs/motion_spec.md
+/// §4), o atraso incremental é ignorado e o item entra de imediato. Sem
+/// isto, qualquer item cujo atraso teórico ultrapasse os 300ms da
+/// transição (índice >= 3) só começaria a animar depois do ecrã já
+/// parecer ter chegado — lido como duas animações em sequência em vez de
+/// uma só. Fora de uma transição de rota (refresh de lista, mudança de
+/// tab já assente, item adicionado depois do ecrã estar parado) a cascata
+/// normal mantém-se inalterada.
 class AppStaggeredEntrance extends StatefulWidget {
   const AppStaggeredEntrance({
     required this.index,
@@ -89,9 +99,17 @@ class _AppStaggeredEntranceState extends State<AppStaggeredEntrance>
       return;
     }
 
+    // Rota-mãe ainda a meio da transição de entrada (`animation` só chega
+    // a `isCompleted` quando o SlideTransition/FadeTransition do router —
+    // app_page_transitions.dart — termina). Enquanto isso, suprime o
+    // atraso incremental (ver doc do widget acima).
+    final routeAnimation = ModalRoute.of(context)?.animation;
+    final enteringViaRouteTransition =
+        routeAnimation != null && !routeAnimation.isCompleted;
+
     final withinStaggerLimit =
         widget.index < AppStaggeredEntrance._maxStaggeredItems;
-    final delay = withinStaggerLimit
+    final delay = (withinStaggerLimit && !enteringViaRouteTransition)
         ? Duration(
             milliseconds: widget.itemDelay.inMilliseconds * widget.index,
           )
