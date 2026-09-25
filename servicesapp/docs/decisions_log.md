@@ -3,6 +3,70 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-09-25 — Cache com TTL em 12 providers `.family` (keepAlive + timer)
+
+**Contexto:** mapeamento prévio (sessão de auditoria só-leitura) identificou que `jobByIdProvider`
+e outros `FutureProvider.family` fazem fetch novo sempre que a app navega para um ecrã de detalhe,
+mesmo quando os dados já tinham sido carregados por uma lista irmã ou por uma visita recente ao
+mesmo ecrã. Nenhum provider do projeto usava `.autoDispose` — por omissão o Riverpod já mantinha
+cada valor em memória para sempre (por cada `jobId`/`workerId` alguma vez visto, até a app
+reiniciar), sem TTL nem limite de memória.
+
+**Mecanismo:** helper `cacheFor(ref, ttl)` em `lib/core/utils/provider_cache.dart` — chama
+`ref.keepAlive()` + `Timer(ttl, link.close)` + `ref.onDispose(timer.cancel)`. Aplicado só a
+providers convertidos para `.autoDispose.family`. Efeito: o valor fica disponível sem novo fetch
+enquanto alguém o observa OU durante `ttl` depois do último observador sair; passado esse tempo
+sem observadores, é disposed (liberta memória, ao contrário do comportamento anterior). Um
+`ref.invalidate()` explícito continua a forçar recompute imediato em qualquer altura — dispõe o
+estado atual (cancelando o timer via `onDispose`) e o próximo `watch`/`read` corre `create` de
+novo. Nenhum ponto de invalidação existente (accept_proposal, accept_help_candidate,
+notificationSyncProvider, etc.) foi tocado.
+
+**Providers convertidos e TTL:**
+- 5 min (dados quase estáticos — nome/telefone/avatar/bio, edição manual e rara):
+  `workerBasicInfoProvider`, `workerPublicCardProvider`, `clientBasicInfoProvider`,
+  `ratingSummaryProvider`, `ratingsWithNamesProvider`, `jobPhotosProvider` (write-once, sem UI de
+  edição).
+- 45s (dados de job/proposta — mudam com alguma frequência, não precisam de estar frescos ao
+  segundo): `jobByIdProvider`, `acceptedProposalForJobProvider`, `proposalByIdProvider`,
+  `acceptedHelpersForJobProvider`.
+- 20s (listas de decisão — o utilizador escolhe uma proposta/candidato a partir daqui, dado mais
+  volátil): `pendingProposalsForJobProvider`, `helpRequestsForJobProvider`,
+  `candidatesForHelpRequestProvider`. TTL curto por prudência de UX (evitar mostrar uma opção já
+  processada), não por risco de corrupção de dados — `accept_proposal`/`accept_help_candidate` já
+  validam o estado no servidor (`FOR UPDATE` + check de status) e rejeitam com erro em vez de
+  aplicar uma transição inconsistente, cache ou não.
+
+**Fora de âmbito nesta ronda (decisão deliberada, não esquecimento):**
+- `workerProposalForJobProvider`, `myRatingForJobProvider`, `myRatingForJobAndRateeProvider`,
+  `workerJobBoardPageProvider`, `completedWorkerProposalsProvider` e todos os providers não-family
+  (`clientJobsProvider`, `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, etc.) — não
+  tinham TTL atribuído na classificação de risco da sessão de auditoria; alterá-los agora seria
+  scope creep sem análise de risco prévia.
+- `profileSummaryProvider`/`workerNameProvider` — sem nenhum `ref.watch`/`ref.read` na app (código
+  morto); não vale a pena tocar.
+- Unificação `worker_dashboard_screen` (trio legado `pendingWorkerProposalsProvider` +
+  `scheduledWorkerProposalsProvider` + `jobsInRadiusProvider`) com `workerJobBoardPageProvider`
+  (migration 0035, já usado por `worker_jobs_screen`) — identificada como fonte de dados
+  duplicada, mas fica para outra sessão: muda o *shape* dos dados consumidos pelo dashboard
+  (`WorkerJobBoardEntry` vs `Map<String, dynamic>`), não é uma mudança puramente de cache.
+- `ratingSummaryProvider`/`ratingsWithNamesProvider` não são invalidados após
+  `submitClientRating`/`submitPrincipalRating`/`submitHelperRating` — gap pré-existente à cache
+  (antes ficava stale para sempre; agora fica stale até 5 min), não corrigido nesta sessão.
+
+**Risco residual conhecido:** `flutter analyze` não foi corrido — este ambiente de execução não
+tem o Flutter/Dart SDK instalado (sem `flutter`/`dart` no PATH, sem `.dart_tool`, dependências
+nunca foram `pub get`). Verificação feita manualmente: `Ref` já é usado como tipo direto de
+parâmetro noutro sítio do código (`notification_providers.dart:_invalidateWorkerJobBoard`),
+confirmando que é o tipo unificado desta versão de Riverpod (3.3.1) e que `cacheFor(Ref ref, ...)`
+tipa corretamente contra os callbacks de `.autoDispose.family`; grep confirmou que nenhum dos 12
+providers é referenciado com tipo explícito (`FutureProvider<T>`) fora do próprio ficheiro que o
+declara, e que os dois únicos locais que fazem `ref.read(provider(x)).value` (em vez de
+`ref.watch`) — `client_job_detail_screen.dart:68` e `worker_help_requests_lobby_screen.dart:111`
+— só são chamados a partir de handlers de botão no mesmo widget que já observa o mesmo provider
+no `build()`, logo o provider nunca está sem observador nesses pontos. Correr `flutter analyze`
+antes de merge continua recomendado.
+
 ## 2026-09-08 — Cartão frota (fuel card): OCR local + aprovação manual (migration 0037)
 
 **Contexto:** item "Carteira digital de cartões" em `improvements.md` estava bloqueado por decisão de negócio (falta de parceria com emissor de cartões frota). Desbloqueado ao trocar a integração real por um fluxo com dados fictícios: o worker fotografa o seu próprio cartão, o telemóvel faz OCR local (`google_mlkit_text_recognition`), e o pedido fica `pending` até ser ativado manualmente via SQL Editor — reaproveita o padrão de moderação já existente em `job_reports`.
