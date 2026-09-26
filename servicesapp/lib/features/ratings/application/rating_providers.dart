@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/rating_model.dart';
 import '../data/rating_repository.dart';
@@ -7,15 +8,25 @@ import '../data/rating_repository.dart';
 export '../data/rating_model.dart';
 export '../data/rating_repository.dart';
 
+// Média/contagem de estrelas e a lista de avaliações mudam raramente
+// (só quando um novo job é avaliado) — seguro reaproveitar por minutos.
+// Nota: hoje nenhum destes dois providers é invalidado depois de
+// submitClientRating/submitPrincipalRating/submitHelperRating (gap
+// pré-existente, não introduzido por esta mudança — sem a cache o dado já
+// ficava desatualizado indefinidamente até restart da app).
+const _ratingsCacheTtl = Duration(minutes: 5);
+
 /// Aggregated rating stats for a worker (avg + count), keyed by workerId.
 final ratingSummaryProvider =
-    FutureProvider.family<RatingSummary, String>((ref, workerId) {
+    FutureProvider.autoDispose.family<RatingSummary, String>((ref, workerId) {
+  cacheFor(ref, _ratingsCacheTtl);
   return ref.read(ratingRepositoryProvider).fetchRatingSummary(workerId);
 });
 
 /// All ratings for a worker with rater name joined, keyed by workerId.
 final ratingsWithNamesProvider =
-    FutureProvider.family<List<Rating>, String>((ref, workerId) {
+    FutureProvider.autoDispose.family<List<Rating>, String>((ref, workerId) {
+  cacheFor(ref, _ratingsCacheTtl);
   return ref
       .read(ratingRepositoryProvider)
       .fetchRatingsWithRaterNames(workerId);
@@ -45,8 +56,13 @@ final myRatingForJobAndRateeProvider =
 
 /// Lists the accepted helpers for a job, keyed by jobId.
 /// Only succeeds when the current user is the principal of that job.
+/// Mesma janela que jobByIdProvider — a composição da equipa muda ao
+/// ritmo do próprio job, não ao segundo.
+const _acceptedHelpersCacheTtl = Duration(seconds: 45);
+
 final acceptedHelpersForJobProvider =
-    FutureProvider.family<List<AcceptedHelper>, String>((ref, jobId) {
+    FutureProvider.autoDispose.family<List<AcceptedHelper>, String>((ref, jobId) {
+  cacheFor(ref, _acceptedHelpersCacheTtl);
   return ref
       .read(ratingRepositoryProvider)
       .fetchAcceptedHelpersForJob(jobId);

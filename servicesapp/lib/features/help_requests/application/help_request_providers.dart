@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../worker/application/worker_providers.dart' show workerProfileProvider;
 import '../data/help_request_model.dart';
@@ -9,15 +10,24 @@ final helpRequestRepositoryProvider = Provider<HelpRequestRepository>(
   (ref) => HelpRequestRepository(ref.watch(supabaseClientProvider)),
 );
 
+// Listas de decisão do lobby (worker principal aceita/rejeita candidatos) —
+// mesma janela curta que pendingProposalsForJobProvider, pelo mesmo motivo:
+// accept_help_candidate/reject_help_candidate validam estado no servidor,
+// a cache só evita refetch redundante, nunca mascara um erro de aceitar
+// um candidato já decidido.
+const _helpRequestDecisionListCacheTtl = Duration(seconds: 20);
+
 final helpRequestsForJobProvider =
-    FutureProvider.family<List<HelpRequest>, String>((ref, jobId) {
+    FutureProvider.autoDispose.family<List<HelpRequest>, String>((ref, jobId) {
+  cacheFor(ref, _helpRequestDecisionListCacheTtl);
   return ref
       .read(helpRequestRepositoryProvider)
       .fetchHelpRequestsForJob(jobId);
 });
 
 final candidatesForHelpRequestProvider =
-    FutureProvider.family<List<HelpAcceptance>, String>((ref, helpRequestId) {
+    FutureProvider.autoDispose.family<List<HelpAcceptance>, String>((ref, helpRequestId) {
+  cacheFor(ref, _helpRequestDecisionListCacheTtl);
   return ref
       .read(helpRequestRepositoryProvider)
       .fetchCandidatesForHelpRequest(helpRequestId);

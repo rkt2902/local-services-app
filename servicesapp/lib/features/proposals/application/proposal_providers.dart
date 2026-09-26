@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/proposal_model.dart';
 import '../data/proposal_repository.dart';
@@ -8,9 +9,20 @@ final proposalRepositoryProvider = Provider<ProposalRepository>(
   (ref) => ProposalRepository(ref.watch(supabaseClientProvider)),
 );
 
+// Lista de decisão: o cliente escolhe uma proposta para aceitar a partir
+// daqui. Uma proposta pode ser retirada ou superada entretanto — janela
+// curta (não minutos, como os dados de perfil) porque é o dado mais
+// volátil desta tela. Mesmo com uma leitura desatualizada, accept_proposal
+// valida `status = 'pending'` no servidor (FOR UPDATE) e rejeita com erro
+// em vez de aplicar um estado inconsistente — a cache não introduz risco
+// de aceitar uma proposta já processada por outro caminho.
+const _proposalDecisionListCacheTtl = Duration(seconds: 20);
+const _proposalDetailCacheTtl = Duration(seconds: 45);
+
 /// All pending proposals for a job — client sees this to choose one.
 final pendingProposalsForJobProvider =
-    FutureProvider.family<List<JobProposal>, String>((ref, jobId) {
+    FutureProvider.autoDispose.family<List<JobProposal>, String>((ref, jobId) {
+  cacheFor(ref, _proposalDecisionListCacheTtl);
   return ref
       .read(proposalRepositoryProvider)
       .fetchPendingProposalsForJob(jobId);
@@ -18,14 +30,16 @@ final pendingProposalsForJobProvider =
 
 /// The accepted proposal for a confirmed job.
 final acceptedProposalForJobProvider =
-    FutureProvider.family<JobProposal?, String>((ref, jobId) {
+    FutureProvider.autoDispose.family<JobProposal?, String>((ref, jobId) {
+  cacheFor(ref, _proposalDetailCacheTtl);
   return ref
       .read(proposalRepositoryProvider)
       .fetchAcceptedProposalForJob(jobId);
 });
 
 final proposalByIdProvider =
-    FutureProvider.family<JobProposal?, String>((ref, proposalId) {
+    FutureProvider.autoDispose.family<JobProposal?, String>((ref, proposalId) {
+  cacheFor(ref, _proposalDetailCacheTtl);
   return ref.read(proposalRepositoryProvider).fetchProposalById(proposalId);
 });
 
