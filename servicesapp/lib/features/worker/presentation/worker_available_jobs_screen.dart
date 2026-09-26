@@ -240,7 +240,7 @@ class _WorkerAvailableJobsScreenState
       // ServiceType não tem campo de ícone e o MVP só tem 1 categoria
       // (Jardinagem) — ícone genérico para todos (ver relatório).
       serviceTypeIconOf: (_) => Icons.yard_outlined,
-      onJobPressed: (id) => context.go('/worker/job/$id'),
+      onJobPressed: (id) => context.push('/worker/job/$id'),
       onSearchChanged: (query) => setState(() => _searchQuery = query),
       onFiltersPressed: _showComingSoon,
       onFiltersChanged: (filters) => setState(() => _filters = filters),

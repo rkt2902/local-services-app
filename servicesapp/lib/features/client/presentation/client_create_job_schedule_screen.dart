@@ -312,9 +312,13 @@ class _ClientCreateJobScheduleScreenState
                       },
                     ),
                   ),
+                  // Chaves nos dois itens deste bloco condicional de
+                  // propósito — ver nota em `_getLocation`/`_geocode` sobre
+                  // porque isto deixou de ser opcional.
                   if (_requiresDate) ...[
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
+                      key: const ValueKey('schedule_date_label'),
                       index: 4,
                       child: Text(
                         'Quando precisa do serviço?',
@@ -325,6 +329,7 @@ class _ClientCreateJobScheduleScreenState
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     AppStaggeredEntrance(
+                      key: const ValueKey('schedule_date_field'),
                       index: 5,
                       child: _DateField(
                         date: _selectedDate,
@@ -365,6 +370,21 @@ class _ClientCreateJobScheduleScreenState
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   AppStaggeredEntrance(
+                    // Chave estável de propósito — sem ela, alternar
+                    // urgência (revela/esconde o bloco "Quando precisa do
+                    // serviço?" acima) desloca este item na lista de filhos
+                    // da Column e o Flutter trata-o como um widget novo:
+                    // destrói e recria o FlutterMap. Se `_getLocation`ou
+                    // `_geocode` estiverem com um `_mapController.move(...)`
+                    // pendente nesse instante (GPS/geocoding ainda a
+                    // resolver — comum mesmo a seguir a instalar a app, com
+                    // o diálogo de permissão ainda por decidir), o
+                    // controller fica sem mapa montado para se agarrar e
+                    // `flutter_map` lança "You need to have the FlutterMap
+                    // widget rendered at least once before using the
+                    // MapController." A chave elimina o destroy/recreate em
+                    // vez de só apanhar a exceção depois de ela acontecer.
+                    key: const ValueKey('schedule_map'),
                     index: 9,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.card),

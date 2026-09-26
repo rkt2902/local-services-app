@@ -273,7 +273,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                     _NearbyOpportunitiesSection(
                       opportunities: data.opportunities,
                       onOpportunityPressed: (id) =>
-                          context.go('/worker/job/$id'),
+                          context.push('/worker/job/$id'),
                     ),
                   ],
                 ),
