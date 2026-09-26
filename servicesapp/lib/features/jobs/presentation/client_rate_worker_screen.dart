@@ -10,6 +10,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/rating_stars_input.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
 
@@ -187,12 +188,13 @@ class _ClientRateWorkerScreenState
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      AppStaggeredEntrance(
-                        index: 2,
-                        child: _RatingStars(
-                          rating: _rating,
-                          onChanged: (rating) => setState(() => _rating = rating),
-                        ),
+                      // Sem AppStaggeredEntrance a envolver: RatingStarsInput
+                      // já tem a sua própria entrada em cascata por estrela
+                      // (docs/motion_spec.md §3) — embrulhar duplicaria a
+                      // animação de entrada.
+                      RatingStarsInput(
+                        rating: _rating,
+                        onChanged: (rating) => setState(() => _rating = rating),
                       ),
                       AnimatedSize(
                         duration:
@@ -213,7 +215,7 @@ class _ClientRateWorkerScreenState
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       AppStaggeredEntrance(
-                        index: 3,
+                        index: 2,
                         child: AppTextField(
                           controller: _commentController,
                           label: 'Conte-nos mais (opcional)',
@@ -248,63 +250,6 @@ class _ClientRateWorkerScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RatingStars extends StatelessWidget {
-  const _RatingStars({required this.rating, required this.onChanged});
-
-  final int rating;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Avaliação de $rating em 5 estrelas',
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var index = 1; index <= 5; index++)
-            _RatingStar(
-              index: index,
-              selected: index <= rating,
-              onPressed: () => onChanged(index),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RatingStar extends StatelessWidget {
-  const _RatingStar({
-    required this.index,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final int index;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    return IconButton(
-      onPressed: onPressed,
-      tooltip: '$index estrelas',
-      iconSize: 36,
-      icon: AnimatedScale(
-        scale: selected ? 1 : 0.94,
-        duration: disableAnimations ? Duration.zero : const Duration(milliseconds: 180),
-        curve: Curves.easeOutBack,
-        child: Icon(
-          selected ? Icons.star_rounded : Icons.star_border_rounded,
-          color: AppColors.logoAccent,
-        ),
       ),
     );
   }

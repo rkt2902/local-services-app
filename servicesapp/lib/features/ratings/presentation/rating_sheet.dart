@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/rating_stars_input.dart';
 
 /// Shows a modal bottom sheet for star rating + optional comment.
 /// Returns `true` if the user submitted, `null`/`false` if dismissed.
+///
+/// Segue o padrão T4 já estabelecido no projeto para submissões (ver
+/// decisions_log.md, "pop → go → snackBar → invalidate"): a sheet fecha-se
+/// a si própria e mostra a confirmação — o caller só invalida os
+/// providers relevantes depois de `showRatingSheet` devolver `true`, nunca
+/// antes. Isto também evita invalidar um provider que o ecrã por trás da
+/// sheet ainda esteja a observar em pleno fecho da modal.
 Future<bool?> showRatingSheet({
   required BuildContext context,
   required String title,
+  required String successMessage,
   String? subtitle,
   required Future<void> Function(int stars, String? comment) onSubmit,
 }) async {
@@ -43,25 +53,15 @@ Future<bool?> showRatingSheet({
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      5,
-                      (i) => IconButton(
-                        icon: Icon(
-                          i < selectedStars
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          size: 40,
-                          color: Colors.amber,
-                        ),
-                        onPressed: () =>
-                            setSheetState(() => selectedStars = i + 1),
-                      ),
-                    ),
+                  RatingStarsInput(
+                    rating: selectedStars,
+                    onChanged: (value) =>
+                        setSheetState(() => selectedStars = value),
                   ),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 150),
+                    duration: MediaQuery.maybeOf(ctx)?.disableAnimations ?? false
+                        ? Duration.zero
+                        : AppMotionDuration.fast,
                     child: selectedStars > 0
                         ? Text(
                             _starLabel(selectedStars),
@@ -131,6 +131,11 @@ Future<bool?> showRatingSheet({
   );
 
   commentController.dispose();
+
+  if (result == true && context.mounted) {
+    scaffold.showSnackBar(SnackBar(content: Text(successMessage)));
+  }
+
   return result;
 }
 

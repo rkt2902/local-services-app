@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
+import 'package:servicesapp/core/theme/app_motion_tokens.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 
@@ -44,17 +45,30 @@ class AppFilterChip extends StatelessWidget {
         ? AppColors.primaryContainer
         : AppColors.surface;
 
+    // docs/motion_spec.md §3, "Chip / filtro": cor de fundo e borda cruzam
+    // para o estado selecionado, sem movimento de posição/tamanho — tokens
+    // `fast · standard`. Reduced motion mantém a mudança de cor (é
+    // informação de estado) mas corta a transição (§5).
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return Semantics(
       button: true,
       selected: selected,
       label: label,
       child: Material(
-        color: backgroundColor,
+        // Preenchimento real fica no AnimatedContainer abaixo — este
+        // Material só existe para o InkWell ter onde desenhar o ripple.
+        type: MaterialType.transparency,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: InkWell(
           onTap: onPressed,
           borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: Container(
+          child: AnimatedContainer(
+            duration: transitionDuration,
+            curve: AppMotionCurve.standard,
             constraints: const BoxConstraints(
               minHeight: 44,
             ),
@@ -63,6 +77,7 @@ class AppFilterChip extends StatelessWidget {
               vertical: AppSpacing.xs,
             ),
             decoration: BoxDecoration(
+              color: backgroundColor,
               borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
                 color: selected

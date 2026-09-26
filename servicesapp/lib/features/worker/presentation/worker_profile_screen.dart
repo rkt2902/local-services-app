@@ -11,6 +11,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -96,7 +97,7 @@ class WorkerProfileScreen extends ConsumerWidget {
     final fleetCardAsync = ref.watch(myFleetCardProvider);
 
     if (profileAsync.isLoading || serviceTypesAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppScreenLoadingSkeleton());
     }
 
     final error =

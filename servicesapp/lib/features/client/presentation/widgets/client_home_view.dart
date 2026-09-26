@@ -120,15 +120,22 @@ class ClientHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     if (data.loadingActiveJobs)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: AppSpacing.lg,
-                        ),
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
+                      Column(
+                        children: [
+                          for (var i = 0; i < 2; i++) ...[
+                            AppSkeletonShimmer(
+                              child: Container(
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.card),
+                                ),
+                              ),
+                            ),
+                            if (i == 0) const SizedBox(height: AppSpacing.sm),
+                          ],
+                        ],
                       )
                     else if (data.activeJobs.isEmpty)
                       AppStaggeredEntrance(

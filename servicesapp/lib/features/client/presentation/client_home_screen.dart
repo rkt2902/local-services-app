@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import '../../jobs/application/job_providers.dart';
@@ -25,7 +26,7 @@ class ClientHomeScreen extends ConsumerWidget {
 
     return profileAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: AppScreenLoadingSkeleton(),
       ),
       error: (e, _) => Scaffold(body: Center(child: Text(friendlyError(e)))),
       data: (profile) => _buildHome(context, ref, profile),

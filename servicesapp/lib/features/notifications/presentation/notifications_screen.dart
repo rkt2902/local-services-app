@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/notification_handler.dart';
 import '../application/notification_providers.dart';
@@ -69,7 +71,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     if (allAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppScreenLoadingSkeleton());
     }
 
     if (allAsync.hasError) {
@@ -92,6 +94,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
     final groups = _groupByDate(visible);
     final hasUnread = all.any((n) => !n.read);
+
+    // Contador acumulado entre grupos de data — sem isto, o índice do
+    // stagger reinicia a 0 em cada grupo ("HOJE"/"ONTEM"/...) e vários
+    // cards de grupos diferentes entram em simultâneo em vez de uma
+    // cascata única a descer a lista toda (mesmo padrão já usado em
+    // worker_help_requests_lobby_view.dart).
+    var entranceIndex = 0;
+    int nextIndex() => entranceIndex++;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -160,13 +170,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                             ),
                           ),
                         ),
-                        for (var i = 0; i < group.notifications.length; i++) ...[
+                        for (final notification in group.notifications) ...[
                           AppStaggeredEntrance(
-                            index: i,
+                            key: ValueKey<String>(notification.id),
+                            index: nextIndex(),
                             child: _NotificationCard(
-                              notification: group.notifications[i],
+                              notification: notification,
                               onPressed: () =>
-                                  _onNotificationPressed(group.notifications[i]),
+                                  _onNotificationPressed(notification),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
@@ -228,15 +239,29 @@ class _NotificationCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final (icon, color) = _iconForType(notification.type);
 
+    // docs/motion_spec.md §3, "Notificação não-lida": ao ser lida, o fundo
+    // tonal desvanece para branco ao longo de 200ms (`AppMotionDuration.fast`
+    // — perceptível, não brusco). Reduced motion mantém a cor final mas
+    // corta a transição (§5).
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return Material(
-      color: notification.read ? AppColors.surface : AppColors.primaryContainer,
+      type: MaterialType.transparency,
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
+        child: AnimatedContainer(
+          duration: transitionDuration,
+          curve: AppMotionCurve.standard,
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
+            color: notification.read
+                ? AppColors.surface
+                : AppColors.primaryContainer,
             borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: AppColors.divider),
           ),
@@ -276,17 +301,27 @@ class _NotificationCard extends StatelessWidget {
                           style: textTheme.labelMedium
                               ?.copyWith(color: AppColors.textSecondary),
                         ),
-                        if (!notification.read) ...[
-                          const SizedBox(width: AppSpacing.xxs),
-                          Container(
+                        const SizedBox(width: AppSpacing.xxs),
+                        // Sempre no layout (não inserido/removido
+                        // condicionalmente) para que a opacidade possa
+                        // fazer fade em vez de aparecer/desaparecer
+                        // abruptamente (docs/motion_spec.md §3, "Ponto
+                        // verde entra com fade").
+                        AnimatedOpacity(
+                          opacity: notification.read ? 0 : 1,
+                          duration: transitionDuration,
+                          curve: AppMotionCurve.standard,
+                          child: const SizedBox(
                             width: 7,
                             height: 7,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xxs),

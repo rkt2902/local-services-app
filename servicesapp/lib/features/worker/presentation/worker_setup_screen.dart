@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../auth/application/auth_providers.dart';
@@ -288,8 +289,23 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     serviceTypesAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
+                      loading: () => Wrap(
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          for (final width in [96.0, 120.0, 84.0, 108.0])
+                            AppSkeletonShimmer(
+                              child: Container(
+                                width: width,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       error: (e, _) => Text(
                         'Erro ao carregar serviços: ${friendlyError(e)}',
                         style:

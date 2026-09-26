@@ -10,6 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/fleet_card_providers.dart';
@@ -491,7 +492,7 @@ class _FleetCardLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    return const AppScreenLoadingSkeleton();
   }
 }
 

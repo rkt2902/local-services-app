@@ -834,7 +834,18 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
             const SizedBox(height: 12),
             if (isCompleted && jobId.isNotEmpty)
               ratingAsync.when(
-                loading: () => const LinearProgressIndicator(),
+                // Loading de "já avaliei este job?", não progresso de uma
+                // operação em curso — mesmo tratamento dos outros
+                // "a carregar" do app (docs/motion_spec.md §3).
+                loading: () => AppSkeletonShimmer(
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.input),
+                    ),
+                  ),
+                ),
                 error: (_, _) => const SizedBox.shrink(),
                 data: (existing) {
                   if (existing != null) {
@@ -900,6 +911,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
       context: context,
       title: 'Avaliar o prestador principal',
       subtitle: widget.acceptance.principalName,
+      successMessage: 'Avaliação enviada!',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitHelperRating(
               jobId: jobId,
@@ -910,9 +922,6 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
     );
     if (submitted != true || !mounted) return;
     ref.invalidate(myRatingForJobProvider(jobId));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Avaliação enviada!')));
   }
 }
 

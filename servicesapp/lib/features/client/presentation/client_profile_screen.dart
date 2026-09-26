@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/client_providers.dart';
 import 'widgets/client_account_view.dart';
@@ -53,7 +54,7 @@ class ClientProfileScreen extends ConsumerWidget {
     final jobsAsync = ref.watch(clientJobsProvider);
 
     if (profileAsync.isLoading || jobsAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppScreenLoadingSkeleton());
     }
 
     final error = profileAsync.hasError

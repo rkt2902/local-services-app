@@ -21,6 +21,7 @@ import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_timeline.dart';
@@ -437,18 +438,30 @@ class _ClientJobDetailScreenState
     }
   }
 
+  Widget _workerContactCardSkeleton() {
+    return AppSkeletonShimmer(
+      child: Container(
+        height: 112,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+      ),
+    );
+  }
+
   Widget _workerContactCard(
     JobRequest job,
     AsyncValue<Map<String, String>> workerInfoAsync,
     ThemeData theme,
   ) {
     return workerInfoAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: _workerContactCardSkeleton,
       error: (e, _) =>
           const Text('Não foi possível carregar o contacto.'),
       data: (info) {
         if (info.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return _workerContactCardSkeleton();
         }
         final name = info['full_name'] ?? '';
         final phone = info['phone'] ?? '';
@@ -555,7 +568,7 @@ class _ClientJobDetailScreenState
   Widget build(BuildContext context) {
     return ref.watch(jobByIdProvider(widget.jobId)).when(
       loading: () => const Scaffold(
-        body: SafeArea(child: Center(child: CircularProgressIndicator())),
+        body: AppScreenLoadingSkeleton(),
       ),
       error: (e, _) => Scaffold(
         body: SafeArea(child: Center(child: Text(friendlyError(e)))),
@@ -829,7 +842,25 @@ class _ClientJobDetailScreenState
           );
 
           final proposalsTab = pendingProposalsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                children: [
+                  for (var i = 0; i < 2; i++) ...[
+                    AppSkeletonShimmer(
+                      child: Container(
+                        height: 132,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                        ),
+                      ),
+                    ),
+                    if (i == 0) const SizedBox(height: AppSpacing.sm),
+                  ],
+                ],
+              ),
+            ),
             error: (e, _) => Center(child: Text(friendlyError(e))),
             data: (proposals) {
               if (proposals.isEmpty) {
@@ -1276,6 +1307,8 @@ class _ClientJobDetailScreenState
       title: 'Avaliar o trabalho',
       subtitle:
           'A nota é partilhada com o prestador e ajudantes. O comentário aparece no perfil do prestador.',
+      successMessage:
+          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitClientRating(
               jobId: widget.jobId,
@@ -1286,11 +1319,6 @@ class _ClientJobDetailScreenState
     );
     if (submitted != true || !mounted) return;
     ref.invalidate(myRatingForJobProvider(widget.jobId));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text(
-          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.'),
-    ));
   }
 }
 
