@@ -15,7 +15,6 @@ import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_account_view.dart';
 
@@ -157,11 +156,7 @@ class WorkerProfileScreen extends ConsumerWidget {
       ),
       onQrPressed: () => _showQrDialog(context, publicUrl),
       onJobsPressed: () => context.go('/worker/jobs'),
-      onReviewsPressed: () => showRatingsSheet(
-        context,
-        workerId: userId,
-        workerName: 'As minhas avaliações',
-      ),
+      onReviewsPressed: () => context.push('/worker/ratings'),
       onFleetCardPressed: () => context.push('/worker/fleet-card'),
       onSupportPressed: () => _showSupportSheet(context),
       onAboutPressed: () => showAboutDialog(

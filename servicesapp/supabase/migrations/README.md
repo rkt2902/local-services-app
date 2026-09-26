@@ -33,6 +33,12 @@ cards) have also been applied — see each file's own header.
 No known delta between the live DB and `0001_consolidated_baseline.sql` as
 of 2026-09-09.
 
+**PENDENTE — `0038_ratings_mine_received_given.sql`** — NÃO aplicada ainda.
+Adiciona `get_my_ratings_received()`/`get_my_ratings_given()` (RPCs
+SECURITY DEFINER, sem parâmetro de identidade) para o ecrã "As minhas
+avaliações". Aplicar manualmente via SQL Editor antes de usar
+`my_ratings_screen.dart`.
+
 ## Sources used for consolidation
 
 - `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,

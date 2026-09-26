@@ -41,6 +41,7 @@ import '../../features/help_requests/presentation/worker_help_requests_lobby_scr
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
@@ -161,6 +162,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         pageBuilder: (context, state) =>
             buildFadeThroughPage(context, state, const NotificationsScreen()),
+      ),
+      // Mesma razão do fade-through de cima: "As minhas avaliações" é
+      // alcançado a partir de um item de menu na conta (worker e cliente),
+      // nunca de um card — sem relação direta de conteúdo com a origem.
+      // Uma só rota/ecrã para os dois papéis: `MyRatingsRoute` não tem
+      // nenhum código específico de cliente/worker (ver o seu doc comment).
+      GoRoute(
+        path: '/worker/ratings',
+        pageBuilder: (context, state) =>
+            buildFadeThroughPage(context, state, const MyRatingsRoute()),
+      ),
+      GoRoute(
+        path: '/client/ratings',
+        pageBuilder: (context, state) =>
+            buildFadeThroughPage(context, state, const MyRatingsRoute()),
       ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
       // autenticação/role (ver publicPathPrefixes no redirect abaixo).

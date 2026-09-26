@@ -67,3 +67,19 @@ final acceptedHelpersForJobProvider =
       .read(ratingRepositoryProvider)
       .fetchAcceptedHelpersForJob(jobId);
 });
+
+/// Avaliações recebidas pelo utilizador atual — tab "Recebidas" de
+/// "As minhas avaliações". Igual para cliente e worker.
+final myRatingsReceivedProvider =
+    FutureProvider.autoDispose<List<RatingWithParty>>((ref) {
+  cacheFor(ref, _ratingsCacheTtl);
+  return ref.read(ratingRepositoryProvider).fetchMyRatingsReceived();
+});
+
+/// Avaliações dadas pelo utilizador atual — tab "Dadas" de
+/// "As minhas avaliações". Igual para cliente e worker.
+final myRatingsGivenProvider =
+    FutureProvider.autoDispose<List<RatingWithParty>>((ref) {
+  cacheFor(ref, _ratingsCacheTtl);
+  return ref.read(ratingRepositoryProvider).fetchMyRatingsGiven();
+});
