@@ -24,6 +24,7 @@ import '../../features/worker/presentation/worker_submit_proposal_screen.dart';
 import '../../features/client/presentation/client_create_job_service_screen.dart';
 import '../../features/client/presentation/client_create_job_schedule_screen.dart';
 import '../../features/client/presentation/client_create_job_description_screen.dart';
+import '../../features/client/presentation/client_create_job_review_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
@@ -40,6 +41,7 @@ import '../../features/help_requests/presentation/worker_help_requests_lobby_scr
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
@@ -161,6 +163,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             buildFadeThroughPage(context, state, const NotificationsScreen()),
       ),
+      // Mesma razão do fade-through de cima: "As minhas avaliações" é
+      // alcançado a partir de um item de menu na conta (worker e cliente),
+      // nunca de um card — sem relação direta de conteúdo com a origem.
+      // Uma só rota/ecrã para os dois papéis: `MyRatingsRoute` não tem
+      // nenhum código específico de cliente/worker (ver o seu doc comment).
+      GoRoute(
+        path: '/worker/ratings',
+        pageBuilder: (context, state) =>
+            buildFadeThroughPage(context, state, const MyRatingsRoute()),
+      ),
+      GoRoute(
+        path: '/client/ratings',
+        pageBuilder: (context, state) =>
+            buildFadeThroughPage(context, state, const MyRatingsRoute()),
+      ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
       // autenticação/role (ver publicPathPrefixes no redirect abaixo).
       GoRoute(
@@ -176,14 +193,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/client/profile/edit',
         builder: (_, _) => const ClientEditProfileScreen(),
       ),
-      // Wizard "criar pedido" — 3 passos sempre sequenciais, cada um só
-      // alcançado a partir do anterior: shared-axis.
+      // Wizard "criar pedido" — 4 passos sempre sequenciais, cada um só
+      // alcançado a partir do anterior: shared-axis. `fromReview=true`
+      // (só passado pelos callbacks "Editar" da revisão, passo 4) mostra
+      // o mesmo ecrã com os dados já preenchidos do wizard provider, mas
+      // "Continuar" volta direto à revisão (context.pop) em vez de seguir
+      // a sequência normal — ver client_create_job_review_screen.dart.
       GoRoute(
         path: '/client/create-job',
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobServiceScreen(),
+          ClientCreateJobServiceScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
         ),
       ),
       GoRoute(
@@ -191,7 +214,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobScheduleScreen(),
+          ClientCreateJobScheduleScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
         ),
       ),
       GoRoute(
@@ -199,7 +224,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobDescriptionScreen(),
+          ClientCreateJobDescriptionScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/client/create-job/review',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          const ClientCreateJobReviewScreen(),
         ),
       ),
       // Origem ambígua: card de lista (client_home_screen,

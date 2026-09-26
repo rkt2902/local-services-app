@@ -18,7 +18,13 @@ import '../application/client_create_job_wizard_provider.dart';
 /// `serviceTypesProvider` é o mesmo provider já usado do lado do worker
 /// (re-exportado por `jobs/application/job_providers.dart`).
 class ClientCreateJobServiceScreen extends ConsumerStatefulWidget {
-  const ClientCreateJobServiceScreen({super.key});
+  const ClientCreateJobServiceScreen({super.key, this.fromReview = false});
+
+  /// `true` quando alcançado via "Editar" a partir da revisão (passo 4) —
+  /// o formulário mostra os dados já preenchidos (como sempre fez) mas
+  /// "Continuar" volta direto à revisão em vez de seguir a sequência
+  /// normal do wizard.
+  final bool fromReview;
 
   @override
   ConsumerState<ClientCreateJobServiceScreen> createState() {
@@ -56,7 +62,11 @@ class _ClientCreateJobServiceScreenState
     final id = _selectedServiceTypeId;
     if (id == null) return;
     ref.read(clientCreateJobWizardProvider.notifier).setService(id);
-    context.push('/client/create-job/schedule');
+    if (widget.fromReview) {
+      context.pop();
+    } else {
+      context.push('/client/create-job/schedule');
+    }
   }
 
   @override
@@ -96,7 +106,7 @@ class _ClientCreateJobServiceScreenState
               AppSpacing.lg,
               AppSpacing.md,
             ),
-            child: AppStepProgress(currentStep: 1, totalSteps: 3),
+            child: AppStepProgress(currentStep: 1, totalSteps: 4),
           ),
           Expanded(
             child: SingleChildScrollView(

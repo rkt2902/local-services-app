@@ -13,6 +13,8 @@ class ClientAccountViewData {
     required this.totalJobs,
     required this.activeJobs,
     required this.completedJobs,
+    required this.ratingLabel,
+    required this.reviewsLabel,
     this.avatarImage,
   });
 
@@ -23,6 +25,12 @@ class ClientAccountViewData {
   final int totalJobs;
   final int activeJobs;
   final int completedJobs;
+
+  /// Avaliações que o cliente RECEBEU (dos workers), mesmo par de campos
+  /// já usado em `WorkerAccountViewData` (`ratingSummaryProvider` serve os
+  /// dois papéis — ver `MyRatingsRoute`).
+  final String ratingLabel;
+  final String reviewsLabel;
 }
 
 class ClientAccountScreen extends StatelessWidget {
@@ -30,6 +38,7 @@ class ClientAccountScreen extends StatelessWidget {
     required this.data,
     required this.onSettingsPressed,
     required this.onJobsPressed,
+    required this.onReviewsPressed,
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
@@ -40,6 +49,7 @@ class ClientAccountScreen extends StatelessWidget {
 
   final VoidCallback onSettingsPressed;
   final VoidCallback onJobsPressed;
+  final VoidCallback onReviewsPressed;
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
@@ -95,17 +105,25 @@ class ClientAccountScreen extends StatelessWidget {
             AppStaggeredEntrance(
               index: 1,
               child: AppAccountMenuGroup(
-                items: const [
-                  AppAccountMenuItem(
+                items: [
+                  const AppAccountMenuItem(
                     id: 'jobs',
                     label: 'Os meus pedidos',
                     icon: Icons.receipt_long_outlined,
+                  ),
+                  AppAccountMenuItem(
+                    id: 'reviews',
+                    label: 'Avaliações',
+                    icon: Icons.star_border_rounded,
+                    trailingLabel: '${data.ratingLabel} · ${data.reviewsLabel}',
                   ),
                 ],
                 onItemPressed: (id) {
                   switch (id) {
                     case 'jobs':
                       onJobsPressed();
+                    case 'reviews':
+                      onReviewsPressed();
                   }
                 },
               ),

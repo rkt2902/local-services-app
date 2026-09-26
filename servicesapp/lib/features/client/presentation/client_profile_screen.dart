@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../ratings/application/rating_providers.dart';
 import '../application/client_providers.dart';
 import 'widgets/client_account_view.dart';
 
@@ -52,6 +54,9 @@ class ClientProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(clientProfileProvider);
     final jobsAsync = ref.watch(clientJobsProvider);
+    final userId = ref.watch(currentUserProvider)?.id;
+    final ratingSummaryAsync =
+        userId == null ? null : ref.watch(ratingSummaryProvider(userId));
 
     if (profileAsync.isLoading || jobsAsync.isLoading) {
       return const Scaffold(body: AppScreenLoadingSkeleton());
@@ -78,6 +83,14 @@ class ClientProfileScreen extends ConsumerWidget {
     final completedJobs =
         jobs.where((j) => j.status == JobStatus.completed).length;
 
+    final ratingSummary = ratingSummaryAsync?.asData?.value;
+    final ratingLabel = ratingSummary == null
+        ? '—'
+        : ratingSummary.avgRating.toStringAsFixed(1);
+    final reviewsLabel = ratingSummary == null
+        ? '0 avaliações'
+        : '${ratingSummary.ratingCount} avaliações';
+
     return ClientAccountScreen(
       data: ClientAccountViewData(
         name: profile.fullName,
@@ -85,6 +98,8 @@ class ClientProfileScreen extends ConsumerWidget {
         totalJobs: jobs.length,
         activeJobs: activeJobs,
         completedJobs: completedJobs,
+        ratingLabel: ratingLabel,
+        reviewsLabel: reviewsLabel,
         avatarImage: profile.avatarUrl != null
             ? NetworkImage(profile.avatarUrl!)
             : null,
@@ -92,6 +107,7 @@ class ClientProfileScreen extends ConsumerWidget {
       onSettingsPressed: () => context.push('/client/profile/edit'),
       onDefinitionsPressed: () => context.push('/client/profile/edit'),
       onJobsPressed: () => context.go('/client/jobs'),
+      onReviewsPressed: () => context.push('/client/ratings'),
       onSupportPressed: () => _showSupportSheet(context),
       onAboutPressed: () => showAboutDialog(
         context: context,

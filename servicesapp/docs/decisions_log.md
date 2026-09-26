@@ -3,6 +3,46 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-09-26 — Wizard "criar pedido" ganha passo 4: rever e publicar
+
+**Contexto:** o wizard de 3 passos publicava diretamente no passo 3 ("Descrição e fotos"), sem
+nenhum ecrã de revisão. Referência visual/estrutural fornecida em `doc.txt` (secção "1a. Criar
+pedido — Passo 4: Rever e publicar"), apagado depois de integrado.
+
+**Novo ficheiro:** `client_create_job_review_screen.dart` — passo 4/4. Ao contrário do mockup de
+referência (presentational puro, wrapper+view separados com `CreateJobReviewViewData`/
+`CreateJobPublishResult` injetados), este ecrã lê o `clientCreateJobWizardProvider` diretamente,
+igual aos outros 3 passos do wizard — nenhum deles usa esse padrão de wrapper. `AppStepProgress`
+passa a `totalSteps: 4` nos 4 ecrãs.
+
+**Publicação move-se do passo 3 para o passo 4:** `createJob` + loop de `uploadJobPhoto` +
+`ref.invalidate(clientJobsProvider)` + `reset()` do wizard, tudo movido de
+`client_create_job_description_screen.dart` para a revisão. O passo 3 passa a só gravar
+descrição/fotos no wizard provider (`setDescriptionAndPhotos` — **existia desde sempre mas nunca
+tinha sido chamado em lado nenhum**, confirmado por grep antes de mexer; `description`/`photos`
+do provider estavam sempre nos valores por omissão na prática) e a navegar para a revisão; botão
+passa de "Publicar pedido" para "Continuar". Fotos continuam como `File` locais até à publicação
+real — a revisão só as mostra com `Image.file`/`FileImage`, nunca faz upload.
+
+**Navegação direta para um passo específico — não existia nenhum padrão disto no projeto**
+(confirmado: só há `PageView` no onboarding, arquitetura diferente, e `_openSection()` em
+`worker_edit_profile_screen.dart`, secções dentro do mesmo ecrã sem rotas próprias). Implementado
+com o mínimo de mecanismo: os 3 ecrãs do wizard ganharam um parâmetro `fromReview` (bool, lido de
+`?fromReview=true` na query string do router, mesmo padrão já usado para `?workerId=...` em
+`client_job_confirmed_screen.dart`) — quando `true`, "Continuar" faz `context.pop()` em vez de
+avançar para o próximo passo. Sem provider novo, sem estado duplicado: a revisão e os passos leem
+sempre o mesmo `clientCreateJobWizardProvider`, por isso voltar de "Editar" já reflete o que foi
+alterado assim que o ecrã editado grava e faz pop.
+
+**Sucesso ao publicar:** `AppSuccessFeedback` + espera de 1100ms (0ms com reduced motion) antes de
+navegar para a home — mesmo padrão já usado em `client_rate_worker_screen.dart` — em vez de
+navegar imediatamente como o mockup de referência sugeria. Sem SnackBar de sucesso redundante
+(fica só para o caso de erro).
+
+**Verificação:** `flutter analyze` (SDK instalado nesta sessão) — 5 issues, todas as mesmas
+pré-existentes já confirmadas nas sessões anteriores, zero problemas novos nos 6 ficheiros
+tocados.
+
 ## 2026-09-26 — Motion Fase 3: fecho dos 2 itens pendentes (LinearProgressIndicator + rating_sheet)
 
 **Contexto:** os 2 itens deixados como "pendentes" no fecho da Fase 3 do motion system.

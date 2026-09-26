@@ -1,14 +1,5 @@
-# Avaliações — Worker
-
-**Ficheiro:** `lib/features/worker/presentation/worker_reviews_screen.dart`
-
-**Dependências novas:** nenhuma.
-
-O ecrã cobre as duas tabs **Recebidas** e **Dadas**, reputação no cabeçalho, loading independente por tab, erro, vazios, comentários expansíveis e cards preparados para paginação. A média e todas as contagens chegam já formatadas pela integração.
-
-```dart
 import 'package:flutter/material.dart';
-import 'package:riverpod/riverpod.dart' show AsyncValue;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -16,13 +7,23 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_motion.dart';
 
-enum WorkerReviewsTab {
+/// Ecrã genérico "As minhas avaliações" — 2 tabs (Recebidas/Dadas), usado
+/// tanto pelo cliente como pelo worker. Não sabe qual dos dois papéis está
+/// a olhar para ele: recebe tudo já resolvido em ViewData pelo ecrã
+/// wrapper de cada lado (`WorkerRatingsScreen`/`ClientRatingsScreen`).
+///
+/// Estrutura visual portada de doc.txt (referência), com os nomes
+/// generalizados (deixou de ser `WorkerReviews*`) e sem paginação — as
+/// listas vêm inteiras de `get_my_ratings_received`/`get_my_ratings_given`,
+/// por isso `animateEntrance` é sempre `true` aqui (o campo fica pronto
+/// para paginação futura, mas hoje nunca chega `false`).
+enum MyRatingsTab {
   received,
   given,
 }
 
-class WorkerReviewsSummaryViewData {
-  const WorkerReviewsSummaryViewData({
+class MyRatingsSummaryViewData {
+  const MyRatingsSummaryViewData({
     required this.averageRatingLabel,
     required this.receivedReviewsLabel,
     required this.filledSummaryStars,
@@ -30,95 +31,67 @@ class WorkerReviewsSummaryViewData {
     required this.hasReceivedReviews,
   });
 
-  /// Já formatado pela integração em pt-PT.
-  /// Ex.: "4,8".
   final String averageRatingLabel;
-
-  /// Já formatado pela integração.
-  /// Ex.: "128 avaliações".
-  /// Sem avaliações pode ser "Sem avaliações".
   final String receivedReviewsLabel;
-
-  /// Quantidade de estrelas visualmente preenchidas,
-  /// já decidida externamente.
   final int filledSummaryStars;
-
   final int maxSummaryStars;
-
   final bool hasReceivedReviews;
 }
 
-class WorkerReceivedReviewViewData {
-  const WorkerReceivedReviewViewData({
-    required this.reviewId,
-    required this.reviewerName,
+class ReceivedRatingViewData {
+  const ReceivedRatingViewData({
+    required this.ratingId,
+    required this.raterName,
     required this.dateLabel,
     required this.filledStars,
     required this.maxStars,
     required this.comment,
     required this.serviceLabel,
     required this.serviceIcon,
-    this.reviewerAvatarUrl,
+    this.raterAvatarUrl,
     this.animateEntrance = true,
   });
 
-  final String reviewId;
-
-  final String reviewerName;
-  final String? reviewerAvatarUrl;
-
-  /// Já formatado externamente.
+  final String ratingId;
+  final String raterName;
+  final String? raterAvatarUrl;
   final String dateLabel;
-
   final int filledStars;
   final int maxStars;
-
   final String? comment;
-
   final String serviceLabel;
   final IconData serviceIcon;
-
-  /// true apenas para itens da primeira página.
-  /// Itens carregados posteriormente podem chegar com false.
   final bool animateEntrance;
 }
 
-class WorkerGivenReviewViewData {
-  const WorkerGivenReviewViewData({
-    required this.reviewId,
-    required this.workerName,
+class GivenRatingViewData {
+  const GivenRatingViewData({
+    required this.ratingId,
+    required this.rateeName,
     required this.dateLabel,
     required this.filledStars,
     required this.maxStars,
     required this.comment,
     required this.serviceLabel,
     required this.serviceIcon,
-    this.workerAvatarUrl,
+    this.rateeAvatarUrl,
     this.animateEntrance = true,
   });
 
-  final String reviewId;
-
-  final String workerName;
-  final String? workerAvatarUrl;
-
-  /// Já formatado externamente.
+  final String ratingId;
+  final String rateeName;
+  final String? rateeAvatarUrl;
   final String dateLabel;
-
   final int filledStars;
   final int maxStars;
-
   final String? comment;
-
   final String serviceLabel;
   final IconData serviceIcon;
-
-  /// true apenas para itens da primeira página.
   final bool animateEntrance;
 }
 
-class WorkerReviewsScreen extends StatefulWidget {
-  const WorkerReviewsScreen({
+class MyRatingsScreen extends StatefulWidget {
+  const MyRatingsScreen({
     super.key,
     required this.summaryAsync,
     required this.receivedAsync,
@@ -126,47 +99,39 @@ class WorkerReviewsScreen extends StatefulWidget {
     required this.receivedTabLabel,
     required this.givenTabLabel,
     required this.onBack,
-    this.initialTab = WorkerReviewsTab.received,
+    this.initialTab = MyRatingsTab.received,
     this.onTabChanged,
     this.onRetrySummary,
     this.onRetryReceived,
     this.onRetryGiven,
   });
 
-  /// Cabeçalho de reputação, igual nas duas tabs.
-  final AsyncValue<WorkerReviewsSummaryViewData> summaryAsync;
+  /// Cabeçalho de reputação, igual nas duas tabs — a média vem sempre das
+  /// avaliações recebidas.
+  final AsyncValue<MyRatingsSummaryViewData> summaryAsync;
 
-  /// Estado independente da tab Recebidas.
-  final AsyncValue<List<WorkerReceivedReviewViewData>>
-      receivedAsync;
+  final AsyncValue<List<ReceivedRatingViewData>> receivedAsync;
+  final AsyncValue<List<GivenRatingViewData>> givenAsync;
 
-  /// Estado independente da tab Dadas.
-  final AsyncValue<List<WorkerGivenReviewViewData>>
-      givenAsync;
-
-  /// Labels já com as contagens reais.
-  /// Ex.: "Recebidas 128" / "Dadas 42".
   final String receivedTabLabel;
   final String givenTabLabel;
 
-  final WorkerReviewsTab initialTab;
+  final MyRatingsTab initialTab;
 
   final VoidCallback onBack;
 
-  final ValueChanged<WorkerReviewsTab>? onTabChanged;
+  final ValueChanged<MyRatingsTab>? onTabChanged;
 
   final VoidCallback? onRetrySummary;
   final VoidCallback? onRetryReceived;
   final VoidCallback? onRetryGiven;
 
   @override
-  State<WorkerReviewsScreen> createState() =>
-      _WorkerReviewsScreenState();
+  State<MyRatingsScreen> createState() => _MyRatingsScreenState();
 }
 
-class _WorkerReviewsScreenState
-    extends State<WorkerReviewsScreen> {
-  late WorkerReviewsTab _selectedTab;
+class _MyRatingsScreenState extends State<MyRatingsScreen> {
+  late MyRatingsTab _selectedTab;
 
   @override
   void initState() {
@@ -175,9 +140,7 @@ class _WorkerReviewsScreenState
   }
 
   @override
-  void didUpdateWidget(
-    covariant WorkerReviewsScreen oldWidget,
-  ) {
+  void didUpdateWidget(covariant MyRatingsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.initialTab != widget.initialTab) {
@@ -185,7 +148,7 @@ class _WorkerReviewsScreenState
     }
   }
 
-  void _selectTab(WorkerReviewsTab tab) {
+  void _selectTab(MyRatingsTab tab) {
     if (_selectedTab == tab) {
       return;
     }
@@ -204,7 +167,7 @@ class _WorkerReviewsScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _ReviewsHeader(
+            _RatingsHeader(
               summaryAsync: widget.summaryAsync,
               onBack: widget.onBack,
               onRetry: widget.onRetrySummary,
@@ -216,10 +179,9 @@ class _WorkerReviewsScreenState
                 AppSpacing.md,
                 AppSpacing.sm,
               ),
-              child: _ReviewsTabs(
+              child: _RatingsTabs(
                 selectedTab: _selectedTab,
-                receivedLabel:
-                    widget.receivedTabLabel,
+                receivedLabel: widget.receivedTabLabel,
                 givenLabel: widget.givenTabLabel,
                 onSelected: _selectTab,
               ),
@@ -227,23 +189,15 @@ class _WorkerReviewsScreenState
             Expanded(
               child: AppFadeThroughSwitcher(
                 switchKey: _selectedTab,
-                duration:
-                    const Duration(milliseconds: 220),
-                child: _selectedTab ==
-                        WorkerReviewsTab.received
+                duration: const Duration(milliseconds: 220),
+                child: _selectedTab == MyRatingsTab.received
                     ? _ReceivedTab(
-                        key: const ValueKey(
-                          'received_reviews',
-                        ),
-                        reviewsAsync:
-                            widget.receivedAsync,
-                        onRetry:
-                            widget.onRetryReceived,
+                        key: const ValueKey('my_ratings_received'),
+                        reviewsAsync: widget.receivedAsync,
+                        onRetry: widget.onRetryReceived,
                       )
                     : _GivenTab(
-                        key: const ValueKey(
-                          'given_reviews',
-                        ),
+                        key: const ValueKey('my_ratings_given'),
                         reviewsAsync: widget.givenAsync,
                         onRetry: widget.onRetryGiven,
                       ),
@@ -260,14 +214,14 @@ class _WorkerReviewsScreenState
 // HEADER
 // -----------------------------------------------------------------------------
 
-class _ReviewsHeader extends StatelessWidget {
-  const _ReviewsHeader({
+class _RatingsHeader extends StatelessWidget {
+  const _RatingsHeader({
     required this.summaryAsync,
     required this.onBack,
     required this.onRetry,
   });
 
-  final AsyncValue<WorkerReviewsSummaryViewData> summaryAsync;
+  final AsyncValue<MyRatingsSummaryViewData> summaryAsync;
   final VoidCallback onBack;
   final VoidCallback? onRetry;
 
@@ -312,15 +266,9 @@ class _ReviewsHeader extends StatelessWidget {
               horizontal: AppSpacing.sm,
             ),
             child: summaryAsync.when(
-              loading: () =>
-                  const _SummarySkeleton(),
-              error: (_, __) => _SummaryUnavailable(
-                onRetry: onRetry,
-              ),
-              data: (summary) =>
-                  _SummaryContent(
-                summary: summary,
-              ),
+              loading: () => const _SummarySkeleton(),
+              error: (_, _) => _SummaryUnavailable(onRetry: onRetry),
+              data: (summary) => _SummaryContent(summary: summary),
             ),
           ),
         ],
@@ -330,11 +278,9 @@ class _ReviewsHeader extends StatelessWidget {
 }
 
 class _SummaryContent extends StatelessWidget {
-  const _SummaryContent({
-    required this.summary,
-  });
+  const _SummaryContent({required this.summary});
 
-  final WorkerReviewsSummaryViewData summary;
+  final MyRatingsSummaryViewData summary;
 
   @override
   Widget build(BuildContext context) {
@@ -356,15 +302,12 @@ class _SummaryContent extends StatelessWidget {
             children: [
               if (summary.hasReceivedReviews)
                 _StarsRow(
-                  filledStars:
-                      summary.filledSummaryStars,
+                  filledStars: summary.filledSummaryStars,
                   maxStars: summary.maxSummaryStars,
                   size: 18,
                 ),
               if (summary.hasReceivedReviews)
-                const SizedBox(
-                  height: AppSpacing.xxs,
-                ),
+                const SizedBox(height: AppSpacing.xxs),
               Text(
                 summary.receivedReviewsLabel,
                 style: textTheme.labelMedium?.copyWith(
@@ -392,8 +335,7 @@ class _SummarySkeleton extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.circular(AppRadius.input),
+              borderRadius: BorderRadius.circular(AppRadius.input),
             ),
           ),
         ),
@@ -408,10 +350,7 @@ class _SummarySkeleton extends StatelessWidget {
                   height: 14,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.pill,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
               ),
@@ -422,10 +361,7 @@ class _SummarySkeleton extends StatelessWidget {
                   height: 12,
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.pill,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                 ),
               ),
@@ -438,9 +374,7 @@ class _SummarySkeleton extends StatelessWidget {
 }
 
 class _SummaryUnavailable extends StatelessWidget {
-  const _SummaryUnavailable({
-    required this.onRetry,
-  });
+  const _SummaryUnavailable({required this.onRetry});
 
   final VoidCallback? onRetry;
 
@@ -482,19 +416,18 @@ class _SummaryUnavailable extends StatelessWidget {
 // TABS
 // -----------------------------------------------------------------------------
 
-class _ReviewsTabs extends StatelessWidget {
-  const _ReviewsTabs({
+class _RatingsTabs extends StatelessWidget {
+  const _RatingsTabs({
     required this.selectedTab,
     required this.receivedLabel,
     required this.givenLabel,
     required this.onSelected,
   });
 
-  final WorkerReviewsTab selectedTab;
+  final MyRatingsTab selectedTab;
   final String receivedLabel;
   final String givenLabel;
-
-  final ValueChanged<WorkerReviewsTab> onSelected;
+  final ValueChanged<MyRatingsTab> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -502,28 +435,23 @@ class _ReviewsTabs extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.xxs),
       decoration: BoxDecoration(
         color: AppColors.divider,
-        borderRadius:
-            BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(AppRadius.input),
       ),
       child: Row(
         children: [
           Expanded(
             child: _TabButton(
               label: receivedLabel,
-              selected:
-                  selectedTab == WorkerReviewsTab.received,
-              onPressed: () =>
-                  onSelected(WorkerReviewsTab.received),
+              selected: selectedTab == MyRatingsTab.received,
+              onPressed: () => onSelected(MyRatingsTab.received),
             ),
           ),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: _TabButton(
               label: givenLabel,
-              selected:
-                  selectedTab == WorkerReviewsTab.given,
-              onPressed: () =>
-                  onSelected(WorkerReviewsTab.given),
+              selected: selectedTab == MyRatingsTab.given,
+              onPressed: () => onSelected(MyRatingsTab.given),
             ),
           ),
         ],
@@ -548,15 +476,11 @@ class _TabButton extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Material(
-      color: selected
-          ? AppColors.surface
-          : AppColors.background,
-      borderRadius:
-          BorderRadius.circular(AppRadius.input),
+      color: selected ? AppColors.surface : AppColors.background,
+      borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: onPressed,
-        borderRadius:
-            BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
@@ -568,12 +492,8 @@ class _TabButton extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: textTheme.bodyMedium?.copyWith(
-              color: selected
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
-              fontWeight: selected
-                  ? FontWeight.w700
-                  : FontWeight.w500,
+              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -593,28 +513,21 @@ class _ReceivedTab extends StatelessWidget {
     required this.onRetry,
   });
 
-  final AsyncValue<List<WorkerReceivedReviewViewData>>
-      reviewsAsync;
-
+  final AsyncValue<List<ReceivedRatingViewData>> reviewsAsync;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return reviewsAsync.when(
-      loading: () =>
-          const _ReviewsListSkeleton(),
-      error: (_, __) => _ReviewsError(
-        onRetry: onRetry,
-      ),
+      loading: () => const _RatingsListSkeleton(),
+      error: (_, _) => _RatingsError(onRetry: onRetry),
       data: (reviews) {
         if (reviews.isEmpty) {
           return const _ReceivedEmptyState();
         }
 
         return ListView.separated(
-          key: const PageStorageKey(
-            'worker_reviews_received',
-          ),
+          key: const PageStorageKey('my_ratings_received'),
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
             AppSpacing.xxs,
@@ -622,25 +535,16 @@ class _ReceivedTab extends StatelessWidget {
             AppSpacing.lg,
           ),
           itemCount: reviews.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(
-            height: AppSpacing.sm,
-          ),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
           itemBuilder: (context, index) {
             final review = reviews[index];
-
-            final card = _ReceivedReviewCard(
-              review: review,
-            );
+            final card = _ReceivedRatingCard(review: review);
 
             if (!review.animateEntrance) {
               return card;
             }
 
-            return AppStaggeredEntrance(
-              index: index,
-              child: card,
-            );
+            return AppStaggeredEntrance(index: index, child: card);
           },
         );
       },
@@ -648,12 +552,10 @@ class _ReceivedTab extends StatelessWidget {
   }
 }
 
-class _ReceivedReviewCard extends StatelessWidget {
-  const _ReceivedReviewCard({
-    required this.review,
-  });
+class _ReceivedRatingCard extends StatelessWidget {
+  const _ReceivedRatingCard({required this.review});
 
-  final WorkerReceivedReviewViewData review;
+  final ReceivedRatingViewData review;
 
   @override
   Widget build(BuildContext context) {
@@ -663,44 +565,32 @@ class _ReceivedReviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius:
-            BorderRadius.circular(AppRadius.card),
-        border: Border.all(
-          color: AppColors.divider,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Avatar(
-                avatarUrl: review.reviewerAvatarUrl,
-              ),
+              _Avatar(avatarUrl: review.raterAvatarUrl),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      review.reviewerName,
-                      style:
-                          textTheme.titleMedium?.copyWith(
+                      review.raterName,
+                      style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(
-                      height: AppSpacing.xxs,
-                    ),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       review.dateLabel,
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color:
-                            AppColors.textSecondary,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -715,14 +605,9 @@ class _ReceivedReviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _ExpandableComment(
-            comment: review.comment,
-          ),
+          _ExpandableComment(comment: review.comment),
           const SizedBox(height: AppSpacing.sm),
-          _ServiceLine(
-            icon: review.serviceIcon,
-            label: review.serviceLabel,
-          ),
+          _ServiceLine(icon: review.serviceIcon, label: review.serviceLabel),
         ],
       ),
     );
@@ -740,28 +625,21 @@ class _GivenTab extends StatelessWidget {
     required this.onRetry,
   });
 
-  final AsyncValue<List<WorkerGivenReviewViewData>>
-      reviewsAsync;
-
+  final AsyncValue<List<GivenRatingViewData>> reviewsAsync;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return reviewsAsync.when(
-      loading: () =>
-          const _ReviewsListSkeleton(),
-      error: (_, __) => _ReviewsError(
-        onRetry: onRetry,
-      ),
+      loading: () => const _RatingsListSkeleton(),
+      error: (_, _) => _RatingsError(onRetry: onRetry),
       data: (reviews) {
         if (reviews.isEmpty) {
           return const _GivenEmptyState();
         }
 
         return ListView.separated(
-          key: const PageStorageKey(
-            'worker_reviews_given',
-          ),
+          key: const PageStorageKey('my_ratings_given'),
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
             AppSpacing.xxs,
@@ -769,25 +647,16 @@ class _GivenTab extends StatelessWidget {
             AppSpacing.lg,
           ),
           itemCount: reviews.length,
-          separatorBuilder: (_, __) =>
-              const SizedBox(
-            height: AppSpacing.sm,
-          ),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
           itemBuilder: (context, index) {
             final review = reviews[index];
-
-            final card = _GivenReviewCard(
-              review: review,
-            );
+            final card = _GivenRatingCard(review: review);
 
             if (!review.animateEntrance) {
               return card;
             }
 
-            return AppStaggeredEntrance(
-              index: index,
-              child: card,
-            );
+            return AppStaggeredEntrance(index: index, child: card);
           },
         );
       },
@@ -795,12 +664,10 @@ class _GivenTab extends StatelessWidget {
   }
 }
 
-class _GivenReviewCard extends StatelessWidget {
-  const _GivenReviewCard({
-    required this.review,
-  });
+class _GivenRatingCard extends StatelessWidget {
+  const _GivenRatingCard({required this.review});
 
-  final WorkerGivenReviewViewData review;
+  final GivenRatingViewData review;
 
   @override
   Widget build(BuildContext context) {
@@ -810,43 +677,31 @@ class _GivenReviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius:
-            BorderRadius.circular(AppRadius.card),
-        border: Border.all(
-          color: AppColors.divider,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Avatar(
-                avatarUrl: review.workerAvatarUrl,
-              ),
+              _Avatar(avatarUrl: review.rateeAvatarUrl),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Avaliaste',
-                      style:
-                          textTheme.labelMedium?.copyWith(
-                        color:
-                            AppColors.textSecondary,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(
-                      height: AppSpacing.xxs,
-                    ),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      review.workerName,
-                      style:
-                          textTheme.titleMedium?.copyWith(
+                      review.rateeName,
+                      style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -862,9 +717,7 @@ class _GivenReviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _ExpandableComment(
-            comment: review.comment,
-          ),
+          _ExpandableComment(comment: review.comment),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
@@ -894,25 +747,19 @@ class _GivenReviewCard extends StatelessWidget {
 // -----------------------------------------------------------------------------
 
 class _ExpandableComment extends StatefulWidget {
-  const _ExpandableComment({
-    required this.comment,
-  });
+  const _ExpandableComment({required this.comment});
 
   final String? comment;
 
   @override
-  State<_ExpandableComment> createState() =>
-      _ExpandableCommentState();
+  State<_ExpandableComment> createState() => _ExpandableCommentState();
 }
 
-class _ExpandableCommentState
-    extends State<_ExpandableComment> {
+class _ExpandableCommentState extends State<_ExpandableComment> {
   bool _expanded = false;
 
   @override
-  void didUpdateWidget(
-    covariant _ExpandableComment oldWidget,
-  ) {
+  void didUpdateWidget(covariant _ExpandableComment oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.comment != widget.comment) {
@@ -942,53 +789,34 @@ class _ExpandableCommentState
         );
 
         final painter = TextPainter(
-          text: TextSpan(
-            text: comment,
-            style: style,
-          ),
+          text: TextSpan(text: comment, style: style),
           maxLines: 3,
-          textDirection:
-              Directionality.of(context),
-        )..layout(
-            maxWidth: constraints.maxWidth,
-          );
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
 
-        final needsExpansion =
-            painter.didExceedMaxLines;
+        final needsExpansion = painter.didExceedMaxLines;
 
         return Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               comment,
               maxLines: _expanded ? null : 3,
-              overflow: _expanded
-                  ? TextOverflow.visible
-                  : TextOverflow.ellipsis,
+              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
               style: style,
             ),
             if (needsExpansion && !_expanded) ...[
-              const SizedBox(
-                height: AppSpacing.xxs,
-              ),
+              const SizedBox(height: AppSpacing.xxs),
               TextButton(
-                onPressed: () {
-                  setState(() {
-                    _expanded = true;
-                  });
-                },
+                onPressed: () => setState(() => _expanded = true),
                 style: TextButton.styleFrom(
                   minimumSize: Size.zero,
                   padding: EdgeInsets.zero,
-                  tapTargetSize:
-                      MaterialTapTargetSize
-                          .shrinkWrap,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
                   'Ver mais',
-                  style:
-                      textTheme.labelMedium?.copyWith(
+                  style: textTheme.labelMedium?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1007,9 +835,7 @@ class _ExpandableCommentState
 // -----------------------------------------------------------------------------
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({
-    required this.avatarUrl,
-  });
+  const _Avatar({required this.avatarUrl});
 
   final String? avatarUrl;
 
@@ -1018,9 +844,7 @@ class _Avatar extends StatelessWidget {
     return CircleAvatar(
       radius: 20,
       backgroundColor: AppColors.primaryContainer,
-      backgroundImage: avatarUrl == null
-          ? null
-          : NetworkImage(avatarUrl!),
+      backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl!),
       child: avatarUrl == null
           ? const Icon(
               Icons.person_outline_rounded,
@@ -1045,36 +869,24 @@ class _StarsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeMax = maxStars < 0 ? 0 : maxStars;
-
-    final safeFilled = filledStars
-        .clamp(0, safeMax)
-        .toInt();
+    final safeFilled = filledStars.clamp(0, safeMax).toInt();
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: List.generate(
-        safeMax,
-        (index) {
-          final filled = index < safeFilled;
-
-          return Icon(
-            filled
-                ? Icons.star_rounded
-                : Icons.star_border_rounded,
-            size: size,
-            color: AppColors.logoAccent,
-          );
-        },
-      ),
+      children: List.generate(safeMax, (index) {
+        final filled = index < safeFilled;
+        return Icon(
+          filled ? Icons.star_rounded : Icons.star_border_rounded,
+          size: size,
+          color: AppColors.logoAccent,
+        );
+      }),
     );
   }
 }
 
 class _ServiceLine extends StatelessWidget {
-  const _ServiceLine({
-    required this.icon,
-    required this.label,
-  });
+  const _ServiceLine({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1086,11 +898,7 @@ class _ServiceLine extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: AppColors.primary,
-        ),
+        Icon(icon, size: 16, color: AppColors.primary),
         const SizedBox(width: AppSpacing.xs),
         Flexible(
           child: Text(
@@ -1129,7 +937,7 @@ class _ReceivedEmptyState extends StatelessWidget {
               Container(
                 width: 68,
                 height: 68,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
@@ -1150,8 +958,7 @@ class _ReceivedEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'As avaliações aparecem aqui depois '
-                'de cada trabalho concluído.',
+                'As avaliações aparecem aqui depois de cada trabalho concluído.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
@@ -1183,7 +990,7 @@ class _GivenEmptyState extends StatelessWidget {
               Container(
                 width: 68,
                 height: 68,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
@@ -1204,8 +1011,7 @@ class _GivenEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Quando avaliares alguém após um trabalho, '
-                'fica registado aqui.',
+                'Quando avaliares alguém após um trabalho, fica registado aqui.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
@@ -1223,8 +1029,8 @@ class _GivenEmptyState extends StatelessWidget {
 // LOADING
 // -----------------------------------------------------------------------------
 
-class _ReviewsListSkeleton extends StatelessWidget {
-  const _ReviewsListSkeleton();
+class _RatingsListSkeleton extends StatelessWidget {
+  const _RatingsListSkeleton();
 
   @override
   Widget build(BuildContext context) {
@@ -1236,18 +1042,14 @@ class _ReviewsListSkeleton extends StatelessWidget {
         AppSpacing.lg,
       ),
       itemCount: 3,
-      separatorBuilder: (_, __) =>
-          const SizedBox(
-        height: AppSpacing.sm,
-      ),
-      itemBuilder: (_, __) {
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (_, _) {
         return AppSkeletonShimmer(
           child: Container(
             height: 134,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.circular(AppRadius.card),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
           ),
         );
@@ -1260,10 +1062,8 @@ class _ReviewsListSkeleton extends StatelessWidget {
 // ERROR
 // -----------------------------------------------------------------------------
 
-class _ReviewsError extends StatelessWidget {
-  const _ReviewsError({
-    required this.onRetry,
-  });
+class _RatingsError extends StatelessWidget {
+  const _RatingsError({required this.onRetry});
 
   final VoidCallback? onRetry;
 
@@ -1283,16 +1083,14 @@ class _ReviewsError extends StatelessWidget {
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  color:
-                      AppStatusColor.cancelled.background,
+                  color: AppStatusColor.cancelled.background,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   Icons.cloud_off_outlined,
                   size: 32,
-                  color:
-                      AppStatusColor.cancelled.foreground,
+                  color: AppStatusColor.cancelled.foreground,
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -1316,14 +1114,9 @@ class _ReviewsError extends StatelessWidget {
                 OutlinedButton(
                   onPressed: onRetry,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: AppColors.divider,
-                    ),
+                    side: const BorderSide(color: AppColors.divider),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        AppRadius.input,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.input),
                     ),
                   ),
                   child: Text(
@@ -1342,20 +1135,3 @@ class _ReviewsError extends StatelessWidget {
     );
   }
 }
-```
-
-## Notas de integração
-
-- O cabeçalho de reputação é **o mesmo nas duas tabs**. A média vem sempre das avaliações **recebidas**, não muda ao selecionar `Dadas`.
-- `summaryAsync`, `receivedAsync` e `givenAsync` são independentes. Assim, cada tab pode ter o seu próprio estado de `loading / error / empty / data`, como no mock.
-- Se o worker nunca recebeu avaliações, a integração pode entregar `averageRatingLabel: '--'`, `receivedReviewsLabel: 'Sem avaliações'` e `hasReceivedReviews: false`. O ecrã não inventa uma média.
-- `receivedTabLabel` e `givenTabLabel` chegam com as contagens já resolvidas pela BD. O widget não usa `list.length` para fabricar os totais.
-- As médias, datas e restantes números são recebidos **já formatados em pt-PT**.
-- Não existe `UserRole`, estado de negócio ou `AppStatusBadge` neste fluxo. Avaliação/estrelas são dados de reputação, não estados de progresso.
-- As estrelas usam `AppColors.logoAccent`; não foi criada nenhuma cor nova.
-- O comentário mostra no máximo **3 linhas** inicialmente. `Ver mais` só aparece quando o texto realmente excede essas 3 linhas e expande o conteúdo no próprio card.
-- Comentário vazio/null apresenta **“Sem comentário.”** em estilo secundário.
-- Nos cards da tab **Dadas**, `"Avaliaste"` identifica a pessoa avaliada; o serviço e a data continuam dados separados.
-- `animateEntrance` permite cumprir a regra de paginação do mock: itens da **1.ª página** usam `AppStaggeredEntrance`; páginas carregadas posteriormente devem chegar com `animateEntrance: false`.
-- A troca de tabs usa `AppFadeThroughSwitcher` com `switchKey` real. Cada lista também tem o seu `PageStorageKey` para preservar o scroll.
-- Loading usa exclusivamente `AppSkeletonShimmer`, sem `CircularProgressIndicator`.

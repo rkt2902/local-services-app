@@ -10,7 +10,6 @@ import '../../../core/utils/error_utils.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
 import '../application/worker_providers.dart';
 import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
@@ -276,9 +275,7 @@ class _WorkerEditProfileScreenState
   }
 
   void _openRatings() {
-    final userId = ref.read(currentUserProvider)?.id;
-    if (userId == null) return;
-    showRatingsSheet(context, workerId: userId, workerName: 'As minhas avaliações');
+    context.push('/worker/ratings');
   }
 
   Future<void> _signOut() async {

@@ -35,6 +35,48 @@ class Rating {
 
 typedef RatingSummary = ({double avgRating, int ratingCount});
 
+/// A rating row joined with the *other* party in it and the job's service
+/// type. `partyId`/`partyName`/`partyAvatarUrl` mean the rater when this
+/// came from `get_my_ratings_received` (ratee = current user) and the ratee
+/// when it came from `get_my_ratings_given` (rater = current user) — same
+/// shape either way, so `my_ratings_screen.dart` doesn't need two models.
+class RatingWithParty {
+  final String id;
+  final String jobId;
+  final int stars;
+  final String? comment;
+  final DateTime createdAt;
+  final String partyId;
+  final String partyName;
+  final String? partyAvatarUrl;
+  final String? serviceTypeName;
+
+  const RatingWithParty({
+    required this.id,
+    required this.jobId,
+    required this.stars,
+    this.comment,
+    required this.createdAt,
+    required this.partyId,
+    required this.partyName,
+    this.partyAvatarUrl,
+    this.serviceTypeName,
+  });
+
+  factory RatingWithParty.fromJson(Map<String, dynamic> json) =>
+      RatingWithParty(
+        id: json['id'] as String,
+        jobId: json['job_id'] as String,
+        stars: json['stars'] as int,
+        comment: json['comment'] as String?,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        partyId: json['party_id'] as String,
+        partyName: json['party_name'] as String? ?? '—',
+        partyAvatarUrl: json['party_avatar_url'] as String?,
+        serviceTypeName: json['service_type_name'] as String?,
+      );
+}
+
 class AcceptedHelper {
   final String workerId;
   final String fullName;

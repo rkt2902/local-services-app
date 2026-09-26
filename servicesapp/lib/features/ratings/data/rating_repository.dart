@@ -118,4 +118,24 @@ class RatingRepository {
         .map((e) => Rating.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Avaliações recebidas pelo utilizador atual (`ratee_id = auth.uid()`),
+  /// com nome/foto de quem avaliou e o serviço do job. RPC porque um
+  /// ajudante não tem policy de SELECT em `job_requests` (só chega lá via
+  /// RPCs SECURITY DEFINER) — ver cabeçalho da migration 0038.
+  Future<List<RatingWithParty>> fetchMyRatingsReceived() async {
+    final data = await _client.rpc('get_my_ratings_received');
+    return (data as List)
+        .map((e) => RatingWithParty.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Avaliações dadas pelo utilizador atual (`rater_id = auth.uid()`), com
+  /// nome/foto de quem foi avaliado e o serviço do job.
+  Future<List<RatingWithParty>> fetchMyRatingsGiven() async {
+    final data = await _client.rpc('get_my_ratings_given');
+    return (data as List)
+        .map((e) => RatingWithParty.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }
