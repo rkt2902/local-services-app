@@ -1,134 +1,207 @@
-# 9C. Os meus pedidos — Cliente
+# 1a. Criar pedido — Passo 4: Rever e publicar
 
-**Ficheiro:** `lib/features/client/presentation/client_jobs_screen.dart`
+**Ficheiro:** `lib/features/client/presentation/create_job_review_screen.dart`
 
 **Dependências novas:** nenhuma.
 
-Esta versão cobre **Ativos**, **Histórico**, loading, erro e os dois vazios do mockup. Mantém o sistema definitivo de estados: o badge principal recebe sempre `AppStatusPresentation` do `JobStatus`, e uma remarcação usa uma segunda `AppStatusPresentation` proveniente de `RescheduleStatus`.
+Este passo entra **depois de “Descrição e fotos” e antes da publicação real**. Recebe todo o draft já resolvido, não conhece providers/Supabase e mantém os três cartões editáveis separados para voltar exatamente ao passo correspondente.
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:riverpod/riverpod.dart' show AsyncValue;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
-import '../../../core/theme/app_status_presenters.dart';
 import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 
-enum ClientJobsTab {
-  active,
-  history,
-}
-
-class ClientJobsViewData {
-  const ClientJobsViewData({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
-    required this.activeJobs,
-    required this.historyJobs,
+class CreateJobReviewViewData {
+  const CreateJobReviewViewData({
+    required this.service,
+    required this.scheduling,
+    required this.descriptionAndPhotos,
   });
 
-  /// Já formatado pela integração.
-  /// Ex.: "Ativos · 3".
-  final String activeTabLabel;
-
-  final String historyTabLabel;
-
-  final List<ClientJobListItemViewData> activeJobs;
-  final List<ClientJobListItemViewData> historyJobs;
+  final CreateJobReviewServiceViewData service;
+  final CreateJobReviewSchedulingViewData scheduling;
+  final CreateJobReviewDescriptionViewData descriptionAndPhotos;
 }
 
-class ClientJobListItemViewData {
-  const ClientJobListItemViewData({
-    required this.jobId,
-    required this.title,
-    required this.locationLabel,
-    required this.dateLabel,
-    required this.serviceIcon,
-    required this.statusPresentation,
-    this.secondaryStatusPresentation,
+class CreateJobReviewServiceViewData {
+  const CreateJobReviewServiceViewData({
+    required this.serviceLabel,
+    required this.icon,
   });
 
-  final String jobId;
-  final String title;
+  final String serviceLabel;
 
-  /// Morada/localidade já preparada pela integração.
-  final String locationLabel;
-
-  /// Data, preferência ou DateMode já convertido em texto.
-  /// O widget não assume a existência de hora.
-  final String dateLabel;
-
-  final IconData serviceIcon;
-
-  /// Presenter oficial de JobStatus.
-  final AppStatusPresentation statusPresentation;
-
-  /// Ex.: RescheduleStatus.pending.
-  final AppStatusPresentation? secondaryStatusPresentation;
+  /// Resolvido externamente a partir do serviço real.
+  final IconData icon;
 }
 
-class ClientJobsScreen extends StatefulWidget {
-  const ClientJobsScreen({
+class CreateJobReviewSchedulingViewData {
+  const CreateJobReviewSchedulingViewData({
+    required this.whenLabel,
+    required this.sizeLabel,
+    required this.addressLabel,
+  });
+
+  /// Data/modo já formatado externamente.
+  final String whenLabel;
+
+  /// SizeEstimate já convertido em texto simples.
+  final String sizeLabel;
+
+  /// Morada já preparada pela integração.
+  final String addressLabel;
+}
+
+class CreateJobReviewDescriptionViewData {
+  const CreateJobReviewDescriptionViewData({
+    required this.description,
+    required this.photos,
+    this.photosOverflowLabel,
+  });
+
+  final String description;
+
+  /// A lista representa as imagens já selecionadas no draft.
+  final List<ImageProvider> photos;
+
+  /// Opcional.
+  /// Ex.: "+3", já calculado externamente se o wrapper
+  /// quiser limitar as miniaturas visíveis.
+  final String? photosOverflowLabel;
+}
+
+class CreateJobPublishResult {
+  const CreateJobPublishResult._({
+    required this.success,
+    this.errorMessage,
+  });
+
+  const CreateJobPublishResult.success()
+      : this._(
+          success: true,
+        );
+
+  const CreateJobPublishResult.failure({
+    required String errorMessage,
+  }) : this._(
+          success: false,
+          errorMessage: errorMessage,
+        );
+
+  final bool success;
+  final String? errorMessage;
+}
+
+class CreateJobReviewScreen extends StatefulWidget {
+  const CreateJobReviewScreen({
     super.key,
-    required this.dataAsync,
-    required this.onOpenJob,
-    required this.onCreateJob,
-    this.initialTab = ClientJobsTab.active,
-    this.onTabChanged,
-    this.onRetry,
+    required this.data,
+    required this.stepProgress,
+    required this.onBack,
+    required this.onEditService,
+    required this.onEditScheduling,
+    required this.onEditDescriptionAndPhotos,
+    required this.onPublish,
+    required this.onPublished,
   });
 
-  final AsyncValue<ClientJobsViewData> dataAsync;
+  final CreateJobReviewViewData data;
 
-  final ClientJobsTab initialTab;
+  /// Deve receber o AppStepProgress real do projeto,
+  /// configurado pelo integrador para 4 passos / passo atual 4.
+  ///
+  /// É injetado porque a assinatura concreta do AppStepProgress
+  /// não foi fornecida e não devemos inventá-la.
+  final Widget stepProgress;
 
-  final ValueChanged<String> onOpenJob;
-  final VoidCallback onCreateJob;
+  final VoidCallback onBack;
 
-  final ValueChanged<ClientJobsTab>? onTabChanged;
-  final VoidCallback? onRetry;
+  final VoidCallback onEditService;
+  final VoidCallback onEditScheduling;
+  final VoidCallback onEditDescriptionAndPhotos;
+
+  /// Só devolve success depois de o backend confirmar
+  /// efetivamente a publicação.
+  final Future<CreateJobPublishResult> Function() onPublish;
+
+  /// Callback exterior para a navegação pós-publicação.
+  final VoidCallback onPublished;
 
   @override
-  State<ClientJobsScreen> createState() =>
-      _ClientJobsScreenState();
+  State<CreateJobReviewScreen> createState() =>
+      _CreateJobReviewScreenState();
 }
 
-class _ClientJobsScreenState
-    extends State<ClientJobsScreen> {
-  late ClientJobsTab _selectedTab;
+class _CreateJobReviewScreenState
+    extends State<CreateJobReviewScreen> {
+  bool _publishing = false;
+  bool _successVisible = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedTab = widget.initialTab;
-  }
+  bool get _interactionEnabled => !_publishing;
 
-  @override
-  void didUpdateWidget(
-    covariant ClientJobsScreen oldWidget,
-  ) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.initialTab != widget.initialTab) {
-      _selectedTab = widget.initialTab;
+  Future<void> _publish() async {
+    if (_publishing) {
+      return;
     }
-  }
 
-  void _selectTab(ClientJobsTab tab) {
-    if (_selectedTab == tab) {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _publishing = true;
+      _successVisible = false;
+    });
+
+    CreateJobPublishResult result;
+
+    try {
+      result = await widget.onPublish();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _publishing = false;
+      });
+
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.success) {
+      setState(() {
+        _publishing = false;
+      });
+
+      final message = result.errorMessage;
+
+      if (message != null && message.isNotEmpty) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(message),
+            ),
+          );
+      }
+
       return;
     }
 
     setState(() {
-      _selectedTab = tab;
+      _publishing = false;
+      _successVisible = true;
     });
 
-    widget.onTabChanged?.call(tab);
+    widget.onPublished();
   }
 
   @override
@@ -136,161 +209,137 @@ class _ClientJobsScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: widget.dataAsync.when(
-          loading: () => const _ClientJobsLoading(),
-          error: (_, __) => _ClientJobsError(
-            onRetry: widget.onRetry,
-          ),
-          data: (data) => _ClientJobsContent(
-            data: data,
-            selectedTab: _selectedTab,
-            onSelectTab: _selectTab,
-            onOpenJob: widget.onOpenJob,
-            onCreateJob: widget.onCreateJob,
-          ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                _Header(
+                  onBack: _interactionEnabled
+                      ? widget.onBack
+                      : null,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.xs,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                  ),
+                  child: IgnorePointer(
+                    ignoring: !_interactionEnabled,
+                    child: widget.stepProgress,
+                  ),
+                ),
+                Expanded(
+                  child: IgnorePointer(
+                    ignoring: !_interactionEnabled,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.lg,
+                      ),
+                      children: [
+                        AppStaggeredEntrance(
+                          index: 0,
+                          child: _Intro(),
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.sm,
+                        ),
+                        AppStaggeredEntrance(
+                          index: 1,
+                          child: _ServiceCard(
+                            data: widget.data.service,
+                            onEdit:
+                                widget.onEditService,
+                          ),
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.sm,
+                        ),
+                        AppStaggeredEntrance(
+                          index: 2,
+                          child: _SchedulingCard(
+                            data:
+                                widget.data.scheduling,
+                            onEdit:
+                                widget.onEditScheduling,
+                          ),
+                        ),
+                        const SizedBox(
+                          height: AppSpacing.sm,
+                        ),
+                        AppStaggeredEntrance(
+                          index: 3,
+                          child:
+                              _DescriptionPhotosCard(
+                            data: widget.data
+                                .descriptionAndPhotos,
+                            onEdit: widget
+                                .onEditDescriptionAndPhotos,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _BottomAction(
+                  publishing: _publishing,
+                  onPublish: _publish,
+                ),
+              ],
+            ),
+            AppSuccessFeedback(
+              visible: _successVisible,
+              message: 'Pedido publicado com sucesso.',
+            ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _ClientJobsContent extends StatelessWidget {
-  const _ClientJobsContent({
-    required this.data,
-    required this.selectedTab,
-    required this.onSelectTab,
-    required this.onOpenJob,
-    required this.onCreateJob,
-  });
-
-  final ClientJobsViewData data;
-  final ClientJobsTab selectedTab;
-
-  final ValueChanged<ClientJobsTab> onSelectTab;
-  final ValueChanged<String> onOpenJob;
-  final VoidCallback onCreateJob;
-
-  @override
-  Widget build(BuildContext context) {
-    final jobs = selectedTab == ClientJobsTab.active
-        ? data.activeJobs
-        : data.historyJobs;
-
-    return Column(
-      children: [
-        _Header(
-          activeTabLabel: data.activeTabLabel,
-          historyTabLabel: data.historyTabLabel,
-          selectedTab: selectedTab,
-          onSelectTab: onSelectTab,
-        ),
-        Expanded(
-          child: jobs.isEmpty
-              ? _EmptyState(
-                  tab: selectedTab,
-                  onCreateJob: onCreateJob,
-                )
-              : _JobsList(
-                  jobs: jobs,
-                  tab: selectedTab,
-                  onOpenJob: onOpenJob,
-                ),
-        ),
-      ],
     );
   }
 }
 
 class _Header extends StatelessWidget {
   const _Header({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
-    required this.selectedTab,
-    required this.onSelectTab,
+    required this.onBack,
   });
 
-  final String activeTabLabel;
-  final String historyTabLabel;
-  final ClientJobsTab selectedTab;
-
-  final ValueChanged<ClientJobsTab> onSelectTab;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.sm,
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Os meus pedidos',
-            style: textTheme.titleLarge?.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _JobsTabs(
-            activeTabLabel: activeTabLabel,
-            historyTabLabel: historyTabLabel,
-            selectedTab: selectedTab,
-            onSelectTab: onSelectTab,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _JobsTabs extends StatelessWidget {
-  const _JobsTabs({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
-    required this.selectedTab,
-    required this.onSelectTab,
-  });
-
-  final String activeTabLabel;
-  final String historyTabLabel;
-  final ClientJobsTab selectedTab;
-
-  final ValueChanged<ClientJobsTab> onSelectTab;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xxs),
-      decoration: BoxDecoration(
-        color: AppColors.divider,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
-        ),
-      ),
       child: Row(
         children: [
-          Expanded(
-            child: _TabButton(
-              label: activeTabLabel,
-              selected:
-                  selectedTab == ClientJobsTab.active,
-              onPressed: () =>
-                  onSelectTab(ClientJobsTab.active),
+          IconButton(
+            onPressed: onBack,
+            icon: Icon(
+              Icons.arrow_back,
+              color: onBack == null
+                  ? AppStatusColor.neutral.foreground
+                  : AppColors.textPrimary,
             ),
           ),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
-            child: _TabButton(
-              label: historyTabLabel,
-              selected:
-                  selectedTab == ClientJobsTab.history,
-              onPressed: () =>
-                  onSelectTab(ClientJobsTab.history),
+            child: Text(
+              'Criar pedido',
+              style: textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -299,286 +348,222 @@ class _JobsTabs extends StatelessWidget {
   }
 }
 
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
+class _Intro extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Reveja o seu pedido',
+          style: textTheme.titleMedium?.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          'Confirme os detalhes antes de publicar.',
+          style: textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({
+    required this.title,
+    required this.onEdit,
+    required this.child,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
+  final String title;
+  final VoidCallback onEdit;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: selected
-          ? AppColors.surface
-          : AppColors.background,
-      borderRadius: BorderRadius.circular(
-        AppRadius.input,
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.bodyMedium?.copyWith(
-              color: selected
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
-              fontWeight: selected
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JobsList extends StatelessWidget {
-  const _JobsList({
-    required this.jobs,
-    required this.tab,
-    required this.onOpenJob,
-  });
-
-  final List<ClientJobListItemViewData> jobs;
-  final ClientJobsTab tab;
-
-  final ValueChanged<String> onOpenJob;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      key: PageStorageKey<String>(
-        'client_jobs_${tab.name}',
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.xxs,
-        AppSpacing.md,
-        AppSpacing.lg,
-      ),
-      itemCount: jobs.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (context, index) {
-        final job = jobs[index];
-
-        return AppStaggeredEntrance(
-          index: index,
-          child: _JobCard(
-            job: job,
-            historical:
-                tab == ClientJobsTab.history,
-            onTap: () => onOpenJob(job.jobId),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _JobCard extends StatelessWidget {
-  const _JobCard({
-    required this.job,
-    required this.historical,
-    required this.onTap,
-  });
-
-  final ClientJobListItemViewData job;
-  final bool historical;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(
-        AppRadius.card,
-      ),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(
           AppRadius.card,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(
-            AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
-              AppRadius.card,
-            ),
-            border: Border.all(
-              color: AppColors.divider,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+        border: Border.all(
+          color: AppColors.divider,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  _ServiceIcon(
-                    icon: job.serviceIcon,
-                    historical: historical,
+              Expanded(
+                child: Text(
+                  title.toUpperCase(),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
                   ),
-                  const SizedBox(
-                    width: AppSpacing.sm,
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        top: AppSpacing.xs,
-                      ),
-                      child: Text(
-                        job.title,
-                        maxLines: 2,
-                        overflow:
-                            TextOverflow.ellipsis,
-                        style:
-                            textTheme.titleMedium?.copyWith(
-                          color:
-                              AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: AppSpacing.xs,
-                  ),
-                  AppStatusBadge.fromPresentation(
-                    presentation:
-                        job.statusPresentation,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              _MetadataRow(
-                icon:
-                    Icons.location_on_outlined,
-                label: job.locationLabel,
-                foreground: historical
-                    ? AppColors.textSecondary
-                    : AppColors.primary,
-              ),
-
-              const SizedBox(height: AppSpacing.xs),
-
-              _MetadataRow(
-                icon:
-                    Icons.calendar_today_outlined,
-                label: job.dateLabel,
-                foreground:
-                    AppColors.textSecondary,
-              ),
-
-              if (job.secondaryStatusPresentation !=
-                  null) ...[
-                const SizedBox(
-                  height: AppSpacing.sm,
                 ),
-                AppStatusBadge.fromPresentation(
-                  presentation: job
-                      .secondaryStatusPresentation!,
+              ),
+              TextButton(
+                onPressed: onEdit,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xxs,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize:
+                      MaterialTapTargetSize.shrinkWrap,
                 ),
-              ],
+                child: Text(
+                  'Editar',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          child,
+        ],
       ),
     );
   }
 }
 
-class _ServiceIcon extends StatelessWidget {
-  const _ServiceIcon({
-    required this.icon,
-    required this.historical,
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({
+    required this.data,
+    required this.onEdit,
   });
 
-  final IconData icon;
-  final bool historical;
+  final CreateJobReviewServiceViewData data;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: historical
-            ? AppStatusColor.neutral.background
-            : AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        icon,
-        size: 22,
-        color: historical
-            ? AppStatusColor.neutral.foreground
-            : AppColors.primary,
+    final textTheme = Theme.of(context).textTheme;
+
+    return _ReviewCard(
+      title: 'Serviço',
+      onEdit: onEdit,
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(
+                AppRadius.input,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              data.icon,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              data.serviceLabel,
+              style: textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _MetadataRow extends StatelessWidget {
-  const _MetadataRow({
-    required this.icon,
-    required this.label,
-    required this.foreground,
+class _SchedulingCard extends StatelessWidget {
+  const _SchedulingCard({
+    required this.data,
+    required this.onEdit,
   });
 
-  final IconData icon;
+  final CreateJobReviewSchedulingViewData data;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ReviewCard(
+      title: 'Agendamento',
+      onEdit: onEdit,
+      child: Column(
+        children: [
+          _SummaryRow(
+            label: 'Quando',
+            value: data.whenLabel,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SummaryRow(
+            label: 'Dimensão',
+            value: data.sizeLabel,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SummaryRow(
+            label: 'Morada',
+            value: data.addressLabel,
+            valueMaxLines: 3,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.valueMaxLines = 1,
+  });
+
   final String label;
-  final Color foreground;
+  final String value;
+  final int valueMaxLines;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: foreground,
-        ),
-        const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
             label,
-            maxLines: 2,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: valueMaxLines,
             overflow: TextOverflow.ellipsis,
-            style: textTheme.labelMedium?.copyWith(
-              color: foreground,
+            textAlign: TextAlign.right,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -587,323 +572,144 @@ class _MetadataRow extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// EMPTY STATES
-// -----------------------------------------------------------------------------
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.tab,
-    required this.onCreateJob,
+class _DescriptionPhotosCard extends StatelessWidget {
+  const _DescriptionPhotosCard({
+    required this.data,
+    required this.onEdit,
   });
 
-  final ClientJobsTab tab;
-  final VoidCallback onCreateJob;
+  final CreateJobReviewDescriptionViewData data;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(
-          AppSpacing.lg,
+    final textTheme = Theme.of(context).textTheme;
+
+    return _ReviewCard(
+      title: 'Descrição e fotos',
+      onEdit: onEdit,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data.description,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (data.photos.isEmpty)
+            Text(
+              'Sem fotos adicionadas',
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            )
+          else
+            _PhotosPreview(
+              photos: data.photos,
+              overflowLabel:
+                  data.photosOverflowLabel,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotosPreview extends StatelessWidget {
+  const _PhotosPreview({
+    required this.photos,
+    required this.overflowLabel,
+  });
+
+  final List<ImageProvider> photos;
+  final String? overflowLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final visiblePhotos = photos.take(2).toList();
+
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        ...visiblePhotos.map(
+          (photo) => ClipRRect(
+            borderRadius: BorderRadius.circular(
+              AppRadius.input,
+            ),
+            child: Image(
+              image: photo,
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover,
+            ),
+          ),
         ),
-        child: AppStaggeredEntrance(
-          index: 0,
-          child: tab == ClientJobsTab.active
-              ? _ActiveEmpty(
-                  onCreateJob: onCreateJob,
-                )
-              : const _HistoryEmpty(),
+        if (overflowLabel != null)
+          _PhotoOverflow(
+            label: overflowLabel!,
+          ),
+      ],
+    );
+  }
+}
+
+class _PhotoOverflow extends StatelessWidget {
+  const _PhotoOverflow({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: AppStatusColor.neutral.background,
+        borderRadius: BorderRadius.circular(
+          AppRadius.input,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: textTheme.bodyMedium?.copyWith(
+          color: AppStatusColor.neutral.foreground,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-class _ActiveEmpty extends StatelessWidget {
-  const _ActiveEmpty({
-    required this.onCreateJob,
+class _BottomAction extends StatelessWidget {
+  const _BottomAction({
+    required this.publishing,
+    required this.onPublish,
   });
 
-  final VoidCallback onCreateJob;
+  final bool publishing;
+  final VoidCallback onPublish;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: AppColors.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.yard_outlined,
-            color: AppColors.primary,
-            size: 34,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Ainda sem pedidos ativos',
-          textAlign: TextAlign.center,
-          style: textTheme.titleLarge?.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Crie um pedido e receba propostas '
-          'de jardineiros perto de si.',
-          textAlign: TextAlign.center,
-          style: textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: 180,
-          child: PrimaryActionButton(
-            label: 'Criar pedido',
-            onPressed: onCreateJob,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HistoryEmpty extends StatelessWidget {
-  const _HistoryEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color:
-                AppStatusColor.neutral.background,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.history_rounded,
-            color:
-                AppStatusColor.neutral.foreground,
-            size: 34,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Sem histórico',
-          textAlign: TextAlign.center,
-          style: textTheme.titleLarge?.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Os pedidos concluídos e cancelados '
-          'aparecem aqui.',
-          textAlign: TextAlign.center,
-          style: textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// LOADING
-// -----------------------------------------------------------------------------
-
-class _ClientJobsLoading extends StatelessWidget {
-  const _ClientJobsLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Os meus pedidos',
-                style: textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(
-                height: AppSpacing.sm,
-              ),
-              AppSkeletonShimmer(
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.input,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.xxs,
-              AppSpacing.md,
-              AppSpacing.lg,
-            ),
-            itemCount: 3,
-            separatorBuilder: (_, __) =>
-                const SizedBox(
-              height: AppSpacing.sm,
-            ),
-            itemBuilder: (_, __) {
-              return AppSkeletonShimmer(
-                child: Container(
-                  height: 112,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.card,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// ERROR
-// -----------------------------------------------------------------------------
-
-class _ClientJobsError extends StatelessWidget {
-  const _ClientJobsError({
-    required this.onRetry,
-  });
-
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(
-          AppSpacing.lg,
-        ),
-        child: AppStaggeredEntrance(
-          index: 0,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppStatusColor
-                      .cancelled.background,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.cloud_off_outlined,
-                  color: AppStatusColor
-                      .cancelled.foreground,
-                ),
-              ),
-              const SizedBox(
-                height: AppSpacing.md,
-              ),
-              Text(
-                'Não foi possível carregar os seus pedidos.',
-                textAlign: TextAlign.center,
-                style:
-                    textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(
-                height: AppSpacing.xs,
-              ),
-              Text(
-                'Verifique a ligação e tente novamente.',
-                textAlign: TextAlign.center,
-                style:
-                    textTheme.bodyMedium?.copyWith(
-                  color:
-                      AppColors.textSecondary,
-                ),
-              ),
-              if (onRetry != null) ...[
-                const SizedBox(
-                  height: AppSpacing.md,
-                ),
-                OutlinedButton(
-                  onPressed: onRetry,
-                  style:
-                      OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: AppColors.divider,
-                    ),
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        AppRadius.input,
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    'Tentar novamente',
-                    style:
-                        textTheme.bodyMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: PrimaryActionButton(
+        label: publishing
+            ? 'A publicar...'
+            : 'Publicar pedido',
+        onPressed: publishing
+            ? null
+            : onPublish,
       ),
     );
   }
@@ -912,13 +718,14 @@ class _ClientJobsError extends StatelessWidget {
 
 ## Notas de integração
 
-* O wrapper observa os providers e passa `AsyncValue<ClientJobsViewData>`; este ficheiro **não importa `flutter_riverpod` nem usa `ref`**.
-* `activeTabLabel` vem pronto da integração. A UI não faz `activeJobs.length` para fabricar a contagem porque o total real pode ser diferente em cenários paginados.
-* O badge principal vem sempre do presenter oficial de `JobStatus`: `open` sem propostas → **À espera de proposta / waiting**; `open` com propostas → **N proposta(s) / waiting**; `awaitingConfirmation` → **A aguardar confirmação / info**; `confirmed` → **Confirmado / success**; `completed` → **Concluído / success**; `noResponse` → **Sem resposta / neutral**; `cancelled` → **Cancelado / cancelled**.
-* O badge adicional, como **Remarcação pendente**, chega em `secondaryStatusPresentation` e deve vir do presenter de `RescheduleStatus`; nunca é deduzido dentro do card.
-* Morada, data e `Flexível` são atributos textuais. Não são estados e por isso não recebem `AppStatusBadge`.
-* O `serviceIcon` também vem resolvido de fora; não existe tabela de serviços hardcoded neste ficheiro.
-* Cada tab tem um `PageStorageKey` diferente para preservar a respetiva posição de scroll.
-* Deliberadamente **não uso `AppFadeThroughSwitcher` para alternar as listas**, porque estas podem atualizar-se em segundo plano e o motion system do projeto alerta para o risco de reset do scroll.
-* Loading usa `AppSkeletonShimmer`, nunca spinner.
-* O vazio da tab Ativos chama apenas `onCreateJob`; a navegação real continua a cargo do Tech Lead.
+- Este é o novo **passo 4**. O wrapper deve passar o `AppStepProgress` real configurado para **4 passos, passo atual 4**. Não inventei a assinatura desse widget partilhado porque ainda não foi fornecida.
+- Os três callbacks `onEditService`, `onEditScheduling` e `onEditDescriptionAndPhotos` devem voltar aos passos 1, 2 e 3 **mantendo o mesmo draft**. A transição `shared axis X` invertida indicada no mock fica na camada de navegação.
+- `serviceLabel`, ícone, data, dimensão, morada, descrição e imagens vêm todos do draft real. Não há serviços, datas, moradas ou tamanhos de exemplo hardcoded.
+- `SizeEstimate` continua como **texto simples**, não badge.
+- As fotos não são obrigatórias. Quando a lista está vazia, aparece **“Sem fotos adicionadas”**, conforme o mock.
+- `photosOverflowLabel` vem externamente, permitindo ao integrador apresentar `+N` sem este ecrã assumir se recebeu a lista completa de fotografias.
+- Enquanto `onPublish()` está em curso, **voltar, editar e publicar ficam bloqueados** e o CTA passa para **“A publicar...”**.
+- Em erro de publicação, o callback pode devolver `CreateJobPublishResult.failure(errorMessage: ...)`; o ecrã mostra `SnackBar` e **não altera qualquer dado do draft**.
+- `AppSuccessFeedback` só é ativado quando `onPublish()` devolve `success`, portanto nunca é otimista.
+- `onPublished` é o único ponto usado para avançar/navegar depois da publicação confirmada. O ecrã não conhece a rota seguinte.
+- Os três cartões entram com `AppStaggeredEntrance`. Em `disableAnimations`, o comportamento reduzido fica delegado ao motion system existente.
