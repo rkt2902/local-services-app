@@ -5,29 +5,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
-import '../../auth/application/auth_providers.dart';
-import '../../jobs/application/job_providers.dart';
 import '../application/client_create_job_wizard_provider.dart';
 
 const _maximumPhotos = 2;
 const _maximumDescriptionLength = 500;
 const _minimumDescriptionLength = 10;
 
-/// Passo 3/3 de "Criar pedido" — descrição e fotos.
+/// Passo 3/4 de "Criar pedido" — descrição e fotos.
 ///
-/// O botão publica diretamente (sem ecrã de revisão) — decisão explícita
-/// desta sessão, interina até existir um ecrã de revisão próprio.
+/// Já não publica diretamente: guarda descrição + fotos no wizard provider
+/// e avança para a revisão (passo 4), que é quem publica de facto.
 class ClientCreateJobDescriptionScreen extends ConsumerStatefulWidget {
-  const ClientCreateJobDescriptionScreen({super.key});
+  const ClientCreateJobDescriptionScreen({super.key, this.fromReview = false});
+
+  /// `true` quando alcançado via "Editar" a partir da revisão (passo 4) —
+  /// ver nota em `client_create_job_service_screen.dart`.
+  final bool fromReview;
 
   @override
   ConsumerState<ClientCreateJobDescriptionScreen> createState() {
@@ -38,16 +38,17 @@ class ClientCreateJobDescriptionScreen extends ConsumerStatefulWidget {
 class _ClientCreateJobDescriptionScreenState
     extends ConsumerState<ClientCreateJobDescriptionScreen> {
   late final TextEditingController _descriptionController;
-  final List<File> _photos = [];
-  bool _saving = false;
+  late final List<File> _photos;
 
   @override
   void initState() {
     super.initState();
-    _descriptionController = TextEditingController(
-      text: ref.read(clientCreateJobWizardProvider).description,
-    );
+    final wizard = ref.read(clientCreateJobWizardProvider);
+    _descriptionController = TextEditingController(text: wizard.description);
     _descriptionController.addListener(_handleDescriptionChanged);
+    // Cópia mutável — `wizard.photos` é `const []` por omissão, e a lista
+    // local precisa de suportar add/remove enquanto o utilizador edita.
+    _photos = List<File>.from(wizard.photos);
   }
 
   void _handleDescriptionChanged() => setState(() {});
@@ -91,67 +92,21 @@ class _ClientCreateJobDescriptionScreenState
     setState(() => _photos.removeAt(index));
   }
 
-  bool get _canPublish =>
-      !_saving &&
+  bool get _canContinue =>
       _descriptionController.text.trim().length >= _minimumDescriptionLength;
 
-  Future<void> _publish() async {
-    if (!_canPublish) return;
+  void _continue() {
+    if (!_canContinue) return;
 
-    final wizard = ref.read(clientCreateJobWizardProvider);
-    if (wizard.serviceTypeId == null ||
-        wizard.locationLat == null ||
-        wizard.locationLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Falta informação dos passos anteriores. Volta atrás e confirma.'),
-        backgroundColor: Colors.red,
-      ));
-      return;
-    }
+    ref.read(clientCreateJobWizardProvider.notifier).setDescriptionAndPhotos(
+          description: _descriptionController.text.trim(),
+          photos: _photos,
+        );
 
-    setState(() => _saving = true);
-    final messenger = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
-
-    try {
-      final user = ref.read(currentUserProvider)!;
-      final repo = ref.read(jobRepositoryProvider);
-
-      final jobId = await repo.createJob(
-        clientId: user.id,
-        serviceTypeId: wizard.serviceTypeId!,
-        addressText: wizard.addressText,
-        locationLat: wizard.locationLat!,
-        locationLng: wizard.locationLng!,
-        dateMode: wizard.dateMode,
-        preferredDate: wizard.dateMode == DateMode.fixed
-            ? wizard.preferredDate
-            : null,
-        urgency: wizard.urgency,
-        sizeEstimate: wizard.sizeEstimate,
-        description: _descriptionController.text.trim(),
-      );
-
-      for (final photo in _photos) {
-        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
-      }
-
-      ref.invalidate(clientJobsProvider);
-      ref.read(clientCreateJobWizardProvider.notifier).reset();
-
-      if (!mounted) return;
-      router.go('/client/home');
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Pedido publicado com sucesso!')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    if (widget.fromReview) {
+      context.pop();
+    } else {
+      context.push('/client/create-job/review');
     }
   }
 
@@ -189,7 +144,7 @@ class _ClientCreateJobDescriptionScreenState
               AppSpacing.lg,
               AppSpacing.md,
             ),
-            child: AppStepProgress(currentStep: 3, totalSteps: 3),
+            child: AppStepProgress(currentStep: 3, totalSteps: 4),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -281,9 +236,8 @@ class _ClientCreateJobDescriptionScreenState
               AppSpacing.lg,
             ),
             child: PrimaryActionButton(
-              label: 'Publicar pedido',
-              isLoading: _saving,
-              onPressed: _canPublish ? _publish : null,
+              label: 'Continuar',
+              onPressed: _canContinue ? _continue : null,
             ),
           ),
         ],

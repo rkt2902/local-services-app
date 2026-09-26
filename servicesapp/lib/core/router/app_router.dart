@@ -24,6 +24,7 @@ import '../../features/worker/presentation/worker_submit_proposal_screen.dart';
 import '../../features/client/presentation/client_create_job_service_screen.dart';
 import '../../features/client/presentation/client_create_job_schedule_screen.dart';
 import '../../features/client/presentation/client_create_job_description_screen.dart';
+import '../../features/client/presentation/client_create_job_review_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
@@ -176,14 +177,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/client/profile/edit',
         builder: (_, _) => const ClientEditProfileScreen(),
       ),
-      // Wizard "criar pedido" — 3 passos sempre sequenciais, cada um só
-      // alcançado a partir do anterior: shared-axis.
+      // Wizard "criar pedido" — 4 passos sempre sequenciais, cada um só
+      // alcançado a partir do anterior: shared-axis. `fromReview=true`
+      // (só passado pelos callbacks "Editar" da revisão, passo 4) mostra
+      // o mesmo ecrã com os dados já preenchidos do wizard provider, mas
+      // "Continuar" volta direto à revisão (context.pop) em vez de seguir
+      // a sequência normal — ver client_create_job_review_screen.dart.
       GoRoute(
         path: '/client/create-job',
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobServiceScreen(),
+          ClientCreateJobServiceScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
         ),
       ),
       GoRoute(
@@ -191,7 +198,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobScheduleScreen(),
+          ClientCreateJobScheduleScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
         ),
       ),
       GoRoute(
@@ -199,7 +208,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          const ClientCreateJobDescriptionScreen(),
+          ClientCreateJobDescriptionScreen(
+            fromReview: state.uri.queryParameters['fromReview'] == 'true',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/client/create-job/review',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          const ClientCreateJobReviewScreen(),
         ),
       ),
       // Origem ambígua: card de lista (client_home_screen,

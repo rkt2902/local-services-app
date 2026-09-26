@@ -48,7 +48,11 @@ enum ClientJobUrgency { flexible, normal, urgent }
 /// alargar o wizard além do que foi pedido ("fluxo de 3 passos"). Ver
 /// relatório final para a razão desta escolha.
 class ClientCreateJobScheduleScreen extends ConsumerStatefulWidget {
-  const ClientCreateJobScheduleScreen({super.key});
+  const ClientCreateJobScheduleScreen({super.key, this.fromReview = false});
+
+  /// `true` quando alcançado via "Editar" a partir da revisão (passo 4) —
+  /// ver nota em `client_create_job_service_screen.dart`.
+  final bool fromReview;
 
   @override
   ConsumerState<ClientCreateJobScheduleScreen> createState() {
@@ -210,7 +214,11 @@ class _ClientCreateJobScheduleScreenState
       locationLng: _pinPosition!.longitude,
     );
 
-    context.push('/client/create-job/description');
+    if (widget.fromReview) {
+      context.pop();
+    } else {
+      context.push('/client/create-job/description');
+    }
   }
 
   @override
@@ -246,7 +254,7 @@ class _ClientCreateJobScheduleScreenState
               AppSpacing.lg,
               AppSpacing.md,
             ),
-            child: AppStepProgress(currentStep: 2, totalSteps: 3),
+            child: AppStepProgress(currentStep: 2, totalSteps: 4),
           ),
           Expanded(
             child: SingleChildScrollView(
