@@ -1,207 +1,200 @@
-# 1a. Criar pedido — Passo 4: Rever e publicar
+# Avaliações — Worker
 
-**Ficheiro:** `lib/features/client/presentation/create_job_review_screen.dart`
+**Ficheiro:** `lib/features/worker/presentation/worker_reviews_screen.dart`
 
 **Dependências novas:** nenhuma.
 
-Este passo entra **depois de “Descrição e fotos” e antes da publicação real**. Recebe todo o draft já resolvido, não conhece providers/Supabase e mantém os três cartões editáveis separados para voltar exatamente ao passo correspondente.
+O ecrã cobre as duas tabs **Recebidas** e **Dadas**, reputação no cabeçalho, loading independente por tab, erro, vazios, comentários expansíveis e cards preparados para paginação. A média e todas as contagens chegam já formatadas pela integração.
 
 ```dart
 import 'package:flutter/material.dart';
+import 'package:riverpod/riverpod.dart' show AsyncValue;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/primary_action_button.dart';
 
-class CreateJobReviewViewData {
-  const CreateJobReviewViewData({
-    required this.service,
-    required this.scheduling,
-    required this.descriptionAndPhotos,
-  });
-
-  final CreateJobReviewServiceViewData service;
-  final CreateJobReviewSchedulingViewData scheduling;
-  final CreateJobReviewDescriptionViewData descriptionAndPhotos;
+enum WorkerReviewsTab {
+  received,
+  given,
 }
 
-class CreateJobReviewServiceViewData {
-  const CreateJobReviewServiceViewData({
-    required this.serviceLabel,
-    required this.icon,
+class WorkerReviewsSummaryViewData {
+  const WorkerReviewsSummaryViewData({
+    required this.averageRatingLabel,
+    required this.receivedReviewsLabel,
+    required this.filledSummaryStars,
+    required this.maxSummaryStars,
+    required this.hasReceivedReviews,
   });
+
+  /// Já formatado pela integração em pt-PT.
+  /// Ex.: "4,8".
+  final String averageRatingLabel;
+
+  /// Já formatado pela integração.
+  /// Ex.: "128 avaliações".
+  /// Sem avaliações pode ser "Sem avaliações".
+  final String receivedReviewsLabel;
+
+  /// Quantidade de estrelas visualmente preenchidas,
+  /// já decidida externamente.
+  final int filledSummaryStars;
+
+  final int maxSummaryStars;
+
+  final bool hasReceivedReviews;
+}
+
+class WorkerReceivedReviewViewData {
+  const WorkerReceivedReviewViewData({
+    required this.reviewId,
+    required this.reviewerName,
+    required this.dateLabel,
+    required this.filledStars,
+    required this.maxStars,
+    required this.comment,
+    required this.serviceLabel,
+    required this.serviceIcon,
+    this.reviewerAvatarUrl,
+    this.animateEntrance = true,
+  });
+
+  final String reviewId;
+
+  final String reviewerName;
+  final String? reviewerAvatarUrl;
+
+  /// Já formatado externamente.
+  final String dateLabel;
+
+  final int filledStars;
+  final int maxStars;
+
+  final String? comment;
 
   final String serviceLabel;
+  final IconData serviceIcon;
 
-  /// Resolvido externamente a partir do serviço real.
-  final IconData icon;
+  /// true apenas para itens da primeira página.
+  /// Itens carregados posteriormente podem chegar com false.
+  final bool animateEntrance;
 }
 
-class CreateJobReviewSchedulingViewData {
-  const CreateJobReviewSchedulingViewData({
-    required this.whenLabel,
-    required this.sizeLabel,
-    required this.addressLabel,
+class WorkerGivenReviewViewData {
+  const WorkerGivenReviewViewData({
+    required this.reviewId,
+    required this.workerName,
+    required this.dateLabel,
+    required this.filledStars,
+    required this.maxStars,
+    required this.comment,
+    required this.serviceLabel,
+    required this.serviceIcon,
+    this.workerAvatarUrl,
+    this.animateEntrance = true,
   });
 
-  /// Data/modo já formatado externamente.
-  final String whenLabel;
+  final String reviewId;
 
-  /// SizeEstimate já convertido em texto simples.
-  final String sizeLabel;
+  final String workerName;
+  final String? workerAvatarUrl;
 
-  /// Morada já preparada pela integração.
-  final String addressLabel;
+  /// Já formatado externamente.
+  final String dateLabel;
+
+  final int filledStars;
+  final int maxStars;
+
+  final String? comment;
+
+  final String serviceLabel;
+  final IconData serviceIcon;
+
+  /// true apenas para itens da primeira página.
+  final bool animateEntrance;
 }
 
-class CreateJobReviewDescriptionViewData {
-  const CreateJobReviewDescriptionViewData({
-    required this.description,
-    required this.photos,
-    this.photosOverflowLabel,
-  });
-
-  final String description;
-
-  /// A lista representa as imagens já selecionadas no draft.
-  final List<ImageProvider> photos;
-
-  /// Opcional.
-  /// Ex.: "+3", já calculado externamente se o wrapper
-  /// quiser limitar as miniaturas visíveis.
-  final String? photosOverflowLabel;
-}
-
-class CreateJobPublishResult {
-  const CreateJobPublishResult._({
-    required this.success,
-    this.errorMessage,
-  });
-
-  const CreateJobPublishResult.success()
-      : this._(
-          success: true,
-        );
-
-  const CreateJobPublishResult.failure({
-    required String errorMessage,
-  }) : this._(
-          success: false,
-          errorMessage: errorMessage,
-        );
-
-  final bool success;
-  final String? errorMessage;
-}
-
-class CreateJobReviewScreen extends StatefulWidget {
-  const CreateJobReviewScreen({
+class WorkerReviewsScreen extends StatefulWidget {
+  const WorkerReviewsScreen({
     super.key,
-    required this.data,
-    required this.stepProgress,
+    required this.summaryAsync,
+    required this.receivedAsync,
+    required this.givenAsync,
+    required this.receivedTabLabel,
+    required this.givenTabLabel,
     required this.onBack,
-    required this.onEditService,
-    required this.onEditScheduling,
-    required this.onEditDescriptionAndPhotos,
-    required this.onPublish,
-    required this.onPublished,
+    this.initialTab = WorkerReviewsTab.received,
+    this.onTabChanged,
+    this.onRetrySummary,
+    this.onRetryReceived,
+    this.onRetryGiven,
   });
 
-  final CreateJobReviewViewData data;
+  /// Cabeçalho de reputação, igual nas duas tabs.
+  final AsyncValue<WorkerReviewsSummaryViewData> summaryAsync;
 
-  /// Deve receber o AppStepProgress real do projeto,
-  /// configurado pelo integrador para 4 passos / passo atual 4.
-  ///
-  /// É injetado porque a assinatura concreta do AppStepProgress
-  /// não foi fornecida e não devemos inventá-la.
-  final Widget stepProgress;
+  /// Estado independente da tab Recebidas.
+  final AsyncValue<List<WorkerReceivedReviewViewData>>
+      receivedAsync;
+
+  /// Estado independente da tab Dadas.
+  final AsyncValue<List<WorkerGivenReviewViewData>>
+      givenAsync;
+
+  /// Labels já com as contagens reais.
+  /// Ex.: "Recebidas 128" / "Dadas 42".
+  final String receivedTabLabel;
+  final String givenTabLabel;
+
+  final WorkerReviewsTab initialTab;
 
   final VoidCallback onBack;
 
-  final VoidCallback onEditService;
-  final VoidCallback onEditScheduling;
-  final VoidCallback onEditDescriptionAndPhotos;
+  final ValueChanged<WorkerReviewsTab>? onTabChanged;
 
-  /// Só devolve success depois de o backend confirmar
-  /// efetivamente a publicação.
-  final Future<CreateJobPublishResult> Function() onPublish;
-
-  /// Callback exterior para a navegação pós-publicação.
-  final VoidCallback onPublished;
+  final VoidCallback? onRetrySummary;
+  final VoidCallback? onRetryReceived;
+  final VoidCallback? onRetryGiven;
 
   @override
-  State<CreateJobReviewScreen> createState() =>
-      _CreateJobReviewScreenState();
+  State<WorkerReviewsScreen> createState() =>
+      _WorkerReviewsScreenState();
 }
 
-class _CreateJobReviewScreenState
-    extends State<CreateJobReviewScreen> {
-  bool _publishing = false;
-  bool _successVisible = false;
+class _WorkerReviewsScreenState
+    extends State<WorkerReviewsScreen> {
+  late WorkerReviewsTab _selectedTab;
 
-  bool get _interactionEnabled => !_publishing;
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTab;
+  }
 
-  Future<void> _publish() async {
-    if (_publishing) {
-      return;
+  @override
+  void didUpdateWidget(
+    covariant WorkerReviewsScreen oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.initialTab != widget.initialTab) {
+      _selectedTab = widget.initialTab;
     }
+  }
 
-    FocusScope.of(context).unfocus();
-
-    setState(() {
-      _publishing = true;
-      _successVisible = false;
-    });
-
-    CreateJobPublishResult result;
-
-    try {
-      result = await widget.onPublish();
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _publishing = false;
-      });
-
-      return;
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    if (!result.success) {
-      setState(() {
-        _publishing = false;
-      });
-
-      final message = result.errorMessage;
-
-      if (message != null && message.isNotEmpty) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(message),
-            ),
-          );
-      }
-
+  void _selectTab(WorkerReviewsTab tab) {
+    if (_selectedTab == tab) {
       return;
     }
 
     setState(() {
-      _publishing = false;
-      _successVisible = true;
+      _selectedTab = tab;
     });
 
-    widget.onPublished();
+    widget.onTabChanged?.call(tab);
   }
 
   @override
@@ -209,91 +202,52 @@ class _CreateJobReviewScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                _Header(
-                  onBack: _interactionEnabled
-                      ? widget.onBack
-                      : null,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.xs,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                  ),
-                  child: IgnorePointer(
-                    ignoring: !_interactionEnabled,
-                    child: widget.stepProgress,
-                  ),
-                ),
-                Expanded(
-                  child: IgnorePointer(
-                    ignoring: !_interactionEnabled,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        0,
-                        AppSpacing.md,
-                        AppSpacing.lg,
-                      ),
-                      children: [
-                        AppStaggeredEntrance(
-                          index: 0,
-                          child: _Intro(),
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.sm,
-                        ),
-                        AppStaggeredEntrance(
-                          index: 1,
-                          child: _ServiceCard(
-                            data: widget.data.service,
-                            onEdit:
-                                widget.onEditService,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.sm,
-                        ),
-                        AppStaggeredEntrance(
-                          index: 2,
-                          child: _SchedulingCard(
-                            data:
-                                widget.data.scheduling,
-                            onEdit:
-                                widget.onEditScheduling,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: AppSpacing.sm,
-                        ),
-                        AppStaggeredEntrance(
-                          index: 3,
-                          child:
-                              _DescriptionPhotosCard(
-                            data: widget.data
-                                .descriptionAndPhotos,
-                            onEdit: widget
-                                .onEditDescriptionAndPhotos,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _BottomAction(
-                  publishing: _publishing,
-                  onPublish: _publish,
-                ),
-              ],
+            _ReviewsHeader(
+              summaryAsync: widget.summaryAsync,
+              onBack: widget.onBack,
+              onRetry: widget.onRetrySummary,
             ),
-            AppSuccessFeedback(
-              visible: _successVisible,
-              message: 'Pedido publicado com sucesso.',
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: _ReviewsTabs(
+                selectedTab: _selectedTab,
+                receivedLabel:
+                    widget.receivedTabLabel,
+                givenLabel: widget.givenTabLabel,
+                onSelected: _selectTab,
+              ),
+            ),
+            Expanded(
+              child: AppFadeThroughSwitcher(
+                switchKey: _selectedTab,
+                duration:
+                    const Duration(milliseconds: 220),
+                child: _selectedTab ==
+                        WorkerReviewsTab.received
+                    ? _ReceivedTab(
+                        key: const ValueKey(
+                          'received_reviews',
+                        ),
+                        reviewsAsync:
+                            widget.receivedAsync,
+                        onRetry:
+                            widget.onRetryReceived,
+                      )
+                    : _GivenTab(
+                        key: const ValueKey(
+                          'given_reviews',
+                        ),
+                        reviewsAsync: widget.givenAsync,
+                        onRetry: widget.onRetryGiven,
+                      ),
+              ),
             ),
           ],
         ),
@@ -302,12 +256,20 @@ class _CreateJobReviewScreenState
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
+// -----------------------------------------------------------------------------
+// HEADER
+// -----------------------------------------------------------------------------
+
+class _ReviewsHeader extends StatelessWidget {
+  const _ReviewsHeader({
+    required this.summaryAsync,
     required this.onBack,
+    required this.onRetry,
   });
 
-  final VoidCallback? onBack;
+  final AsyncValue<WorkerReviewsSummaryViewData> summaryAsync;
+  final VoidCallback onBack;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -315,30 +277,49 @@ class _Header extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: AppColors.surface,
+      color: AppColors.background,
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xs,
         AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.sm,
+        0,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed: onBack,
-            icon: Icon(
-              Icons.arrow_back,
-              color: onBack == null
-                  ? AppStatusColor.neutral.foreground
-                  : AppColors.textPrimary,
-            ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  'Avaliações',
+                  style: textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: Text(
-              'Criar pedido',
-              style: textTheme.titleLarge?.copyWith(
-                color: AppColors.textPrimary,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+            ),
+            child: summaryAsync.when(
+              loading: () =>
+                  const _SummarySkeleton(),
+              error: (_, __) => _SummaryUnavailable(
+                onRetry: onRetry,
+              ),
+              data: (summary) =>
+                  _SummaryContent(
+                summary: summary,
               ),
             ),
           ),
@@ -348,25 +329,49 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Intro extends StatelessWidget {
+class _SummaryContent extends StatelessWidget {
+  const _SummaryContent({
+    required this.summary,
+  });
+
+  final WorkerReviewsSummaryViewData summary;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          'Reveja o seu pedido',
-          style: textTheme.titleMedium?.copyWith(
+          summary.averageRatingLabel,
+          style: textTheme.displaySmall?.copyWith(
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          'Confirme os detalhes antes de publicar.',
-          style: textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (summary.hasReceivedReviews)
+                _StarsRow(
+                  filledStars:
+                      summary.filledSummaryStars,
+                  maxStars: summary.maxSummaryStars,
+                  size: 18,
+                ),
+              if (summary.hasReceivedReviews)
+                const SizedBox(
+                  height: AppSpacing.xxs,
+                ),
+              Text(
+                summary.receivedReviewsLabel,
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -374,29 +379,292 @@ class _Intro extends StatelessWidget {
   }
 }
 
-class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({
-    required this.title,
-    required this.onEdit,
-    required this.child,
+class _SummarySkeleton extends StatelessWidget {
+  const _SummarySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        AppSkeletonShimmer(
+          child: Container(
+            width: 64,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  BorderRadius.circular(AppRadius.input),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSkeletonShimmer(
+                child: Container(
+                  width: 112,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.pill,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              AppSkeletonShimmer(
+                child: Container(
+                  width: 84,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.pill,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryUnavailable extends StatelessWidget {
+  const _SummaryUnavailable({
+    required this.onRetry,
   });
 
-  final String title;
-  final VoidCallback onEdit;
-  final Widget child;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Text(
+          '—',
+          style: textTheme.displaySmall?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            'Reputação indisponível',
+            style: textTheme.labelMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        if (onRetry != null)
+          IconButton(
+            onPressed: onRetry,
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.primary,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TABS
+// -----------------------------------------------------------------------------
+
+class _ReviewsTabs extends StatelessWidget {
+  const _ReviewsTabs({
+    required this.selectedTab,
+    required this.receivedLabel,
+    required this.givenLabel,
+    required this.onSelected,
+  });
+
+  final WorkerReviewsTab selectedTab;
+  final String receivedLabel;
+  final String givenLabel;
+
+  final ValueChanged<WorkerReviewsTab> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius:
+            BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _TabButton(
+              label: receivedLabel,
+              selected:
+                  selectedTab == WorkerReviewsTab.received,
+              onPressed: () =>
+                  onSelected(WorkerReviewsTab.received),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: _TabButton(
+              label: givenLabel,
+              selected:
+                  selectedTab == WorkerReviewsTab.given,
+              onPressed: () =>
+                  onSelected(WorkerReviewsTab.given),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: selected
+          ? AppColors.surface
+          : AppColors.background,
+      borderRadius:
+          BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius:
+            BorderRadius.circular(AppRadius.input),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodyMedium?.copyWith(
+              color: selected
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
+              fontWeight: selected
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// RECEBIDAS
+// -----------------------------------------------------------------------------
+
+class _ReceivedTab extends StatelessWidget {
+  const _ReceivedTab({
+    super.key,
+    required this.reviewsAsync,
+    required this.onRetry,
+  });
+
+  final AsyncValue<List<WorkerReceivedReviewViewData>>
+      reviewsAsync;
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return reviewsAsync.when(
+      loading: () =>
+          const _ReviewsListSkeleton(),
+      error: (_, __) => _ReviewsError(
+        onRetry: onRetry,
+      ),
+      data: (reviews) {
+        if (reviews.isEmpty) {
+          return const _ReceivedEmptyState();
+        }
+
+        return ListView.separated(
+          key: const PageStorageKey(
+            'worker_reviews_received',
+          ),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xxs,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          itemCount: reviews.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(
+            height: AppSpacing.sm,
+          ),
+          itemBuilder: (context, index) {
+            final review = reviews[index];
+
+            final card = _ReceivedReviewCard(
+              review: review,
+            );
+
+            if (!review.animateEntrance) {
+              return card;
+            }
+
+            return AppStaggeredEntrance(
+              index: index,
+              child: card,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ReceivedReviewCard extends StatelessWidget {
+  const _ReceivedReviewCard({
+    required this.review,
+  });
+
+  final WorkerReceivedReviewViewData review;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          AppRadius.card,
-        ),
+        borderRadius:
+            BorderRadius.circular(AppRadius.card),
         border: Border.all(
           color: AppColors.divider,
         ),
@@ -405,311 +673,671 @@ class _ReviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
+              _Avatar(
+                avatarUrl: review.reviewerAvatarUrl,
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(
-                  title.toUpperCase(),
-                  style: textTheme.labelMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.reviewerName,
+                      style:
+                          textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xxs,
+                    ),
+                    Text(
+                      review.dateLabel,
+                      style:
+                          textTheme.labelMedium?.copyWith(
+                        color:
+                            AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: AppSpacing.xs),
+              _StarsRow(
+                filledStars: review.filledStars,
+                maxStars: review.maxStars,
+                size: 16,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ExpandableComment(
+            comment: review.comment,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ServiceLine(
+            icon: review.serviceIcon,
+            label: review.serviceLabel,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DADAS
+// -----------------------------------------------------------------------------
+
+class _GivenTab extends StatelessWidget {
+  const _GivenTab({
+    super.key,
+    required this.reviewsAsync,
+    required this.onRetry,
+  });
+
+  final AsyncValue<List<WorkerGivenReviewViewData>>
+      reviewsAsync;
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return reviewsAsync.when(
+      loading: () =>
+          const _ReviewsListSkeleton(),
+      error: (_, __) => _ReviewsError(
+        onRetry: onRetry,
+      ),
+      data: (reviews) {
+        if (reviews.isEmpty) {
+          return const _GivenEmptyState();
+        }
+
+        return ListView.separated(
+          key: const PageStorageKey(
+            'worker_reviews_given',
+          ),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xxs,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          itemCount: reviews.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(
+            height: AppSpacing.sm,
+          ),
+          itemBuilder: (context, index) {
+            final review = reviews[index];
+
+            final card = _GivenReviewCard(
+              review: review,
+            );
+
+            if (!review.animateEntrance) {
+              return card;
+            }
+
+            return AppStaggeredEntrance(
+              index: index,
+              child: card,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _GivenReviewCard extends StatelessWidget {
+  const _GivenReviewCard({
+    required this.review,
+  });
+
+  final WorkerGivenReviewViewData review;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius:
+            BorderRadius.circular(AppRadius.card),
+        border: Border.all(
+          color: AppColors.divider,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              _Avatar(
+                avatarUrl: review.workerAvatarUrl,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Avaliaste',
+                      style:
+                          textTheme.labelMedium?.copyWith(
+                        color:
+                            AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xxs,
+                    ),
+                    Text(
+                      review.workerName,
+                      style:
+                          textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              _StarsRow(
+                filledStars: review.filledStars,
+                maxStars: review.maxStars,
+                size: 16,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ExpandableComment(
+            comment: review.comment,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _ServiceLine(
+                  icon: review.serviceIcon,
+                  label: review.serviceLabel,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                review.dateLabel,
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// COMMENT
+// -----------------------------------------------------------------------------
+
+class _ExpandableComment extends StatefulWidget {
+  const _ExpandableComment({
+    required this.comment,
+  });
+
+  final String? comment;
+
+  @override
+  State<_ExpandableComment> createState() =>
+      _ExpandableCommentState();
+}
+
+class _ExpandableCommentState
+    extends State<_ExpandableComment> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(
+    covariant _ExpandableComment oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.comment != widget.comment) {
+      _expanded = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final comment = widget.comment?.trim();
+
+    if (comment == null || comment.isEmpty) {
+      return Text(
+        'Sem comentário.',
+        style: textTheme.bodyMedium?.copyWith(
+          color: AppColors.textSecondary,
+          fontStyle: FontStyle.italic,
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final style = textTheme.bodyMedium?.copyWith(
+          color: AppColors.textPrimary,
+        );
+
+        final painter = TextPainter(
+          text: TextSpan(
+            text: comment,
+            style: style,
+          ),
+          maxLines: 3,
+          textDirection:
+              Directionality.of(context),
+        )..layout(
+            maxWidth: constraints.maxWidth,
+          );
+
+        final needsExpansion =
+            painter.didExceedMaxLines;
+
+        return Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              comment,
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
+              style: style,
+            ),
+            if (needsExpansion && !_expanded) ...[
+              const SizedBox(
+                height: AppSpacing.xxs,
+              ),
               TextButton(
-                onPressed: onEdit,
+                onPressed: () {
+                  setState(() {
+                    _expanded = true;
+                  });
+                },
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xxs,
-                  ),
                   minimumSize: Size.zero,
+                  padding: EdgeInsets.zero,
                   tapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
+                      MaterialTapTargetSize
+                          .shrinkWrap,
                 ),
                 child: Text(
-                  'Editar',
-                  style: textTheme.bodyMedium?.copyWith(
+                  'Ver mais',
+                  style:
+                      textTheme.labelMedium?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          child,
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.data,
-    required this.onEdit,
+// -----------------------------------------------------------------------------
+// SHARED CARD PIECES
+// -----------------------------------------------------------------------------
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({
+    required this.avatarUrl,
   });
 
-  final CreateJobReviewServiceViewData data;
-  final VoidCallback onEdit;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return _ReviewCard(
-      title: 'Serviço',
-      onEdit: onEdit,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(
-                AppRadius.input,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              data.icon,
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: AppColors.primaryContainer,
+      backgroundImage: avatarUrl == null
+          ? null
+          : NetworkImage(avatarUrl!),
+      child: avatarUrl == null
+          ? const Icon(
+              Icons.person_outline_rounded,
               color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              data.serviceLabel,
-              style: textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
+            )
+          : null,
     );
   }
 }
 
-class _SchedulingCard extends StatelessWidget {
-  const _SchedulingCard({
-    required this.data,
-    required this.onEdit,
+class _StarsRow extends StatelessWidget {
+  const _StarsRow({
+    required this.filledStars,
+    required this.maxStars,
+    required this.size,
   });
 
-  final CreateJobReviewSchedulingViewData data;
-  final VoidCallback onEdit;
+  final int filledStars;
+  final int maxStars;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return _ReviewCard(
-      title: 'Agendamento',
-      onEdit: onEdit,
-      child: Column(
-        children: [
-          _SummaryRow(
-            label: 'Quando',
-            value: data.whenLabel,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SummaryRow(
-            label: 'Dimensão',
-            value: data.sizeLabel,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SummaryRow(
-            label: 'Morada',
-            value: data.addressLabel,
-            valueMaxLines: 3,
-          ),
-        ],
+    final safeMax = maxStars < 0 ? 0 : maxStars;
+
+    final safeFilled = filledStars
+        .clamp(0, safeMax)
+        .toInt();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        safeMax,
+        (index) {
+          final filled = index < safeFilled;
+
+          return Icon(
+            filled
+                ? Icons.star_rounded
+                : Icons.star_border_rounded,
+            size: size,
+            color: AppColors.logoAccent,
+          );
+        },
       ),
     );
   }
 }
 
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
+class _ServiceLine extends StatelessWidget {
+  const _ServiceLine({
+    required this.icon,
     required this.label,
-    required this.value,
-    this.valueMaxLines = 1,
   });
 
+  final IconData icon;
   final String label;
-  final String value;
-  final int valueMaxLines;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
+        Icon(
+          icon,
+          size: 16,
+          color: AppColors.primary,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Flexible(
           child: Text(
             label,
-            style: textTheme.bodyMedium?.copyWith(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.labelMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: valueMaxLines,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
       ],
     );
   }
 }
 
-class _DescriptionPhotosCard extends StatelessWidget {
-  const _DescriptionPhotosCard({
-    required this.data,
-    required this.onEdit,
-  });
+// -----------------------------------------------------------------------------
+// EMPTY STATES
+// -----------------------------------------------------------------------------
 
-  final CreateJobReviewDescriptionViewData data;
-  final VoidCallback onEdit;
+class _ReceivedEmptyState extends StatelessWidget {
+  const _ReceivedEmptyState();
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return _ReviewCard(
-      title: 'Descrição e fotos',
-      onEdit: onEdit,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            data.description,
-            style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (data.photos.isEmpty)
-            Text(
-              'Sem fotos adicionadas',
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppStaggeredEntrance(
+          index: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.star_border_rounded,
+                  size: 34,
+                  color: AppColors.logoAccent,
+                ),
               ),
-            )
-          else
-            _PhotosPreview(
-              photos: data.photos,
-              overflowLabel:
-                  data.photosOverflowLabel,
-            ),
-        ],
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Ainda não recebeste avaliações',
+                textAlign: TextAlign.center,
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'As avaliações aparecem aqui depois '
+                'de cada trabalho concluído.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _PhotosPreview extends StatelessWidget {
-  const _PhotosPreview({
-    required this.photos,
-    required this.overflowLabel,
-  });
-
-  final List<ImageProvider> photos;
-  final String? overflowLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final visiblePhotos = photos.take(2).toList();
-
-    return Wrap(
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xs,
-      children: [
-        ...visiblePhotos.map(
-          (photo) => ClipRRect(
-            borderRadius: BorderRadius.circular(
-              AppRadius.input,
-            ),
-            child: Image(
-              image: photo,
-              width: 64,
-              height: 64,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        if (overflowLabel != null)
-          _PhotoOverflow(
-            label: overflowLabel!,
-          ),
-      ],
-    );
-  }
-}
-
-class _PhotoOverflow extends StatelessWidget {
-  const _PhotoOverflow({
-    required this.label,
-  });
-
-  final String label;
+class _GivenEmptyState extends StatelessWidget {
+  const _GivenEmptyState();
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: AppStatusColor.neutral.background,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: textTheme.bodyMedium?.copyWith(
-          color: AppStatusColor.neutral.foreground,
-          fontWeight: FontWeight.w700,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppStaggeredEntrance(
+          index: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.rate_review_outlined,
+                  size: 32,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Ainda não avaliaste ninguém',
+                textAlign: TextAlign.center,
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Quando avaliares alguém após um trabalho, '
+                'fica registado aqui.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _BottomAction extends StatelessWidget {
-  const _BottomAction({
-    required this.publishing,
-    required this.onPublish,
-  });
+// -----------------------------------------------------------------------------
+// LOADING
+// -----------------------------------------------------------------------------
 
-  final bool publishing;
-  final VoidCallback onPublish;
+class _ReviewsListSkeleton extends StatelessWidget {
+  const _ReviewsListSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: PrimaryActionButton(
-        label: publishing
-            ? 'A publicar...'
-            : 'Publicar pedido',
-        onPressed: publishing
-            ? null
-            : onPublish,
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xxs,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      itemCount: 3,
+      separatorBuilder: (_, __) =>
+          const SizedBox(
+        height: AppSpacing.sm,
+      ),
+      itemBuilder: (_, __) {
+        return AppSkeletonShimmer(
+          child: Container(
+            height: 134,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  BorderRadius.circular(AppRadius.card),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// ERROR
+// -----------------------------------------------------------------------------
+
+class _ReviewsError extends StatelessWidget {
+  const _ReviewsError({
+    required this.onRetry,
+  });
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppStaggeredEntrance(
+          index: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color:
+                      AppStatusColor.cancelled.background,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.cloud_off_outlined,
+                  size: 32,
+                  color:
+                      AppStatusColor.cancelled.foreground,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Não foi possível carregar',
+                textAlign: TextAlign.center,
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Verifica a ligação e tenta novamente.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton(
+                  onPressed: onRetry,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(
+                      color: AppColors.divider,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(
+                        AppRadius.input,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    'Tentar novamente',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -718,14 +1346,16 @@ class _BottomAction extends StatelessWidget {
 
 ## Notas de integração
 
-- Este é o novo **passo 4**. O wrapper deve passar o `AppStepProgress` real configurado para **4 passos, passo atual 4**. Não inventei a assinatura desse widget partilhado porque ainda não foi fornecida.
-- Os três callbacks `onEditService`, `onEditScheduling` e `onEditDescriptionAndPhotos` devem voltar aos passos 1, 2 e 3 **mantendo o mesmo draft**. A transição `shared axis X` invertida indicada no mock fica na camada de navegação.
-- `serviceLabel`, ícone, data, dimensão, morada, descrição e imagens vêm todos do draft real. Não há serviços, datas, moradas ou tamanhos de exemplo hardcoded.
-- `SizeEstimate` continua como **texto simples**, não badge.
-- As fotos não são obrigatórias. Quando a lista está vazia, aparece **“Sem fotos adicionadas”**, conforme o mock.
-- `photosOverflowLabel` vem externamente, permitindo ao integrador apresentar `+N` sem este ecrã assumir se recebeu a lista completa de fotografias.
-- Enquanto `onPublish()` está em curso, **voltar, editar e publicar ficam bloqueados** e o CTA passa para **“A publicar...”**.
-- Em erro de publicação, o callback pode devolver `CreateJobPublishResult.failure(errorMessage: ...)`; o ecrã mostra `SnackBar` e **não altera qualquer dado do draft**.
-- `AppSuccessFeedback` só é ativado quando `onPublish()` devolve `success`, portanto nunca é otimista.
-- `onPublished` é o único ponto usado para avançar/navegar depois da publicação confirmada. O ecrã não conhece a rota seguinte.
-- Os três cartões entram com `AppStaggeredEntrance`. Em `disableAnimations`, o comportamento reduzido fica delegado ao motion system existente.
+- O cabeçalho de reputação é **o mesmo nas duas tabs**. A média vem sempre das avaliações **recebidas**, não muda ao selecionar `Dadas`.
+- `summaryAsync`, `receivedAsync` e `givenAsync` são independentes. Assim, cada tab pode ter o seu próprio estado de `loading / error / empty / data`, como no mock.
+- Se o worker nunca recebeu avaliações, a integração pode entregar `averageRatingLabel: '--'`, `receivedReviewsLabel: 'Sem avaliações'` e `hasReceivedReviews: false`. O ecrã não inventa uma média.
+- `receivedTabLabel` e `givenTabLabel` chegam com as contagens já resolvidas pela BD. O widget não usa `list.length` para fabricar os totais.
+- As médias, datas e restantes números são recebidos **já formatados em pt-PT**.
+- Não existe `UserRole`, estado de negócio ou `AppStatusBadge` neste fluxo. Avaliação/estrelas são dados de reputação, não estados de progresso.
+- As estrelas usam `AppColors.logoAccent`; não foi criada nenhuma cor nova.
+- O comentário mostra no máximo **3 linhas** inicialmente. `Ver mais` só aparece quando o texto realmente excede essas 3 linhas e expande o conteúdo no próprio card.
+- Comentário vazio/null apresenta **“Sem comentário.”** em estilo secundário.
+- Nos cards da tab **Dadas**, `"Avaliaste"` identifica a pessoa avaliada; o serviço e a data continuam dados separados.
+- `animateEntrance` permite cumprir a regra de paginação do mock: itens da **1.ª página** usam `AppStaggeredEntrance`; páginas carregadas posteriormente devem chegar com `animateEntrance: false`.
+- A troca de tabs usa `AppFadeThroughSwitcher` com `switchKey` real. Cada lista também tem o seu `PageStorageKey` para preservar o scroll.
+- Loading usa exclusivamente `AppSkeletonShimmer`, sem `CircularProgressIndicator`.
