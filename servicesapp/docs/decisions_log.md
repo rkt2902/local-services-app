@@ -3,6 +3,43 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-09-26 — Motion Fase 3: fecho dos 2 itens pendentes (LinearProgressIndicator + rating_sheet)
+
+**Contexto:** os 2 itens deixados como "pendentes" no fecho da Fase 3 do motion system.
+
+**`worker_help_requests_screen.dart:837`:** o `LinearProgressIndicator` nunca tinha sido avaliado
+contra a regra de skeleton loading (o grep original da auditoria só apanhava
+`CircularProgressIndicator`). Contexto real: `_AcceptedCard`, `ratingAsync =
+ref.watch(myRatingForJobProvider(jobId))` — decide entre mostrar "Prestador avaliado" ou o botão
+"Avaliar o prestador". É "a carregar dados para decidir o que renderizar", não progresso de uma
+operação com duração conhecida — trocado por `AppSkeletonShimmer`, mesmo tratamento do resto do
+app.
+
+**`rating_sheet.dart`:** ao verificar o padrão real usado nos 3 call sites existentes
+(`client_job_detail_screen.dart`, `worker_my_job_detail_view.dart`,
+`worker_help_requests_screen.dart`), confirmado que já existia SnackBar de sucesso — a auditoria
+anterior estava incompleta (só tinha olhado para `rating_sheet.dart` isolado). O problema real era
+a ordem: os 3 callers faziam `pop → invalidate → SnackBar`, invalidando **antes** de mostrar a
+confirmação, imediatamente a seguir ao fecho da modal. Dois desses ecrãs
+(`client_job_detail_screen.dart`, `worker_help_requests_screen.dart`) fazem `ref.watch` do mesmo
+provider que invalidam logo a seguir — mesma classe de risco que motivou o fix do T4 original
+("pop → go → snackBar → invalidate"), ainda sem crash reportado mas latente.
+
+**Fix:** `showRatingSheet` ganhou um parâmetro `successMessage` obrigatório e passou a mostrar o
+`SnackBar` ele próprio, logo a seguir ao `Navigator.pop`, antes de devolver o resultado ao caller.
+Os 3 callers deixaram de duplicar o SnackBar — só fazem `ref.invalidate(...)` depois de
+`submitted == true`. Ordem final: pop (dentro da sheet) → SnackBar (dentro da sheet) → invalidate
+(no caller), mesma sequência do T4.
+
+**Verificação:** `flutter analyze` corrido (SDK reinstalado nesta sessão, não persiste entre
+turnos neste ambiente) — 5 issues, todas as mesmas pré-existentes já confirmadas por diff nas
+sessões anteriores (2× `control_flow_in_finally` em `worker_help_requests_lobby_view.dart`, 3×
+`unused_field` no enum `_NotificationCategory`). Zero problemas novos.
+
+Isto fecha a Fase 3 do motion system — nenhum item pendente conhecido além da secção colapsável
+genérica (documentada como "quando surgir a funcionalidade", não construída por não haver hoje
+nenhum caso real que precise).
+
 ## 2026-09-26 — Motion Fase 3: ajustes pequenos + estrelas de avaliação partilhadas
 
 **Contexto:** segue-se à auditoria da Fase 3 do motion system (`docs/motion_spec.md` §3) contra o

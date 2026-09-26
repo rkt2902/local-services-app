@@ -6,9 +6,17 @@ import '../../../core/widgets/rating_stars_input.dart';
 
 /// Shows a modal bottom sheet for star rating + optional comment.
 /// Returns `true` if the user submitted, `null`/`false` if dismissed.
+///
+/// Segue o padrão T4 já estabelecido no projeto para submissões (ver
+/// decisions_log.md, "pop → go → snackBar → invalidate"): a sheet fecha-se
+/// a si própria e mostra a confirmação — o caller só invalida os
+/// providers relevantes depois de `showRatingSheet` devolver `true`, nunca
+/// antes. Isto também evita invalidar um provider que o ecrã por trás da
+/// sheet ainda esteja a observar em pleno fecho da modal.
 Future<bool?> showRatingSheet({
   required BuildContext context,
   required String title,
+  required String successMessage,
   String? subtitle,
   required Future<void> Function(int stars, String? comment) onSubmit,
 }) async {
@@ -123,6 +131,11 @@ Future<bool?> showRatingSheet({
   );
 
   commentController.dispose();
+
+  if (result == true && context.mounted) {
+    scaffold.showSnackBar(SnackBar(content: Text(successMessage)));
+  }
+
   return result;
 }
 

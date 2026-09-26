@@ -1307,6 +1307,8 @@ class _ClientJobDetailScreenState
       title: 'Avaliar o trabalho',
       subtitle:
           'A nota é partilhada com o prestador e ajudantes. O comentário aparece no perfil do prestador.',
+      successMessage:
+          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitClientRating(
               jobId: widget.jobId,
@@ -1317,11 +1319,6 @@ class _ClientJobDetailScreenState
     );
     if (submitted != true || !mounted) return;
     ref.invalidate(myRatingForJobProvider(widget.jobId));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text(
-          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.'),
-    ));
   }
 }
 

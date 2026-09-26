@@ -1233,6 +1233,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
     final submitted = await showRatingSheet(
       context: context,
       title: widget.title,
+      successMessage: 'Avaliação enviada!',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitPrincipalRating(
               jobId: widget.jobId,
@@ -1246,8 +1247,5 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
     ref.invalidate(
       myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
     );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Avaliação enviada!')));
   }
 }
