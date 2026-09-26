@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
+import 'package:servicesapp/core/theme/app_motion_tokens.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 
@@ -124,50 +125,90 @@ class AppBottomNavigation extends StatelessWidget {
                 top: 0,
                 child: Tooltip(
                   message: centralActionTooltip,
-                  child: SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: FilledButton(
-                      onPressed: onCentralActionPressed,
-                      style: ButtonStyle(
-                        padding: const WidgetStatePropertyAll(
-                          EdgeInsets.zero,
-                        ),
-                        elevation: const WidgetStatePropertyAll(4),
-                        shadowColor: WidgetStatePropertyAll(
-                          AppColors.textPrimary.withValues(
-                            alpha: 0.16,
-                          ),
-                        ),
-                        backgroundColor:
-                            WidgetStateProperty.resolveWith<Color>(
-                          (states) {
-                            if (states.contains(
-                              WidgetState.pressed,
-                            )) {
-                              return AppColors.primaryPressed;
-                            }
-
-                            return AppColors.primary;
-                          },
-                        ),
-                        foregroundColor:
-                            const WidgetStatePropertyAll(
-                          AppColors.surface,
-                        ),
-                        shape: const WidgetStatePropertyAll(
-                          CircleBorder(),
-                        ),
-                      ),
-                      child: Icon(
-                        centralActionIcon,
-                        size: 28,
-                      ),
-                    ),
+                  child: _CentralActionButton(
+                    icon: centralActionIcon,
+                    onPressed: onCentralActionPressed,
                   ),
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// FAB central (docs/motion_spec.md §3, "FAB '+'": scale(0.88) ao premir,
+/// tokens `instant · standard`) — sempre ativo, feedback de toque não é
+/// desligado por reduced motion (ver nota em primary_action_button.dart).
+class _CentralActionButton extends StatefulWidget {
+  const _CentralActionButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  State<_CentralActionButton> createState() => _CentralActionButtonState();
+}
+
+class _CentralActionButtonState extends State<_CentralActionButton> {
+  static const double _pressedScale = 0.88;
+
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => _setPressed(true),
+      onPointerUp: (_) => _setPressed(false),
+      onPointerCancel: (_) => _setPressed(false),
+      child: AnimatedScale(
+        scale: _pressed ? _pressedScale : 1,
+        duration: AppMotionDuration.instant,
+        curve: AppMotionCurve.standard,
+        child: SizedBox(
+          width: 54,
+          height: 54,
+          child: FilledButton(
+            onPressed: widget.onPressed,
+            style: ButtonStyle(
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.zero,
+              ),
+              elevation: const WidgetStatePropertyAll(4),
+              shadowColor: WidgetStatePropertyAll(
+                AppColors.textPrimary.withValues(
+                  alpha: 0.16,
+                ),
+              ),
+              backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                (states) {
+                  if (states.contains(
+                    WidgetState.pressed,
+                  )) {
+                    return AppColors.primaryPressed;
+                  }
+
+                  return AppColors.primary;
+                },
+              ),
+              foregroundColor: const WidgetStatePropertyAll(
+                AppColors.surface,
+              ),
+              shape: const WidgetStatePropertyAll(
+                CircleBorder(),
+              ),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 28,
+            ),
           ),
         ),
       ),
@@ -194,6 +235,15 @@ class _AppBottomNavigationDestination extends StatelessWidget {
         ? AppColors.primary
         : AppColors.textSecondary;
 
+    // docs/motion_spec.md §3, "Bottom nav": ícone cruza outline→preenchido,
+    // cor e peso do label animam em simultâneo. Reduced motion mantém a
+    // mudança de cor/peso (é informação de estado) mas corta a transição
+    // (§5) — duração zero em vez de fast.
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return Semantics(
       button: true,
       selected: selected,
@@ -213,20 +263,29 @@ class _AppBottomNavigationDestination extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                selected
-                    ? item.selectedIcon
-                    : item.icon,
-                size: 22,
-                color: contentColor,
+              AnimatedSwitcher(
+                duration: transitionDuration,
+                switchInCurve: AppMotionCurve.standard,
+                switchOutCurve: AppMotionCurve.standard,
+                child: Icon(
+                  selected ? item.selectedIcon : item.icon,
+                  key: ValueKey<bool>(selected),
+                  size: 22,
+                  color: contentColor,
+                ),
               ),
               const SizedBox(height: AppSpacing.xxs),
-              Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(
+              AnimatedDefaultTextStyle(
+                duration: transitionDuration,
+                curve: AppMotionCurve.standard,
+                style: (textTheme.labelMedium ?? const TextStyle()).copyWith(
                   color: contentColor,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

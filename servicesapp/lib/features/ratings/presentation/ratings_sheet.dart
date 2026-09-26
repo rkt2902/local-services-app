@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../application/rating_providers.dart';
 
 /// Opens a read-only bottom sheet showing a worker's average rating and
@@ -34,9 +37,21 @@ Future<void> showRatingsSheet(
                     slivers: [
                       SliverToBoxAdapter(
                         child: summaryAsync.when(
-                          loading: () => const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 32),
-                            child: Center(child: CircularProgressIndicator()),
+                          loading: () => Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                            child: AppSkeletonShimmer(
+                              child: SizedBox(
+                                width: 180,
+                                height: 56,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.input),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                           error: (_, _) => const SizedBox.shrink(),
                           data: (summary) => _RatingHeader(
@@ -47,10 +62,27 @@ Future<void> showRatingsSheet(
                       ),
                       const SliverToBoxAdapter(child: Divider(height: 1)),
                       ratingsAsync.when(
-                        loading: () => const SliverToBoxAdapter(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Center(child: CircularProgressIndicator()),
+                        loading: () => SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          sliver: SliverList.list(
+                            children: [
+                              for (var i = 0; i < 3; i++) ...[
+                                AppSkeletonShimmer(
+                                  child: Container(
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(
+                                          AppRadius.input),
+                                    ),
+                                  ),
+                                ),
+                                if (i < 2) const SizedBox(height: 12),
+                              ],
+                            ],
                           ),
                         ),
                         error: (_, _) => const SliverToBoxAdapter(

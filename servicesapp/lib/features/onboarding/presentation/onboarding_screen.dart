@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../application/onboarding_providers.dart';
 import 'widgets/onboarding_illustration.dart';
@@ -147,13 +148,17 @@ class _SkipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
     return SizedBox(
       height: 48,
       child: Align(
         alignment: Alignment.centerRight,
         child: AnimatedOpacity(
           opacity: isLastPage ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 200),
+          duration: disableAnimations ? Duration.zero : AppMotionDuration.fast,
+          curve: AppMotionCurve.standard,
           child: Padding(
             padding: const EdgeInsets.only(right: 8),
             child: TextButton(

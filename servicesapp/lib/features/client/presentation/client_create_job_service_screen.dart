@@ -151,11 +151,23 @@ class _ClientCreateJobServiceScreenState
                   AppStaggeredEntrance(
                     index: 2,
                     child: serviceTypesAsync.when(
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.lg),
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+                    loading: () => GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: AppSpacing.xs,
+                        mainAxisSpacing: AppSpacing.xs,
+                        childAspectRatio: 0.95,
+                      ),
+                      itemCount: 6,
+                      itemBuilder: (context, index) => AppSkeletonShimmer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(AppRadius.input),
+                          ),
                         ),
                       ),
                     ),

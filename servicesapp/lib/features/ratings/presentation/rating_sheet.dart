@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/rating_stars_input.dart';
 
 /// Shows a modal bottom sheet for star rating + optional comment.
 /// Returns `true` if the user submitted, `null`/`false` if dismissed.
@@ -43,25 +45,15 @@ Future<bool?> showRatingSheet({
                     ),
                   ],
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      5,
-                      (i) => IconButton(
-                        icon: Icon(
-                          i < selectedStars
-                              ? Icons.star_rounded
-                              : Icons.star_outline_rounded,
-                          size: 40,
-                          color: Colors.amber,
-                        ),
-                        onPressed: () =>
-                            setSheetState(() => selectedStars = i + 1),
-                      ),
-                    ),
+                  RatingStarsInput(
+                    rating: selectedStars,
+                    onChanged: (value) =>
+                        setSheetState(() => selectedStars = value),
                   ),
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 150),
+                    duration: MediaQuery.maybeOf(ctx)?.disableAnimations ?? false
+                        ? Duration.zero
+                        : AppMotionDuration.fast,
                     child: selectedStars > 0
                         ? Text(
                             _starLabel(selectedStars),

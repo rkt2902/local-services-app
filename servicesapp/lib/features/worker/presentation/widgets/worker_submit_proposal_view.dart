@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
@@ -769,9 +770,16 @@ class _HelpersSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    // docs/motion_spec.md §3: cartão de estado (fast · standard). Reduced
+    // motion mantém a cor/estado final mas corta a transição (§5).
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: transitionDuration,
+      curve: AppMotionCurve.standard,
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -808,8 +816,8 @@ class _HelpersSection extends StatelessWidget {
 
           // Este bloco só aparece no estado 4b.
           AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
+            duration: transitionDuration,
+            curve: AppMotionCurve.standard,
             child: enabled
                 ? Column(
                     children: [

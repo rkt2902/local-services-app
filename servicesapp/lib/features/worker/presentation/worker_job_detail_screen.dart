@@ -9,6 +9,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -33,7 +34,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
 
     return jobAsync.when(
       loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: AppScreenLoadingSkeleton(),
       ),
       error: (e, _) => Scaffold(
         body: Center(child: Text(friendlyError(e))),

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_timeline.dart';
@@ -349,7 +350,7 @@ class _WorkerMyJobDetailScreenState
     final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
 
     if (proposalAsync.isLoading || jobAsync.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: AppScreenLoadingSkeleton());
     }
     if (proposalAsync.hasError || jobAsync.hasError) {
       final e = proposalAsync.error ?? jobAsync.error!;

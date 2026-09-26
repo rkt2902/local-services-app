@@ -3,6 +3,58 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-09-26 — Motion Fase 3: ajustes pequenos + estrelas de avaliação partilhadas
+
+**Contexto:** segue-se à auditoria da Fase 3 do motion system (`docs/motion_spec.md` §3) contra o
+código real. Implementados os itens classificados como "ajuste pequeno" e "trabalho novo";
+secções colapsáveis genéricas ficaram de fora por não haver hoje nenhuma funcionalidade real que
+precise disso (regra explícita: não construir só para cumprir a especificação).
+
+**Ajustes pequenos:** `PrimaryActionButton`/FAB central de `AppBottomNavigation` ganharam
+scale ao premir (`Listener`, não `GestureDetector`, para não competir com o tap do `FilledButton`
+na arena de gestos — 32 e 2 consumidores respetivamente, API pública inalterada);
+`AppFilterChip` passou a cross-fade de cor/borda (antes não animava nada); bottom nav ganhou
+cross-fade ícone+cor+peso do label (antes trocava tudo instantaneamente, sem sequer diferença de
+peso entre estados); `apply_as_helper_screen.dart` (_EquipmentCard/_AvailabilityCard) perdeu o
+`AppPulseScale` no ícone de check — estava a criar um segundo loop infinito, violando a regra do
+spec de "único loop infinito permitido na app" (reservado à timeline); notificação não-lida ganhou
+fade no ponto verde e no fundo tonal; corrigido bug real em `notifications_screen.dart` — o índice
+do stagger reiniciava a 0 em cada grupo de data ("HOJE"/"ONTEM"/...), agora usa contador
+acumulado (mesmo padrão já usado em `worker_help_requests_lobby_view.dart`); adicionado guard de
+`disableAnimations` a 8 animações que o ignoravam (`choose_role_screen`,
+`worker_submit_proposal_view` ×2, `onboarding_screen`, `onboarding_page_indicator`, e as 2 de
+`apply_as_helper_screen`); 18 sítios de `CircularProgressIndicator` como loading de lista/ecrã/
+formulário trocados por `AppSkeletonShimmer` (10 via novo `AppScreenLoadingSkeleton` genérico para
+loading de ecrã inteiro, 8 com forma tailored ao conteúdo).
+
+**Trabalho novo:** `RatingStarsInput` (`core/widgets/rating_stars_input.dart`) — widget de 5
+estrelas partilhado com entrada em cascata (100ms/estrela, valor bespoke do spec) e pop individual
+só na estrela tocada (as que mudam de estado por efeito colateral não animam). Substitui as duas
+implementações antigas e inconsistentes: `_RatingStars`/`_RatingStar` privados de
+`client_rate_worker_screen.dart` (já tinha pop e `AppSuccessFeedback`, só faltava a entrada em
+cascata e usava `Curves.easeOutBack` solto em vez do token `reward`) e as estrelas cruas de
+`rating_sheet.dart` (`IconButton`+`Colors.amber`, sem animação nenhuma, sem tokens — era o fluxo
+de avaliação mais usado dos dois, 3 dos 4 pontos de entrada). Decisão consciente: não adicionei
+`AppSuccessFeedback` ao submit de `rating_sheet.dart` (fica só a fechar a modal sheet) — não fazia
+parte do pedido e um overlay de sucesso full-screen dentro de uma bottom sheet merece decisão de
+UX própria.
+
+**Fora de âmbito nesta ronda (decisão deliberada):** unificação
+`worker_dashboard_screen`↔`workerJobBoardPageProvider`; `LinearProgressIndicator` em
+`worker_help_requests_screen.dart:837`; spinner de paginação (fim de lista) em
+`worker_jobs_view.dart:420`; spinners de GPS/geocoding e `_ProcessingState` do OCR do cartão
+frota (tratados como feedback de ação em curso, mesma categoria que um spinner dentro de um
+botão); spinner de boot da app em `app_router.dart`. Nenhum destes estava nas listas de "ajuste
+pequeno"/"trabalho novo" da auditoria.
+
+**Verificação:** `flutter analyze` corrido de facto (Flutter 3.47.5/Dart 3.13.4 instalado
+localmente para esta sessão — o ambiente não tinha SDK por omissão). Primeira corrida apanhou 1
+erro real (`ratings_sheet.dart` — `BorderRadius.circular()` não-const dentro de uma árvore
+`const`); corrigido. Segunda corrida: 5 issues, todas confirmadas pré-existentes por diff (2×
+`control_flow_in_finally` em `worker_help_requests_lobby_view.dart`, ficheiro não tocado nesta
+sessão; 3× `unused_field` no enum `_NotificationCategory` de `notifications_screen.dart`, já
+documentado no próprio código como preparado para tipos futuros). Zero problemas novos.
+
 ## 2026-09-25 — Cache com TTL em 12 providers `.family` (keepAlive + timer)
 
 **Contexto:** mapeamento prévio (sessão de auditoria só-leitura) identificou que `jobByIdProvider`

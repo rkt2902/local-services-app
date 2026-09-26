@@ -831,10 +831,25 @@ class _CategoryFilterSheetState<TServiceType>
           Expanded(
             child: widget.serviceTypesAsync.when(
               loading: () {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
+                return ListView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
                   ),
+                  children: [
+                    for (var i = 0; i < 6; i++) ...[
+                      AppSkeletonShimmer(
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.input),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                    ],
+                  ],
                 );
               },
               error: (_, _) {

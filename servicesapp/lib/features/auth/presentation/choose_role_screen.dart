@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
@@ -134,11 +135,17 @@ class _RoleSelectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: transitionDuration,
+        curve: AppMotionCurve.standard,
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

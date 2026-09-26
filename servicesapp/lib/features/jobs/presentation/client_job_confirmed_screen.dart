@@ -9,6 +9,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
@@ -48,7 +49,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     if (loading) {
       return const Scaffold(
         backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
+        body: AppScreenLoadingSkeleton(),
       );
     }
 

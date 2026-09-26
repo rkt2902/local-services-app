@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
@@ -586,16 +587,25 @@ class _EquipmentCard extends StatelessWidget {
         ? 'Se levares, o pagamento sobe para $fullRateLabel (em vez de $reducedRateLabel).'
         : 'Levar equipamento próprio aumenta o pagamento por hora.';
 
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return Material(
-      color: bringOwnEquipment ? AppColors.primaryContainer : AppColors.surface,
+      type: MaterialType.transparency,
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: () => onChanged(!bringOwnEquipment),
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: transitionDuration,
+          curve: AppMotionCurve.standard,
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
+            color: bringOwnEquipment
+                ? AppColors.primaryContainer
+                : AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.input),
             border: Border.all(
               color:
@@ -631,13 +641,16 @@ class _EquipmentCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
+              // Sem AppPulseScale aqui: esse widget é o loop infinito
+              // reservado ao nó atual da timeline (docs/motion_spec.md
+              // §3/§5, "único loop infinito permitido na app") — o
+              // AppFadeThroughSwitcher já dá o pop de entrada ao ícone
+              // (fade + scale, não repetido).
               AppFadeThroughSwitcher(
                 switchKey: bringOwnEquipment,
                 child: bringOwnEquipment
-                    ? const AppPulseScale(
-                        child: Icon(Icons.check_circle_outline,
-                            color: AppColors.primary),
-                      )
+                    ? const Icon(Icons.check_circle_outline,
+                        color: AppColors.primary)
                     : const Icon(Icons.circle_outlined,
                         color: AppColors.textSecondary),
               ),
@@ -664,16 +677,23 @@ class _AvailabilityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final transitionDuration =
+        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+
     return Material(
-      color: selected ? AppColors.primaryContainer : AppColors.surface,
+      type: MaterialType.transparency,
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: transitionDuration,
+          curve: AppMotionCurve.standard,
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
+            color: selected ? AppColors.primaryContainer : AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.input),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.divider,
@@ -693,13 +713,13 @@ class _AvailabilityCard extends StatelessWidget {
                       ?.copyWith(color: AppColors.textPrimary),
                 ),
               ),
+              // Ver nota em _EquipmentCard: sem AppPulseScale (loop
+              // infinito reservado à timeline).
               AppFadeThroughSwitcher(
                 switchKey: selected,
                 child: selected
-                    ? const AppPulseScale(
-                        child: Icon(Icons.check_circle_outline,
-                            color: AppColors.primary),
-                      )
+                    ? const Icon(Icons.check_circle_outline,
+                        color: AppColors.primary)
                     : const Icon(Icons.circle_outlined,
                         color: AppColors.textSecondary),
               ),

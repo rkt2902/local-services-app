@@ -6,6 +6,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../application/worker_providers.dart';
 
 /// Perfil público mínimo do worker — acessível via link/QR partilhado a
@@ -34,7 +35,7 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
         ),
       ),
       body: cardAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AppScreenLoadingSkeleton(),
         error: (e, _) => Center(child: Text(friendlyError(e))),
         data: (card) {
           if (card == null) {
