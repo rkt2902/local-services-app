@@ -169,7 +169,10 @@ class _ClientCreateJobServiceScreenState
                         crossAxisCount: 3,
                         crossAxisSpacing: AppSpacing.xs,
                         mainAxisSpacing: AppSpacing.xs,
-                        childAspectRatio: 0.95,
+                        // 0.8 em vez de 0.95 — nomes de categoria com 2
+                        // linhas (ex.: "Montagem de jardim") faziam overflow
+                        // por ~2px na razão anterior.
+                        childAspectRatio: 0.8,
                       ),
                       itemCount: 6,
                       itemBuilder: (context, index) => AppSkeletonShimmer(
@@ -212,7 +215,7 @@ class _ClientCreateJobServiceScreenState
                           crossAxisCount: 3,
                           crossAxisSpacing: AppSpacing.xs,
                           mainAxisSpacing: AppSpacing.xs,
-                          childAspectRatio: 0.95,
+                          childAspectRatio: 0.8,
                         ),
                         itemCount: filtered.length,
                         itemBuilder: (context, index) {

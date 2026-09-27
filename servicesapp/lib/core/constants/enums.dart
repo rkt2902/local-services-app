@@ -210,6 +210,17 @@ enum SizeEstimate {
         SizeEstimate.large => 'large',
       };
 
+  /// Label completo com faixa de m² aproximada — usado em revisão/detalhe,
+  /// onde há espaço para o texto todo. Único sítio a definir estas faixas;
+  /// o passo 2 do wizard usa uma versão mais curta (chips estreitos) mas
+  /// com os mesmos valores — ver `ClientJobSizeOption` em
+  /// `client_create_job_schedule_screen.dart`.
+  String get label => switch (this) {
+        SizeEstimate.small => 'Pequeno (até 100m²)',
+        SizeEstimate.medium => 'Médio (100-300m²)',
+        SizeEstimate.large => 'Grande (300m²+)',
+      };
+
   static SizeEstimate fromValue(String value) => switch (value) {
         'small' => SizeEstimate.small,
         'medium' => SizeEstimate.medium,

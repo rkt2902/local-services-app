@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_date_picker.dart';
+
 class RescheduleDialog extends StatefulWidget {
   const RescheduleDialog._();
 
@@ -21,7 +23,7 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
   bool _flexible = false;
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now().add(const Duration(days: 1)),

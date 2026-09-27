@@ -227,6 +227,31 @@ class _TimelineRowState extends State<_TimelineRow>
   /// representa a mesma semântica de cor que o código anterior já usava
   /// (completed/current = cor do estado; future = sem fill) — só passou a
   /// ser um preenchimento animado em vez de um Container sólido.
+  ///
+  /// `height` do `SizedBox` fixa em `_circleSize` (não `double.infinity`,
+  /// como esteve antes, nem sem valor nenhum) de propósito — este widget só
+  /// é usado dentro de `Expanded` (ver `build()` acima), que já lhe impõe a
+  /// altura esticada real no layout normal (`BoxConstraints` tight vence
+  /// sempre sobre a preferência do `SizedBox`), por isso o valor exato aqui
+  /// é irrelevante visualmente. O que importa é ser FINITO: `IntrinsicHeight`
+  /// (o `Row` todo, no `build()` acima) precisa de uma altura intrínseca de
+  /// cada filho, e:
+  ///   1) com `height: double.infinity`, o próprio `SizedBox` reportava
+  ///      infinito directamente — falha imediata do assert `height.isFinite`.
+  ///   2) sem `height` nenhuma, o `SizedBox` delega a altura intrínseca ao
+  ///      filho — e o `FractionallySizedBox` computa a sua própria altura
+  ///      intrínseca como `alturaDoFilho / heightFactor`; no primeiro frame
+  ///      de qualquer passo (animação a começar de `begin: 0`), `heightFactor
+  ///      == animatedProgress == 0`, e essa divisão dá infinito na mesma —
+  ///      mesmo assert a falhar, só que um nível mais fundo.
+  /// Uma altura tight finita corta a consulta ANTES de chegar a essa divisão
+  /// (`RenderConstrainedBox` devolve logo o valor tight, nunca pergunta ao
+  /// filho). Em debug isto era um crash vermelho; em release (assert
+  /// desligado) o infinito propagava-se pelo layout sem erro nenhum e o
+  /// ecrã ficava com conteúdo em branco — o bug reportado em
+  /// `client_job_detail_screen.dart` para jobs `open` e `confirmed`
+  /// (qualquer timeline com 2+ passos aciona isto, porque só o último passo
+  /// não tem conector).
   Widget _connector(BuildContext context) {
     final targetProgress =
         step.state == StatusTimelineStepState.future ? 0.0 : 1.0;
@@ -239,7 +264,7 @@ class _TimelineRowState extends State<_TimelineRow>
     return Center(
       child: SizedBox(
         width: _TimelineRow._lineWidth,
-        height: double.infinity,
+        height: _TimelineRow._circleSize,
         child: Stack(
           fit: StackFit.expand,
           children: [
