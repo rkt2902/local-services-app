@@ -412,11 +412,14 @@ class _ClientJobDetailScreenState
 
         final ratingAsync = ref.watch(myRatingForJobProvider(job.id));
 
-        final statusBadge = AppStatusBadge.fromPresentation(
-          presentation: job.status.presentation(
-            proposalCount: job.proposalCount,
-          ),
+        // Mesma instância usada no badge do AppBar e na legenda de apoio do
+        // timeline — garante a "regra definitiva de mesma cor para badge +
+        // timeline do mesmo estado".
+        final statusPresentation = job.status.presentation(
+          proposalCount: job.proposalCount,
         );
+        final statusBadge =
+            AppStatusBadge.fromPresentation(presentation: statusPresentation);
 
         final photosWidget = photosAsync.when(
           loading: () => const SizedBox.shrink(),
@@ -513,9 +516,10 @@ class _ClientJobDetailScreenState
           AppStaggeredEntrance(
             index: 0,
             child: _TimelineCard(
-              timeline: StatusTimeline(steps: timelineSteps),
+              timeline: StatusTimelineHorizontal(steps: timelineSteps),
               supportingLabel:
                   job.status == JobStatus.open ? _openExpiryNotice(job) : null,
+              supportingLabelColor: statusPresentation.color.foreground,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -996,10 +1000,20 @@ String _openExpiryNotice(JobRequest job) {
 }
 
 class _TimelineCard extends StatelessWidget {
-  const _TimelineCard({required this.timeline, this.supportingLabel});
+  const _TimelineCard({
+    required this.timeline,
+    required this.supportingLabelColor,
+    this.supportingLabel,
+  });
 
   final Widget timeline;
   final String? supportingLabel;
+
+  /// Cor do estado atual (mesmo presenter do badge) — nunca hardcoded a um
+  /// único `AppStatusColor`, para respeitar a regra de "mesma cor para
+  /// badge + timeline do mesmo estado" mesmo que outro estado além de
+  /// `open` venha a preencher `supportingLabel` no futuro.
+  final Color supportingLabelColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1021,7 +1035,7 @@ class _TimelineCard extends StatelessWidget {
               supportingLabel!,
               textAlign: TextAlign.center,
               style: textTheme.labelMedium?.copyWith(
-                color: AppStatusColor.waiting.foreground,
+                color: supportingLabelColor,
               ),
             ),
           ],
