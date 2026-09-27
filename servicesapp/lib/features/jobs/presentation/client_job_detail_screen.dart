@@ -516,7 +516,18 @@ class _ClientJobDetailScreenState
           AppStaggeredEntrance(
             index: 0,
             child: _TimelineCard(
-              timeline: StatusTimelineHorizontal(steps: timelineSteps),
+              // Horizontal só serve bem o stepper de `open`
+              // (_buildOpenStepperSteps: labels curtos — Publicado/
+              // Propostas/Escolher/Confirmado). Os restantes ramos usam
+              // buildJobTimeline, com labels longos ("Marcado como
+              // concluído", "A aguardar confirmação") e subtitle/note por
+              // passo (datas, avisos de remarcação) que o horizontal
+              // compacto não mostra — mesma razão pela qual
+              // client_scheduled_job_detail_screen.dart e
+              // worker_my_job_detail_view.dart continuam verticais.
+              timeline: job.status == JobStatus.open
+                  ? StatusTimelineHorizontal(steps: timelineSteps)
+                  : StatusTimeline(steps: timelineSteps),
               supportingLabel:
                   job.status == JobStatus.open ? _openExpiryNotice(job) : null,
               supportingLabelColor: statusPresentation.color.foreground,

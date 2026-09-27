@@ -1025,6 +1025,7 @@ class _HelpRequestCard extends StatelessWidget {
               Expanded(
                 child: UserAvatarWithName(
                   name: summary.principalName,
+                  avatarUrl: summary.principalAvatarUrl,
                   radius: 18,
                   nameStyle: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),

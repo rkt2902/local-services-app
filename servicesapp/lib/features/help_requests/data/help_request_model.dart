@@ -13,6 +13,8 @@ class HelpRequestSummary {
   final double locationLng;
   final String serviceTypeId;
   final String principalName;
+  // Added by migration 0039 — null when the RPC has not yet been updated.
+  final String? principalAvatarUrl;
   // Added by migration 0034 — 0.0/null when the RPC has not yet been updated.
   final double paymentPerHelper;
   final DateTime? confirmedDate;
@@ -31,6 +33,7 @@ class HelpRequestSummary {
     required this.locationLng,
     required this.serviceTypeId,
     required this.principalName,
+    this.principalAvatarUrl,
     this.paymentPerHelper = 0.0,
     this.confirmedDate,
     this.confirmedTime,
@@ -50,6 +53,7 @@ class HelpRequestSummary {
         locationLng: (json['location_lng'] as num).toDouble(),
         serviceTypeId: json['service_type_id'] as String,
         principalName: json['principal_name'] as String? ?? '',
+        principalAvatarUrl: json['principal_avatar_url'] as String?,
         paymentPerHelper: (json['payment_per_helper'] as num?)?.toDouble() ?? 0.0,
         confirmedDate: json['confirmed_date'] != null
             ? DateTime.parse(json['confirmed_date'] as String)
