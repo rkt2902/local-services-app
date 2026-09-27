@@ -466,47 +466,60 @@ class _ClientJobDetailScreenState
         final name = info['full_name'] ?? '';
         final phone = info['phone'] ?? '';
         final avatarUrl = info['avatar_url'];
-        return Card(
-          color: theme.colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                UserAvatarWithName(name: name, avatarUrl: avatarUrl),
-                if (job.confirmedDate != null) ...[
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    const Icon(Icons.event_available_outlined),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _formatConfirmedSchedule(job),
-                        style: theme.textTheme.bodyMedium,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UserAvatarWithName(name: name, avatarUrl: avatarUrl),
+              if (job.confirmedDate != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Row(children: [
+                  const Icon(Icons.event_available_outlined,
+                      color: AppColors.primary, size: 18),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      _formatConfirmedSchedule(job),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textPrimary),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                  ]),
-                ],
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: phone.isEmpty
-                      ? null
-                      : () async {
-                          final clean =
-                              phone.replaceAll(RegExp(r'[\s\-]'), '');
-                          final uri = Uri.parse('https://wa.me/$clean');
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri,
-                                mode: LaunchMode.externalApplication);
-                          }
-                        },
-                  icon: const Icon(Icons.chat_outlined),
-                  label: const Text('Contactar via WhatsApp'),
-                ),
+                  ),
+                ]),
               ],
-            ),
+              const SizedBox(height: AppSpacing.sm),
+              FilledButton.icon(
+                onPressed: phone.isEmpty
+                    ? null
+                    : () async {
+                        final clean =
+                            phone.replaceAll(RegExp(r'[\s\-]'), '');
+                        final uri = Uri.parse('https://wa.me/$clean');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        }
+                      },
+                style: FilledButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor: AppColors.surface,
+                  foregroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_outlined),
+                label: const Text('Contactar via WhatsApp'),
+              ),
+            ],
           ),
         );
       },
@@ -518,27 +531,33 @@ class _ClientJobDetailScreenState
         proposal.hourlyRate, proposal.estimatedHoursMin, proposal.estimatedHoursMax);
     final hoursStr =
         _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Proposta aceite', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            _cardRow(context, Icons.euro_outlined,
-                proposal.hourlyRate > 0
-                    ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
-                    : 'Preço a definir'),
-            if (hoursStr.isNotEmpty)
-              _cardRow(context, Icons.schedule_outlined, hoursStr),
-            if (estimateStr.isNotEmpty)
-              _cardRow(context, Icons.calculate_outlined, estimateStr),
-            if (proposal.peopleNeeded > 1)
-              _cardRow(context, Icons.group_outlined,
-                  '${proposal.peopleNeeded} pessoas'),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Proposta aceite',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: AppColors.textPrimary)),
+          const SizedBox(height: AppSpacing.xs),
+          _cardRow(context, Icons.euro_outlined,
+              proposal.hourlyRate > 0
+                  ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
+                  : 'Preço a definir'),
+          if (hoursStr.isNotEmpty)
+            _cardRow(context, Icons.schedule_outlined, hoursStr),
+          if (estimateStr.isNotEmpty)
+            _cardRow(context, Icons.calculate_outlined, estimateStr),
+          if (proposal.peopleNeeded > 1)
+            _cardRow(context, Icons.group_outlined,
+                '${proposal.peopleNeeded} pessoas'),
+        ],
       ),
     );
   }
@@ -672,47 +691,65 @@ class _ClientJobDetailScreenState
               : (job.rescheduleProposedTime != null
                   ? 'às ${job.rescheduleProposedTime}'
                   : '');
-          rescheduleBanner = Card(
-            color: AppStatusColor.waiting.background,
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(children: [
-                    Icon(Icons.event_repeat,
-                        color: AppStatusColor.waiting.foreground, size: 20),
-                    const SizedBox(width: 8),
+          rescheduleBanner = Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppStatusColor.waiting.background,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  Icon(Icons.event_repeat,
+                      color: AppStatusColor.waiting.foreground, size: 20),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'O jardineiro propôs remarcar para $dateStr $timeStr'
+                          .trim(),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: AppStatusColor.waiting.foreground),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
                     Expanded(
-                      child: Text(
-                        'O jardineiro propôs remarcar para $dateStr $timeStr'
-                            .trim(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppStatusColor.waiting.foreground),
+                      child: FilledButton(
+                        onPressed: _acceptReschedule,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.input),
+                          ),
+                        ),
+                        child: const Text('Aceitar nova data'),
                       ),
                     ),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _acceptReschedule,
-                          child: const Text('Aceitar nova data'),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _rejectReschedule,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.divider),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.input),
+                          ),
                         ),
+                        child: const Text('Recusar'),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _rejectReschedule,
-                          child: const Text('Recusar'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         }
@@ -761,16 +798,12 @@ class _ClientJobDetailScreenState
           ?rescheduleBanner,
           AppStaggeredEntrance(
             index: 0,
-            child: StatusTimeline(steps: timelineSteps),
-          ),
-          if (job.status == JobStatus.open) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              _openExpiryNotice(job),
-              style: theme.textTheme.labelMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+            child: _TimelineCard(
+              timeline: StatusTimeline(steps: timelineSteps),
+              supportingLabel:
+                  job.status == JobStatus.open ? _openExpiryNotice(job) : null,
             ),
-          ],
+          ),
           const SizedBox(height: AppSpacing.md),
           AppStaggeredEntrance(
             index: 1,
@@ -937,8 +970,24 @@ class _ClientJobDetailScreenState
           return DefaultTabController(
             length: 2,
             child: Scaffold(
+              backgroundColor: AppColors.background,
               appBar: AppBar(
-                title: Text('Pedido #${widget.jobId.substring(0, 8)}'),
+                backgroundColor: AppColors.surface,
+                surfaceTintColor: AppColors.surface,
+                elevation: 0,
+                leading: IconButton(
+                  onPressed: () => context.pop(),
+                  tooltip: 'Voltar',
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                title: Text(
+                  'Pedido #${widget.jobId.substring(0, 8)}',
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
                 actions: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -947,12 +996,15 @@ class _ClientJobDetailScreenState
                     child: Center(child: statusBadge),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
                     tooltip: 'Cancelar pedido',
                     onPressed: _saving ? null : _cancelJob,
                   ),
                 ],
                 bottom: TabBar(
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.primary,
                   tabs: [
                     const Tab(text: 'Detalhes'),
                     Tab(text: proposalTabLabel),
@@ -962,7 +1014,12 @@ class _ClientJobDetailScreenState
               body: SafeArea(child: TabBarView(
                 children: [
                   SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: detailChildren,
@@ -981,14 +1038,16 @@ class _ClientJobDetailScreenState
           detailChildren.add(Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Serviço confirmado', style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
+              Text('Serviço confirmado',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: AppColors.textPrimary)),
+              const SizedBox(height: AppSpacing.xs),
               if (acceptedProposalAsync.asData?.value != null) ...[
                 _acceptedProposalCard(acceptedProposalAsync.asData!.value!, theme),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
               ],
               _workerContactCard(job, workerInfoAsync, theme),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               // Pending-approval help requests — worker asked for extra team, client must approve
               if (pendingHelpRequests.isNotEmpty) ...[
                 ...pendingHelpRequests.map((hr) => _PendingHelpRequestCard(
@@ -996,29 +1055,29 @@ class _ClientJobDetailScreenState
                       approving: _approvingHelp.contains(hr.id),
                       onApprove: () => _approveHelpRequest(hr.id),
                     )),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
               ],
               // Cancel + reschedule buttons
               if (job.rescheduleStatus == RescheduleStatus.pending) ...[
                 if (job.rescheduleProposedBy == currentUserId)
                   Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
+                      color: AppStatusColor.waiting.background,
                       borderRadius: BorderRadius.circular(AppRadius.input),
                     ),
                     child: Row(
                       children: [
                         Icon(Icons.hourglass_top,
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: AppStatusColor.waiting.foreground,
                             size: 18),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.xs),
                         Expanded(
                           child: Text(
                             'Aguarda resposta à remarcação que propuseste.',
                             style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant),
+                                color: AppStatusColor.waiting.foreground),
                           ),
                         ),
                       ],
@@ -1026,11 +1085,11 @@ class _ClientJobDetailScreenState
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: Text(
                       'Aguarda resposta da remarcação',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -1057,7 +1116,7 @@ class _ClientJobDetailScreenState
                           ? null
                           : _cancelJob,
                       style: OutlinedButton.styleFrom(
-                          foregroundColor: theme.colorScheme.error),
+                          foregroundColor: Colors.red),
                       icon: const Icon(Icons.close),
                       label: const Text('Cancelar'),
                     ),
@@ -1066,11 +1125,11 @@ class _ClientJobDetailScreenState
               ),
               if (job.confirmedDate != null &&
                   job.confirmedDate!.difference(DateTime.now()).inHours < 24) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   'Cancelamento disponível até 24h antes da data confirmada.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -1174,7 +1233,7 @@ class _ClientJobDetailScreenState
 
         if (job.status == JobStatus.completed) {
           detailChildren.add(_workerContactCard(job, workerInfoAsync, theme));
-          detailChildren.add(const SizedBox(height: 16));
+          detailChildren.add(const SizedBox(height: AppSpacing.md));
           // Direção inversa de _buildClientRatingSection logo abaixo (essa
           // é o worker/ajudantes a avaliarem o CLIENTE); este botão abre um
           // ecrã novo para o cliente avaliar o WORKER principal —
@@ -1186,18 +1245,41 @@ class _ClientJobDetailScreenState
                 onPressed: () => context.push(
                   '/client/job/${widget.jobId}/rate-worker?workerId=$workerId',
                 ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.divider),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                ),
                 icon: const Icon(Icons.star_outline_rounded),
                 label: const Text('Avaliar profissional'),
               ),
             );
-            detailChildren.add(const SizedBox(height: 16));
+            detailChildren.add(const SizedBox(height: AppSpacing.md));
           }
           detailChildren.add(_buildClientRatingSection(theme, ratingAsync));
         }
 
         return Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: Text('Pedido #${widget.jobId.substring(0, 8)}'),
+            backgroundColor: AppColors.background,
+            surfaceTintColor: AppColors.background,
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () => context.pop(),
+              tooltip: 'Voltar',
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            title: Text(
+              'Pedido #${widget.jobId.substring(0, 8)}',
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(color: AppColors.textPrimary),
+            ),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -1209,7 +1291,7 @@ class _ClientJobDetailScreenState
             children: [
               SafeArea(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: detailChildren,
@@ -1232,63 +1314,87 @@ class _ClientJobDetailScreenState
   Widget _buildClientRatingSection(
       ThemeData theme, AsyncValue<Rating?> ratingAsync) {
     return ratingAsync.when(
-      loading: () => const LinearProgressIndicator(),
+      loading: () => AppSkeletonShimmer(
+        child: Container(
+          height: 96,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+          ),
+        ),
+      ),
       error: (_, _) => const SizedBox.shrink(),
       data: (existing) {
         if (existing != null) {
-          return Card(
-            color: theme.colorScheme.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Icon(Icons.check_circle,
-                        color: theme.colorScheme.primary, size: 18),
-                    const SizedBox(width: 8),
-                    Text('Trabalho avaliado',
-                        style: theme.textTheme.titleSmall),
-                  ]),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (i) => Icon(
-                        i < existing.stars
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        size: 18,
-                        color: Colors.amber,
-                      ),
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.check_circle,
+                      color: AppColors.primary, size: 18),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text('Trabalho avaliado',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(color: AppColors.textPrimary)),
+                ]),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < existing.stars
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      size: 18,
+                      color: AppColors.logoAccent,
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('Avaliar o trabalho',
-                    style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  'Partilha a tua experiência com o prestador e ajudantes.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-                FilledButton.tonal(
-                  onPressed: _showClientRatingSheet,
-                  child: const Text('Avaliar agora'),
                 ),
               ],
             ),
+          );
+        }
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Avaliar o trabalho',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(color: AppColors.textPrimary)),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Partilha a tua experiência com o prestador e ajudantes.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              FilledButton.tonal(
+                onPressed: _showClientRatingSheet,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryContainer,
+                  foregroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                ),
+                child: const Text('Avaliar agora'),
+              ),
+            ],
           ),
         );
       },
@@ -1543,9 +1649,13 @@ Widget _cardRow(BuildContext context, IconData icon, String text) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(children: [
-      Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+      Icon(icon, size: 16, color: AppColors.primary),
+      const SizedBox(width: AppSpacing.xs),
+      Expanded(
+        child: Text(text,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: AppColors.textPrimary)),
+      ),
     ]),
   );
 }
@@ -1656,6 +1766,42 @@ List<StatusTimelineStepData> _buildOpenStepperSteps(JobRequest job) {
 String _openExpiryNotice(JobRequest job) {
   final formatted = DateFormat("dd/MM 'às' HH:mm").format(job.expiresAt);
   return 'Expira a $formatted se não houver nenhuma proposta aceite até lá';
+}
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({required this.timeline, this.supportingLabel});
+
+  final Widget timeline;
+  final String? supportingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: [
+          timeline,
+          if (supportingLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              supportingLabel!,
+              textAlign: TextAlign.center,
+              style: textTheme.labelMedium?.copyWith(
+                color: AppStatusColor.waiting.foreground,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _ServiceSummaryRow extends StatelessWidget {
@@ -1804,48 +1950,57 @@ class _PendingHelpRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppStatusColor.waiting.background,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(children: [
-              Icon(Icons.group_add_outlined,
-                  color: AppStatusColor.waiting.foreground, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'O prestador pediu ajuda extra para este trabalho',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppStatusColor.waiting.foreground),
-                ),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppStatusColor.waiting.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Icon(Icons.group_add_outlined,
+                color: AppStatusColor.waiting.foreground, size: 20),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                'O prestador pediu ajuda extra para este trabalho',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppStatusColor.waiting.foreground),
               ),
-            ]),
-            const SizedBox(height: 8),
-            Text(
-              '${helpRequest.slotsNeeded} '
-              'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
-              '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppStatusColor.waiting.foreground),
             ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: approving ? null : onApprove,
-              child: approving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text('Aprovar equipa'),
+          ]),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${helpRequest.slotsNeeded} '
+            'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
+            '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppStatusColor.waiting.foreground),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FilledButton(
+            onPressed: approving ? null : onApprove,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
             ),
-          ],
-        ),
+            child: approving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: AppColors.surface),
+                  )
+                : const Text('Aprovar equipa'),
+          ),
+        ],
       ),
     );
   }
