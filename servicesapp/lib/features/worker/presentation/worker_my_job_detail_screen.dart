@@ -400,7 +400,7 @@ class _WorkerMyJobDetailScreenState
       locationLat: job.locationLat,
       locationLng: job.locationLng,
       urgent: job.urgency == Urgency.urgent,
-      sizeLabel: job.sizeEstimate != null ? _sizeLabel(job.sizeEstimate!) : null,
+      sizeLabel: job.sizeEstimate?.label,
       description: job.description,
       photoUrls: photos,
       hourlyRateLabel: proposal.hourlyRate > 0
@@ -479,12 +479,6 @@ String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
 }
-
-String _sizeLabel(SizeEstimate size) => switch (size) {
-      SizeEstimate.small => 'Pequeno',
-      SizeEstimate.medium => 'Médio',
-      SizeEstimate.large => 'Grande',
-    };
 
 String _formatEstimate(double rate, double? min, double? max) {
   if (min != null && max != null) {

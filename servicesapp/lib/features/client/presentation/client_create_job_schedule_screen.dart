@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../../../core/widgets/app_date_picker.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -27,10 +28,14 @@ class ClientJobSizeOption {
   final String label;
 }
 
+// Quebra de linha explícita (`\n`) em vez do texto completo de
+// `SizeEstimate.label` — o chip é estreito (3 por linha) e o valor
+// completo ("Pequeno (até 100m²)") ficava a quebrar em pontos aleatórios;
+// mesmas faixas de m², só formatadas para caber em 2 linhas curtas.
 const _sizeOptions = [
-  ClientJobSizeOption(id: 'small', label: 'Pequeno'),
-  ClientJobSizeOption(id: 'medium', label: 'Médio'),
-  ClientJobSizeOption(id: 'large', label: 'Grande'),
+  ClientJobSizeOption(id: 'small', label: 'Pequeno\n(até 100m²)'),
+  ClientJobSizeOption(id: 'medium', label: 'Médio\n(100-300m²)'),
+  ClientJobSizeOption(id: 'large', label: 'Grande\n(300m²+)'),
 ];
 
 /// Escolha de urgência no passo 2.
@@ -132,11 +137,21 @@ class _ClientCreateJobScheduleScreenState
     _reverseGeocodePin(point.latitude, point.longitude);
   }
 
+  /// Preenche a morada a partir do pin sempre que o campo ainda está vazio
+  /// — nunca sobrescreve texto que o utilizador já tenha escrito à mão.
+  /// Falha silenciosa do `GeocodingService` (Nominatim em baixo, sem rede,
+  /// rate limit) já não deixa a morada por preencher: cai para um rótulo
+  /// com as coordenadas, para nunca publicar um pedido com endereço vazio
+  /// só porque o reverse geocoding falhou — era isso que mais tarde
+  /// aparecia como "morada desconhecida" no detalhe do pedido.
   Future<void> _reverseGeocodePin(double lat, double lng) async {
     final result = await GeocodingService.reverseGeocode(lat, lng);
-    if (result != null && mounted && _addressController.text.isEmpty) {
-      setState(() => _addressController.text = result.addressText);
-    }
+    if (!mounted || _addressController.text.isNotEmpty) return;
+    setState(() {
+      _addressController.text = result?.addressText ??
+          'Localização aproximada '
+              '(${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})';
+    });
   }
 
   Future<void> _getLocation() async {
@@ -163,7 +178,13 @@ class _ClientCreateJobScheduleScreenState
       final latlng = LatLng(position.latitude, position.longitude);
       setState(() => _pinPosition = latlng);
       _mapController.move(latlng, 14);
-      _reverseGeocodePin(position.latitude, position.longitude);
+      // Aguardado de propósito — antes disto era "fire and forget": o
+      // spinner do botão desaparecia assim que o GPS respondia, antes de a
+      // morada estar preenchida, e nada impedia "Continuar" com o campo
+      // ainda vazio (só o pin é validado em `_canContinue`). Mantendo o
+      // loading aceso até a morada estar mesmo resolvida (sucesso ou
+      // fallback acima) elimina essa janela.
+      await _reverseGeocodePin(position.latitude, position.longitude);
     } catch (e) {
       if (!mounted) return;
       setState(
@@ -174,7 +195,7 @@ class _ClientCreateJobScheduleScreenState
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
@@ -399,9 +420,18 @@ class _ClientCreateJobScheduleScreenState
                             onTap: _onMapTap,
                           ),
                           children: [
+                            // CARTO Positron em vez do tile cru do
+                            // openstreetmap.org — mesmos dados OSM, mas um
+                            // basemap claro e minimalista (poucos POIs,
+                            // paleta neutra) pensado para ser usado como
+                            // fundo discreto, em vez das cores fortes/muitos
+                            // rótulos do estilo "standard" da OSM. Também
+                            // resolve o aviso do próprio flutter_map sobre
+                            // o tile server da openstreetmap.org não ser
+                            // apropriado para produção.
                             TileLayer(
                               urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                               userAgentPackageName: 'com.example.servicesapp',
                             ),
                             if (_pinPosition != null)
@@ -417,6 +447,14 @@ class _ClientCreateJobScheduleScreenState
                                   ),
                                 ],
                               ),
+                            RichAttributionWidget(
+                              alignment: AttributionAlignment.bottomLeft,
+                              attributions: [
+                                TextSourceAttribution(
+                                  'OpenStreetMap contributors, © CARTO',
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -693,6 +731,7 @@ class _SizeChip extends StatelessWidget {
           ),
           child: Text(
             label,
+            textAlign: TextAlign.center,
             style: textTheme.labelMedium?.copyWith(
               color: selected ? AppColors.surface : AppColors.textPrimary,
             ),

@@ -790,13 +790,7 @@ class _ClientJobDetailScreenState
                   ? 'Flexível'
                   : DateFormat('dd/MM/yyyy').format(job.preferredDate!),
               urgencyLabel: job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
-              sizeLabel: job.sizeEstimate == null
-                  ? null
-                  : switch (job.sizeEstimate!) {
-                      SizeEstimate.small => 'Pequeno',
-                      SizeEstimate.medium => 'Médio',
-                      SizeEstimate.large => 'Grande',
-                    },
+              sizeLabel: job.sizeEstimate?.label,
             ),
           ),
           if (job.locationLat != 0 || job.locationLng != 0) ...[
@@ -1776,11 +1770,20 @@ class _MetadataRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
+        // Flexible + ellipsis de propósito — o valor deixou de ser sempre
+        // curto ("Pequeno"/"Médio"/"Grande") desde que os labels de
+        // dimensão passaram a incluir a faixa de m² ("Médio (100-300m²)"),
+        // e um `Text` solto sem constraint nenhuma dava overflow.
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],

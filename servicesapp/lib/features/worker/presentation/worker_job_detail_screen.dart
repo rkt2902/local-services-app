@@ -128,9 +128,4 @@ class WorkerJobDetailScreen extends ConsumerWidget {
   }
 }
 
-String _areaLabel(JobRequest job) => switch (job.sizeEstimate) {
-      SizeEstimate.small => 'Pequeno',
-      SizeEstimate.medium => 'Médio',
-      SizeEstimate.large => 'Grande',
-      null => 'Não especificado',
-    };
+String _areaLabel(JobRequest job) => job.sizeEstimate?.label ?? 'Não especificado';

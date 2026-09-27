@@ -158,12 +158,7 @@ class _ClientCreateJobReviewScreenState
         ? 'Urgente · $baseWhenLabel'
         : baseWhenLabel;
 
-    final sizeLabel = switch (wizard.sizeEstimate) {
-      SizeEstimate.small => 'Pequeno',
-      SizeEstimate.medium => 'Médio',
-      SizeEstimate.large => 'Grande',
-      null => '—',
-    };
+    final sizeLabel = wizard.sizeEstimate?.label ?? '—';
 
     final addressLabel =
         wizard.addressText.isEmpty ? 'Localização no mapa' : wizard.addressText;
@@ -214,9 +209,13 @@ class _ClientCreateJobReviewScreenState
                 child: IgnorePointer(
                   ignoring: !_interactionEnabled,
                   child: ListView(
+                    // Top = AppSpacing.md (era 0) — os outros 3 passos do
+                    // wizard (serviço/agendamento/descrição) têm sempre esta
+                    // margem entre a barra de progresso e o primeiro item;
+                    // só a revisão estava colada, sem respiro.
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.lg,
-                      0,
+                      AppSpacing.md,
                       AppSpacing.lg,
                       AppSpacing.lg,
                     ),
@@ -429,7 +428,7 @@ class _SchedulingCard extends StatelessWidget {
         children: [
           _SummaryRow(label: 'Quando', value: whenLabel),
           const SizedBox(height: AppSpacing.sm),
-          _SummaryRow(label: 'Dimensão', value: sizeLabel),
+          _SummaryRow(label: 'Dimensão', value: sizeLabel, valueMaxLines: 2),
           const SizedBox(height: AppSpacing.sm),
           _SummaryRow(label: 'Morada', value: addressLabel, valueMaxLines: 3),
         ],

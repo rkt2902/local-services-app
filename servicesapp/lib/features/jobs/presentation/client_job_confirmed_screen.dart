@@ -168,17 +168,32 @@ class _ClientJobConfirmedView extends StatelessWidget {
     final avatarImage =
         workerAvatarUrl != null ? NetworkImage(workerAvatarUrl!) : null;
 
+    // O cabeçalho verde tem de chegar ao topo físico do ecrã (por trás da
+    // status bar) — se `SafeArea` envolvesse o ecrã todo, o padding do
+    // topo ficava pintado com `Scaffold.backgroundColor`
+    // (`AppColors.background`) em vez de `AppColors.primary`, criando uma
+    // emenda de cor visível mesmo por baixo da status bar. Por isso o
+    // `Container` verde fica FORA do `SafeArea` (soma o inset do topo ao
+    // seu próprio padding) e só o conteúdo por baixo é que precisa da
+    // margem de segurança.
+    final topInset = MediaQuery.paddingOf(context).top;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        // `top: false` de propósito — o Container verde logo abaixo já soma
+        // `topInset` ao seu próprio padding, para a COR chegar ao topo
+        // físico do ecrã (por trás da status bar) enquanto o conteúdo lá
+        // dentro continua a começar depois dela.
+        top: false,
         child: SingleChildScrollView(
           child: Column(
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  AppSpacing.md,
+                  topInset + AppSpacing.md,
                   AppSpacing.lg,
                   AppSpacing.lg,
                 ),

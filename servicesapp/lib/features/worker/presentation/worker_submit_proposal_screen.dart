@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_date_picker.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
@@ -53,7 +54,7 @@ class _WorkerSubmitProposalScreenState
   bool _submitting = false;
 
   Future<view.WorkerProposalDateSelection?> _selectDate() async {
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
