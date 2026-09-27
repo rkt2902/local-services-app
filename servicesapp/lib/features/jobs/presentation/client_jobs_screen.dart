@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
+import '../../proposals/application/proposal_providers.dart';
+import '../../worker/application/worker_providers.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 import 'widgets/client_jobs_view.dart' as view;
@@ -59,12 +61,43 @@ class ClientJobsScreen extends ConsumerWidget {
                 (j.status == JobStatus.cancelled && j.acceptedProposalId != null))
             .toList();
 
+        // Nome/foto do worker aceite — só existe depois de haver uma
+        // proposta aceite (confirmed/awaitingConfirmation/completed).
+        // Mesmo par de providers já usado (e já correto) em
+        // client_job_detail_screen.dart/client_scheduled_job_detail_screen.dart;
+        // esta lista simplesmente nunca os tinha chamado.
+        const statusesWithWorker = {
+          JobStatus.confirmed,
+          JobStatus.awaitingConfirmation,
+          JobStatus.completed,
+        };
+
         view.ClientJobListItemViewData mapJob(JobRequest job) {
           final serviceName = serviceTypes
                   .where((t) => t.id == job.serviceTypeId)
                   .map((t) => t.name)
                   .firstOrNull ??
               'Desconhecido';
+
+          String? workerName;
+          String? workerAvatarUrl;
+          if (statusesWithWorker.contains(job.status)) {
+            final workerId = ref
+                .watch(acceptedProposalForJobProvider(job.id))
+                .asData
+                ?.value
+                ?.workerId;
+            if (workerId != null && workerId.isNotEmpty) {
+              final info =
+                  ref.watch(workerBasicInfoProvider(workerId)).asData?.value;
+              final name = info?['full_name'];
+              if (name != null && name.isNotEmpty) workerName = name;
+              final avatarUrl = info?['avatar_url'];
+              if (avatarUrl != null && avatarUrl.isNotEmpty) {
+                workerAvatarUrl = avatarUrl;
+              }
+            }
+          }
 
           return view.ClientJobListItemViewData(
             jobId: job.id,
@@ -82,6 +115,8 @@ class ClientJobsScreen extends ConsumerWidget {
             secondaryStatusPresentation: job.rescheduleStatus == RescheduleStatus.pending
                 ? RescheduleStatus.pending.presentation
                 : null,
+            workerName: workerName,
+            workerAvatarUrl: workerAvatarUrl,
           );
         }
 

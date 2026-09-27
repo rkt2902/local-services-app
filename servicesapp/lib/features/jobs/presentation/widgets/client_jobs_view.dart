@@ -10,6 +10,7 @@ import '../../../../core/widgets/address_map_link.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
+import '../../../../core/widgets/user_avatar_with_name.dart';
 
 enum ClientJobsTab { active, history }
 
@@ -45,6 +46,8 @@ class ClientJobListItemViewData {
     required this.serviceIcon,
     required this.statusPresentation,
     this.secondaryStatusPresentation,
+    this.workerName,
+    this.workerAvatarUrl,
   });
 
   final String jobId;
@@ -71,6 +74,12 @@ class ClientJobListItemViewData {
   /// Presenter de `RescheduleStatus.pending` quando há remarcação
   /// pendente — `null` na maioria dos casos.
   final AppStatusPresentation? secondaryStatusPresentation;
+
+  /// Preenchido só quando o job já tem um worker aceite (`confirmed`,
+  /// `awaitingConfirmation`, `completed`) — `null` em `open`/`noResponse`/
+  /// `cancelled`, onde não há ninguém para mostrar.
+  final String? workerName;
+  final String? workerAvatarUrl;
 }
 
 class ClientJobsScreen extends StatefulWidget {
@@ -385,6 +394,17 @@ class _JobCard extends StatelessWidget {
                   AppStatusBadge.fromPresentation(presentation: job.statusPresentation),
                 ],
               ),
+              if (job.workerName != null && job.workerName!.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                UserAvatarWithName(
+                  name: job.workerName!,
+                  avatarUrl: job.workerAvatarUrl,
+                  radius: 14,
+                  nameStyle: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               if (hasLocation)
                 AddressMapLink(
