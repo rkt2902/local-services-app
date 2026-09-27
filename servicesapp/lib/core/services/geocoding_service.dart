@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class GeocodingService {
@@ -19,15 +20,38 @@ class GeocodingService {
         'lon': lng.toString(),
         'format': 'json',
         'accept-language': 'pt',
+        // Sem isto a resposta do Nominatim NUNCA tem a chave `address`
+        // (só `display_name` + metadados) — era por isto que
+        // `reverseGeocode` devolvia `null` em 100% dos pedidos, não só
+        // ocasionalmente por falha de rede. Confirmado na documentação
+        // da própria API: o objeto `address` estruturado (road,
+        // house_number, city, ...) só vem incluído quando
+        // `addressdetails=1` é pedido explicitamente.
+        'addressdetails': '1',
       });
       final response = await http.get(
         uri,
-        headers: {'User-Agent': 'ProJardim/1.0 (projardim@example.com)'},
-      );
-      if (response.statusCode != 200) return null;
+        // User-Agent identificável, sem domínio-placeholder — Nominatim
+        // documenta que bloqueia/penaliza tráfego com identificação que
+        // pareça genérica ou de exemplo (ex.: `example.com`).
+        headers: {'User-Agent': 'ProJardim/1.0 (https://projardim.pt)'},
+      ).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) {
+        debugPrint(
+          'GeocodingService.reverseGeocode: HTTP ${response.statusCode} — '
+          '${response.body}',
+        );
+        return null;
+      }
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final address = data['address'] as Map<String, dynamic>?;
-      if (address == null) return null;
+      if (address == null) {
+        debugPrint(
+          'GeocodingService.reverseGeocode: resposta sem "address" — '
+          '${response.body}',
+        );
+        return null;
+      }
 
       // locationName: most specific populated place name available
       final locationName =
@@ -47,7 +71,8 @@ class GeocodingService {
       final addressText = parts.join(', ');
 
       return (locationName: locationName, addressText: addressText);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('GeocodingService.reverseGeocode: falhou — $e');
       return null;
     }
   }

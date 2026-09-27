@@ -79,6 +79,13 @@ class _ClientCreateJobScheduleScreenState
   bool _geocoding = false;
   String? _locationError;
 
+  /// `true` quando o reverse geocoding do pin (GPS ou toque no mapa) não
+  /// devolveu rua nenhuma — mostra um aviso separado em vez de inventar
+  /// texto de morada. Só interessa enquanto o campo continuar vazio (ver
+  /// condição de exibição no `build`) — assim que o utilizador escrever
+  /// alguma coisa, deixa de fazer sentido e desaparece sozinho.
+  bool _addressLookupFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -108,7 +115,10 @@ class _ClientCreateJobScheduleScreenState
   Future<void> _geocode() async {
     final text = _addressController.text.trim();
     if (text.isEmpty) return;
-    setState(() => _geocoding = true);
+    setState(() {
+      _geocoding = true;
+      _addressLookupFailed = false;
+    });
     try {
       final locations = await locationFromAddress(text);
       if (!mounted) return;
@@ -139,18 +149,22 @@ class _ClientCreateJobScheduleScreenState
 
   /// Preenche a morada a partir do pin sempre que o campo ainda está vazio
   /// — nunca sobrescreve texto que o utilizador já tenha escrito à mão.
-  /// Falha silenciosa do `GeocodingService` (Nominatim em baixo, sem rede,
-  /// rate limit) já não deixa a morada por preencher: cai para um rótulo
-  /// com as coordenadas, para nunca publicar um pedido com endereço vazio
-  /// só porque o reverse geocoding falhou — era isso que mais tarde
-  /// aparecia como "morada desconhecida" no detalhe do pedido.
+  /// Se o `GeocodingService` falhar (sem rede, sem resultado do Nominatim
+  /// para este ponto), NÃO inventa texto de morada — isso era o próprio
+  /// bug ("Localização aproximada (lat, lng)" gravado como se fosse uma
+  /// morada real). Em vez disso liga `_addressLookupFailed`, que mostra um
+  /// aviso à parte (ver `build`) deixando claro que o pin/localização
+  /// ficou guardado, só a rua é que não foi identificada.
   Future<void> _reverseGeocodePin(double lat, double lng) async {
+    setState(() => _addressLookupFailed = false);
     final result = await GeocodingService.reverseGeocode(lat, lng);
     if (!mounted || _addressController.text.isNotEmpty) return;
     setState(() {
-      _addressController.text = result?.addressText ??
-          'Localização aproximada '
-              '(${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)})';
+      if (result != null) {
+        _addressController.text = result.addressText;
+      } else {
+        _addressLookupFailed = true;
+      }
     });
   }
 
@@ -420,18 +434,22 @@ class _ClientCreateJobScheduleScreenState
                             onTap: _onMapTap,
                           ),
                           children: [
-                            // CARTO Positron em vez do tile cru do
-                            // openstreetmap.org — mesmos dados OSM, mas um
-                            // basemap claro e minimalista (poucos POIs,
-                            // paleta neutra) pensado para ser usado como
-                            // fundo discreto, em vez das cores fortes/muitos
-                            // rótulos do estilo "standard" da OSM. Também
-                            // resolve o aviso do próprio flutter_map sobre
-                            // o tile server da openstreetmap.org não ser
-                            // apropriado para produção.
+                            // TODO(mapa-estilizado): revertido de propósito
+                            // (2026-09) — a tentativa anterior trocou este
+                            // tile por um basemap CARTO mais claro/discreto;
+                            // foi lido como precisando da API key paga do
+                            // Google Maps Platform e revertida antes de essa
+                            // dependência ficar configurada/paga. Um mapa
+                            // NATIVO com estilo de marca a sério (JSON de
+                            // estilo, POIs filtrados) exige mesmo o SDK do
+                            // Google Maps (`google_maps_flutter` + projeto
+                            // no Google Cloud + faturação ativa + API key
+                            // Maps SDK for Android/iOS) — decisão de produto
+                            // e orçamento para mais tarde, não implementação
+                            // a meio. Até lá, tile "standard" da OSM.
                             TileLayer(
                               urlTemplate:
-                                  'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                               userAgentPackageName: 'com.example.servicesapp',
                             ),
                             if (_pinPosition != null)
@@ -447,14 +465,6 @@ class _ClientCreateJobScheduleScreenState
                                   ),
                                 ],
                               ),
-                            RichAttributionWidget(
-                              alignment: AttributionAlignment.bottomLeft,
-                              attributions: [
-                                TextSourceAttribution(
-                                  'OpenStreetMap contributors, © CARTO',
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       ),
@@ -508,6 +518,17 @@ class _ClientCreateJobScheduleScreenState
                             ),
                     ),
                   ),
+                  if (_addressLookupFailed && _addressController.text.isEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      'Não foi possível identificar a rua, mas a '
+                      'localização foi guardada. Podes escrever a morada '
+                      'à mão acima.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

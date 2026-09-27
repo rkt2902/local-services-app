@@ -27,6 +27,7 @@ import '../../features/client/presentation/client_create_job_description_screen.
 import '../../features/client/presentation/client_create_job_review_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
+import '../../features/jobs/presentation/client_proposals_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
 import '../../features/jobs/presentation/client_rate_worker_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
@@ -249,6 +250,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return _entryTransitionHint(state) == 'sharedAxis'
               ? buildSharedAxisPage(context, state, child)
               : buildContainerTransformPage(context, state, child);
+        },
+      ),
+      // Só alcançado a partir de client_job_detail_screen (botão "Ver
+      // propostas" no fundo do ecrã, ramo `open`) — sem card de lista nem
+      // notificação envolvidos.
+      GoRoute(
+        path: '/client/job/:id/proposals',
+        pageBuilder: (context, state) {
+          final jobId = state.pathParameters['id']!;
+          return buildSharedAxisPage(
+            context,
+            state,
+            ClientProposalsScreen(jobId: jobId),
+          );
         },
       ),
       // Só alcançado a partir de client_job_detail_screen (aceitar
