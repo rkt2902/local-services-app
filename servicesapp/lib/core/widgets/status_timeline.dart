@@ -187,41 +187,8 @@ class _TimelineRowState extends State<_TimelineRow>
 
   StatusTimelineStepData get step => widget.step;
 
-  // Passo concluído e atual usam sempre a cor real do estado
-  // (step.statusColor) — nunca AppColors.primary automaticamente. Passo
-  // futuro é o único que não representa um estado real: outline neutro fixo,
-  // independentemente do statusColor recebido.
-  Widget _circle() => switch (step.state) {
-        StatusTimelineStepState.completed => Container(
-            width: _TimelineRow._circleSize,
-            height: _TimelineRow._circleSize,
-            decoration: BoxDecoration(
-              color: step.statusColor.foreground,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, color: Colors.white, size: 14),
-          ),
-        StatusTimelineStepState.current => Container(
-            width: _TimelineRow._circleSize,
-            height: _TimelineRow._circleSize,
-            decoration: BoxDecoration(
-              color: step.statusColor.background,
-              shape: BoxShape.circle,
-              border: Border.all(color: step.statusColor.foreground, width: 2),
-            ),
-            child: Icon(Icons.circle,
-                color: step.statusColor.foreground, size: 10),
-          ),
-        StatusTimelineStepState.future => Container(
-            width: _TimelineRow._circleSize,
-            height: _TimelineRow._circleSize,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.divider, width: 2),
-              shape: BoxShape.circle,
-            ),
-          ),
-      };
+  Widget _circle() =>
+      buildTimelineNodeCircle(step, size: _TimelineRow._circleSize);
 
   /// Track de fundo (AppColors.divider) + fill animado por cima. O fill
   /// representa a mesma semântica de cor que o código anterior já usava
@@ -327,6 +294,258 @@ class _TimelineRowState extends State<_TimelineRow>
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Desenho do nó (círculo) partilhado pelas duas orientações da timeline —
+/// única fonte da regra "cor real do estado, nunca `AppColors.primary`
+/// automaticamente" (passo futuro é o único sem estado real: contorno
+/// neutro fixo, independente do `statusColor` recebido).
+Widget buildTimelineNodeCircle(StatusTimelineStepData step, {required double size}) {
+  final checkSize = size * 14 / 24;
+  final dotSize = size * 10 / 24;
+  return switch (step.state) {
+    StatusTimelineStepState.completed => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: step.statusColor.foreground,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.check, color: Colors.white, size: checkSize),
+      ),
+    StatusTimelineStepState.current => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: step.statusColor.background,
+          shape: BoxShape.circle,
+          border: Border.all(color: step.statusColor.foreground, width: 2),
+        ),
+        child: Icon(Icons.circle, color: step.statusColor.foreground, size: dotSize),
+      ),
+    StatusTimelineStepState.future => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.divider, width: 2),
+          shape: BoxShape.circle,
+        ),
+      ),
+  };
+}
+
+/// Variante horizontal compacta da mesma timeline — usada hoje só no
+/// cabeçalho de `client_job_detail_screen.dart`. Reaproveita a mesma regra
+/// de cor dos nós ([buildTimelineNodeCircle]), o mesmo pulso do nó atual
+/// (`AppPulseScale`, docs/motion_spec.md §3 "Timeline · nó atual") e a
+/// mesma animação de avanço do conector (§3 "Timeline · avanço") — só o
+/// layout muda de `Column` para `Row`.
+///
+/// Diferença deliberada face à vertical: aqui não há `subtitle`/`note` por
+/// nó (só o círculo + a label) — o layout compacto não tem espaço para os
+/// mostrar, e nos ecrãs onde esta variante é usada hoje nenhum dos dois
+/// chega a ser preenchido (remarcação só se aplica a jobs `confirmed`, que
+/// já não passam por este ecrã).
+class StatusTimelineHorizontal extends StatefulWidget {
+  const StatusTimelineHorizontal({super.key, required this.steps});
+
+  final List<StatusTimelineStepData> steps;
+
+  @override
+  State<StatusTimelineHorizontal> createState() =>
+      _StatusTimelineHorizontalState();
+}
+
+class _StatusTimelineHorizontalState extends State<StatusTimelineHorizontal> {
+  List<StatusTimelineStepState>? _previousStates;
+
+  @override
+  void didUpdateWidget(covariant StatusTimelineHorizontal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _previousStates = oldWidget.steps.map((s) => s.state).toList();
+  }
+
+  bool _hasTransitioned(int index) {
+    final previous = _previousStates;
+    if (previous == null || index >= previous.length) return false;
+    return previous[index] != widget.steps[index].state;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.steps.isEmpty) return const SizedBox.shrink();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < widget.steps.length; i++) ...[
+          _HorizontalTimelineNode(
+            step: widget.steps[i],
+            animateFill: _hasTransitioned(i),
+          ),
+          if (i != widget.steps.length - 1)
+            Expanded(
+              child: _HorizontalTimelineConnector(
+                step: widget.steps[i],
+                animateFill: _hasTransitioned(i),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+const double _horizontalNodeSize = 28;
+const double _horizontalCurrentNodeSize = 36;
+const double _horizontalNodeColumnWidth = 72;
+
+class _HorizontalTimelineNode extends StatefulWidget {
+  const _HorizontalTimelineNode({required this.step, required this.animateFill});
+
+  final StatusTimelineStepData step;
+  final bool animateFill;
+
+  @override
+  State<_HorizontalTimelineNode> createState() => _HorizontalTimelineNodeState();
+}
+
+class _HorizontalTimelineNodeState extends State<_HorizontalTimelineNode>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _popController;
+  Timer? _popTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _popController = AnimationController(
+      vsync: this,
+      duration: AppMotionDuration.fast,
+      value: widget.animateFill ? 0 : 1,
+    );
+    if (widget.animateFill) _schedulePop();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HorizontalTimelineNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animateFill && !oldWidget.animateFill) {
+      _popController.value = 0;
+      _schedulePop();
+    }
+  }
+
+  void _schedulePop() {
+    _popTimer?.cancel();
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (disableAnimations) {
+      _popController.value = 1;
+      return;
+    }
+    _popTimer = Timer(_fillDuration, () {
+      if (mounted) _popController.forward(from: 0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _popTimer?.cancel();
+    _popController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final step = widget.step;
+    final isFuture = step.state == StatusTimelineStepState.future;
+    final isCurrent = step.state == StatusTimelineStepState.current;
+    final size = isCurrent ? _horizontalCurrentNodeSize : _horizontalNodeSize;
+    final labelColor =
+        isFuture ? AppStatusColor.neutral.foreground : step.statusColor.foreground;
+
+    return SizedBox(
+      width: _horizontalNodeColumnWidth,
+      child: Column(
+        children: [
+          SizedBox(
+            height: _horizontalCurrentNodeSize,
+            child: Center(
+              child: ScaleTransition(
+                scale: CurvedAnimation(
+                  parent: _popController,
+                  curve: AppMotionCurve.standard,
+                ),
+                child: AppPulseScale(
+                  enabled: isCurrent,
+                  child: buildTimelineNodeCircle(step, size: size),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            step.label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: labelColor,
+              fontWeight: isFuture ? FontWeight.w500 : FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HorizontalTimelineConnector extends StatelessWidget {
+  const _HorizontalTimelineConnector({required this.step, required this.animateFill});
+
+  final StatusTimelineStepData step;
+  final bool animateFill;
+
+  @override
+  Widget build(BuildContext context) {
+    final targetProgress =
+        step.state == StatusTimelineStepState.future ? 0.0 : 1.0;
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final duration =
+        (disableAnimations || !animateFill) ? Duration.zero : _fillDuration;
+
+    return Padding(
+      // Centra o traço na altura do centro dos círculos — todos os nós
+      // reservam a mesma altura (`_horizontalCurrentNodeSize`), mesmo os
+      // círculos mais pequenos (completed/future), por isso este valor é
+      // fixo independentemente do tamanho real do círculo de cada lado.
+      padding: const EdgeInsets.only(top: _horizontalCurrentNodeSize / 2 - 1),
+      child: SizedBox(
+        height: 2,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: AppColors.divider),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: targetProgress),
+              duration: duration,
+              curve: AppMotionCurve.enter,
+              builder: (context, animatedProgress, child) {
+                return FractionallySizedBox(
+                  widthFactor: animatedProgress,
+                  alignment: Alignment.centerLeft,
+                  child: child,
+                );
+              },
+              child: ColoredBox(color: step.statusColor.foreground),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
