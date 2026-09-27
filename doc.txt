@@ -1,0 +1,1040 @@
+# Detalhe do pedido — Cliente
+
+**Ficheiro:** `lib/features/client/presentation/client_job_detail_screen.dart`
+
+**Dependências novas:** nenhuma.
+
+O ecrã cobre o resumo do pedido com status, timeline, serviço, data preferida, urgência, descrição, fotos e CTA para propostas. O `StatusTimeline` real é recebido já construído pelo wrapper para não inventar a assinatura desse widget partilhado.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:riverpod/riverpod.dart' show AsyncValue;
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/theme/app_status_presenters.dart';
+import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_status_badge.dart';
+
+class ClientJobDetailViewData {
+  const ClientJobDetailViewData({
+    required this.jobId,
+    required this.jobReferenceLabel,
+    required this.statusPresentation,
+    required this.timelineSupportingLabel,
+    required this.serviceLabel,
+    required this.serviceMetaLabel,
+    required this.serviceIcon,
+    required this.preferredDateLabel,
+    required this.urgencyLabel,
+    required this.description,
+    required this.proposalsActionLabel,
+    required this.canOpenProposals,
+    required this.canEditJob,
+    required this.photos,
+    this.newProposalsLabel,
+    this.photosOverflowLabel,
+  });
+
+  final String jobId;
+
+  /// Já formatado externamente.
+  /// Ex.: "Pedido #1023".
+  final String jobReferenceLabel;
+
+  /// Presenter oficial de JobStatus.
+  final AppStatusPresentation statusPresentation;
+
+  /// Texto auxiliar da timeline.
+  /// Ex.: informação sobre prazo de receção de propostas.
+  final String timelineSupportingLabel;
+
+  final String serviceLabel;
+
+  /// Ex.: dimensão + localização, já formatadas.
+  final String serviceMetaLabel;
+
+  final IconData serviceIcon;
+
+  /// Data/DateMode já convertido em texto.
+  final String preferredDateLabel;
+
+  /// Ex.: "Normal".
+  /// É atributo textual, não estado.
+  final String urgencyLabel;
+
+  final String description;
+
+  /// Ex.: label equivalente a "Ver 3 propostas".
+  /// A contagem já vem resolvida externamente.
+  final String proposalsActionLabel;
+
+  /// Ex.: "3 novas".
+  final String? newProposalsLabel;
+
+  final bool canOpenProposals;
+  final bool canEditJob;
+
+  final List<ImageProvider> photos;
+
+  /// Ex.: "+3", já calculado externamente.
+  final String? photosOverflowLabel;
+}
+
+class ClientJobDetailScreen extends StatelessWidget {
+  const ClientJobDetailScreen({
+    super.key,
+    required this.dataAsync,
+    required this.statusTimeline,
+    required this.onBack,
+    required this.onOpenProposals,
+    required this.onEditJob,
+    this.onRetry,
+  });
+
+  final AsyncValue<ClientJobDetailViewData> dataAsync;
+
+  /// StatusTimeline real do projeto, já configurado pela integração
+  /// com os presenters oficiais de estado.
+  final Widget statusTimeline;
+
+  final VoidCallback onBack;
+  final VoidCallback onOpenProposals;
+  final VoidCallback onEditJob;
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: dataAsync.when(
+          loading: () => _LoadingState(
+            onBack: onBack,
+          ),
+          error: (_, __) => _ErrorState(
+            onBack: onBack,
+            onRetry: onRetry,
+          ),
+          data: (data) => _JobDetailContent(
+            data: data,
+            statusTimeline: statusTimeline,
+            onBack: onBack,
+            onOpenProposals: onOpenProposals,
+            onEditJob: onEditJob,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JobDetailContent extends StatelessWidget {
+  const _JobDetailContent({
+    required this.data,
+    required this.statusTimeline,
+    required this.onBack,
+    required this.onOpenProposals,
+    required this.onEditJob,
+  });
+
+  final ClientJobDetailViewData data;
+  final Widget statusTimeline;
+
+  final VoidCallback onBack;
+  final VoidCallback onOpenProposals;
+  final VoidCallback onEditJob;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _Header(
+          title: data.jobReferenceLabel,
+          presentation: data.statusPresentation,
+          onBack: onBack,
+        ),
+        Expanded(
+          child: ListView(
+            key: PageStorageKey<String>(
+              'client_job_detail_${data.jobId}',
+            ),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.lg,
+            ),
+            children: [
+              AppStaggeredEntrance(
+                index: 0,
+                child: _TimelineCard(
+                  timeline: statusTimeline,
+                  supportingLabel:
+                      data.timelineSupportingLabel,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              AppStaggeredEntrance(
+                index: 1,
+                child: _ServiceSummary(
+                  data: data,
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              AppStaggeredEntrance(
+                index: 2,
+                child: _DetailsBlock(
+                  preferredDateLabel:
+                      data.preferredDateLabel,
+                  urgencyLabel: data.urgencyLabel,
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              AppStaggeredEntrance(
+                index: 3,
+                child: _DescriptionBlock(
+                  description: data.description,
+                  photos: data.photos,
+                  photosOverflowLabel:
+                      data.photosOverflowLabel,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _BottomActions(
+          proposalsActionLabel:
+              data.proposalsActionLabel,
+          newProposalsLabel:
+              data.newProposalsLabel,
+          canOpenProposals:
+              data.canOpenProposals,
+          canEditJob: data.canEditJob,
+          onOpenProposals:
+              onOpenProposals,
+          onEditJob: onEditJob,
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// HEADER
+// -----------------------------------------------------------------------------
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.title,
+    required this.presentation,
+    required this.onBack,
+  });
+
+  final String title;
+  final AppStatusPresentation presentation;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          AppStatusBadge.fromPresentation(
+            presentation: presentation,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// TIMELINE
+// -----------------------------------------------------------------------------
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({
+    required this.timeline,
+    required this.supportingLabel,
+  });
+
+  final Widget timeline;
+  final String supportingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(
+          AppRadius.card,
+        ),
+        border: Border.all(
+          color: AppColors.divider,
+        ),
+      ),
+      child: Column(
+        children: [
+          timeline,
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            supportingLabel,
+            textAlign: TextAlign.center,
+            style: textTheme.labelMedium?.copyWith(
+              color: AppStatusColor.waiting.foreground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// SERVICE
+// -----------------------------------------------------------------------------
+
+class _ServiceSummary extends StatelessWidget {
+  const _ServiceSummary({
+    required this.data,
+  });
+
+  final ClientJobDetailViewData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer,
+            borderRadius: BorderRadius.circular(
+              AppRadius.input,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            data.serviceIcon,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                data.serviceLabel,
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                data.serviceMetaLabel,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DETAILS
+// -----------------------------------------------------------------------------
+
+class _DetailsBlock extends StatelessWidget {
+  const _DetailsBlock({
+    required this.preferredDateLabel,
+    required this.urgencyLabel,
+  });
+
+  final String preferredDateLabel;
+  final String urgencyLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _DetailRow(
+          label: 'Data preferida',
+          value: preferredDateLabel,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _DetailRow(
+          label: 'Urgência',
+          value: urgencyLabel,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        const Divider(
+          height: 1,
+          color: AppColors.divider,
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// DESCRIPTION / PHOTOS
+// -----------------------------------------------------------------------------
+
+class _DescriptionBlock extends StatelessWidget {
+  const _DescriptionBlock({
+    required this.description,
+    required this.photos,
+    required this.photosOverflowLabel,
+  });
+
+  final String description;
+  final List<ImageProvider> photos;
+  final String? photosOverflowLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Descrição',
+          style: textTheme.labelMedium?.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          description,
+          style: textTheme.bodyMedium?.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+        if (photos.isNotEmpty ||
+            photosOverflowLabel != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _PhotoPreview(
+            photos: photos,
+            overflowLabel:
+                photosOverflowLabel,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PhotoPreview extends StatelessWidget {
+  const _PhotoPreview({
+    required this.photos,
+    required this.overflowLabel,
+  });
+
+  final List<ImageProvider> photos;
+  final String? overflowLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final visiblePhotos = photos.take(2).toList();
+
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        ...visiblePhotos.map(
+          (photo) => ClipRRect(
+            borderRadius: BorderRadius.circular(
+              AppRadius.input,
+            ),
+            child: Image(
+              image: photo,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        if (overflowLabel != null)
+          _PhotoOverflow(
+            label: overflowLabel!,
+          ),
+      ],
+    );
+  }
+}
+
+class _PhotoOverflow extends StatelessWidget {
+  const _PhotoOverflow({
+    required this.label,
+  });
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppStatusColor.neutral.background,
+        borderRadius: BorderRadius.circular(
+          AppRadius.input,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: textTheme.bodyMedium?.copyWith(
+          color: AppStatusColor.neutral.foreground,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// BOTTOM ACTIONS
+// -----------------------------------------------------------------------------
+
+class _BottomActions extends StatelessWidget {
+  const _BottomActions({
+    required this.proposalsActionLabel,
+    required this.newProposalsLabel,
+    required this.canOpenProposals,
+    required this.canEditJob,
+    required this.onOpenProposals,
+    required this.onEditJob,
+  });
+
+  final String proposalsActionLabel;
+  final String? newProposalsLabel;
+
+  final bool canOpenProposals;
+  final bool canEditJob;
+
+  final VoidCallback onOpenProposals;
+  final VoidCallback onEditJob;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      child: Column(
+        children: [
+          _ProposalsButton(
+            label: proposalsActionLabel,
+            auxiliaryLabel: newProposalsLabel,
+            enabled: canOpenProposals,
+            onPressed: onOpenProposals,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: canEditJob
+                  ? onEditJob
+                  : null,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.sm,
+                ),
+                side: const BorderSide(
+                  color: AppColors.divider,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    AppRadius.input,
+                  ),
+                ),
+              ),
+              child: Text(
+                'Editar pedido',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                  color: canEditJob
+                      ? AppColors.textPrimary
+                      : AppStatusColor
+                          .neutral.foreground,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProposalsButton extends StatelessWidget {
+  const _ProposalsButton({
+    required this.label,
+    required this.auxiliaryLabel,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String? auxiliaryLabel;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    final background = enabled
+        ? AppColors.primary
+        : AppStatusColor.neutral.background;
+
+    final foreground = enabled
+        ? AppColors.surface
+        : AppStatusColor.neutral.foreground;
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(
+        AppRadius.input,
+      ),
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        borderRadius: BorderRadius.circular(
+          AppRadius.input,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.description_outlined,
+                color: foreground,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (auxiliaryLabel != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.xxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: enabled
+                        ? AppColors.surface
+                        : AppColors.background,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.pill,
+                    ),
+                  ),
+                  child: Text(
+                    auxiliaryLabel!,
+                    style:
+                        textTheme.labelMedium?.copyWith(
+                      color: enabled
+                          ? AppColors.primary
+                          : AppStatusColor
+                              .neutral.foreground,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// LOADING
+// -----------------------------------------------------------------------------
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState({
+    required this.onBack,
+  });
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _LoadingHeader(
+          onBack: onBack,
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(
+              AppSpacing.md,
+            ),
+            children: [
+              AppSkeletonShimmer(
+                child: Container(
+                  height: 82,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.card,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppSkeletonShimmer(
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.input,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppSkeletonShimmer(
+                child: Container(
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.input,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppSkeletonShimmer(
+                child: Container(
+                  height: 136,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius:
+                        BorderRadius.circular(
+                      AppRadius.card,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingHeader extends StatelessWidget {
+  const _LoadingHeader({
+    required this.onBack,
+  });
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xs,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: AppSkeletonShimmer(
+              child: Container(
+                height: 20,
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.pill,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// ERROR
+// -----------------------------------------------------------------------------
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.onBack,
+    required this.onRetry,
+  });
+
+  final VoidCallback onBack;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      children: [
+        Container(
+          color: AppColors.surface,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'Pedido',
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(
+                AppSpacing.lg,
+              ),
+              child: AppStaggeredEntrance(
+                index: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: AppStatusColor
+                            .cancelled.background,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.cloud_off_outlined,
+                        color: AppStatusColor
+                            .cancelled.foreground,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.md,
+                    ),
+                    Text(
+                      'Não foi possível carregar o pedido.',
+                      textAlign: TextAlign.center,
+                      style:
+                          textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: AppSpacing.xs,
+                    ),
+                    Text(
+                      'Verifique a ligação e tente novamente.',
+                      textAlign: TextAlign.center,
+                      style:
+                          textTheme.bodyMedium?.copyWith(
+                        color:
+                            AppColors.textSecondary,
+                      ),
+                    ),
+                    if (onRetry != null) ...[
+                      const SizedBox(
+                        height: AppSpacing.md,
+                      ),
+                      OutlinedButton(
+                        onPressed: onRetry,
+                        child: Text(
+                          'Tentar novamente',
+                          style: textTheme
+                              .bodyMedium
+                              ?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight:
+                                FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+```
+
+## Notas de integração
+
+- `statusPresentation` vem obrigatoriamente do presenter oficial de `JobStatus`. O ecrã nunca decide se o pedido está `waiting`, `info`, `success`, etc.
+- O **`StatusTimeline` real é injetado em `statusTimeline`**. Isto evita recriar o componente ou inventar a sua assinatura. O wrapper configura os nós `Publicado → Propostas → Escolher → Confirmado` com o estado real.
+- A regra de cores da timeline continua a ser a definitiva: o passo atual usa o token real do estado, passos futuros usam `neutral`.
+- `timelineSupportingLabel` também chega pronto; o ecrã não calcula deadlines nem formata data/hora.
+- O CTA recebe `proposalsActionLabel` e `newProposalsLabel` já preparados. Assim não é usado `proposals.length` para fabricar `"Ver 3 propostas"` ou `"3 novas"`.
+- O estado `open com propostas` deve continuar a chegar do presenter como **“N proposta(s)” / waiting**. O pequeno `"3 novas"` do CTA é apenas contagem auxiliar, não outro estado.
+- `Data preferida` e `Urgência: Normal` são mostradas como atributos. Não recebem badge. Se existir a flag real **Urgente**, a integração deve continuar a usar o componente/presenter de urgência com `AppStatusColor.cancelled` onde o produto definir essa apresentação.
+- `serviceLabel`, `serviceMetaLabel`, data, localização, descrição e ícone vêm todos dos dados reais.
+- As fotografias são `ImageProvider`; nenhuma URL ou foto é inventada. `photosOverflowLabel` permite mostrar `+N` sem o ecrã calcular a contagem.
+- `canEditJob` e `canOpenProposals` vêm das regras de domínio externas. O ecrã não decide até que estado um pedido pode ser editado.
+- `PageStorageKey` preserva o scroll quando o utilizador entra nas propostas e volta.
+- Loading usa exclusivamente `AppSkeletonShimmer`, sem spinner.
