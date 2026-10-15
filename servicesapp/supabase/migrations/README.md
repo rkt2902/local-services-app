@@ -39,6 +39,12 @@ SECURITY DEFINER, sem parâmetro de identidade) para o ecrã "As minhas
 avaliações". Aplicar manualmente via SQL Editor antes de usar
 `my_ratings_screen.dart`.
 
+**PENDENTE — `0040_push_notifications.sql`** — NÃO aplicada ainda.
+Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
+e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
+aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
+`docs/push_notifications.md`.
+
 ## Sources used for consolidation
 
 - `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,

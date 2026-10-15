@@ -4,6 +4,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Push FCM: só aplica o plugin do Firebase quando o google-services.json
+// existe, para o build não partir antes de o projeto Firebase estar criado
+// (sem ele o push fica simplesmente desligado — ver PushNotificationService).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.servicesapp"
     compileSdk = flutter.compileSdkVersion

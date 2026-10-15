@@ -15,6 +15,15 @@ class NotificationRepository {
     return (data as List).map((e) => AppNotification.fromJson(e)).toList();
   }
 
+  Future<AppNotification?> fetchById(String notificationId) async {
+    final data = await _client
+        .from('notifications')
+        .select()
+        .eq('id', notificationId)
+        .maybeSingle();
+    return data == null ? null : AppNotification.fromJson(data);
+  }
+
   Future<void> markAsRead(String notificationId) async {
     await _client
         .from('notifications')

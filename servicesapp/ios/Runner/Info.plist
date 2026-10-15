@@ -60,6 +60,10 @@
 	  em android/app/src/main/AndroidManifest.xml e a nota no topo de
 	  email_confirmed_screen.dart.
 	-->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
