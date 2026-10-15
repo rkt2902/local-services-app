@@ -1,5 +1,5 @@
 -- ============================================================
--- 0040_push_notifications.sql
+-- 0041_push_notifications.sql
 -- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
 --
 -- Contexto: notificações push grátis via Firebase Cloud Messaging (FCM).

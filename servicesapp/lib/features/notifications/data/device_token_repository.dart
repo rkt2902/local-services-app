@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Tokens FCM do dispositivo — tabela `device_tokens` (migration 0040).
+/// Tokens FCM do dispositivo — tabela `device_tokens` (migration 0041).
 /// Escrita só via RPC (SECURITY DEFINER, filtra por auth.uid()).
 class DeviceTokenRepository {
   final SupabaseClient _client;

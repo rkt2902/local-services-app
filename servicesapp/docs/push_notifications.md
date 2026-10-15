@@ -7,7 +7,7 @@ plano gratuito do Supabase.
 
 1. Todas as notificações da app já são linhas novas em `notifications`
    (criadas pelas funções SQL de negócio).
-2. O trigger `notifications_send_push` (migration `0040`) chama a Edge
+2. O trigger `notifications_send_push` (migration `0041`) chama a Edge
    Function `send-push` via `pg_net`, só se o destinatário tiver algum
    dispositivo registado.
 3. A Edge Function lê os tokens em `device_tokens` e envia para o FCM
@@ -66,7 +66,7 @@ supabase functions deploy send-push --no-verify-jwt
      'push_function_url');
    select vault.create_secret('<SEGREDO_ALEATORIO>', 'push_webhook_secret');
    ```
-3. Correr `supabase/migrations/0040_push_notifications.sql`.
+3. Correr `supabase/migrations/0041_push_notifications.sql`.
 
 ### 6. Testar
 1. `flutter run` num telemóvel real (Android: emulador com Google Play

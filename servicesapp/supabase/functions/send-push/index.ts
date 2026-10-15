@@ -1,7 +1,7 @@
 // Edge Function `send-push` — envia uma linha de `notifications` como push
 // FCM (HTTP v1) para todos os dispositivos do destinatário.
 //
-// Chamada pelo trigger `notifications_send_push` (migration 0040) via pg_net,
+// Chamada pelo trigger `notifications_send_push` (migration 0041) via pg_net,
 // com o header `x-webhook-secret`. Deploy SEM verificação de JWT:
 //   supabase functions deploy send-push --no-verify-jwt
 //

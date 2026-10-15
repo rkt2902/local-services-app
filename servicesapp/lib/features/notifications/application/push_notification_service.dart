@@ -11,7 +11,7 @@ import '../data/device_token_repository.dart';
 /// Notificações push via Firebase Cloud Messaging.
 ///
 /// O envio é feito no servidor: cada INSERT em `notifications` dispara a
-/// Edge Function `send-push` (migration 0040). Aqui só se regista o token
+/// Edge Function `send-push` (migration 0041). Aqui só se regista o token
 /// do dispositivo para o utilizador com sessão e se trata o toque na
 /// notificação.
 ///
