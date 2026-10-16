@@ -58,7 +58,7 @@ e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
 aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
 `docs/push_notifications.md`.
 
-**PENDENTE — `0042_security_hardening.sql`** — NÃO aplicada ainda. Corrige as
+**APLICADA — `0042_security_hardening.sql`** — aplicada a 2026-10-16. Corrige as
 falhas do review de 2026-10-16: `cancel_job` e `reject_proposal` sem
 autorização, `create_user_profile` aberta a anon (apagada), escritas diretas
 que saltavam as RPCs (`job_proposals` INSERT/UPDATE, `job_requests` UPDATE,
@@ -70,7 +70,7 @@ assinatura de RPC, pode ser aplicada antes ou depois da app nova. Pode ser
 aplicada antes da 0041 (o REVOKE do trigger de push é condicional).
 Verificação no fim do próprio ficheiro.
 
-**PENDENTE — `0043_job_location_privacy.sql`** — NÃO aplicada ainda. Aplicar
+**APLICADA — `0043_job_location_privacy.sql`** — aplicada a 2026-10-16. Aplicar
 DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
 `get_job_by_id`). Até haver proposta aceite, o jardineiro vê só a localidade
 (`job_requests.location_area`, coluna nova) e coordenadas arredondadas a ~1 km.
