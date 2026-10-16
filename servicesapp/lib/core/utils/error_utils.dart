@@ -45,6 +45,20 @@ String friendlyError(Object e) {
     return 'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.';
   }
 
+  // Limite anti-spam da policy de INSERT de job_requests (migration 0042):
+  // é a única razão realista para a RLS recusar um pedido criado pela app.
+  if (msg.contains('row-level security') && msg.contains('job_requests')) {
+    return 'Já criaste vários pedidos na última hora. Aguarda um pouco e tenta novamente.';
+  }
+  // Validações novas das RPCs (migration 0042): a mensagem já é para o
+  // utilizador.
+  if (msg.contains('pelo menos amanhã')) {
+    return 'A nova data tem de ser pelo menos amanhã.';
+  }
+  if (msg.contains('maior que zero')) {
+    return 'O valor tem de ser maior que zero.';
+  }
+
   // Genéricos
   if (msg.contains('24') && (msg.contains('hour') || msg.contains('hora'))) {
     return 'Esta ação requer pelo menos 24h de antecedência.';

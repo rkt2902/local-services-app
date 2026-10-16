@@ -110,30 +110,6 @@ class WorkerRepository {
     };
   }
 
-  Future<String> fetchWorkerName(String workerId) async {
-    if (workerId.isEmpty) return '';
-    final data = await _client
-        .from('profiles')
-        .select('full_name')
-        .eq('id', workerId)
-        .maybeSingle();
-    return data?['full_name'] as String? ?? '';
-  }
-
-  Future<Map<String, String?>> fetchProfileSummary(String profileId) async {
-    if (profileId.isEmpty) return {};
-    final data = await _client
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('id', profileId)
-        .maybeSingle();
-    if (data == null) return {};
-    return {
-      'full_name': data['full_name'] as String?,
-      'avatar_url': data['avatar_url'] as String?,
-    };
-  }
-
   Future<WorkerPublicCard?> fetchPublicCard(String workerId) async {
     final data = await _client
         .from('worker_public_card')

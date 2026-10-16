@@ -25,10 +25,10 @@ só sem push.
 ### 1. Projeto Firebase
 1. https://console.firebase.google.com → Adicionar projeto (Analytics é
    opcional).
-2. Adicionar app **Android** com o package `com.example.servicesapp`
-   (ou o definitivo, se mudares o `applicationId`). Descarregar
+2. Adicionar app **Android** com o package `pt.projardim.app`
+   (o `applicationId` definitivo desde 2026-10-16). Descarregar
    `google-services.json` para `android/app/google-services.json`.
-3. Adicionar app **iOS** com o bundle id do Runner. Descarregar
+3. Adicionar app **iOS** com o bundle id `pt.projardim.app`. Descarregar
    `GoogleService-Info.plist` e arrastá-lo no Xcode para `Runner/`
    (marcar "Copy items if needed" e o target Runner).
 

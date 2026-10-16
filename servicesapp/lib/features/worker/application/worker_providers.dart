@@ -37,16 +37,6 @@ final workerBasicInfoProvider =
   return ref.read(workerRepositoryProvider).fetchWorkerBasicInfo(workerId);
 });
 
-final workerNameProvider =
-    FutureProvider.family<String, String>((ref, workerId) {
-  return ref.read(workerRepositoryProvider).fetchWorkerName(workerId);
-});
-
-final profileSummaryProvider =
-    FutureProvider.family<Map<String, String?>, String>((ref, profileId) {
-  return ref.read(workerRepositoryProvider).fetchProfileSummary(profileId);
-});
-
 /// Perfil público mínimo (cartão partilhável) — sem sessão necessária,
 /// fonte: view `worker_public_card` (migration 0033).
 final workerPublicCardProvider =

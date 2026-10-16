@@ -40,12 +40,19 @@ class NotificationRepository {
 
   /// Streams only unread notifications — keeps the channel lightweight and
   /// ensures the badge count shrinks automatically when items are marked read.
+  ///
+  /// `.limit(50)`: sem limite, o stream trazia o histórico inteiro do
+  /// utilizador (lidas incluídas) e só filtrava no Dart. Um jardineiro
+  /// recebe uma `new_job_in_radius` por cada pedido na zona, por isso
+  /// crescia sem fim. As 50 mais recentes chegam para o badge e para o
+  /// `notificationSync` (review 2026-10-16, P1).
   Stream<List<AppNotification>> streamNotifications(String userId) {
     return _client
         .from('notifications')
         .stream(primaryKey: ['id'])
         .eq('user_id', userId)
         .order('created_at', ascending: false)
+        .limit(50)
         .map((data) => data
             .map((e) => AppNotification.fromJson(e))
             .where((n) => !n.read)
