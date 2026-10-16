@@ -37,6 +37,12 @@ class PasswordPolicyResult {
   bool get meetsAllRules => satisfiedRules.length == PasswordRule.values.length;
 }
 
+/// Texto único para "a password não cumpre a regra" — reutilizado pelo
+/// validator abaixo e por `friendlyError`/`AuthRepository` (erro vindo do
+/// servidor, não do formulário) para as duas nunca divergirem no texto.
+const weakPasswordMessage =
+    'A password tem de ter 8+ caracteres, uma maiúscula e um número.';
+
 final RegExp _uppercasePattern = RegExp(r'[A-Z]');
 final RegExp _numberPattern = RegExp(r'[0-9]');
 
@@ -62,7 +68,7 @@ String? passwordPolicyValidator(String? value) {
   final text = value ?? '';
   if (text.isEmpty) return 'Introduza uma password.';
   if (!evaluatePasswordPolicy(text).meetsAllRules) {
-    return 'A password tem de ter 8+ caracteres, uma maiúscula e um número.';
+    return weakPasswordMessage;
   }
   return null;
 }

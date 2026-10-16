@@ -81,13 +81,22 @@ class HelpRequestRepository {
     return (data as List).map((e) => HelpRequestSummary.fromJson(e)).toList();
   }
 
+  // RPC (não um SELECT direto) porque não há nenhuma policy de `profiles`
+  // que cubra "worker principal vê perfil de um candidato ajudante" — só
+  // client↔worker com job confirmado. O embedded join antigo
+  // (`profiles!help_acceptances_worker_id_fkey`) só "funcionava" enquanto
+  // `profiles` tinha a policy pública USING(true), substituída pelo
+  // hardening de segurança (migration 0032); desde então o join devolvia
+  // sempre null para a contraparte. RPC `get_candidates_for_help_request`
+  // (migration 0040, NÃO aplicada) reaproveita a mesma condição de
+  // autorização da policy de SELECT já existente em `help_acceptances`
+  // (`is_principal_worker_for_help_request`).
   Future<List<HelpAcceptance>> fetchCandidatesForHelpRequest(
       String helpRequestId) async {
-    final data = await _client
-        .from('help_acceptances')
-        .select('*, profiles!help_acceptances_worker_id_fkey(full_name, avatar_url)')
-        .eq('help_request_id', helpRequestId)
-        .order('created_at', ascending: true);
+    final data = await _client.rpc(
+      'get_candidates_for_help_request',
+      params: {'p_help_request_id': helpRequestId},
+    );
     return (data as List).map((e) => HelpAcceptance.fromJson(e)).toList();
   }
 

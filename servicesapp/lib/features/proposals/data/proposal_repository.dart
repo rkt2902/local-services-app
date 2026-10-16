@@ -31,18 +31,23 @@ class ProposalRepository {
     return JobProposal.fromJson(data);
   }
 
-  // RLS: relies on "Client vê propostas dos seus jobs" SELECT policy.
-  // Policy must cover multi-row SELECT (not just maybeSingle).
-  // Verify in Supabase: SELECT on job_proposals WHERE job_id IN
-  // (SELECT id FROM job_requests WHERE client_id = auth.uid()).
+  // RPC em vez de SELECT direto: a policy de SELECT de `job_proposals`
+  // ("Client vê propostas dos seus jobs") cobre a linha da proposta, mas o
+  // embedded join a `profiles` para nome/avatar do worker é bloqueado pela
+  // policy de `profiles` — essa só deixa o cliente ler o perfil do worker
+  // quando já existe proposta `accepted` (job confirmado), nunca para
+  // propostas ainda `pending`. Antes do hardening de segurança (migration
+  // 0032) `profiles` tinha USING(true) e o join "funcionava" por acidente;
+  // hoje devolve sempre null aqui — exatamente onde o cliente mais precisa
+  // de ver quem propôs, antes de decidir. `get_pending_proposals_for_job`
+  // (migration 0040, NÃO aplicada) expõe só nome/avatar do worker, com a
+  // mesma condição de autorização da policy ("job pertence a auth.uid()").
   Future<List<JobProposal>> fetchPendingProposalsForJob(String jobId) async {
     if (jobId.isEmpty) return [];
-    final data = await _client
-        .from('job_proposals')
-        .select('*, profiles!job_proposals_worker_id_fkey(full_name, avatar_url)')
-        .eq('job_id', jobId)
-        .eq('status', ProposalStatus.pending.value)
-        .order('created_at', ascending: true);
+    final data = await _client.rpc(
+      'get_pending_proposals_for_job',
+      params: {'p_job_id': jobId},
+    );
     return (data as List).map((e) => JobProposal.fromJson(e)).toList();
   }
 

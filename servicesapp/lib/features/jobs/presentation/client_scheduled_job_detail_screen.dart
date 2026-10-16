@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -188,12 +189,12 @@ class _ClientScheduledJobDetailScreenState
     return ref.watch(jobByIdProvider(widget.jobId)).when(
       loading: () => Scaffold(
         backgroundColor: AppColors.background,
-        body: _ScheduledLoading(onBack: () => context.pop()),
+        body: _ScheduledLoading(onBack: () => goBackOrToRoleHome(context)),
       ),
       error: (e, _) => Scaffold(
         backgroundColor: AppColors.background,
         body: _ScheduledError(
-          onBack: () => context.pop(),
+          onBack: () => goBackOrToRoleHome(context),
           onRetry: () => ref.invalidate(jobByIdProvider(widget.jobId)),
         ),
       ),
@@ -201,7 +202,10 @@ class _ClientScheduledJobDetailScreenState
         if (job == null) {
           return Scaffold(
             backgroundColor: AppColors.background,
-            body: _ScheduledError(onBack: () => context.pop(), onRetry: null),
+            body: _ScheduledError(
+              onBack: () => goBackOrToRoleHome(context),
+              onRetry: null,
+            ),
           );
         }
 
@@ -380,7 +384,7 @@ class _ClientScheduledJobDetailScreenState
                 _ScheduledHeader(
                   title: 'Pedido #${widget.jobId.substring(0, 8)}',
                   presentation: job.status.presentation(),
-                  onBack: () => context.pop(),
+                  onBack: () => goBackOrToRoleHome(context),
                 ),
                 Expanded(
                   child: ListView(
@@ -421,8 +425,8 @@ class _ClientScheduledJobDetailScreenState
                       ],
                       AppStaggeredEntrance(
                         index: 0,
-                        child: _TimelineCard(
-                          timeline: StatusTimeline(steps: buildJobTimeline(job)),
+                        child: StatusTimelineCard(
+                          steps: buildJobTimeline(job),
                           supportingLabel: _timelineSupportingLabel(job),
                         ),
                       ),
@@ -545,9 +549,9 @@ String _scheduleLabel(JobRequest job) {
 }
 
 /// Substitui a legenda de apoio do timeline (obrigatória em doc.txt, ao
-/// contrário do `_TimelineCard` de `client_job_detail_screen.dart` — lá só
-/// existe para `open`). Deriva de `confirmedDate`, dado real, em vez de
-/// inventar uma frase estática.
+/// contrário de `StatusTimelineCard` em `client_job_detail_screen.dart` —
+/// lá só existe para `open`). Deriva de `confirmedDate`, dado real, em vez
+/// de inventar uma frase estática.
 String _timelineSupportingLabel(JobRequest job) {
   if (job.confirmedDate == null) return 'Data a combinar com o profissional.';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
@@ -581,40 +585,9 @@ class _ScheduledHeader extends StatelessWidget {
           Expanded(
             child: Text(title, style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary)),
           ),
-          AppStatusBadge.fromPresentation(presentation: presentation),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineCard extends StatelessWidget {
-  const _TimelineCard({required this.timeline, required this.supportingLabel});
-
-  final Widget timeline;
-  final String supportingLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        children: [
-          timeline,
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            supportingLabel,
-            textAlign: TextAlign.center,
-            style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
-          ),
+          // trailingMargin: 0 — o padding do Container já dá a margem
+          // direita (AppSpacing.md).
+          AppBarStatusBadge.fromPresentation(presentation: presentation, trailingMargin: 0),
         ],
       ),
     );
@@ -673,7 +646,7 @@ class _WorkerContactCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name.isEmpty ? '—' : name,
+                    name.isEmpty ? 'Jardineiro' : name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),

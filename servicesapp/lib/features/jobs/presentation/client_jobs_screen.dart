@@ -79,6 +79,10 @@ class ClientJobsScreen extends ConsumerWidget {
                   .firstOrNull ??
               'Desconhecido';
 
+          // `workerName` fica em `''` (não `null`) quando há worker aceite
+          // mas o nome ainda não chegou — a view mostra "Jardineiro" em vez
+          // de esconder a linha (null = não há worker nenhum, string vazia =
+          // há worker mas falta o nome).
           String? workerName;
           String? workerAvatarUrl;
           if (statusesWithWorker.contains(job.status)) {
@@ -90,8 +94,7 @@ class ClientJobsScreen extends ConsumerWidget {
             if (workerId != null && workerId.isNotEmpty) {
               final info =
                   ref.watch(workerBasicInfoProvider(workerId)).asData?.value;
-              final name = info?['full_name'];
-              if (name != null && name.isNotEmpty) workerName = name;
+              workerName = info?['full_name'] ?? '';
               final avatarUrl = info?['avatar_url'];
               if (avatarUrl != null && avatarUrl.isNotEmpty) {
                 workerAvatarUrl = avatarUrl;

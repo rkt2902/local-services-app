@@ -184,6 +184,7 @@ class WorkerJobDetailScreen extends StatelessWidget {
                             name: data.clientName,
                             avatarUrl: data.clientAvatar,
                             radius: 22,
+                            fallbackLabel: 'Cliente',
                           ),
                         ),
                       ),

@@ -11,6 +11,7 @@ import '../data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -328,7 +329,11 @@ class _ClientJobDetailScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              UserAvatarWithName(name: name, avatarUrl: avatarUrl),
+              UserAvatarWithName(
+                name: name,
+                avatarUrl: avatarUrl,
+                fallbackLabel: 'Jardineiro',
+              ),
               if (job.confirmedDate != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Row(children: [
@@ -418,8 +423,11 @@ class _ClientJobDetailScreenState
         final statusPresentation = job.status.presentation(
           proposalCount: job.proposalCount,
         );
+        // Margem direita consistente (AppSpacing.md) nos dois ramos —
+        // serve também de espaçamento para o ícone de fechar, no ramo
+        // `open`.
         final statusBadge =
-            AppStatusBadge.fromPresentation(presentation: statusPresentation);
+            AppBarStatusBadge.fromPresentation(presentation: statusPresentation);
 
         final photosWidget = photosAsync.when(
           loading: () => const SizedBox.shrink(),
@@ -482,8 +490,7 @@ class _ClientJobDetailScreenState
 
         // "Publicado→Propostas→Escolher→Confirmado" só faz sentido enquanto
         // o pedido ainda não tem worker escolhido — para os restantes
-        // estados usa-se buildJobTimeline (inalterado, partilhado com o
-        // lado do worker).
+        // estados usa-se buildJobTimeline (partilhado com o lado do worker).
         final timelineSteps = job.status == JobStatus.open
             ? _buildOpenStepperSteps(job)
             : buildJobTimeline(job);
@@ -515,19 +522,8 @@ class _ClientJobDetailScreenState
             ),
           AppStaggeredEntrance(
             index: 0,
-            child: _TimelineCard(
-              // Horizontal só serve bem o stepper de `open`
-              // (_buildOpenStepperSteps: labels curtos — Publicado/
-              // Propostas/Escolher/Confirmado). Os restantes ramos usam
-              // buildJobTimeline, com labels longos ("Marcado como
-              // concluído", "A aguardar confirmação") e subtitle/note por
-              // passo (datas, avisos de remarcação) que o horizontal
-              // compacto não mostra — mesma razão pela qual
-              // client_scheduled_job_detail_screen.dart e
-              // worker_my_job_detail_view.dart continuam verticais.
-              timeline: job.status == JobStatus.open
-                  ? StatusTimelineHorizontal(steps: timelineSteps)
-                  : StatusTimeline(steps: timelineSteps),
+            child: StatusTimelineCard(
+              steps: timelineSteps,
               supportingLabel:
                   job.status == JobStatus.open ? _openExpiryNotice(job) : null,
               supportingLabelColor: statusPresentation.color.foreground,
@@ -601,24 +597,14 @@ class _ClientJobDetailScreenState
               backgroundColor: AppColors.surface,
               surfaceTintColor: AppColors.surface,
               elevation: 0,
-              leading: IconButton(
-                onPressed: () => context.pop(),
-                tooltip: 'Voltar',
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: AppColors.textPrimary,
-                ),
-              ),
+              leading: const AppBackButton(),
               title: Text(
                 'Pedido #${widget.jobId.substring(0, 8)}',
                 style: theme.textTheme.titleLarge
                     ?.copyWith(color: AppColors.textPrimary),
               ),
               actions: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                  child: Center(child: statusBadge),
-                ),
+                statusBadge,
                 IconButton(
                   icon: const Icon(Icons.close, color: AppColors.textSecondary),
                   tooltip: 'Cancelar pedido',
@@ -786,25 +772,13 @@ class _ClientJobDetailScreenState
             backgroundColor: AppColors.background,
             surfaceTintColor: AppColors.background,
             elevation: 0,
-            leading: IconButton(
-              onPressed: () => context.pop(),
-              tooltip: 'Voltar',
-              icon: const Icon(
-                Icons.arrow_back_rounded,
-                color: AppColors.textPrimary,
-              ),
-            ),
+            leading: const AppBackButton(),
             title: Text(
               'Pedido #${widget.jobId.substring(0, 8)}',
               style: theme.textTheme.titleLarge
                   ?.copyWith(color: AppColors.textPrimary),
             ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.md),
-                child: Center(child: statusBadge),
-              ),
-            ],
+            actions: [statusBadge],
           ),
           body: Stack(
             children: [
@@ -1008,52 +982,6 @@ List<StatusTimelineStepData> _buildOpenStepperSteps(JobRequest job) {
 String _openExpiryNotice(JobRequest job) {
   final formatted = DateFormat("dd/MM 'às' HH:mm").format(job.expiresAt);
   return 'Expira a $formatted se não houver nenhuma proposta aceite até lá';
-}
-
-class _TimelineCard extends StatelessWidget {
-  const _TimelineCard({
-    required this.timeline,
-    required this.supportingLabelColor,
-    this.supportingLabel,
-  });
-
-  final Widget timeline;
-  final String? supportingLabel;
-
-  /// Cor do estado atual (mesmo presenter do badge) — nunca hardcoded a um
-  /// único `AppStatusColor`, para respeitar a regra de "mesma cor para
-  /// badge + timeline do mesmo estado" mesmo que outro estado além de
-  /// `open` venha a preencher `supportingLabel` no futuro.
-  final Color supportingLabelColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        children: [
-          timeline,
-          if (supportingLabel != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              supportingLabel!,
-              textAlign: TextAlign.center,
-              style: textTheme.labelMedium?.copyWith(
-                color: supportingLabelColor,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
 class _ServiceSummaryRow extends StatelessWidget {

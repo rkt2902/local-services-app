@@ -215,8 +215,13 @@ class HelpAcceptance {
       agreedRate: (json['agreed_rate'] as num).toDouble(),
       broughtEquipment: json['brought_equipment'] as bool,
       createdAt: DateTime.parse(json['created_at'] as String),
-      fullName: profileData?['full_name'] as String?,
-      avatarUrl: profileData?['avatar_url'] as String?,
+      // `worker_name`/`worker_avatar_url` — colunas planas da RPC
+      // `get_candidates_for_help_request`. `profiles.full_name`/`avatar_url`
+      // mantido como fallback (join embutido antigo, hoje sem call sites).
+      fullName: json['worker_name'] as String? ??
+          profileData?['full_name'] as String?,
+      avatarUrl: json['worker_avatar_url'] as String? ??
+          profileData?['avatar_url'] as String?,
     );
   }
 }

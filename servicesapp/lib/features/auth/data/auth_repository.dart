@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
+import '../../../core/constants/password_policy.dart';
+import '../../../core/utils/error_utils.dart';
 
 /// Tags internas em [AuthException.code] usadas pelos 3 métodos de
 /// recuperação de senha abaixo — não são códigos do Supabase, servem só
@@ -185,13 +187,13 @@ class AuthRepository {
   /// Classifica o erro e relança sempre um [AuthException] com mensagem em
   /// português e `code` de uma das 3 tags de [PasswordResetErrorCode].
   ///
-  /// `AuthRetryableFetchException` com `statusCode == null` é o sinal fiável
-  /// de falha de rede — o gotrue só o lança dessa forma quando nem chegou a
-  /// obter uma resposta HTTP (ver `gotrue` `fetch.dart _handleError`); com
-  /// `statusCode` preenchido (5xx) é um erro real do servidor Supabase, não
-  /// de conectividade, por isso cai no bucket "unexpected".
+  /// A deteção de rede (`isNetworkError`, core/utils/error_utils.dart) é a
+  /// mesma usada por `friendlyError` no resto da app — cobre o sinal fiável
+  /// do gotrue (`AuthRetryableFetchException` sem `statusCode`, lançado só
+  /// quando nem chegou a obter resposta HTTP) e cai para texto como
+  /// fallback para as restantes exceções.
   Never _throwClassified(Object e) {
-    if (e is AuthRetryableFetchException && e.statusCode == null) {
+    if (isNetworkError(e)) {
       throw AuthException(
         'Sem ligação à internet. Verifica a tua conexão e tenta novamente.',
         code: PasswordResetErrorCode.network,
@@ -212,10 +214,7 @@ class AuthRepository {
       );
     }
     if (code == 'weak_password') {
-      throw AuthException(
-        'A password é demasiado fraca. Usa 8+ caracteres, uma maiúscula e um número.',
-        code: PasswordResetErrorCode.unexpected,
-      );
+      throw AuthException(weakPasswordMessage, code: PasswordResetErrorCode.unexpected);
     }
     if (code == 'over_request_rate_limit' || code == 'over_email_send_rate_limit') {
       throw AuthException(
@@ -230,16 +229,6 @@ class AuthRepository {
       throw AuthException(
         'Código inválido ou expirado. Verifica e tenta novamente.',
         code: PasswordResetErrorCode.invalidCode,
-      );
-    }
-    if (msg.contains('network') ||
-        msg.contains('socket') ||
-        msg.contains('failed host lookup') ||
-        msg.contains('connection refused') ||
-        msg.contains('timeout')) {
-      throw AuthException(
-        'Sem ligação à internet. Verifica a tua conexão e tenta novamente.',
-        code: PasswordResetErrorCode.network,
       );
     }
 

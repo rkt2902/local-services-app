@@ -224,13 +224,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: Center(
-              child: AppStatusBadge.fromPresentation(
-                presentation: data.statusPresentation,
-              ),
-            ),
+          AppBarStatusBadge.fromPresentation(
+            presentation: data.statusPresentation,
           ),
         ],
       ),
@@ -268,7 +263,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: StatusTimeline(steps: data.timelineSteps),
+                  child: StatusTimelineCard(steps: data.timelineSteps),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppStaggeredEntrance(
@@ -280,6 +275,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                           name: data.clientName,
                           avatarUrl: data.clientAvatarUrl,
                           radius: 22,
+                          fallbackLabel: 'Cliente',
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -384,11 +380,16 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
           children: [
             AppStaggeredEntrance(
               index: 0,
-              child: _JobSummaryCard(data: data),
+              child: StatusTimelineCard(steps: data.timelineSteps),
             ),
             const SizedBox(height: AppSpacing.md),
             AppStaggeredEntrance(
               index: 1,
+              child: _JobSummaryCard(data: data),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppStaggeredEntrance(
+              index: 2,
               child: Text(
                 'Descrição',
                 style: Theme.of(context)
@@ -399,7 +400,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.xs),
             AppStaggeredEntrance(
-              index: 1,
+              index: 2,
               child: _DescriptionSection(
                 description: data.description,
                 photoUrls: data.photoUrls,
@@ -409,28 +410,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             AppStaggeredEntrance(
-              index: 2,
+              index: 3,
               child: _ProposalSummaryCard(data: data),
             ),
             const SizedBox(height: AppSpacing.lg),
             AppStaggeredEntrance(
-              index: 3,
-              child: Text(
-                'Estado do pedido',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: AppColors.textPrimary),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppStaggeredEntrance(
               index: 4,
-              child: StatusTimeline(steps: data.timelineSteps),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppStaggeredEntrance(
-              index: 5,
               child: _branchBody(context),
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -900,7 +885,12 @@ class _ClientContactCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          UserAvatarWithName(name: name, avatarUrl: avatarUrl, radius: 22),
+          UserAvatarWithName(
+            name: name,
+            avatarUrl: avatarUrl,
+            radius: 22,
+            fallbackLabel: 'Cliente',
+          ),
           const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
             onPressed: phone.isEmpty ? null : onCallPressed,

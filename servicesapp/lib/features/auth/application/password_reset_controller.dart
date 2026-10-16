@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/error_utils.dart';
 import '../data/auth_repository.dart';
 import 'auth_providers.dart';
 
@@ -34,7 +35,7 @@ class PasswordResetSuccess extends PasswordResetState {
 /// nota em `resendCode` abaixo), por isso os callers precisam de formatar
 /// o erro diretamente a partir do `catch`.
 String describePasswordResetError(Object e) =>
-    e is AuthException ? e.message : 'Ocorreu um erro. Tenta novamente.';
+    e is AuthException ? e.message : friendlyError(e);
 
 /// Controller único para todo o fluxo de recuperação de senha (os 3 passos
 /// pós-email vivem numa só rota — ver `password_reset_screen.dart` — por

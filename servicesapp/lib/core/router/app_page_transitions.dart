@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'app_back_navigation.dart';
 import '../theme/app_motion_tokens.dart';
 
 /// Transições de página para o router — docs/motion_spec.md §4.
@@ -10,9 +11,48 @@ import '../theme/app_motion_tokens.dart';
 /// só o movimento muda entre tipos, nunca o tempo). Cada uma respeita
 /// `MediaQuery.disableAnimations`, caindo para um cross-fade de 100ms
 /// partilhado (ver [_reducedMotionPage]) em vez do movimento normal.
+///
+/// As 3 também envolvem [child] com [_wrapWithBackFallback] — cobre o
+/// gesto/botão de voltar do sistema para TODAS as rotas que passam por
+/// aqui de uma só vez (confirmado em app_router.dart: toda rota alcançável
+/// por notificação usa um destes 3 builders). O botão de voltar da AppBar
+/// é um fallback distinto ([AppBackButton]/`goBackOrToRoleHome`,
+/// core/widgets/app_back_button.dart) — PopScope não intercepta um
+/// `context.pop()` explícito, só o pop do sistema.
 
 bool _disableAnimations(BuildContext context) =>
     MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+/// "Voltar com fallback" (ver app_back_navigation.dart) para o gesto/botão
+/// de voltar do Android: deixa o pop do sistema seguir normalmente quando
+/// há stack (`canPop: true` — comportamento inalterado), e só intervém
+/// quando não há nada para desfazer (`canPop: false`, `didPop: false` no
+/// callback), indo para o início do papel atual em vez de não fazer nada.
+///
+/// Usa `state.matchedLocation` (já disponível no `pageBuilder`) em vez de
+/// `GoRouterState.of(context)` dentro do callback, e um [Builder] em vez do
+/// `context` recebido do próprio `pageBuilder` para o `canPop`/`go` do
+/// `PopScope` — confirmado por teste que o `context` do `pageBuilder` não é
+/// um descendente da própria rota: `canPop()` lido a partir dele fica
+/// desatualizado logo após um `push()` (via `context.push`, não ainda
+/// refletido nesse `context` em particular), e `GoRouterState.of` lança
+/// quando chamado assincronamente no callback. O `Builder` dá um contexto
+/// que já é parte da árvore da rota, correto nos dois casos.
+Widget _wrapWithBackFallback(GoRouterState state, Widget child) {
+  final roleHome = roleHomeRouteFor(state.matchedLocation);
+  return Builder(
+    builder: (context) {
+      return PopScope(
+        canPop: context.canPop(),
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          context.go(roleHome);
+        },
+        child: child,
+      );
+    },
+  );
+}
 
 /// Cross-fade de 100ms usado pelas 3 transições quando reduced-motion está
 /// ativo — docs/motion_spec.md §5: "Substituir por cross-fade de 100 ms:
@@ -46,11 +86,12 @@ CustomTransitionPage<void> buildSharedAxisPage(
   GoRouterState state,
   Widget child,
 ) {
-  if (_disableAnimations(context)) return _reducedMotionPage(state, child);
+  final wrapped = _wrapWithBackFallback(state, child);
+  if (_disableAnimations(context)) return _reducedMotionPage(state, wrapped);
 
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    child: child,
+    child: wrapped,
     transitionDuration: AppMotionDuration.screen,
     reverseTransitionDuration: AppMotionDuration.screen,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -103,11 +144,12 @@ CustomTransitionPage<void> buildContainerTransformPage(
   GoRouterState state,
   Widget child,
 ) {
-  if (_disableAnimations(context)) return _reducedMotionPage(state, child);
+  final wrapped = _wrapWithBackFallback(state, child);
+  if (_disableAnimations(context)) return _reducedMotionPage(state, wrapped);
 
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    child: child,
+    child: wrapped,
     transitionDuration: AppMotionDuration.screen,
     reverseTransitionDuration: AppMotionDuration.screen,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -144,11 +186,12 @@ CustomTransitionPage<void> buildFadeThroughPage(
   GoRouterState state,
   Widget child,
 ) {
-  if (_disableAnimations(context)) return _reducedMotionPage(state, child);
+  final wrapped = _wrapWithBackFallback(state, child);
+  if (_disableAnimations(context)) return _reducedMotionPage(state, wrapped);
 
   return CustomTransitionPage<void>(
     key: state.pageKey,
-    child: child,
+    child: wrapped,
     transitionDuration: AppMotionDuration.screen,
     reverseTransitionDuration: AppMotionDuration.screen,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {

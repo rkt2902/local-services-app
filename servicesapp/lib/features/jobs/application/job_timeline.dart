@@ -7,22 +7,28 @@ import '../../../core/widgets/status_timeline.dart';
 import '../data/cancel_reasons.dart';
 import '../data/job_model.dart';
 
+/// Labels dos nós são versões curtas (≤ ~14 caracteres) das de
+/// `JobStatusPresentationExtension.presentation()` — essas continuam a
+/// servir os badges de estado em toda a app; aqui só o texto do nó muda,
+/// nunca `.color`, que continua a vir de `presentation()` (mesma cor em
+/// badge e timeline para o mesmo estado).
 List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
-  final fmt = DateFormat('dd/MM/yyyy');
+  final dateFmt = DateFormat('dd/MM');
   final steps = <StatusTimelineStepData>[];
 
   steps.add(StatusTimelineStepData(
     label: 'Pedido criado',
     statusColor: AppStatusColor.success,
     state: StatusTimelineStepState.completed,
-    subtitle: fmt.format(job.createdAt),
+    dateLabel: dateFmt.format(job.createdAt),
   ));
 
   switch (job.status) {
     case JobStatus.open:
+      final hasProposals = job.proposalCount > 0;
       final current = job.status.presentation(proposalCount: job.proposalCount);
       steps.add(StatusTimelineStepData(
-        label: current.label,
+        label: hasProposals ? current.label : 'Sem proposta',
         statusColor: current.color,
         state: StatusTimelineStepState.current,
       ));
@@ -50,8 +56,8 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
         label: 'Proposta aceite',
         statusColor: AppStatusColor.success,
         state: StatusTimelineStepState.completed,
-        subtitle:
-            job.confirmedDate != null ? fmt.format(job.confirmedDate!) : null,
+        dateLabel:
+            job.confirmedDate != null ? dateFmt.format(job.confirmedDate!) : null,
         note: proposalNote,
         noteIsWarning: noteIsWarning,
       ));
@@ -59,7 +65,9 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
       final markedDone = job.status == JobStatus.awaitingConfirmation ||
           job.status == JobStatus.completed;
       steps.add(StatusTimelineStepData(
-        label: 'Marcado como concluído',
+        // Curto de propósito e distinto de "Concluído" (passo seguinte) —
+        // este nó é "o worker diz que terminou", não "o cliente confirmou".
+        label: 'Trabalho feito',
         statusColor:
             markedDone ? AppStatusColor.success : AppStatusColor.neutral,
         state: markedDone
@@ -77,7 +85,7 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
       } else if (job.status == JobStatus.awaitingConfirmation) {
         final current = job.status.presentation();
         steps.add(StatusTimelineStepData(
-          label: current.label,
+          label: 'A confirmar',
           statusColor: current.color,
           state: StatusTimelineStepState.current,
         ));
@@ -95,7 +103,7 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job) {
           label: 'Proposta aceite',
           statusColor: AppStatusColor.success,
           state: StatusTimelineStepState.completed,
-          subtitle: fmt.format(job.confirmedDate!),
+          dateLabel: dateFmt.format(job.confirmedDate!),
         ));
       }
       final current = job.status.presentation();

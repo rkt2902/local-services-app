@@ -394,7 +394,7 @@ class _JobCard extends StatelessWidget {
                   AppStatusBadge.fromPresentation(presentation: job.statusPresentation),
                 ],
               ),
-              if (job.workerName != null && job.workerName!.isNotEmpty) ...[
+              if (job.workerName != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 UserAvatarWithName(
                   name: job.workerName!,
@@ -403,6 +403,7 @@ class _JobCard extends StatelessWidget {
                   nameStyle: textTheme.labelMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
+                  fallbackLabel: 'Jardineiro',
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),

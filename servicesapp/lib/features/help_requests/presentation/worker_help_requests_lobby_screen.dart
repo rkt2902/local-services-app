@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../proposals/application/proposal_providers.dart';
@@ -230,7 +231,7 @@ class _WorkerHelpRequestsLobbyScreenState
 
     return WorkerHelpRequestsLobbyView(
       dataAsync: dataAsync,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onRequestHelpers: () => context.pop(),
       onAcceptCandidate: _acceptCandidate,
       onRejectCandidate: _rejectCandidate,

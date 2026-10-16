@@ -103,9 +103,13 @@ visualmente destoante):**
   de design já tomada e documentada no próprio código, não uma inconsistência.
 
 **Não é um problema (decorativo, não precisa de token):** raios de 2/4/6/8px em indicadores de
-página, splash de `InkWell`, badge circular proporcional (`app_brand_badge.dart`), e o timeline
-de estados (`status_timeline.dart`) — este último já está documentado em `improvements.md` como
-"será refeito do zero no redesign visual, não vale a pena polir agora".
+página, splash de `InkWell`, e badge circular proporcional (`app_brand_badge.dart`).
+
+**✅ RESOLVIDO 2026-10-15 — timeline de estados deixou de ser "provisória".** A nota antiga
+dizia que `status_timeline.dart` "será refeito do zero no redesign visual" — desde 2026-10-15
+é o componente final: `StatusTimelineHorizontal` (único, a vertical foi removida) está no topo
+de todos os ecrãs de detalhe de job, com zona de detalhe para subtitle/note e largura adaptativa
+para não dar overflow. Ver `decisions_log.md` 2026-10-15.
 
 **Sistema de shimmer (`AppSkeletonShimmer`) usado de forma inconsistente:** só 4 ecrãs o adotam
 (`worker_dashboard`, `worker_jobs_view`, `worker_available_jobs_view`, `apply_as_helper`) — outros
@@ -134,6 +138,18 @@ não foi lido diretamente; se surgir dúvida futura, confirmar via SQL Editor
 notifications/FCM, SA3 Storage path, SA2 ratings participação, contacto do worker principal —
 nenhum mudou de estado nesta auditoria.)
 
+**✅ RESOLVIDO (código) 2026-10-15 — hardening de segurança de 2026-09-09 (migration 0032)
+tinha partido silenciosamente 4 pontos de nome/avatar da contraparte.** A policy `USING(true)`
+de `profiles` foi corretamente substituída por 3 policies granulares, mas 4 embedded joins do
+PostgREST fora dessas relações (`client_proposals_screen.dart` com propostas `pending`,
+`WorkerJobDetailScreen` numa oportunidade `open`, o lobby de candidatos a ajudante,
+`showRatingsSheet`) passaram a devolver sempre `null` sem erro — ninguém reparou até esta
+auditoria. Corrigido com 4 RPCs `SECURITY DEFINER` novas (migration `0040`, **NÃO aplicada**),
+cada uma a expor só nome+avatar com a mesma condição de autorização que já existia. Detalhe
+completo (matriz de pontos de contacto, ficheiros, migration) em `decisions_log.md` 2026-10-15.
+**Aplicar `0040_cross_party_identity_rpcs.sql` antes de testar** estes 4 fluxos — sem a
+migration, o código novo chama RPCs que ainda não existem na BD viva.
+
 **Rotas órfãs — declaradas, sem nenhum caminho de navegação real**
 - `/client/messages` e `/worker/messages` — só `_PlaceholderScreen('Mensagens')`. Confirmado
   por leitura direta de `client_shell.dart` e `worker_shell.dart`: a bottom nav tem só 4 itens
@@ -153,9 +169,14 @@ nenhum mudou de estado nesta auditoria.)
 (Os itens já existentes em `improvements.md` — `JobStatus` labels, CHECKs em falta, validação
 de telefone, etc. — continuam válidos, sem mudança.)
 
-- **`friendlyError()` vs `AuthController._mapError()` continuam por consolidar** — confirmado
-  ainda coexistem (`_mapError` privado, só 4 call sites dentro de `auth_controller.dart`;
-  `friendlyError` usado em 26 outros ficheiros). Sem sinal de urgência, mas é duplicação real.
+- ✅ **RESOLVIDO 2026-10-12 — `friendlyError()` vs `AuthController._mapError()` consolidados.**
+  `_mapError` removido; os 4 call sites de `auth_controller.dart` passaram a usar
+  `friendlyError()`. Encontrado também um 3.º/4.º ponto que a auditoria de 2026-09-08 não
+  tinha listado: `AuthRepository._throwClassified` (rede/código inválido/password fraca do
+  fluxo de recuperação de senha, que precisa de um `code` estruturado para o
+  `PasswordResetController` decidir o ecrã — por isso ficou separado, não foi absorvido por
+  `friendlyError`) e `describePasswordResetError` (só lê `.message` de um `AuthException` já
+  classificado). Detalhe completo em `decisions_log.md` 2026-10-12.
 - **Notificações: 3 de 19 tipos usam `context.push` em vez de `context.go`**
   (`helpRequestApproved`, `helpRequestReopened`, `helpWithdrew`) — os outros 16 usam `go`. Isto
   é uma decisão deliberada e documentada (estes 3 casos preservam o botão de recuar de
@@ -165,6 +186,14 @@ de telefone, etc. — continuam válidos, sem mudança.)
   (`showRatingSheet`, singular — submeter uma avaliação nova) e `ratings_sheet.dart`
   (`showRatingsSheet`, plural — ver avaliações já recebidas). Ambos ativamente usados, nenhum
   é código morto, mas o nome quase igual é uma armadilha fácil ao navegar o código.
+  **Reconfirmado 2026-10-12:** `showRatingsSheet` continua com 4 call sites ativos
+  (`worker_help_requests_screen.dart`, `worker_help_requests_lobby_screen.dart`,
+  `client_proposals_screen.dart`) e **não foi substituído** pelo novo ecrã "As minhas
+  avaliações" (`my_ratings_screen.dart`/`my_ratings_route.dart`, rotas `/worker/ratings` e
+  `/client/ratings`) — são funcionalidades diferentes: o ecrã novo mostra só as avaliações do
+  próprio utilizador (dadas/recebidas, filtradas por `auth.uid()`); o sheet mostra, a partir de
+  um fluxo, as avaliações de OUTRO worker específico (`workerId` passado pelo caller). Nenhum
+  dos dois ficheiros foi apagado.
 
 ### 🔵 BAIXO — limpeza conhecida
 

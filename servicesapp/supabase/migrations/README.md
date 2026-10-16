@@ -39,6 +39,21 @@ SECURITY DEFINER, sem parâmetro de identidade) para o ecrã "As minhas
 avaliações". Aplicar manualmente via SQL Editor antes de usar
 `my_ratings_screen.dart`.
 
+**PENDENTE — `0039_help_request_principal_avatar.sql`** — NÃO aplicada
+ainda. DROP+CREATE de `get_help_requests_in_radius` para incluir
+`principal_avatar_url` (já selecionava `full_name`, nunca o avatar).
+
+**PENDENTE — `0040_cross_party_identity_rpcs.sql`** — NÃO aplicada ainda.
+4 RPCs SECURITY DEFINER novas (`get_open_job_client_identity`,
+`get_pending_proposals_for_job`, `get_candidates_for_help_request`,
+`get_ratings_with_rater_identity`) que corrigem 4 pontos onde o hardening
+de segurança de `archive/0032_audit_fixes.sql` (aplicado 2026-09-09) partiu
+silenciosamente a visibilidade de nome/avatar da contraparte fora das
+relações cobertas pelas 3 policies granulares de `profiles`. Aplicar antes
+de testar: oportunidade `open` do worker, "Propostas recebidas" do
+cliente, lobby de candidatos a ajudante, `showRatingsSheet`. Ver
+`decisions_log.md` 2026-10-15.
+
 ## Sources used for consolidation
 
 - `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,
