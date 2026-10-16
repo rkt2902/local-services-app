@@ -251,6 +251,8 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **A 0042 foi aplicada na BD viva a 2026-10-16; estas falhas estão fechadas.**
 
+**RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
+
 **Morada dos pedidos (0043, aplicada a 2026-10-16):** decisão de 2026-10-16. Até a
 proposta ser aceite, o jardineiro vê só a localidade e coordenadas
 arredondadas (~1 km). Antes, qualquer conta lia a morada exata de todos os

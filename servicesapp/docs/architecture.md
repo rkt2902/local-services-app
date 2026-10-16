@@ -377,8 +377,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `is_principal_worker_for_help_request` | `p_help_request_id` | `boolean` | RLS + reaproveitada em `get_candidates_for_help_request` (0040) |
 | `client_has_confirmed_job_with_worker` | `worker_id` | `boolean` | só RLS |
 | `accept_proposal` | `p_proposal_id, p_job_id` | `void` | `ProposalRepository.acceptProposal` |
-| `create_proposal` | `p_job_id, p_worker_id, p_hourly_rate, ...7 opcionais` | `uuid` | `ProposalRepository.createProposal` |
-| `sync_worker_service_types` | `p_worker_id, p_service_type_ids[]` | `void` | `WorkerRepository` |
+| `create_proposal` | `p_job_id, p_hourly_rate, ...7 opcionais` (sem `p_worker_id` desde 0044) | `uuid` | `ProposalRepository.createProposal` |
+| `sync_worker_service_types` | `p_service_type_ids[]` (sem `p_worker_id` desde 0044) | `void` | `WorkerRepository` |
 | `reject_proposal` | `p_proposal_id, p_job_id` | `void` | `ProposalRepository.rejectProposal` |
 | `withdraw_proposal` | `p_proposal_id, p_job_id` | `void` | `ProposalRepository.withdrawProposal` |
 | `confirm_job_completion` | `p_job_id` | `void` | `ProposalRepository.confirmJobCompletion` |
@@ -391,7 +391,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name)` | `RatingRepository` |
 | `get_help_requests_in_radius` | `worker_lat, worker_lng, radius_km` | `TABLE(... principal_name, principal_avatar_url, payment_per_helper, confirmed_date/time)` — shape atual é a soma de 0034+0039, ver nota | `HelpRequestRepository` |
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
-| `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km, p_worker_id?` | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
+| `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
 | `mark_job_done` | `p_job_id` | `void` | `ProposalRepository.markJobCompleted` |
 | `propose_reschedule` | `p_job_id, p_new_date, p_new_time?, p_new_flexible?` | `void` | `JobRepository.proposeReschedule` |
@@ -450,6 +450,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0041_push_notifications.sql` | aplicada a 2026-10-16 |
 | `0042_security_hardening.sql` | aplicada a 2026-10-16 (review de segurança) |
 | `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
+| `0044_rpc_identity_and_policy_perf.sql` | NÃO aplicada; aplicar junto com a app nova (RPCs sem `p_worker_id`) |
 
 ---
 

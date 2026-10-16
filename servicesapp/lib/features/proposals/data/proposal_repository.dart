@@ -74,7 +74,6 @@ class ProposalRepository {
 
   Future<String> createProposal({
     required String jobId,
-    required String workerId,
     required double hourlyRate,
     double? estimatedHoursMin,
     double? estimatedHoursMax,
@@ -87,7 +86,6 @@ class ProposalRepository {
   }) async {
     final params = <String, dynamic>{
       'p_job_id': jobId,
-      'p_worker_id': workerId,
       'p_hourly_rate': hourlyRate,
       'p_estimated_hours_min': estimatedHoursMin,
       'p_estimated_hours_max': estimatedHoursMax,

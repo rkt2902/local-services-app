@@ -56,7 +56,6 @@ final jobsInRadiusProvider = FutureProvider<List<JobRequest>>((ref) async {
         workerLat: workerProfile.baseLat,
         workerLng: workerProfile.baseLng,
         radiusKm: workerProfile.radiusKm,
-        workerId: user.id,
       );
 });
 

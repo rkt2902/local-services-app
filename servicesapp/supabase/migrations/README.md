@@ -77,6 +77,16 @@ DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
 A morada exata fica para o cliente, o worker aceite e os ajudantes aceites.
 Os workers deixam de ler `job_requests` diretamente (exceto o aceite).
 
+**PENDENTE — `0044_rpc_identity_and_policy_perf.sql`** — NÃO aplicada ainda.
+Aplicar junto com a app nova: `create_proposal`, `get_jobs_in_radius` e
+`sync_worker_service_types` deixam de receber `p_worker_id` (DROP das versões
+antigas), por isso a app antiga deixa de conseguir enviar propostas, ver
+oportunidades e guardar serviços. Também troca `auth.uid()` por
+`(SELECT auth.uid())` nas policies do public (exceto `job_requests`, que daria
+recursão), pré-filtra o raio por uma caixa de lat/lng com um índice parcial, e
+no fim verifica que nenhuma policy ficou com recursão; se ficar, falha inteira
+e não aplica nada.
+
 **Regra a partir da 0042:** cada função nova faz
 `REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
 (o Postgres dá EXECUTE a PUBLIC por defeito).
