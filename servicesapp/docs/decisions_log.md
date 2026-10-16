@@ -3,6 +3,7 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+<<<<<<< Updated upstream
 ## 2026-10-16 — Review completo de segurança e performance (migration 0042 + app)
 
 Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
@@ -16,6 +17,58 @@ Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
 **App:** id passa a `pt.projardim.app` (Android applicationId/namespace e iOS bundle id), nome "ProJardim" no ícone, assinatura de release por `android/key.properties` (fallback para debug), chaves de permissão no Info.plist (localização, câmara, fotos: sem elas o iOS fecha a app), `pubspec.lock` passa a ser versionado, stream de notificações com `.limit(50)`, `notificationSync` compara ids em vez de tamanhos, `currentUserProvider` só reconstrói quando muda o id do utilizador, `cacheWidth` nas miniaturas, providers mortos removidos, mensagens novas em `friendlyError`, teste smoke trocado por testes de lógica pura.
 
 **Fica por decidir (produto):** mostrar só a zona aproximada dos pedidos abertos até haver proposta aceite (hoje qualquer conta vê a morada exata de todos os pedidos abertos).
+=======
+## 2026-10-16 — Extração de dump real da BD viva e verificação do estado das migrations
+
+O utilizador extraiu um dump real da BD viva via `supabase db dump` (CLI, projeto
+`twpflvcoyeiysnychkom`, plano Free), guardado temporariamente em
+`supabase_schema_backup.sql` na raiz do workspace (fora do git, ver entrada de
+gitignore abaixo). É a primeira vez nesta série de sessões com acesso real ao
+schema da BD viva, em vez de depender da palavra do utilizador ou dos cabeçalhos
+dos ficheiros de migration.
+
+**Verificação feita:** comparação linha a linha entre o dump e a soma de
+`0001_consolidated_baseline.sql` + migrations 0033–0040.
+
+- Funções: 37 na BD viva, 37 nas migrations, diff vazio nos dois sentidos.
+- Tabelas: 14 na BD viva, 14 nas migrations, diff vazio.
+- Views: 3 em ambos (`worker_profiles_public`, `worker_rating_summary` com
+  `security_invoker=true`, `worker_public_card`), `security_invoker` coincide.
+- Policies de `profiles`: 5 na BD viva (3 granulares + insert própria + update
+  própria), confirma que não existe policy pública — `database_schema.md`
+  continua desatualizado nesse ponto (discrepância 1 da secção 16 do
+  `ARCHITECTURE.md`, não corrigida porque é fora do âmbito da verificação).
+
+**Resultado principal:** as migrations `0038_ratings_mine_received_given.sql`,
+`0039_help_request_principal_avatar.sql` e `0040_cross_party_identity_rpcs.sql`
+estavam todas marcadas como "NÃO aplicada" em `ARCHITECTURE.md`, `STATUS.md` e
+`supabase/migrations/README.md` — e na verdade já estavam todas aplicadas na BD
+viva (confirmado pela presença das 7 funções que introduzem, com a assinatura
+exata esperada). Os 3 ficheiros foram corrigidos para refletir isto.
+
+**Drift novo encontrado:** o trigger de `job_requests` chama-se `on_job_created`
+na BD viva, mas o ficheiro `0001_consolidated_baseline.sql` define-o como
+`trigger_notify_workers_new_job`. Mesma função (`notify_workers_new_job()`),
+mesmo evento (`AFTER INSERT`) — parece um rename manual feito diretamente no
+Supabase Studio, nunca passou por uma migration deste repo. Sem impacto
+funcional. Registado como ponto 8 novo na secção 16 do `ARCHITECTURE.md`.
+
+**Não confirmado:** o dump foi só de schema (sem `--data-only`), por isso a
+discrepância do seed de `service_types` (ponto 3 da secção 16, "Montagem de
+jardim" vs. "Limpeza de jardim") continua sem resposta — precisa de
+`supabase db dump --data-only` ou de uma query direta.
+
+**Ficheiros alterados:** `supabase/migrations/README.md`, `docs/ARCHITECTURE.md`
+(secção 7 — nota de abertura, tabela de RPCs, trigger, estado das migrations;
+secção 16 — pontos 1, 3, 7 atualizados, ponto 8 novo), `docs/STATUS.md` (nova
+entrada em "Gaps conhecidos", nota de confirmação no item dos 4 RPCs de
+contraparte). Nenhuma migration nova criada — esta tarefa foi só de
+verificação/documentação, não tocou em código Dart nem em SQL novo.
+
+**Gitignore:** `.gitignore` da raiz ganhou `/supabase_*.sql` e `/supabase/.temp/`
+para o dump e a cache de link da CLI (criada por engano na raiz do workspace em
+vez de dentro de `servicesapp/`) nunca irem para o repo.
+>>>>>>> Stashed changes
 
 ## 2026-10-16 — 4 bugs visuais/navegação reportados com screenshots reais (Android)
 

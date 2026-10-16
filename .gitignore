@@ -13,3 +13,8 @@
 **/ios/.symlinks/
 **/*.env
 **/*.env.*
+
+# Supabase CLI: dumps feitos com `supabase db dump` e cache de link local
+# (o projeto Supabase real fica em servicesapp/supabase/, nao na raiz)
+/supabase_*.sql
+/supabase/.temp/

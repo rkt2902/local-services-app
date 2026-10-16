@@ -121,16 +121,27 @@ adoção parcial do componente.
 
 ## Gaps conhecidos (sem spin)
 
+### ✅ RESOLVIDO 2026-10-16 — verificação independente contra dump real da BD viva
+
+O utilizador extraiu um dump real da BD viva (`supabase db dump`, projeto
+`twpflvcoyeiysnychkom`, plano Free). Confirmado por leitura direta do dump, não pela palavra
+do utilizador: as 37 funções, 14 tabelas e 3 views da BD viva coincidem exatamente com
+`0001_consolidated_baseline.sql` + migrations 0033–0040 — sem nenhuma em falta nem extra.
+As migrations 0038, 0039 e 0040 estavam marcadas como "NÃO aplicada" e na verdade já estavam
+aplicadas; `ARCHITECTURE.md` e `supabase/migrations/README.md` foram corrigidos. Único drift
+encontrado: o trigger de `job_requests` chama-se `on_job_created` na BD viva, não
+`trigger_notify_workers_new_job` como no ficheiro da migration (mesma função, sem impacto
+funcional — ver `ARCHITECTURE.md` secção 16, ponto 8). Dump é só schema (sem `--data-only`),
+por isso a discrepância do seed de `service_types` (ponto 3 da secção 16) continua sem
+confirmação.
+
 ### ✅ RESOLVIDO 2026-09-09 — estado de aplicação das migrations 0032–0037
 
 Confirmado pelo utilizador: as migrations 0032 (via `archive/0032_audit_fixes.sql`) a 0037
 foram todas aplicadas manualmente via SQL Editor. Cabeçalhos atualizados em cada ficheiro,
 em `0001_consolidated_baseline.sql` e em `supabase/migrations/README.md` (secção "Live DB
-delta"). Não foi possível confirmar de forma independente por leitura direta da BD viva nesta
-sessão (sem acesso a Supabase — nem MCP, nem CLI, nem credenciais no ambiente) — esta
-confirmação assenta na palavra do utilizador, não numa query executada. `accept_proposal`
-não foi lido diretamente; se surgir dúvida futura, confirmar via SQL Editor
-(`SELECT prosrc FROM pg_proc WHERE proname = 'accept_proposal'`).
+delta"). Confirmado de forma independente em 2026-10-16 (ver entrada acima) — nesta sessão de
+2026-09-09 a confirmação assentava só na palavra do utilizador, sem query executada.
 
 ### 🟠 ALTO — antes de mostrar a alguém fora da equipa
 
@@ -144,11 +155,11 @@ de `profiles` foi corretamente substituída por 3 policies granulares, mas 4 emb
 PostgREST fora dessas relações (`client_proposals_screen.dart` com propostas `pending`,
 `WorkerJobDetailScreen` numa oportunidade `open`, o lobby de candidatos a ajudante,
 `showRatingsSheet`) passaram a devolver sempre `null` sem erro — ninguém reparou até esta
-auditoria. Corrigido com 4 RPCs `SECURITY DEFINER` novas (migration `0040`, **NÃO aplicada**),
-cada uma a expor só nome+avatar com a mesma condição de autorização que já existia. Detalhe
-completo (matriz de pontos de contacto, ficheiros, migration) em `decisions_log.md` 2026-10-15.
-**Aplicar `0040_cross_party_identity_rpcs.sql` antes de testar** estes 4 fluxos — sem a
-migration, o código novo chama RPCs que ainda não existem na BD viva.
+auditoria. Corrigido com 4 RPCs `SECURITY DEFINER` novas (migration `0040`). Cada uma a expor
+só nome+avatar com a mesma condição de autorização que já existia. Detalhe completo (matriz
+de pontos de contacto, ficheiros, migration) em `decisions_log.md` 2026-10-15.
+**Confirmado aplicada em 2026-10-16** por dump real da BD viva (`supabase db dump`) — as 4
+RPCs existem na BD com a assinatura esperada, os 4 fluxos já podem ser testados.
 
 **Rotas órfãs — declaradas, sem nenhum caminho de navegação real**
 - `/client/messages` e `/worker/messages` — só `_PlaceholderScreen('Mensagens')`. Confirmado
