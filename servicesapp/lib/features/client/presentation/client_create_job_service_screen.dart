@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_step_progress.dart';
@@ -40,6 +42,9 @@ class _ClientCreateJobServiceScreenState
 
   String? _selectedServiceTypeId;
 
+  /// Separador escolhido pelo cliente (nome da categoria).
+  String? _selectedCategory;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +74,30 @@ class _ClientCreateJobServiceScreenState
     } else {
       context.push('/client/create-job/schedule');
     }
+  }
+
+  Widget _serviceGrid(List<ServiceType> types) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: AppSpacing.xs,
+        mainAxisSpacing: AppSpacing.xs,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: types.length,
+      itemBuilder: (context, index) {
+        final serviceType = types[index];
+        return ClientServiceTypeTile(
+          id: serviceType.id,
+          label: serviceType.name,
+          icon: serviceIconFor(serviceType.icon),
+          selected: _selectedServiceTypeId == serviceType.id,
+          onSelected: (id) => setState(() => _selectedServiceTypeId = id),
+        );
+      },
+    );
   }
 
   @override
@@ -186,89 +215,83 @@ class _ClientCreateJobServiceScreenState
                       ),
                     ),
                     data: (serviceTypes) {
-                      final filtered = query.isEmpty
-                          ? serviceTypes
-                          : serviceTypes
-                              .where((s) =>
-                                  s.name.toLowerCase().contains(query))
-                              .toList();
+                      final groups = groupServiceTypes(serviceTypes);
 
-                      if (filtered.isEmpty) {
+                      // Com pesquisa: procura em todas as categorias e
+                      // esconde os separadores.
+                      if (query.isNotEmpty) {
+                        final matches = serviceTypes
+                            .where((s) => s.name.toLowerCase().contains(query))
+                            .toList();
+                        if (matches.isEmpty) {
+                          return Text(
+                            'Nenhum serviço encontrado.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          );
+                        }
+                        return _serviceGrid(matches);
+                      }
+
+                      if (groups.isEmpty) {
                         return Text(
-                          'Nenhum serviço encontrado.',
+                          'Nenhum serviço disponível.',
                           style: textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         );
                       }
 
-                      // Com pesquisa: lista única. Sem pesquisa: uma
-                      // secção por categoria (Jardinagem, Agricultura...).
-                      final groups = query.isEmpty
-                          ? groupServiceTypes(filtered)
-                          : [
-                              ServiceTypeGroup(
-                                name: '',
-                                icon: null,
-                                types: filtered,
-                              ),
-                            ];
+                      // Separador ativo: o escolhido, senão o do serviço
+                      // já selecionado, senão o primeiro.
+                      final selectedType = serviceTypes
+                          .where((t) => t.id == _selectedServiceTypeId)
+                          .firstOrNull;
+                      final activeName = groups.any(
+                              (g) => g.name == _selectedCategory)
+                          ? _selectedCategory!
+                          : (selectedType?.categoryName ?? groups.first.name);
+                      final activeGroup = groups.firstWhere(
+                        (g) => g.name == activeName,
+                        orElse: () => groups.first,
+                      );
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final group in groups) ...[
-                            if (group.name.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: AppSpacing.xs,
-                                  bottom: AppSpacing.xs,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      serviceIconFor(group.icon),
-                                      size: 18,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(width: AppSpacing.xs),
-                                    Text(
-                                      group.name,
-                                      style: textTheme.labelLarge?.copyWith(
-                                        color: AppColors.textPrimary,
+                          if (groups.length > 1) ...[
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (final group in groups) ...[
+                                    AppFilterChip(
+                                      label: group.name,
+                                      leadingIcon: serviceIconFor(group.icon),
+                                      selected: group.name == activeGroup.name,
+                                      onPressed: () => setState(
+                                        () => _selectedCategory = group.name,
                                       ),
                                     ),
+                                    const SizedBox(width: AppSpacing.xs),
                                   ],
-                                ),
+                                ],
                               ),
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: AppSpacing.xs,
-                                mainAxisSpacing: AppSpacing.xs,
-                                childAspectRatio: 0.8,
-                              ),
-                              itemCount: group.types.length,
-                              itemBuilder: (context, index) {
-                                final serviceType = group.types[index];
-                                return ClientServiceTypeTile(
-                                  id: serviceType.id,
-                                  label: serviceType.name,
-                                  icon: serviceIconFor(serviceType.icon),
-                                  selected: _selectedServiceTypeId ==
-                                      serviceType.id,
-                                  onSelected: (id) {
-                                    setState(
-                                        () => _selectedServiceTypeId = id);
-                                  },
-                                );
-                              },
                             ),
-                            const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: AppSpacing.sm),
                           ],
+                          AnimatedSwitcher(
+                            duration: (MediaQuery.maybeOf(context)
+                                        ?.disableAnimations ??
+                                    false)
+                                ? Duration.zero
+                                : AppMotionDuration.fast,
+                            child: KeyedSubtree(
+                              key: ValueKey(activeGroup.name),
+                              child: _serviceGrid(activeGroup.types),
+                            ),
+                          ),
                         ],
                       );
                     },
