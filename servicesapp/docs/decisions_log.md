@@ -3,6 +3,18 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-16 — Regras do dia do trabalho: concluir, expirar e lembrar (migration 0046)
+
+Pedido do Henrique depois de testar o ecrã confirmado do jardineiro.
+
+- "Marcar como concluído" só a partir do dia combinado (`mark_job_done` recusa antes; sem data confirmada fica livre). Foto opcional do worker em `job-photos/<worker>/<job>/done_*.jpg`, guardada em `job_requests.completion_photo_path` e mostrada ao cliente ao confirmar. O cliente continua a confirmar.
+- Trabalho confirmado cuja data passou sem conclusão: lembrete aos dois no dia seguinte; 3 dias depois da data passa a `cancelled` com `cancel_reason = 'expired'`. Escolhemos `cancelled` e não `completed` porque ninguém disse que o trabalho foi feito; não reabre o pedido.
+- Marcado como concluído e o cliente não confirma: lembrete ao fim de 1 dia, confirmação automática ao fim de 3 (regra antiga, agora a contar de `marked_done_at`).
+- Pedidos abertos com data fixa passada: escondidos já em `get_jobs_in_radius` e passados a `no_response` pelo cron (propostas pendentes ficam `rejected`).
+- Lembrete na manhã do dia (cron `job-reminders`, 07:30 UTC) ao cliente e ao worker. Tipo novo `job_reminder` (20 tipos). "Hoje" é sempre a data de Portugal (`today_pt()`).
+- Títulos deixam de mostrar o id ("Pedido #12ab34cd"): nome do serviço e, por baixo, zona e data (`jobDistinguisherLabel`), para distinguir duas podas.
+- Valor acordado mostra taxa e intervalo total ("25,00 €/h · ≈ 50 a 100 €") nos ecrãs de trabalho confirmado (`agreedPriceLabel`).
+
 ## 2026-10-16 — Catálogo de serviços com Agricultura e Floresta (migration 0045)
 
 Três categorias (Jardinagem, Agricultura, Floresta) e 33 tipos, cada um com ícone. O ícone fica na BD (`service_types.icon`, nome de um ícone Material) e a app traduz o nome com um mapa fixo em `core/widgets/service_icon.dart`, porque o Flutter não carrega ícones por nome e o tree-shaking corta os que não aparecem no código. Nome desconhecido mostra o ícone genérico (`yard`). Um teste lê a migration e falha se algum ícone dela não estiver no mapa. A lista de serviços passa a vir ordenada por categoria e por `sort_order`, e os ecrãs de escolha (criar pedido, configurar e editar perfil do jardineiro) mostram uma secção por categoria. Os 3 tipos antigos mantêm id e nome, para pedidos e perfis existentes não mudarem.

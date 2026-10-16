@@ -95,6 +95,39 @@ class JobRepository {
     return _client.storage.from('job-photos').getPublicUrl(storagePath);
   }
 
+  /// Foto de conclusão do worker (migration 0046). Vai para
+  /// `job-photos/<worker_id>/<job_id>/`, a única pasta que a policy de
+  /// upload e a validação de `mark_job_done` aceitam. Devolve o caminho no
+  /// bucket, que se passa a `ProposalRepository.markJobCompleted`.
+  Future<String> uploadCompletionPhoto({
+    required String jobId,
+    required File file,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) throw Exception('Não autenticado');
+    final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
+      file.absolute.path,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 60,
+      format: CompressFormat.jpeg,
+    );
+    if (compressed == null) {
+      throw Exception('Image compression failed for ${file.path}');
+    }
+    final storagePath =
+        '$userId/$jobId/done_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await _client.storage.from('job-photos').uploadBinary(
+          storagePath,
+          compressed,
+          fileOptions: const FileOptions(contentType: 'image/jpeg'),
+        );
+    return storagePath;
+  }
+
+  String jobPhotoPublicUrl(String storagePath) =>
+      _client.storage.from('job-photos').getPublicUrl(storagePath);
+
   Future<List<JobRequest>> fetchJobsInRadius({
     required double workerLat,
     required double workerLng,

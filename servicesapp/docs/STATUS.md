@@ -253,6 +253,8 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **Catálogo de serviços (0045, NÃO aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
 
+**Regras do dia do trabalho (0046, NÃO aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.
+
 **RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
 
 **Morada dos pedidos (0043, aplicada a 2026-10-16):** decisão de 2026-10-16. Até a

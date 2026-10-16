@@ -19,6 +19,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_job_detail_view.dart' as view;
+import 'worker_my_job_detail_screen.dart' as my_job;
 
 /// Detalhe de uma oportunidade ("Pedidos disponíveis" → detalhe).
 ///
@@ -52,6 +53,21 @@ class WorkerJobDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildDetail(BuildContext context, WidgetRef ref, JobRequest job) {
+    // Pedido já confirmado com este worker (ex.: aberto por uma notificação
+    // antiga de "novo pedido"): mostra o ecrã do trabalho, com morada exata,
+    // mapa e valor acordado, em vez da oportunidade ("Preço a combinar").
+    if (job.status != JobStatus.open) {
+      final myId = ref.watch(currentUserIdProvider) ?? '';
+      final accepted =
+          ref.watch(acceptedProposalForJobProvider(jobId)).asData?.value;
+      if (accepted != null && myId.isNotEmpty && accepted.workerId == myId) {
+        return my_job.WorkerMyJobDetailScreen(
+          proposalId: accepted.id,
+          jobId: jobId,
+        );
+      }
+    }
+
     final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
     final workerProfile = ref.watch(workerProfileProvider).asData?.value;
     final photos = ref.watch(jobPhotosProvider(jobId)).asData?.value ?? [];

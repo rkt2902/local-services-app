@@ -436,7 +436,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h).
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data.
 
 ### Estado das migrations
 
@@ -452,6 +452,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
 | `0044_rpc_identity_and_policy_perf.sql` | NÃO aplicada; aplicar junto com a app nova (RPCs sem `p_worker_id`) |
 | `0045_service_catalog.sql` | NÃO aplicada; aplicar antes da app nova (catálogo de serviços com ícones) |
+| `0046_job_day_rules.sql` | NÃO aplicada; depois da 0044 (concluir só no dia, foto, expiração por data, lembretes `job_reminder`) |
 
 ---
 

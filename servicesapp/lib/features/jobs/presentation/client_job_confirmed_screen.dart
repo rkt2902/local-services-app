@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -81,9 +82,10 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     final workerAvatarUrl = workerInfo['avatar_url'];
     final workerPhone = workerInfo['phone'] ?? '';
 
-    final priceLabel = proposal != null && proposal.hourlyRate > 0
-        ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
-        : 'Preço a definir';
+    final priceLabel = proposal != null
+        ? agreedPriceLabel(proposal.hourlyRate, proposal.estimatedHoursMin,
+            proposal.estimatedHoursMax)
+        : '—';
 
     return _ClientJobConfirmedView(
       workerName: workerName.isEmpty ? 'Jardineiro' : workerName,

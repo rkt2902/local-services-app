@@ -27,7 +27,10 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/job_providers.dart';
+import '../application/job_labels.dart';
 import '../application/job_timeline.dart';
+import '../../../core/utils/price_labels.dart';
+import '../../../core/widgets/app_bar_title.dart';
 import '../data/job_model.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
@@ -372,9 +375,10 @@ class _ClientScheduledJobDetailScreenState
         );
 
         final proposal = acceptedProposalAsync.asData?.value;
-        final priceLabel = proposal != null && proposal.hourlyRate > 0
-            ? '${proposal.hourlyRate.toStringAsFixed(2)} €/hora'
-            : 'A combinar';
+        final priceLabel = proposal != null
+            ? agreedPriceLabel(proposal.hourlyRate, proposal.estimatedHoursMin,
+                proposal.estimatedHoursMax)
+            : '—';
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -382,7 +386,12 @@ class _ClientScheduledJobDetailScreenState
             child: Column(
               children: [
                 _ScheduledHeader(
-                  title: 'Pedido #${widget.jobId.substring(0, 8)}',
+                  title: serviceTypes
+                          .where((s) => s.id == job.serviceTypeId)
+                          .map((s) => s.name)
+                          .firstOrNull ??
+                      '—',
+                  subtitle: jobDistinguisherLabel(job),
                   presentation: job.status.presentation(),
                   onBack: () => goBackOrToRoleHome(context),
                 ),
@@ -561,16 +570,20 @@ String _timelineSupportingLabel(JobRequest job) {
 }
 
 class _ScheduledHeader extends StatelessWidget {
-  const _ScheduledHeader({required this.title, required this.presentation, required this.onBack});
+  const _ScheduledHeader({
+    required this.title,
+    required this.presentation,
+    required this.onBack,
+    this.subtitle,
+  });
 
   final String title;
+  final String? subtitle;
   final AppStatusPresentation presentation;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
       width: double.infinity,
       color: AppColors.surface,
@@ -583,7 +596,7 @@ class _ScheduledHeader extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
-            child: Text(title, style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary)),
+            child: AppBarTitle(title: title, subtitle: subtitle),
           ),
           // trailingMargin: 0 — o padding do Container já dá a margem
           // direita (AppSpacing.md).

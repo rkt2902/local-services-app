@@ -387,6 +387,8 @@ class _NotificationsEmptyState extends StatelessWidget {
         (Icons.group_add_outlined, Colors.blue.shade600),
       NotificationType.helpWithdrew =>
         (Icons.person_remove_alt_1, Colors.orange.shade700),
+      NotificationType.jobReminder =>
+        (Icons.alarm_rounded, AppColors.primary),
       // Restantes 9 tipos (jobCancelled, jobReopened, reschedule*,
       // jobMarkedDone, jobCompleted, jobNoResponse): sem ícone dedicado,
       // caem no genérico de "trabalho" — todos são eventos de job.

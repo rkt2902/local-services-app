@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/address_map_link.dart';
+import '../../../../core/widgets/app_bar_title.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -55,6 +56,10 @@ class WorkerMyJobDetailViewData {
     required this.proposedRescheduleLabel,
     required this.cancelBlockedBy24h,
     required this.helpersForRating,
+    required this.agreedPriceLabel,
+    required this.canMarkCompleted,
+    this.markCompletedHint,
+    this.titleSubtitle,
     this.sizeLabel,
     this.estimatedHoursLabel,
     this.notes,
@@ -104,6 +109,18 @@ class WorkerMyJobDetailViewData {
   final bool cancelBlockedBy24h;
 
   final List<AcceptedHelper> helpersForRating;
+
+  /// Taxa e intervalo total acordados ("25,00 €/h · ≈ 50 a 100 €").
+  final String agreedPriceLabel;
+
+  /// "Marcar como concluído" só a partir do dia do trabalho (0046).
+  final bool canMarkCompleted;
+
+  /// Texto por baixo do botão quando ainda não pode concluir.
+  final String? markCompletedHint;
+
+  /// Zona e data por baixo do título, para distinguir pedidos iguais.
+  final String? titleSubtitle;
 
   final bool proposingReschedule;
   final bool acceptingReschedule;
@@ -200,7 +217,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final data = widget.data;
-    final textTheme = Theme.of(context).textTheme;
     final isConfirmed = data.proposalStatus == ProposalStatus.accepted &&
         data.jobStatus == JobStatus.confirmed;
 
@@ -219,9 +235,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
           ),
         ),
         titleSpacing: 0,
-        title: Text(
-          'Trabalho',
-          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+        title: AppBarTitle(
+          title: data.serviceLabel,
+          subtitle: data.titleSubtitle,
         ),
         actions: [
           AppBarStatusBadge.fromPresentation(
@@ -247,6 +263,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
 
   Widget _buildConfirmedBody(BuildContext context) {
     final data = widget.data;
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       children: [
@@ -294,7 +311,13 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     areaLabel: data.sizeLabel ?? 'Não especificado',
                     dateTimeLabel: data.confirmedScheduleLabel,
                     locationLabel: data.addressLabel,
-                    priceLabel: data.hourlyRateLabel,
+                    priceLabel: data.agreedPriceLabel,
+                    onOpenMap: (data.locationLat == 0 && data.locationLng == 0)
+                        ? null
+                        : () => AddressMapLink.openInMaps(
+                              data.locationLat,
+                              data.locationLng,
+                            ),
                   ),
                 ),
                 if (data.rescheduleStatus == RescheduleStatus.pending) ...[
@@ -354,10 +377,27 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             AppSpacing.lg,
             AppSpacing.lg,
           ),
-          child: PrimaryActionButton(
-            label: 'Marcar como concluído',
-            isLoading: _completing,
-            onPressed: _completing ? null : _handleMarkCompleted,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PrimaryActionButton(
+                label: 'Marcar como concluído',
+                isLoading: _completing,
+                onPressed: (_completing || !data.canMarkCompleted)
+                    ? null
+                    : _handleMarkCompleted,
+              ),
+              if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  data.markCompletedHint!,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -573,6 +613,7 @@ class _JobInformationCard extends StatelessWidget {
     required this.dateTimeLabel,
     required this.locationLabel,
     required this.priceLabel,
+    this.onOpenMap,
   });
 
   final String serviceLabel;
@@ -580,6 +621,9 @@ class _JobInformationCard extends StatelessWidget {
   final String dateTimeLabel;
   final String locationLabel;
   final String priceLabel;
+
+  /// Abre a morada exata no mapa. `null` quando não há coordenadas.
+  final VoidCallback? onOpenMap;
 
   @override
   Widget build(BuildContext context) {
@@ -602,11 +646,32 @@ class _JobInformationCard extends StatelessWidget {
           _InformationRow(label: 'Local', value: locationLabel),
           const SizedBox(height: AppSpacing.sm),
           _InformationRow(label: 'Valor', value: priceLabel, highlighted: true),
+          if (onOpenMap != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onOpenMap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                ),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Abrir localização no mapa'),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
+
+const double _labelColumnWidth = AppSpacing.xl * 3 + AppSpacing.md;
 
 class _InformationRow extends StatelessWidget {
   const _InformationRow({
@@ -623,20 +688,23 @@ class _InformationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    // Coluna de etiquetas com largura fixa e valores alinhados à esquerda:
+    // todos os valores começam na mesma vertical, mesmo os que ocupam
+    // várias linhas (morada, valor com intervalo).
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
+        SizedBox(
+          width: _labelColumnWidth,
           child: Text(
             label,
             style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Flexible(
+        Expanded(
           child: Text(
             value,
-            textAlign: TextAlign.right,
             style: textTheme.bodyMedium?.copyWith(
               color: highlighted ? AppColors.primary : AppColors.textPrimary,
               fontWeight: highlighted ? FontWeight.w700 : null,

@@ -40,6 +40,10 @@ class JobRequest {
   final String? cancelledWorkerId;
   final List<String> excludedWorkerIds;
 
+  /// Caminho no bucket `job-photos` da foto que o worker juntou ao marcar
+  /// como concluído (opcional, migration 0046).
+  final String? completionPhotoPath;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -75,6 +79,7 @@ class JobRequest {
     this.rescheduleStatus,
     this.cancelledWorkerId,
     this.excludedWorkerIds = const [],
+    this.completionPhotoPath,
   });
 
   factory JobRequest.fromJson(Map<String, dynamic> json) => JobRequest(
@@ -125,6 +130,7 @@ class JobRequest {
         rescheduleStatus: RescheduleStatus.fromString(json['reschedule_status'] as String?),
         cancelledWorkerId: json['cancelled_worker_id'] as String?,
         excludedWorkerIds: List<String>.from(json['excluded_worker_ids'] as List? ?? []),
+        completionPhotoPath: json['completion_photo_path'] as String?,
       );
 
   JobRequest copyWith({
@@ -162,6 +168,7 @@ class JobRequest {
     RescheduleStatus? rescheduleStatus,
     String? cancelledWorkerId,
     List<String>? excludedWorkerIds,
+    String? completionPhotoPath,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -201,5 +208,6 @@ class JobRequest {
         rescheduleStatus: rescheduleStatus ?? this.rescheduleStatus,
         cancelledWorkerId: cancelledWorkerId ?? this.cancelledWorkerId,
         excludedWorkerIds: excludedWorkerIds ?? this.excludedWorkerIds,
+        completionPhotoPath: completionPhotoPath ?? this.completionPhotoPath,
       );
 }

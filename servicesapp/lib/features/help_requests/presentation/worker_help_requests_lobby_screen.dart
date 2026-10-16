@@ -6,6 +6,8 @@ import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../jobs/application/job_labels.dart';
+import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -121,6 +123,21 @@ class _WorkerHelpRequestsLobbyScreenState
     return null;
   }
 
+  /// Serviço, zona e data em vez do id do pedido ("Poda · Braga · 18/10").
+  String _jobReferenceLabel() {
+    final job = ref.watch(jobByIdProvider(widget.jobId)).asData?.value;
+    if (job == null) return 'Trabalho';
+    final service = ref
+            .watch(serviceTypesProvider)
+            .asData
+            ?.value
+            .where((s) => s.id == job.serviceTypeId)
+            .map((s) => s.name)
+            .firstOrNull ??
+        'Trabalho';
+    return '$service · ${jobDistinguisherLabel(job)}';
+  }
+
   void _viewRatings(String workerId, String name) {
     showRatingsSheet(context, workerId: workerId, workerName: name);
   }
@@ -221,8 +238,7 @@ class _WorkerHelpRequestsLobbyScreenState
       }
 
       dataAsync = AsyncValue.data(WorkerHelpLobbyViewData(
-        jobReferenceLabel:
-            'Job #${widget.jobId.length >= 8 ? widget.jobId.substring(0, 8) : widget.jobId}',
+        jobReferenceLabel: _jobReferenceLabel(),
         responsibleName: workerProfile?.fullName ?? '',
         responsibleAvatarUrl: workerProfile?.avatarUrl,
         sections: sections,

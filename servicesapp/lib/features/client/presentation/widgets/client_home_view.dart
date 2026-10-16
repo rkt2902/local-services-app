@@ -36,7 +36,6 @@ class ClientHomeViewData {
 class ClientHomeActiveJobViewData {
   const ClientHomeActiveJobViewData({
     required this.id,
-    required this.referenceLabel,
     required this.serviceLabel,
     required this.metadataLabel,
     required this.status,
@@ -44,7 +43,6 @@ class ClientHomeActiveJobViewData {
   });
 
   final String id;
-  final String referenceLabel;
   final String serviceLabel;
   final String metadataLabel;
 
@@ -409,7 +407,7 @@ class _ActiveJobCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${job.referenceLabel} · ${job.serviceLabel}',
+                          job.serviceLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: textTheme.titleMedium?.copyWith(

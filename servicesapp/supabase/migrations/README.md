@@ -94,6 +94,12 @@ categorias Agricultura e Floresta, 33 tipos de serviço no total, e as colunas
 o nome. Um ícone novo na BD tem de ser acrescentado ao mapa de
 `lib/core/widgets/service_icon.dart`, senão aparece o ícone genérico.
 
+**PENDENTE — `0046_job_day_rules.sql`** — NÃO aplicada ainda. Aplicar DEPOIS
+da 0044 (redefine `get_jobs_in_radius` de 3 parâmetros). Concluir só a partir
+do dia, foto de conclusão, expiração de pedidos com data passada, lembretes
+(cron novo `job-reminders`). Compatível com a app antiga (`p_photo_path` tem
+DEFAULT).
+
 **Regra a partir da 0042:** cada função nova faz
 `REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
 (o Postgres dá EXECUTE a PUBLIC por defeito).

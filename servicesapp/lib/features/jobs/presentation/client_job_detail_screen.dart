@@ -27,7 +27,9 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../application/job_labels.dart';
 import '../application/job_timeline.dart';
+import '../../../core/widgets/app_bar_title.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
 import 'client_scheduled_job_detail_screen.dart';
@@ -174,6 +176,37 @@ class _ClientJobDetailScreenState
       const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
     );
     router.go('/client/jobs');
+  }
+
+  /// Foto que o worker juntou ao marcar como concluído (migration 0046).
+  Widget _completionPhoto(String storagePath, ThemeData theme) {
+    final url = ref.read(jobRepositoryProvider).jobPhotoPublicUrl(storagePath);
+    return AppStaggeredEntrance(
+      index: 5,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Foto do trabalho feito',
+            style: theme.textTheme.labelMedium
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => PhotoViewerScreen(photoUrls: [url], initialIndex: 0),
+            )),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: Image.network(url, fit: BoxFit.cover, cacheWidth: 800),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _reportProblem({String prefillText = ''}) async {
@@ -603,10 +636,9 @@ class _ClientJobDetailScreenState
               surfaceTintColor: AppColors.surface,
               elevation: 0,
               leading: const AppBackButton(),
-              title: Text(
-                'Pedido #${widget.jobId.substring(0, 8)}',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(color: AppColors.textPrimary),
+              title: AppBarTitle(
+                title: serviceTypeName,
+                subtitle: jobDistinguisherLabel(job),
               ),
               actions: [
                 statusBadge,
@@ -662,6 +694,10 @@ class _ClientJobDetailScreenState
               children: [
                 _workerContactCard(job, workerInfoAsync, theme),
                 const SizedBox(height: AppSpacing.md),
+                if (job.completionPhotoPath != null) ...[
+                  _completionPhoto(job.completionPhotoPath!, theme),
+                  const SizedBox(height: AppSpacing.md),
+                ],
                 AppStaggeredEntrance(
                   index: 5,
                   child: Text(
@@ -778,10 +814,9 @@ class _ClientJobDetailScreenState
             surfaceTintColor: AppColors.background,
             elevation: 0,
             leading: const AppBackButton(),
-            title: Text(
-              'Pedido #${widget.jobId.substring(0, 8)}',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(color: AppColors.textPrimary),
+            title: AppBarTitle(
+              title: serviceTypeName,
+              subtitle: jobDistinguisherLabel(job),
             ),
             actions: [statusBadge],
           ),
