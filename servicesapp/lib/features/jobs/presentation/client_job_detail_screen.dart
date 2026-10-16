@@ -467,6 +467,9 @@ class _ClientJobDetailScreenState
                               urls[i],
                               width: 72,
                               height: 72,
+                              // Miniatura: descodifica perto do tamanho mostrado
+                              // em vez dos 800 px da foto original.
+                              cacheWidth: 300,
                               fit: BoxFit.cover,
                             ),
                           ),

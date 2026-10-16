@@ -217,12 +217,28 @@ de telefone, etc. — continuam válidos, sem mudança.)
 | `get_help_requests_in_radius` (0034) | Sim — filtra por `auth.uid()`, sem parâmetro de identidade vindo do cliente | N/A | `jp.worker_id <> auth.uid()` e `NOT EXISTS (... ha.worker_id = auth.uid())`. |
 | `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). |
 | `get_worker_job_board` (0035) | Sim — **sem parâmetro `p_worker_id`**, só `auth.uid()` | N/A | O cabeçalho da migration cita explicitamente a 0032 como razão de desenho. |
-| `worker_fleet_cards` (0037) | Sim — SELECT/INSERT só do próprio (`worker_id = auth.uid()`) | **Não** — sem policy de UPDATE/DELETE para `authenticated`; só service role muda `status` | Mesmo padrão de moderação manual que `job_reports`. |
+| `worker_fleet_cards` (0037) | Sim — SELECT/INSERT só do próprio (`worker_id = auth.uid()`) | **Sim até à 0042** — o INSERT não limitava `status`, dava para inserir já `active`. A 0042 exige `status = 'pending'` no WITH CHECK | Mesmo padrão de moderação manual que `job_reports`. |
 
 **Conclusão da auditoria de RLS:** nenhuma migration desde a 0028 reintroduz a classe de
 vulnerabilidade corrigida em 0032 (parâmetro de identidade vindo do cliente em vez de
 `auth.uid()`). A 0032 está confirmada como aplicada à BD viva desde 2026-09-09 (ver secção
 "Gaps conhecidos" acima) — o código está certo e a correção já chegou à BD viva.
+
+### Review de segurança de 2026-10-16 (migration 0042, NÃO aplicada)
+
+O review completo de 2026-10-16 encontrou falhas exploráveis com uma conta
+normal que as auditorias anteriores não apanharam: `cancel_job` sem
+autorização (qualquer conta cancelava qualquer pedido), `create_user_profile`
+aberta a anon (reescrevia nome/telefone de qualquer utilizador), propostas
+`accepted` forjadas por INSERT direto (telefone/morada do cliente e
+`mark_job_done` de trabalhos alheios), avaliações falsas (pedido inserido já
+`completed` + rating a qualquer worker), UPDATE livre em `job_requests`,
+`reject_proposal` sem autorização e cartão frota auto-ativável. Tudo corrigido
+na `0042_security_hardening.sql`, testada num Postgres local com os ataques
+simulados (todos bloqueados) e os fluxos normais da app (todos a funcionar).
+Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
+
+**Até a 0042 ser aplicada, estas falhas continuam abertas na BD viva.**
 
 ### Riscos aceites (sem mudança desde 2026-07-09)
 

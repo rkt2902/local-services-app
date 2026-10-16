@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
@@ -56,22 +55,22 @@ final unreadCountProvider = Provider<int>((ref) {
 /// Keep this provider watched in the app root (App widget).
 final notificationSyncProvider = Provider<void>((ref) {
   ref.listen(notificationsStreamProvider, (prev, next) {
-    debugPrint('notificationSync fired: prev=${prev?.asData?.value.length} next=${next.asData?.value.length}');
     final prevList = prev?.asData?.value ?? [];
     final nextList = next.asData?.value ?? [];
-    if (nextList.length <= prevList.length) return;
 
-    final newNotifications = nextList
-        .where((n) => !prevList.any((p) => p.id == n.id))
-        .toList();
+    // Compara ids e não tamanhos: se uma notificação é marcada como lida ao
+    // mesmo tempo que chega outra, a lista de não lidas fica com o mesmo
+    // tamanho e a nova era ignorada (review 2026-10-16, B3).
+    final prevIds = {for (final p in prevList) p.id};
+    final newNotifications =
+        nextList.where((n) => !prevIds.contains(n.id)).toList();
+    if (newNotifications.isEmpty) return;
 
     for (final notification in newNotifications) {
       switch (notification.type) {
         case NotificationType.newJobInRadius:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
         case NotificationType.proposalReceived:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingProposalsForJobProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
@@ -80,13 +79,11 @@ final notificationSyncProvider = Provider<void>((ref) {
           _invalidateWorkerJobBoard(ref);
           if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
         case NotificationType.proposalWithdrawn:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingProposalsForJobProvider);
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(workerProposalForJobProvider);
         case NotificationType.proposalAccepted:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
@@ -96,7 +93,6 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(workerProposalForJobProvider);
           ref.invalidate(jobByIdProvider);
         case NotificationType.proposalRejected:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
@@ -106,7 +102,6 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(workerProposalForJobProvider);
         case NotificationType.jobCancelled:
         case NotificationType.jobReopened:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
@@ -117,7 +112,6 @@ final notificationSyncProvider = Provider<void>((ref) {
         case NotificationType.rescheduleProposed:
         case NotificationType.rescheduleAccepted:
         case NotificationType.rescheduleRejected:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);
@@ -125,11 +119,9 @@ final notificationSyncProvider = Provider<void>((ref) {
           _invalidateWorkerJobBoard(ref);
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobMarkedDone:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
           ref.invalidate(jobByIdProvider);
         case NotificationType.jobCompleted:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(scheduledWorkerProposalsProvider);
           ref.invalidate(completedWorkerProposalsProvider(0));
           _invalidateWorkerJobBoard(ref);
@@ -138,22 +130,17 @@ final notificationSyncProvider = Provider<void>((ref) {
           if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!));
           ref.invalidate(myRatingForJobAndRateeProvider);
         case NotificationType.jobNoResponse:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(clientJobsProvider);
         case NotificationType.helpRequestApproved:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           // Principal worker's help_request moved from pending_approval → open.
           ref.invalidate(helpRequestsForJobProvider);
         case NotificationType.helpAccepted:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(jobByIdProvider);
           ref.invalidate(myHelpAcceptancesProvider);
           _invalidateWorkerJobBoard(ref);
         case NotificationType.helpRejected:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           ref.invalidate(myHelpAcceptancesProvider);
         case NotificationType.helpJobCancelled:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           // Helper's accepted job was cancelled. Refresh the discovery screen
           // so the cancelled job no longer appears in results.
           ref.invalidate(helpRequestSummariesInRadiusProvider);
@@ -161,13 +148,11 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(myHelpAcceptancesProvider);
           _invalidateWorkerJobBoard(ref);
         case NotificationType.helpRequestReopened:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           // A slot reopened for a help_request the candidate was rejected from.
           // Refresh the discovery screen so they can see and re-apply to it.
           ref.invalidate(helpRequestSummariesInRadiusProvider);
           ref.invalidate(helpRequestsInRadiusProvider);
         case NotificationType.helpWithdrew:
-          debugPrint('notificationSync: invalidating for type=${notification.type}');
           // A helper withdrew from the principal's team. Lobby data changes:
           // the help_request may have reverted from 'filled' to 'open'.
           ref.invalidate(helpRequestsForJobProvider);

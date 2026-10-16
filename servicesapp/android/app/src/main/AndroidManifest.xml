@@ -7,7 +7,7 @@
     <!-- Android 13+: pedir permissão para mostrar notificações push. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="servicesapp"
+        android:label="ProJardim"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

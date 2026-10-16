@@ -1,4 +1,4 @@
-package com.example.servicesapp
+package pt.projardim.app
 
 import io.flutter.embedding.android.FlutterActivity
 

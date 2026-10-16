@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-16 — Review completo de segurança e performance (migration 0042 + app)
+
+Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
+
+**Decisão de fundo:** as escritas de negócio só passam por RPCs SECURITY DEFINER. Policies de INSERT/UPDATE diretas que a app não usa foram apagadas, em vez de tentar replicar em RLS as regras das RPCs. As que a app usa (criar pedido, pedir ajudantes, candidatar-se, cartão frota, marcar notificação lida) ficaram com WITH CHECK que só aceita o estado inicial.
+
+**BD (0042, não aplicada):** autorização em `cancel_job` e `reject_proposal`; `create_user_profile` apagada (não era usada e estava aberta a anon); `mark_job_done` e a policy de profiles do worker passam a usar `job_requests.accepted_proposal_id` em vez de `job_proposals.status`; `accept_help_candidate` só com o pedido de ajuda `open`; `create_proposal` valida worker, preço, próprio pedido e `excluded_worker_ids`; remarcações exigem data futura e pedido confirmado; raio limitado a 50 km no servidor; `acos` trocado por haversine com `asin` (rebentava com coordenadas iguais); `ORDER BY` por distância reposto nos ajudantes; buckets com 2 MB e só imagens, sem listagem pública; REVOKE de anon em todas as funções; notificações lidas apagadas aos 90 dias (todas aos 180) por pg_cron; limite de 5 pedidos por hora por cliente; 7 índices.
+
+**Assinaturas mantidas de propósito:** `create_proposal` e `get_jobs_in_radius` continuam a receber `p_worker_id` (ignorado ou comparado com `auth.uid()`), para a app atual não partir entre aplicar a migration e publicar a app nova. Remover numa migration futura com DROP explícito.
+
+**App:** id passa a `pt.projardim.app` (Android applicationId/namespace e iOS bundle id), nome "ProJardim" no ícone, assinatura de release por `android/key.properties` (fallback para debug), chaves de permissão no Info.plist (localização, câmara, fotos: sem elas o iOS fecha a app), `pubspec.lock` passa a ser versionado, stream de notificações com `.limit(50)`, `notificationSync` compara ids em vez de tamanhos, `currentUserProvider` só reconstrói quando muda o id do utilizador, `cacheWidth` nas miniaturas, providers mortos removidos, mensagens novas em `friendlyError`, teste smoke trocado por testes de lógica pura.
+
+**Fica por decidir (produto):** mostrar só a zona aproximada dos pedidos abertos até haver proposta aceite (hoje qualquer conta vê a morada exata de todos os pedidos abertos).
+
 ## 2026-10-16 — 4 bugs visuais/navegação reportados com screenshots reais (Android)
 
 ### 1. Badge de estado gigante na AppBar

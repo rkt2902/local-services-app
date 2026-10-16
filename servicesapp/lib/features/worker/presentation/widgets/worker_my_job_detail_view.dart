@@ -951,6 +951,7 @@ class _DescriptionSection extends StatelessWidget {
                     photoUrls[index],
                     width: 88,
                     height: 88,
+                    cacheWidth: 360,
                     fit: BoxFit.cover,
                   ),
                 ),

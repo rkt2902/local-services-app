@@ -185,7 +185,8 @@ Deno.serve(async (req) => {
 
     return Response.json({ sent: tokens.length - stale.length, removed: stale.length });
   } catch (e) {
+    // Detalhe só nos logs da função, não na resposta.
     console.error(e);
-    return new Response(String(e), { status: 500 });
+    return new Response("Internal error", { status: 500 });
   }
 });

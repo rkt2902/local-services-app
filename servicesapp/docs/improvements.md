@@ -164,7 +164,9 @@ Coluna nullable que predata o split min/max (2026-06-11). Não mapeada em `JobPr
 
 ---
 
-### B4 Fases 4-5 — CHECK `(hourly_rate >= 0)` em `job_proposals`
+### B4 Fases 4-5 ✅ RESOLVIDO na RPC (migration 0042) — CHECK `(hourly_rate >= 0)` em `job_proposals`
+
+> 2026-10-16: `create_proposal` passa a exigir `p_hourly_rate > 0` (e o INSERT direto deixou de existir).
 
 `job_proposals.hourly_rate` é NOT NULL mas sem CHECK. Segue o padrão já estabelecido pelo `check_agreed_rate` em `help_acceptances` (migration 0007). Usar `>= 0` (não `> 0`) para permitir "negociar no local" como sinal explícito.
 
@@ -324,7 +326,9 @@ Após o worker marcar como concluído (`awaiting_confirmation`), o job é automa
 
 > Documentados em 2026-07-09 após auditoria B1-B4/C1-C4. Revisitar antes do lançamento público.
 
-### SA1 — auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado
+### SA1 ✅ RESOLVIDO (migration 0042, NÃO aplicada) — auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado
+
+> 2026-10-16: na prática passavam com a anon key (auth.uid() NULL). A 0042 faz REVOKE EXECUTE de anon e authenticated; só a cron as corre.
 
 Ambas as funções são SECURITY DEFINER sem verificação de `auth.uid()`. Qualquer utilizador autenticado pode invocá-las via `rpc()`. Impacto real mínimo: são idempotentes (só afectam jobs que seriam alterados pela cron de qualquer forma). Aceite no MVP.
 
@@ -332,7 +336,9 @@ Ambas as funções são SECURITY DEFINER sem verificação de `auth.uid()`. Qual
 
 ---
 
-### SA2 — Ratings INSERT sem verificação de participação
+### SA2 ✅ RESOLVIDO (migration 0042, NÃO aplicada) — Ratings INSERT sem verificação de participação
+
+> 2026-10-16: era pior do que estava descrito. A policy não validava o ratee_id e o cliente podia inserir um pedido já `completed`, por isso avaliava qualquer jardineiro. A 0042 apaga a policy de INSERT (só as RPCs submit_*_rating escrevem) e restringe o INSERT de job_requests ao estado inicial.
 
 A policy `"Utilizador cria a sua avaliação"` em `ratings` verifica apenas `auth.uid() = rater_id`. Um autenticado pode inserir avaliação para qualquer `(job_id, ratee_id)` via REST directo. As RPCs `submit_client_rating`, `submit_principal_rating`, `submit_helper_rating` verificam participação completa e são o único ponto de acesso na camada Dart. Aceite no MVP enquanto as RPCs forem o único caminho de escrita.
 

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Servicesapp</string>
+	<string>ProJardim</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -60,6 +60,12 @@
 	  em android/app/src/main/AndroidManifest.xml e a nota no topo de
 	  email_confirmed_screen.dart.
 	-->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>A ProJardim usa a tua localização para encontrar a morada do pedido e mostrar trabalhos perto de ti.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>A ProJardim usa a câmara para tirares fotos do jardim, da tua foto de perfil e do cartão frota.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>A ProJardim acede às tuas fotos para escolheres imagens do jardim ou a tua foto de perfil.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

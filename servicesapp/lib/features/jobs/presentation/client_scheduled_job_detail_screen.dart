@@ -360,7 +360,7 @@ class _ClientScheduledJobDetailScreenState
                         )),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(AppRadius.input),
-                          child: Image.network(urls[i], width: 72, height: 72, fit: BoxFit.cover),
+                          child: Image.network(urls[i], width: 72, height: 72, cacheWidth: 300, fit: BoxFit.cover),
                         ),
                       ),
                     ),

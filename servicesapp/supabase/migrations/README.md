@@ -60,6 +60,27 @@ e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
 aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
 `docs/push_notifications.md`.
 
+**PENDENTE — `0042_security_hardening.sql`** — NÃO aplicada ainda. Corrige as
+falhas do review de 2026-10-16: `cancel_job` e `reject_proposal` sem
+autorização, `create_user_profile` aberta a anon (apagada), escritas diretas
+que saltavam as RPCs (`job_proposals` INSERT/UPDATE, `job_requests` UPDATE,
+`ratings` INSERT, `help_acceptances` UPDATE), WITH CHECK apertado em
+`job_requests`, `help_requests`, `help_acceptances` e `worker_fleet_cards`,
+limites nos buckets, REVOKE de anon nas funções, `acos` partido em
+`get_jobs_in_radius`, limpeza de notificações e 7 índices. Não muda nenhuma
+assinatura de RPC, pode ser aplicada antes ou depois da app nova. Pode ser
+aplicada antes da 0041 (o REVOKE do trigger de push é condicional).
+Verificação no fim do próprio ficheiro.
+
+**Regra a partir da 0042:** cada função nova faz
+`REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
+(o Postgres dá EXECUTE a PUBLIC por defeito).
+
+**Nota sobre a baseline:** `0001_consolidated_baseline.sql` não corre de uma
+vez num projeto vazio: 4 policies (linhas 384, 444, 572 e 587) usam funções
+helper que só são criadas mais abaixo, na secção 7. Num projeto novo, correr
+o ficheiro, e depois correr de novo só essas 4 policies.
+
 ## Sources used for consolidation
 
 - `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,
