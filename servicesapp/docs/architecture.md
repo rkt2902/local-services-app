@@ -329,7 +329,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 |---|---|---|
 | `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` |
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030) |
-| `service_categories`/`service_types` | catálogo | `slug`, `name`; seed = 1 categoria "Jardinagem" + 3 tipos (ver secção 16) |
+| `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
 | `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at` |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
@@ -451,6 +451,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0042_security_hardening.sql` | aplicada a 2026-10-16 (review de segurança) |
 | `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
 | `0044_rpc_identity_and_policy_perf.sql` | NÃO aplicada; aplicar junto com a app nova (RPCs sem `p_worker_id`) |
+| `0045_service_catalog.sql` | NÃO aplicada; aplicar antes da app nova (catálogo de serviços com ícones) |
 
 ---
 

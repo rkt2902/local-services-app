@@ -87,6 +87,13 @@ recursão), pré-filtra o raio por uma caixa de lat/lng com um índice parcial, 
 no fim verifica que nenhuma policy ficou com recursão; se ficar, falha inteira
 e não aplica nada.
 
+**PENDENTE — `0045_service_catalog.sql`** — NÃO aplicada ainda. Aplicar ANTES
+da app nova (a app nova lê `service_categories.sort_order`). Junta as
+categorias Agricultura e Floresta, 33 tipos de serviço no total, e as colunas
+`service_types.icon` e `sort_order`. Os 3 tipos que já existiam mantêm o id e
+o nome. Um ícone novo na BD tem de ser acrescentado ao mapa de
+`lib/core/widgets/service_icon.dart`, senão aparece o ícone genérico.
+
 **Regra a partir da 0042:** cada função nova faz
 `REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
 (o Postgres dá EXECUTE a PUBLIC por defeito).

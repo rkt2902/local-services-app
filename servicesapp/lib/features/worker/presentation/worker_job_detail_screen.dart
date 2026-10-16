@@ -11,6 +11,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -105,7 +106,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
       // pedidos disponíveis.
       budgetLabel: 'Preço a combinar',
       description: job.description,
-      serviceIcon: Icons.yard_outlined,
+      serviceIcon: serviceIconFor(serviceType?.icon),
       clientName: clientInfo?['full_name'] ?? '',
       clientAvatar: (avatarUrl != null && avatarUrl.isNotEmpty)
           ? avatarUrl

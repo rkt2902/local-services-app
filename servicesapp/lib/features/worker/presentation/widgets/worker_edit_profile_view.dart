@@ -82,11 +82,20 @@ class WorkerServiceSelectionViewData {
     required this.id,
     required this.label,
     required this.selected,
+    this.icon = Icons.yard_outlined,
+    this.categoryName = '',
+    this.categoryIcon = Icons.yard_outlined,
   });
 
   final String id;
   final String label;
   final bool selected;
+  final IconData icon;
+
+  /// Secção onde o serviço aparece (Jardinagem, Agricultura...). A lista
+  /// chega já ordenada por categoria.
+  final String categoryName;
+  final IconData categoryIcon;
 }
 
 class WorkerServicesToolsViewData {
@@ -1299,17 +1308,51 @@ class _WorkerServicesToolsEditorState
                     index: 2,
                     child: visibleServices.isEmpty
                         ? const _NoServicesMatch()
-                        : Wrap(
-                            spacing: AppSpacing.xs,
-                            runSpacing: AppSpacing.xs,
-                            children: visibleServices.map((service) {
-                              return AppFilterChip(
-                                label: service.label,
-                                selected: service.selected,
-                                showCheckmark: service.selected,
-                                onPressed: () => widget.onToggleService(service.id),
-                              );
-                            }).toList(),
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final group
+                                  in _groupByCategory(visibleServices)) ...[
+                                if (group.first.categoryName.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: AppSpacing.xs,
+                                      bottom: AppSpacing.xs,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          group.first.categoryIcon,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: AppSpacing.xs),
+                                        Text(
+                                          group.first.categoryName,
+                                          style: textTheme.labelLarge?.copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                Wrap(
+                                  spacing: AppSpacing.xs,
+                                  runSpacing: AppSpacing.xs,
+                                  children: group.map((service) {
+                                    return AppFilterChip(
+                                      label: service.label,
+                                      leadingIcon: service.icon,
+                                      selected: service.selected,
+                                      showCheckmark: service.selected,
+                                      onPressed: () =>
+                                          widget.onToggleService(service.id),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                              ],
+                            ],
                           ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -1712,4 +1755,21 @@ class _WorkerProfileNotFound extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Divide a lista (já ordenada por categoria) em blocos seguidos da mesma
+/// categoria.
+List<List<WorkerServiceSelectionViewData>> _groupByCategory(
+  List<WorkerServiceSelectionViewData> services,
+) {
+  final groups = <List<WorkerServiceSelectionViewData>>[];
+  for (final service in services) {
+    if (groups.isEmpty ||
+        groups.last.first.categoryName != service.categoryName) {
+      groups.add([service]);
+    } else {
+      groups.last.add(service);
+    }
+  }
+  return groups;
 }

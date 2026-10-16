@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -426,6 +427,9 @@ class _WorkerEditProfileScreenState
                       id: t.id,
                       label: t.name,
                       selected: _selectedServiceTypeIds.contains(t.id),
+                      icon: serviceIconFor(t.icon),
+                      categoryName: t.categoryName,
+                      categoryIcon: serviceIconFor(t.categoryIcon),
                     ))
                 .toList(),
             tools: List.of(_tools),

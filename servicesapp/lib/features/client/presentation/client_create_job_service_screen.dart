@@ -10,7 +10,9 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../worker/data/service_type_model.dart';
 import '../application/client_create_job_wizard_provider.dart';
 
 /// Passo 1/3 de "Criar pedido" — escolha do tipo de serviço.
@@ -151,13 +153,6 @@ class _ClientCreateJobServiceScreenState
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Categorias',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
                   AppStaggeredEntrance(
                     index: 2,
                     child: serviceTypesAsync.when(
@@ -207,33 +202,74 @@ class _ClientCreateJobServiceScreenState
                         );
                       }
 
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: AppSpacing.xs,
-                          mainAxisSpacing: AppSpacing.xs,
-                          childAspectRatio: 0.8,
-                        ),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final serviceType = filtered[index];
-                          return ClientServiceTypeTile(
-                            id: serviceType.id,
-                            label: serviceType.name,
-                            // MVP só tem a categoria "Jardinagem" — ícone
-                            // genérico único, mesma decisão já tomada do
-                            // lado do worker (worker_available_jobs_screen).
-                            icon: Icons.yard_outlined,
-                            selected:
-                                _selectedServiceTypeId == serviceType.id,
-                            onSelected: (id) {
-                              setState(() => _selectedServiceTypeId = id);
-                            },
-                          );
-                        },
+                      // Com pesquisa: lista única. Sem pesquisa: uma
+                      // secção por categoria (Jardinagem, Agricultura...).
+                      final groups = query.isEmpty
+                          ? groupServiceTypes(filtered)
+                          : [
+                              ServiceTypeGroup(
+                                name: '',
+                                icon: null,
+                                types: filtered,
+                              ),
+                            ];
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final group in groups) ...[
+                            if (group.name.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: AppSpacing.xs,
+                                  bottom: AppSpacing.xs,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      serviceIconFor(group.icon),
+                                      size: 18,
+                                      color: AppColors.primary,
+                                    ),
+                                    const SizedBox(width: AppSpacing.xs),
+                                    Text(
+                                      group.name,
+                                      style: textTheme.labelLarge?.copyWith(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: AppSpacing.xs,
+                                mainAxisSpacing: AppSpacing.xs,
+                                childAspectRatio: 0.8,
+                              ),
+                              itemCount: group.types.length,
+                              itemBuilder: (context, index) {
+                                final serviceType = group.types[index];
+                                return ClientServiceTypeTile(
+                                  id: serviceType.id,
+                                  label: serviceType.name,
+                                  icon: serviceIconFor(serviceType.icon),
+                                  selected: _selectedServiceTypeId ==
+                                      serviceType.id,
+                                  onSelected: (id) {
+                                    setState(
+                                        () => _selectedServiceTypeId = id);
+                                  },
+                                );
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                        ],
                       );
                     },
                   ),

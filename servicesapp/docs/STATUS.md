@@ -251,6 +251,8 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **A 0042 foi aplicada na BD viva a 2026-10-16; estas falhas estão fechadas.**
 
+**Catálogo de serviços (0045, NÃO aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
+
 **RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
 
 **Morada dos pedidos (0043, aplicada a 2026-10-16):** decisão de 2026-10-16. Até a

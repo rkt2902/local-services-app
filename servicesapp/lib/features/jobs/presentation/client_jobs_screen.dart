@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/job_providers.dart';
@@ -109,10 +110,7 @@ class ClientJobsScreen extends ConsumerWidget {
             locationLat: job.locationLat,
             locationLng: job.locationLng,
             dateLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),
-            // Sem mapeamento por serviço — mesma decisão já usada em
-            // worker_job_detail_screen.dart (o MVP não tem ícone por
-            // categoria, só o genérico de jardinagem).
-            serviceIcon: Icons.yard_outlined,
+            serviceIcon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
             statusPresentation:
                 job.status.presentation(proposalCount: job.proposalCount),
             secondaryStatusPresentation: job.rescheduleStatus == RescheduleStatus.pending

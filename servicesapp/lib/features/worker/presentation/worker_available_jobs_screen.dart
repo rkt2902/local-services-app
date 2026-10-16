@@ -9,6 +9,7 @@ import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -214,7 +215,7 @@ class _WorkerAvailableJobsScreenState
       // docs/project_overview.md) — mesma decisão já tomada no dashboard
       // do worker para as "oportunidades".
       priceLabel: 'Preço a combinar',
-      icon: Icons.yard_outlined,
+      icon: serviceIconFor(serviceType?.icon),
       badge: badge,
     );
   }
@@ -237,9 +238,7 @@ class _WorkerAvailableJobsScreenState
       serviceTypesAsync: serviceTypesAsync,
       serviceTypeIdOf: (s) => s.id,
       serviceTypeLabelOf: (s) => s.name,
-      // ServiceType não tem campo de ícone e o MVP só tem 1 categoria
-      // (Jardinagem) — ícone genérico para todos (ver relatório).
-      serviceTypeIconOf: (_) => Icons.yard_outlined,
+      serviceTypeIconOf: (s) => serviceIconFor(s.icon),
       onJobPressed: (id) => context.push('/worker/job/$id'),
       onSearchChanged: (query) => setState(() => _searchQuery = query),
       onFiltersPressed: _showComingSoon,
