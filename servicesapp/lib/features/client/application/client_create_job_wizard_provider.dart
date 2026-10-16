@@ -18,6 +18,7 @@ class ClientCreateJobWizardState {
     this.urgency = Urgency.normal,
     this.sizeEstimate,
     this.addressText = '',
+    this.locationArea,
     this.locationLat,
     this.locationLng,
     this.description = '',
@@ -32,6 +33,7 @@ class ClientCreateJobWizardState {
   final SizeEstimate? sizeEstimate;
 
   final String addressText;
+  final String? locationArea;
   final double? locationLat;
   final double? locationLng;
 
@@ -45,6 +47,7 @@ class ClientCreateJobWizardState {
     Urgency? urgency,
     SizeEstimate? sizeEstimate,
     String? addressText,
+    String? locationArea,
     double? locationLat,
     double? locationLng,
     String? description,
@@ -57,6 +60,7 @@ class ClientCreateJobWizardState {
       urgency: urgency ?? this.urgency,
       sizeEstimate: sizeEstimate ?? this.sizeEstimate,
       addressText: addressText ?? this.addressText,
+      locationArea: locationArea ?? this.locationArea,
       locationLat: locationLat ?? this.locationLat,
       locationLng: locationLng ?? this.locationLng,
       description: description ?? this.description,
@@ -87,6 +91,7 @@ class ClientCreateJobWizardNotifier
       urgency: urgency,
       sizeEstimate: sizeEstimate,
       addressText: state.addressText,
+      locationArea: state.locationArea,
       locationLat: state.locationLat,
       locationLng: state.locationLng,
       description: state.description,
@@ -96,11 +101,13 @@ class ClientCreateJobWizardNotifier
 
   void setLocation({
     required String addressText,
+    String? locationArea,
     required double locationLat,
     required double locationLng,
   }) {
     state = state.copyWith(
       addressText: addressText,
+      locationArea: locationArea,
       locationLat: locationLat,
       locationLng: locationLng,
     );

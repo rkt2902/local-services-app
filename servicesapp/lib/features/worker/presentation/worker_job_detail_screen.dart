@@ -93,8 +93,9 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     final data = view.WorkerJobDetailViewData(
       id: job.id,
       title: serviceType?.name ?? '',
+      // Oportunidade: o servidor só manda a localidade (migration 0043).
       locationLabel: job.addressText.isNotEmpty
-          ? job.addressText
+          ? '${job.addressText} · morada exata depois de aceite'
           : 'Localização não especificada',
       distanceLabel: distanceLabel,
       deadlineLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),

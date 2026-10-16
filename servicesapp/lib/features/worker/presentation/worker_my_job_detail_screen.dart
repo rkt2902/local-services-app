@@ -397,7 +397,11 @@ class _WorkerMyJobDetailScreenState
       serviceLabel: serviceType?.name ?? '—',
       dateLabel: _formatDate(job.preferredDate),
       confirmedScheduleLabel: _confirmedScheduleLabel(job),
-      addressLabel: job.addressText,
+      // Com a proposta ainda pendente o servidor só manda a localidade
+      // (migration 0043).
+      addressLabel: proposal.status == ProposalStatus.accepted
+          ? job.addressText
+          : '${job.addressText} · morada exata depois de aceite',
       locationLat: job.locationLat,
       locationLng: job.locationLng,
       urgent: job.urgency == Urgency.urgent,

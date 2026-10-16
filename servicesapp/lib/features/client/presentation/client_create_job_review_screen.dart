@@ -94,6 +94,7 @@ class _ClientCreateJobReviewScreenState
         clientId: user.id,
         serviceTypeId: wizard.serviceTypeId!,
         addressText: wizard.addressText,
+        locationArea: wizard.locationArea,
         locationLat: wizard.locationLat!,
         locationLng: wizard.locationLng!,
         dateMode: wizard.dateMode,

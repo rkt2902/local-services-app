@@ -5,6 +5,11 @@ class JobRequest {
   final String clientId;
   final String serviceTypeId;
   final String addressText;
+
+  /// Localidade do pedido (ex.: "Lisboa"). Até haver proposta aceite, o
+  /// jardineiro recebe `addressText` igual a isto e coordenadas
+  /// arredondadas (migration 0043).
+  final String? locationArea;
   final double locationLat;
   final double locationLng;
   final DateMode dateMode;
@@ -40,6 +45,7 @@ class JobRequest {
     required this.clientId,
     required this.serviceTypeId,
     required this.addressText,
+    this.locationArea,
     required this.locationLat,
     required this.locationLng,
     this.dateMode = DateMode.flexible,
@@ -76,6 +82,7 @@ class JobRequest {
         clientId: json['client_id'] as String,
         serviceTypeId: json['service_type_id'] as String,
         addressText: json['address_text'] as String? ?? '',
+        locationArea: json['location_area'] as String?,
         locationLat: (json['location_lat'] as num).toDouble(),
         locationLng: (json['location_lng'] as num).toDouble(),
         dateMode: json['date_mode'] != null
@@ -125,6 +132,7 @@ class JobRequest {
     String? clientId,
     String? serviceTypeId,
     String? addressText,
+    String? locationArea,
     double? locationLat,
     double? locationLng,
     DateMode? dateMode,
@@ -160,6 +168,7 @@ class JobRequest {
         clientId: clientId ?? this.clientId,
         serviceTypeId: serviceTypeId ?? this.serviceTypeId,
         addressText: addressText ?? this.addressText,
+        locationArea: locationArea ?? this.locationArea,
         locationLat: locationLat ?? this.locationLat,
         locationLng: locationLng ?? this.locationLng,
         dateMode: dateMode ?? this.dateMode,
