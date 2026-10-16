@@ -12,6 +12,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -95,9 +96,6 @@ class WorkerDashboardOpportunitySummary {
   final IconData icon;
 }
 
-/// Ícone único para o MVP (categoria "Jardinagem" apenas).
-const IconData _serviceIcon = Icons.yard_outlined;
-
 /// Máximo de oportunidades mostradas no carrossel horizontal.
 const int _maxOpportunities = 6;
 
@@ -164,7 +162,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
         clientName: clientInfoAsync?.asData?.value['full_name'] ?? '',
         statusLabel: current.label,
         statusColor: current.color,
-        icon: _serviceIcon,
+        icon: serviceIconFor(serviceType?.icon),
       );
     }
 
@@ -180,7 +178,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
           // proposta. Ver docs/project_overview.md ("Valor exibido é SEMPRE
           // estimado").
           priceLabel: 'Preço a combinar',
-          icon: _serviceIcon,
+          icon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
         ),
     ];
 

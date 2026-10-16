@@ -14,6 +14,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/client_create_job_wizard_provider.dart';
@@ -148,11 +149,10 @@ class _ClientCreateJobReviewScreenState
     final wizard = ref.watch(clientCreateJobWizardProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
 
-    final serviceLabel = serviceTypesAsync.asData?.value
-            .where((s) => s.id == wizard.serviceTypeId)
-            .firstOrNull
-            ?.name ??
-        'Serviço selecionado';
+    final selectedServiceType = serviceTypesAsync.asData?.value
+        .where((s) => s.id == wizard.serviceTypeId)
+        .firstOrNull;
+    final serviceLabel = selectedServiceType?.name ?? 'Serviço selecionado';
 
     final baseWhenLabel = jobDeadlineLabel(wizard.dateMode, wizard.preferredDate);
     final whenLabel = wizard.urgency == Urgency.urgent
@@ -247,6 +247,7 @@ class _ClientCreateJobReviewScreenState
                         index: 1,
                         child: _ServiceCard(
                           serviceLabel: serviceLabel,
+                          icon: serviceIconFor(selectedServiceType?.icon),
                           onEdit: _editService,
                         ),
                       ),
@@ -366,9 +367,14 @@ class _ReviewCard extends StatelessWidget {
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.serviceLabel, required this.onEdit});
+  const _ServiceCard({
+    required this.serviceLabel,
+    required this.icon,
+    required this.onEdit,
+  });
 
   final String serviceLabel;
+  final IconData icon;
   final VoidCallback onEdit;
 
   @override
@@ -388,9 +394,7 @@ class _ServiceCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.input),
             ),
             alignment: Alignment.center,
-            // MVP só tem a categoria "Jardinagem" — ícone genérico único,
-            // mesma decisão já tomada em client_create_job_service_screen.dart.
-            child: const Icon(Icons.yard_outlined, color: AppColors.primary),
+            child: Icon(icon, color: AppColors.primary),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

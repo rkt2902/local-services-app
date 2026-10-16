@@ -7,6 +7,7 @@ import '../../../core/constants/enums.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import '../../jobs/application/job_providers.dart';
@@ -66,7 +67,7 @@ class ClientHomeScreen extends ConsumerWidget {
             status: job.status.presentation(
               proposalCount: job.proposalCount,
             ),
-            icon: Icons.yard_outlined,
+            icon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
           ),
       ];
     }

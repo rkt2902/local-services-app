@@ -52,9 +52,17 @@ class WorkerRepository {
   Future<List<ServiceType>> fetchServiceTypes() async {
     final data = await _client
         .from('service_types')
-        .select()
-        .eq('active', true);
-    return (data as List).map((e) => ServiceType.fromJson(e)).toList();
+        .select('*, service_categories!inner(name, icon, sort_order, active)')
+        .eq('active', true)
+        .eq('service_categories.active', true);
+    final types = (data as List).map((e) => ServiceType.fromJson(e)).toList()
+      ..sort((a, b) {
+        final byCategory = a.categorySortOrder.compareTo(b.categorySortOrder);
+        if (byCategory != 0) return byCategory;
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.name.compareTo(b.name);
+      });
+    return types;
   }
 
   Future<void> createProfile(WorkerProfile profile) async {

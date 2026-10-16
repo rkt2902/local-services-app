@@ -13,9 +13,11 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
 import '../application/worker_providers.dart';
+import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
 
 class WorkerSetupScreen extends ConsumerStatefulWidget {
@@ -311,28 +313,57 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                         style:
                             textTheme.bodyMedium?.copyWith(color: Colors.red),
                       ),
-                      data: (types) => Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          children: types
-                              .map((t) => WorkerServiceTypeChip(
-                                    serviceTypeId: t.id,
-                                    serviceTypeLabel: t.name,
-                                    selected: _selectedServiceTypeIds
-                                        .contains(t.id),
-                                    onToggle: (id) => setState(() {
-                                      if (_selectedServiceTypeIds
-                                          .contains(id)) {
-                                        _selectedServiceTypeIds.remove(id);
-                                      } else {
-                                        _selectedServiceTypeIds.add(id);
-                                      }
-                                    }),
-                                  ))
-                              .toList(),
-                        ),
+                      data: (types) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final group in groupServiceTypes(types)) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.xs,
+                                bottom: AppSpacing.xs,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    serviceIconFor(group.icon),
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xs),
+                                  Text(
+                                    group.name,
+                                    style: textTheme.labelMedium?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Wrap(
+                              spacing: AppSpacing.xs,
+                              runSpacing: AppSpacing.xs,
+                              children: group.types
+                                  .map((t) => WorkerServiceTypeChip(
+                                        serviceTypeId: t.id,
+                                        serviceTypeLabel: t.name,
+                                        icon: serviceIconFor(t.icon),
+                                        selected: _selectedServiceTypeIds
+                                            .contains(t.id),
+                                        onToggle: (id) => setState(() {
+                                          if (_selectedServiceTypeIds
+                                              .contains(id)) {
+                                            _selectedServiceTypeIds
+                                                .remove(id);
+                                          } else {
+                                            _selectedServiceTypeIds.add(id);
+                                          }
+                                        }),
+                                      ))
+                                  .toList(),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -600,11 +631,13 @@ class WorkerServiceTypeChip extends StatelessWidget {
     required this.serviceTypeLabel,
     required this.selected,
     required this.onToggle,
+    this.icon,
     super.key,
   });
 
   final String serviceTypeId;
   final String serviceTypeLabel;
+  final IconData? icon;
   final bool selected;
   final ValueChanged<String> onToggle;
 
@@ -625,6 +658,9 @@ class WorkerServiceTypeChip extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
+      avatar: icon == null || selected
+          ? null
+          : Icon(icon, size: 18, color: AppColors.primary),
       label: Text(
         serviceTypeLabel,
         style: textTheme.labelMedium?.copyWith(

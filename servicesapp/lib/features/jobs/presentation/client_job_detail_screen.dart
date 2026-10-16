@@ -26,6 +26,7 @@ import '../../../core/widgets/bottom_actions_bar.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../application/job_timeline.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
@@ -536,7 +537,8 @@ class _ClientJobDetailScreenState
           AppStaggeredEntrance(
             index: 1,
             child: _ServiceSummaryRow(
-              icon: Icons.yard_outlined,
+              icon: serviceTypeIconFor(
+                  serviceTypesForDetail, job.serviceTypeId),
               serviceLabel: serviceTypeName,
               metadataLabel: job.addressText.isNotEmpty
                   ? job.addressText

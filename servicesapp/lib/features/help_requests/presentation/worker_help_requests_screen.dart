@@ -18,6 +18,7 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/rating_sheet.dart';
@@ -143,6 +144,7 @@ class _WorkerHelpRequestsScreenState
                 child: _HelpRequestCard(
                   summary: s,
                   serviceTypeName: serviceTypeName,
+                  serviceIcon: serviceTypeIconFor(serviceTypes, s.serviceTypeId),
                   distanceMeters: distanceMeters,
                   isApplied: _appliedIds.contains(s.id),
                   isApplying: _opening.contains(s.id),
@@ -975,6 +977,7 @@ class _HelpRequestCard extends StatelessWidget {
   const _HelpRequestCard({
     required this.summary,
     required this.serviceTypeName,
+    required this.serviceIcon,
     this.distanceMeters,
     required this.isApplied,
     required this.isApplying,
@@ -983,6 +986,7 @@ class _HelpRequestCard extends StatelessWidget {
 
   final HelpRequestSummary summary;
   final String serviceTypeName;
+  final IconData serviceIcon;
   final double? distanceMeters;
   final bool isApplied;
   final bool isApplying;
@@ -1055,7 +1059,7 @@ class _HelpRequestCard extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child:
-                    const Icon(Icons.yard_outlined, color: AppColors.primary),
+                    Icon(serviceIcon, color: AppColors.primary),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(

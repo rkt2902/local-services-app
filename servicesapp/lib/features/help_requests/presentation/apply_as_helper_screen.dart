@@ -14,6 +14,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_icon.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 
@@ -35,10 +36,12 @@ class _ApplyViewData {
     required this.paymentPerHelper,
     required this.scheduleLabel,
     required this.equipmentRequired,
+    required this.icon,
   });
 
   final String helpRequestId;
   final String title;
+  final IconData icon;
   final String responsibleName;
   final double paymentPerHelper;
   final String scheduleLabel;
@@ -133,6 +136,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
       paymentPerHelper: summary.paymentPerHelper,
       scheduleLabel: _scheduleLabel(summary.confirmedDate, summary.confirmedTime),
       equipmentRequired: summary.equipmentRequired,
+      icon: serviceTypeIconFor(serviceTypes, summary.serviceTypeId),
     );
   }
 
@@ -423,9 +427,7 @@ class _JobSummaryCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.input),
             ),
             alignment: Alignment.center,
-            // MVP é mono-categoria (jardinagem) — mesmo ícone estático usado
-            // em worker_available_jobs_screen.dart (serviceTypeIconOf).
-            child: const Icon(Icons.yard_outlined, color: AppColors.primary),
+            child: Icon(data.icon, color: AppColors.primary),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

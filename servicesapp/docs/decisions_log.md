@@ -3,6 +3,10 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-16 — Catálogo de serviços com Agricultura e Floresta (migration 0045)
+
+Três categorias (Jardinagem, Agricultura, Floresta) e 33 tipos, cada um com ícone. O ícone fica na BD (`service_types.icon`, nome de um ícone Material) e a app traduz o nome com um mapa fixo em `core/widgets/service_icon.dart`, porque o Flutter não carrega ícones por nome e o tree-shaking corta os que não aparecem no código. Nome desconhecido mostra o ícone genérico (`yard`). Um teste lê a migration e falha se algum ícone dela não estiver no mapa. A lista de serviços passa a vir ordenada por categoria e por `sort_order`, e os ecrãs de escolha (criar pedido, configurar e editar perfil do jardineiro) mostram uma secção por categoria. Os 3 tipos antigos mantêm id e nome, para pedidos e perfis existentes não mudarem.
+
 ## 2026-10-16 — Fecho do review: RPCs sem p_worker_id e policies mais rápidas (migration 0044)
 
 `create_proposal`, `get_jobs_in_radius` e `sync_worker_service_types` deixam de receber `p_worker_id` (DROP explícito das versões antigas; a app nova já não o envia). A app ainda não está publicada, por isso não há versão antiga a proteger.
