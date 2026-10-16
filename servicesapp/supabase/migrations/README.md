@@ -52,7 +52,7 @@ renomeado manualmente no Supabase Studio em algum momento. Não requer migration
 nova — é só nome, sem impacto funcional — mas ficou registado para não
 confundir quem for ler o nome do trigger na dashboard.
 
-**PENDENTE — `0041_push_notifications.sql`** — NÃO aplicada ainda.
+**APLICADA — `0041_push_notifications.sql`** — aplicada a 2026-10-16.
 Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
 e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
 aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em

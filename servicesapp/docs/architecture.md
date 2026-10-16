@@ -447,7 +447,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0038_ratings_mine_received_given.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
 | `0039_help_request_principal_avatar.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
 | `0040_cross_party_identity_rpcs.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
-| `0041_push_notifications.sql` | NÃO aplicada |
+| `0041_push_notifications.sql` | aplicada a 2026-10-16 |
 | `0042_security_hardening.sql` | aplicada a 2026-10-16 (review de segurança) |
 | `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
 
