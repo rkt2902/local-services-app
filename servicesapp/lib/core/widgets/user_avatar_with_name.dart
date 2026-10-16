@@ -7,6 +7,7 @@ class UserAvatarWithName extends StatelessWidget {
     this.avatarUrl,
     this.radius = 20.0,
     this.nameStyle,
+    this.fallbackLabel,
   });
 
   final String name;
@@ -14,11 +15,23 @@ class UserAvatarWithName extends StatelessWidget {
   final double radius;
   final TextStyle? nameStyle;
 
+  /// Mostrado (e usado para a inicial do avatar) quando [name] vier vazio.
+  /// Um nome vazio aqui normalmente significa que o perfil da contraparte
+  /// ainda não está acessível (RLS antes de um relacionamento aceite, ou
+  /// perfil sem `full_name`) — não que "esta pessoa não tem nome". Os
+  /// ecrãs que mostram cliente/jardineiro devem passar "Cliente"/
+  /// "Jardineiro" em vez de deixar o padrão "—", que parece um erro em vez
+  /// de um género conhecido.
+  final String? fallbackLabel;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-    final initial = name.isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final displayName = name.isNotEmpty ? name : (fallbackLabel ?? '—');
+    final initialSource = name.isNotEmpty ? name : (fallbackLabel ?? '');
+    final initial =
+        initialSource.isNotEmpty ? initialSource.trim()[0].toUpperCase() : '?';
 
     return Row(
       children: [
@@ -38,7 +51,7 @@ class UserAvatarWithName extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            name.isNotEmpty ? name : '—',
+            displayName,
             style: nameStyle ?? theme.textTheme.titleMedium,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,

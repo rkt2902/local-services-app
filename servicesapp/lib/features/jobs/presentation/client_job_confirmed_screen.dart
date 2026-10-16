@@ -86,7 +86,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
         : 'Preço a definir';
 
     return _ClientJobConfirmedView(
-      workerName: workerName.isEmpty ? '—' : workerName,
+      workerName: workerName.isEmpty ? 'Jardineiro' : workerName,
       workerAvatarUrl:
           (workerAvatarUrl != null && workerAvatarUrl.isNotEmpty)
               ? workerAvatarUrl

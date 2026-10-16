@@ -1029,6 +1029,7 @@ class _HelpRequestCard extends StatelessWidget {
                   radius: 18,
                   nameStyle: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
+                  fallbackLabel: 'Jardineiro',
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),

@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
@@ -11,7 +12,6 @@ import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
-import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
@@ -54,8 +54,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
     final workerProfile = ref.watch(workerProfileProvider).asData?.value;
     final photos = ref.watch(jobPhotosProvider(jobId)).asData?.value ?? [];
-    final clientInfo =
-        ref.watch(clientBasicInfoProvider(job.clientId)).asData?.value;
+    final clientInfo = ref.watch(openJobClientIdentityProvider(jobId)).asData?.value;
 
     final currentUserId = ref.watch(currentUserIdProvider) ?? '';
     final workerProposalAsync = currentUserId.isEmpty
@@ -116,7 +115,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
 
     return view.WorkerJobDetailScreen(
       data: data,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onSendProposalPressed: alreadySent
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

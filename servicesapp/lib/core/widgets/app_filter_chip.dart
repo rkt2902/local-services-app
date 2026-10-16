@@ -87,6 +87,16 @@ class AppFilterChip extends StatelessWidget {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              // Só importa quando o pai força uma largura mais larga que o
+              // conteúdo (ex.: `Expanded` numa Row de 3 chips) — nesses
+              // casos a largura chega ao Row como constraint TIGHT, que
+              // `mainAxisSize: min` não consegue recusar (só escolhe entre
+              // min/max quando a constraint é LOOSE); sem isto, o conteúdo
+              // ficava encostado ao início. Em `Wrap`/lista horizontal a
+              // constraint já chega LOOSE — `mainAxisSize: min` continua a
+              // mandar, o chip continua do tamanho do conteúdo, e esta
+              // propriedade não tem nada para redistribuir.
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (showCheckmark && selected) ...[
                   const Icon(

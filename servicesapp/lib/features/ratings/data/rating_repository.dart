@@ -108,12 +108,20 @@ class RatingRepository {
     );
   }
 
+  // RPC em vez de SELECT direto: `ratings` é pública (USING(true)), mas o
+  // embedded join a `profiles` para o nome do rater não é — não existe
+  // policy que cubra "quem vê este worker avaliado vê o perfil de quem o
+  // avaliou". Antes do hardening de segurança (migration 0032) a policy
+  // `profiles` era USING(true) e o join "funcionava" por acidente; hoje
+  // devolve sempre null, mostrando "—" para praticamente todos os raters.
+  // `get_ratings_with_rater_identity` (migration 0040, NÃO aplicada) expõe
+  // só nome/avatar do rater, sem restrição adicional de autorização — a
+  // mesma informação que `ratings` já é pública a qualquer autenticado.
   Future<List<Rating>> fetchRatingsWithRaterNames(String workerId) async {
-    final data = await _client
-        .from('ratings')
-        .select('*, rater:profiles!rater_id(full_name)')
-        .eq('ratee_id', workerId)
-        .order('created_at', ascending: false);
+    final data = await _client.rpc(
+      'get_ratings_with_rater_identity',
+      params: {'p_ratee_id': workerId},
+    );
     return (data as List)
         .map((e) => Rating.fromJson(e as Map<String, dynamic>))
         .toList();

@@ -57,7 +57,12 @@ class JobProposal {
         helpersEquipmentRequired:
             json['helpers_equipment_required'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
-        workerName: (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?,
-        workerAvatarUrl: (json['profiles'] as Map<String, dynamic>?)?['avatar_url'] as String?,
+        // `worker_name`/`worker_avatar_url` — colunas planas da RPC
+        // get_pending_proposals_for_job. `profiles.full_name`/`avatar_url`
+        // mantido como fallback do embedded join antigo (hoje sem call sites).
+        workerName: json['worker_name'] as String? ??
+            (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?,
+        workerAvatarUrl: json['worker_avatar_url'] as String? ??
+            (json['profiles'] as Map<String, dynamic>?)?['avatar_url'] as String?,
       );
 }

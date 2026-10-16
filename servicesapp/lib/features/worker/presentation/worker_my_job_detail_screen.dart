@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
@@ -433,7 +434,7 @@ class _WorkerMyJobDetailScreenState
 
     return view.WorkerMyJobDetailScreen(
       data: data,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onCallClientPressed: () => _openWhatsApp(data.clientPhone),
       onRequestHelpersPressed: _showAddHelperSheet,
       onMarkCompleted: _markCompleted,

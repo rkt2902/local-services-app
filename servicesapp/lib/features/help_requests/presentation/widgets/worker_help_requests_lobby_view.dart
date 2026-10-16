@@ -781,7 +781,11 @@ class _WorkerSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-    final initial = name.isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    // `name` vazio normalmente é RLS a bloquear o perfil do candidato
+    // (ver fetchCandidatesForHelpRequest), não "sem nome" — mostra o papel
+    // em vez de "—"/inicial "?".
+    final displayName = name.isNotEmpty ? name : 'Jardineiro';
+    final initial = displayName.trim()[0].toUpperCase();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,7 +808,7 @@ class _WorkerSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                name,
+                displayName,
                 style: textTheme.bodyMedium
                     ?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
               ),

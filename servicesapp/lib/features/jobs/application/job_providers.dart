@@ -59,3 +59,13 @@ final jobsInRadiusProvider = FutureProvider<List<JobRequest>>((ref) async {
         workerId: user.id,
       );
 });
+
+/// Nome/avatar do cliente na oportunidade (`WorkerJobDetailScreen`) — ver
+/// `JobRepository.fetchOpenJobClientIdentity`. Mesma janela de cache do job
+/// em si ([jobByIdProvider]), já que só é relevante enquanto esse mesmo
+/// ecrã está aberto.
+final openJobClientIdentityProvider =
+    FutureProvider.autoDispose.family<Map<String, String>, String>((ref, jobId) {
+  cacheFor(ref, _jobDetailCacheTtl);
+  return ref.read(jobRepositoryProvider).fetchOpenJobClientIdentity(jobId);
+});

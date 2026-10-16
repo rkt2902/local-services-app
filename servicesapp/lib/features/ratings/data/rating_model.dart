@@ -8,6 +8,7 @@ class Rating {
   final DateTime createdAt;
   // Populated only when fetched via fetchRatingsWithRaterNames
   final String? raterName;
+  final String? raterAvatarUrl;
 
   const Rating({
     required this.id,
@@ -18,6 +19,7 @@ class Rating {
     this.comment,
     required this.createdAt,
     this.raterName,
+    this.raterAvatarUrl,
   });
 
   factory Rating.fromJson(Map<String, dynamic> json) => Rating(
@@ -28,8 +30,12 @@ class Rating {
         stars: json['stars'] as int,
         comment: json['comment'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
-        raterName: (json['rater'] as Map<String, dynamic>?)?['full_name']
-            as String?,
+        // `rater_name`/`rater_avatar_url` — colunas planas da RPC
+        // get_ratings_with_rater_identity. `rater.full_name` mantido como
+        // fallback do embedded join antigo (hoje sem call sites).
+        raterName: json['rater_name'] as String? ??
+            (json['rater'] as Map<String, dynamic>?)?['full_name'] as String?,
+        raterAvatarUrl: json['rater_avatar_url'] as String?,
       );
 }
 

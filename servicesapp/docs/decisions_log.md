@@ -3,6 +3,245 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-16 — 4 bugs visuais/navegação reportados com screenshots reais (Android)
+
+### 1. Badge de estado gigante na AppBar
+
+**Causa raiz:** `AppStatusBadge`'s `Container` tinha `alignment: Alignment.center` — comportamento documentado do Flutter, não um bug do Flutter: um `Container` com `alignment` e um único filho deixa de se ajustar ao conteúdo e passa a **expandir-se para ocupar todo o espaço disponível**, tal como um `Align`/`Center` sozinho faria. Dentro de `AppBar.actions` (Material 3: `Row` com `crossAxisAlignment.center`, dá constraints LOOSE de 0 até à altura da toolbar), isto fazia o badge esticar para os 56px da toolbar mesmo já envolvido num `Center` no call site — o `Center` externo dava constraints loose corretas, mas o `Container` interno, por ter `alignment`, escolhia o máximo em vez do tamanho do conteúdo. Confirmado com widget test: `Size(254.0, 56.0)` antes, `Size(254.0, 28.0)` depois de remover só o `alignment:` (mantendo `minHeight: 28`).
+
+**Sítios com badge em `AppBar.actions` ou equivalente** (grep exaustivo por `AppStatusBadge`/`actions:` em `lib/`):
+- `client_job_detail_screen.dart` — 2 AppBars reais (ramo `open`, com ícone de fechar a seguir; ramo `awaitingConfirmation`/`completed`/`cancelled`/`noResponse`, sem ícone extra).
+- `worker_my_job_detail_view.dart` — 1 AppBar (estado da proposta do worker).
+- `client_scheduled_job_detail_screen.dart`'s `_ScheduledHeader` — não é um `AppBar` real (é um cabeçalho próprio, Container+Row), mas mesmo papel visual/mesma posição — mesmo badge, mesmo bug (constraints loose herdadas de um `Row`/`Column` sem altura fixa acima).
+
+**Correção num único sítio** (`core/widgets/app_status_badge.dart`, não por ecrã): `alignment: Alignment.center` removido do `Container` de `AppStatusBadge` — corrige os 3 sítios de uma vez, e qualquer uso futuro do badge em contexto apertado.
+
+**Título ainda cortado depois do fix de altura — sim, com 3 labels longos.** Medido com widget test a 360/392/412dp: `"À espera de proposta"` (20 car.) + ícone de fechar esmagava o título a 0–6px de largura; `"Aguarda resposta"` (16 car.) e `"Não selecionada"` (15 car., mesma AppBar — estados de `ProposalStatus`) ficavam a 48–111px, apertado. Resolvido com um widget novo, `AppBarStatusBadge` (mesmo ficheiro), que acrescenta ao `AppStatusBadge` já corrigido: margem direita consistente (`AppSpacing.md`, serve também de espaçamento para o ícone de fechar quando existe) e um mapeamento fechado de labels curtos SÓ para este contexto (os badges em cards/listas continuam com o texto completo de `presentation().label`):
+
+| Label completo (cards/listas) | Label curto (AppBar) |
+|---|---|
+| "À espera de proposta" | "Em aberto" |
+| "Aguarda resposta" | "Pendente" |
+| "Não selecionada" | "Recusada" |
+
+Medido depois do fix: título entre 80–169px nos 3 larguras — nunca mais 0px. "Confirmado"/"Substituída"/"Concluído"/"Cancelado" já eram curtos, sem alteração.
+
+**Ficheiros alterados:** `core/widgets/app_status_badge.dart` (fix + `AppBarStatusBadge` novo), `client_job_detail_screen.dart`, `worker_my_job_detail_view.dart`, `client_scheduled_job_detail_screen.dart` (as 4 call sites a usar o novo widget).
+
+---
+
+### 2. Texto dos chips não centrado
+
+**Causa raiz, confirmada com widget test (não a mesma do Ponto 1 — mecanismo diferente):** `AppFilterChip`'s `Row` interno tem `mainAxisSize: MainAxisSize.min`, sem `mainAxisAlignment`. Um `Row` não-flex dentro de outro `Row`/`Flex` recebe sempre constraints de largura UNBOUNDED no eixo principal — por isso, quando o chip está em `Wrap` (constraints loose, chip do tamanho do conteúdo), `mainAxisSize: min` já dá o resultado certo e sempre deu. Mas quando o chip está num `Expanded` (ex.: 3 chips de igual largura numa `Row`), o `Expanded` força o `AnimatedContainer` externo a uma largura TIGHT bem maior que o conteúdo — e essa largura tight propaga-se ao `Row` interno (que `mainAxisSize: min` não consegue recusar quando a constraint chega já fixa, só escolhe min/max quando a constraint é loose). Sem `mainAxisAlignment`, o `Row` (agora largo) alinha o conteúdo ao início (esquerda) em vez de centrar. Medido: texto a `x=41.75` (chip com `center.dx=400`) antes; `x=400` (= centro do chip) depois de acrescentar só `mainAxisAlignment: MainAxisAlignment.center` — sem tocar em `mainAxisSize`.
+
+**Confirmado sem regressão no caso "largura do conteúdo":** no mesmo teste, o chip em `Wrap` manteve exatamente a mesma posição/tamanho antes e depois (`mainAxisAlignment` não tem nada para redistribuir quando `mainAxisSize: min` já reduziu o `Row` ao tamanho do conteúdo).
+
+**Ecrãs onde verifiquei (grep por `AppRadius.pill` + `mainAxisSize: MainAxisSize.min`, e por padrões de pill/tab seletor):**
+- `worker_submit_proposal_view.dart` ("A sua proposta" — Manhã/Tarde/Fim do dia; 1-2h/2-4h/4-6h/+6h) — usa `AppFilterChip` dentro de `Expanded`, é exatamente o caso do bug reportado. **Corrigido pelo fix no componente partilhado.**
+- `client_job_detail_screen.dart` (chips de "Problemas comuns", ramo `awaitingConfirmation`) — usa `AppFilterChip` em `Wrap`. Já estava certo, confirma que o fix não estraga este caso.
+- `client_create_job_schedule_screen.dart` (`_SizeChip`, passo "Data" de criar pedido — Pequeno/Médio/Grande) — widget PRÓPRIO, não `AppFilterChip`, mas já tinha `Container(alignment: Alignment.center)` + `Text(textAlign: center)`, sempre usado dentro de `Expanded` (tight) — alignment/Container nesse caso É seguro porque a constraint é sempre tight aqui, nunca loose-sem-limite. **Já estava correto, não alterado.**
+- `_UrgencyOptionCard` (mesmo ecrã, Normal/Urgente) — não é um chip (card de opção com rádio, texto à esquerda por design) — não aplicável.
+- `worker_setup_screen.dart` (chips de tipo de serviço) — usa o `FilterChip` nativo do Flutter (Material), não o componente da app — já centra corretamente por si só.
+- Pills de tabs (`_TabPill` em `worker_help_requests_screen.dart`; `_TabButton`, duplicado identicamente em `client_jobs_view.dart` e `my_ratings_screen.dart`) — **verifiquei e NÃO têm o bug**, apesar de usarem o mesmo `Padding > Text(textAlign: center)` sem `Row` nem `Center` explícito: confirmado com teste a nível de glyph (`RenderParagraph.getBoxesForSelection`) que o texto fica corretamente centrado — `Text` usa por omissão `textWidthBasis: TextWidthBasis.parent`, que faz a caixa do parágrafo ocupar a largura TOTAL disponível (quando finita) em vez de encolher ao conteúdo; `textAlign: center` centra os glyphs dentro dessa caixa cheia. Mecanismo diferente do `Row.mainAxisSize`, e sem bug aqui.
+- `_JobsTabButton` (`worker_jobs_view.dart`, tabs Pendentes/Agendados/Concluídos) — usa `FittedBox` (que já centra por omissão) em vez de `Row`/`Padding`+`Text` — também sem bug.
+
+**Ficheiro alterado:** só `core/widgets/app_filter_chip.dart` (+1 linha, `mainAxisAlignment: MainAxisAlignment.center`).
+
+---
+
+### 3. Cores da zona da bottom nav diferentes do fundo
+
+**Causa raiz:** nem `ClientShell`/`WorkerShell` nem o `ThemeData` definiam `scaffoldBackgroundColor` — o `Scaffold` desses 2 shells (que só existe para alojar a `bottomNavigationBar`) caía no `colorScheme.surface` **gerado pelo Material 3 a partir da seed verde** (`ColorScheme.fromSeed`), uma cor diferente de `AppColors.background`/`AppColors.surface` (tokens próprios da app, não derivados da seed). `AppBottomNavigation` não pinta o fundo do seu próprio `SafeArea`/`Padding`/`Stack` — só a "pílula" (`Positioned` com `AppColors.surface`) tem cor; tudo o resto (margem acima da pílula, laterais, e a área do inset de gestos por baixo) é transparente e mostra o que estiver por trás: o Scaffold do SHELL, não o do ecrã individual (que já definia `AppColors.background` corretamente). Não havia NENHUMA configuração de `SystemUiOverlayStyle`/`systemNavigationBarColor` em lado nenhum do projeto (grep a `lib/` sem resultados) — a cor da barra de gestos do Android vinha do valor por omissão da plataforma, sem relação com nenhum token da app.
+
+| Faixa | Origem | Cor antes | Cor depois |
+|---|---|---|---|
+| Acima da pílula (margem `AppSpacing.sm`) | `Scaffold.backgroundColor` do Shell (não definido → `colorScheme.surface` gerado pela seed) | Esverdeado derivado da seed, ≠ `AppColors.background` | `AppColors.background` (`#F6F8F6`) |
+| A pílula em si | `Container` dentro de `AppBottomNavigation` | `AppColors.surface` (`#FFFFFF`) — já correto | inalterado |
+| Laterais/inset inferior (gestos) | Mesma causa acima + `systemNavigationBarColor` nunca definido (default da plataforma) | Mistura do default do Android + o `colorScheme.surface` da seed | `AppColors.surface` via `systemNavigationBarColor`, ícones `Brightness.dark` |
+
+**Correções:**
+- `AppTheme.light()` (`core/theme/app_theme.dart`) ganhou `scaffoldBackgroundColor: AppColors.background` — elimina a faixa acima da pílula em QUALQUER Scaffold sem cor própria, dentro ou fora do shell, de uma só vez.
+- Novo `AppTheme.systemUiOverlayStyle` (mesmo ficheiro) — `systemNavigationBarColor: AppColors.surface` (igual à pílula), `systemNavigationBarIconBrightness: Brightness.dark`, `systemNavigationBarDividerColor: Colors.transparent`.
+- `app.dart` — `AnnotatedRegion<SystemUiOverlayStyle>` a envolver `MaterialApp.router` uma única vez (não por ecrã; sobrevive a resumes, ao contrário de uma chamada única a `SystemChrome.setSystemUIOverlayStyle` em `main.dart`). Aplica-se a toda a app, incl. ecrãs fora do shell (login, onboarding, etc.) — confirmado por estar acima do `routerConfig`, não dentro de uma rota específica.
+- Confirmado sem cor hardcoded fora de `AppColors` em `app_bottom_navigation.dart`/shells/`app.dart`/`app_theme.dart` (grep a `Color(0x`).
+
+**Ficheiros alterados:** `core/theme/app_theme.dart`, `app.dart`. `AppBottomNavigation`/`ClientShell`/`WorkerShell` não precisaram de alteração — a causa era só a falta do `scaffoldBackgroundColor` global.
+
+---
+
+### 4. Botão de voltar depois de notificação não faz nada
+
+**Causa exata:** `notification_handler.dart` usa `context.go()` de propósito (16 dos 19 tipos — ver tabela abaixo) para evitar o crash de `keyReservation` já documentado no próprio ficheiro. `go()` SUBSTITUI a stack toda pela rota de destino — depois de um `go()`, não fica nada por baixo para desfazer. O botão de voltar (um `IconButton` a chamar `context.pop()` direto) e o gesto do sistema caem em `canPop() == false`; o `pop()` do go_router não faz nada nesse caso (sem crash, só sem efeito) — daí "não faz nada".
+
+**Mecanismo partilhado (nunca duplicado):** `core/router/app_back_navigation.dart` — `goBackOrToRoleHome(context)`: pop normal se `context.canPop()`; senão, `context.go()` para `/worker/home` ou `/client/home`, inferido do PRÓPRIO prefixo da rota (`roleHomeRouteFor`, mesmo padrão já usado no cross-role guard de `app_router.dart` — sem precisar de ler sessão/Riverpod).
+
+Aplicado em dois sítios, como pedido:
+- **(a) Botão da AppBar** — novo `AppBackButton` (`core/widgets/app_back_button.dart`), usado em `client_job_detail_screen.dart` (2 AppBars). Nos ecrãs que já separam screen/view com um callback `onBack` (arquitetura já estabelecida no projeto), bastou trocar o corpo do callback — sem tocar no widget da view: `client_scheduled_job_detail_screen.dart` (`_ScheduledHeader` + estados loading/error), `worker_job_detail_screen.dart`, `worker_my_job_detail_screen.dart`, `worker_help_requests_lobby_screen.dart` (só o `onBack`; `onRequestHelpers`, que também faz `pop()`, é uma ação diferente — fechar o lobby para abrir o sheet de pedir ajudantes no ecrã de trás — não tocado).
+- **(b) Gesto/botão do sistema** — `PopScope` dentro de `_wrapWithBackFallback`, chamado uma vez em cada um dos 3 builders de transição (`buildSharedAxisPage`/`buildContainerTransformPage`/`buildFadeThroughPage`, `app_page_transitions.dart`) — cobre todas as rotas de uma vez, confirmado por leitura de `app_router.dart`: toda rota alcançável por notificação passa por um destes 3 builders (nenhuma rota "sem pageBuilder" é destino de notificação — só `/client/home`/`/worker/home`, que são o próprio destino do fallback, corretamente não-embrulhados).
+
+**2 armadilhas reais encontradas só com widget tests** (haviam passado numa primeira leitura do código, por isso vale registar): (1) `GoRouterState.of(context)` lança quando chamado dentro do callback assíncrono do `PopScope`, porque o `context` do `pageBuilder` não é descendente da própria rota — resolvido lendo `state.matchedLocation` (já disponível, síncrono) em vez de reconsultar via `context`. (2) `context.canPop()` lido no `context` do `pageBuilder`, à mesma altura, fica desatualizado logo após um `context.push()` (reporta `false` quando já é `true`) — resolvido embrulhando com `Builder` para obter um `context` que é mesmo descendente da rota antes de ler `canPop()`. As duas únicas rotas de teste automatizado (`go()` depois de voltar do sistema → home; `push()` depois de voltar do sistema → pop normal) confirmam os dois comportamentos lado a lado.
+
+**19 tipos de notificação — destino e comportamento do voltar:**
+
+| Notificação | Destino | Navegação | Voltar |
+|---|---|---|---|
+| `newJobInRadius` | `/worker/job/:id` | go | → `/worker/home` |
+| `proposalReceived` | `/client/job/:id` | go | → `/client/home` |
+| `proposalWithdrawn` | `/client/job/:id` | go | → `/client/home` |
+| `proposalAccepted` | `/worker/my-job/:id` (ou `/worker/home` se o fetch falhar) | go | → `/worker/home` |
+| `proposalRejected` | `/worker/job/:id` | go | → `/worker/home` |
+| `jobCancelled` | `/client/job/:id` ou `/worker/my-job/:id` (ou `/worker/home`) | go | → início do papel |
+| `jobReopened` | `/worker/job/:id` | go | → `/worker/home` |
+| `rescheduleProposed` | `/client/job/:id` ou `/worker/my-job/:id` (ou `/worker/home`) | go | → início do papel |
+| `rescheduleAccepted` | idem | go | → início do papel |
+| `rescheduleRejected` | idem | go | → início do papel |
+| `jobMarkedDone` | `/client/job/:id` | go | → `/client/home` |
+| `jobCompleted` | `/client/job/:id` ou `/worker/my-job/:id` (ou `/worker/home`) | go | → início do papel |
+| `jobNoResponse` | `/client/job/:id` | go | → `/client/home` |
+| `helpRequestApproved` | `/worker/job/:id/help-requests` (ou `/worker/home`) | push | pop normal (stack já tem algo por baixo na maioria dos casos; fallback aplicado por consistência) |
+| `helpAccepted` | `/worker/help-requests` (tab 1) | go | → `/worker/home` |
+| `helpRejected` | `/worker/help-requests` (tab 1) | go | → `/worker/home` |
+| `helpJobCancelled` | `/worker/help-requests` (tab 1) | go | → `/worker/home` |
+| `helpRequestReopened` | `/worker/help-requests` | push | pop normal / fallback |
+| `helpWithdrew` | `/worker/job/:id/help-requests` (ou `/worker/home`) | push | pop normal / fallback |
+
+`worker_help_requests_screen.dart` (destino de 4 tipos) tem um padrão próprio já adequado — `if (canPop) IconButton(...)`, esconde o botão em vez de o mostrar morto — não alterado; o fallback do gesto/botão do sistema (b) cobre-o da mesma forma que os outros.
+
+**Testado mentalmente (e com teste automatizado) os dois caminhos pedidos:** notificação → abrir detalhe → voltar = cai no início do papel (confirmado, `go()` + `canPop() == false`). Abrir a app → entrar num detalhe por um card → voltar = cai na lista de onde veio (confirmado, `push()` + `canPop() == true`, comportamento inalterado).
+
+**Ficheiros alterados:** `core/router/app_back_navigation.dart` (novo), `core/widgets/app_back_button.dart` (novo), `core/router/app_page_transitions.dart`, `client_job_detail_screen.dart`, `client_scheduled_job_detail_screen.dart`, `worker_job_detail_screen.dart`, `worker_my_job_detail_screen.dart`, `worker_help_requests_lobby_screen.dart`.
+
+**Fora de âmbito, deliberadamente não tocado:** os restantes ~25 call sites de `context.pop()` em `leading`/`onBack` espalhados pela app (wizard de criar pedido, fluxo de auth, cartão frota, etc.) — todos em fluxos multi-passo já sempre com stack (`canPop()` praticamente sempre `true` aí), não são destino de nenhuma notificação, e o comportamento de hoje já está correto. `AppBackButton`/`goBackOrToRoleHome` ficam disponíveis para serem adotados nesses sítios no futuro, sem necessidade de os tocar agora.
+
+**`flutter analyze`:** 0 issues novos (mesmos 5 pré-existentes e sem relação).
+
+---
+
+## 2026-10-15 — Indicador de progresso horizontal em todo o lado + foto/nome da contraparte nos dois sentidos
+
+### Parte 1 — `StatusTimeline` vertical substituída por `StatusTimelineHorizontal` em todos os ramos
+
+**Decisão nova (substitui a de 2026-09-27, commit `023e636`):** todos os indicadores de progresso passam a horizontal, no topo do ecrã. A sessão anterior tinha revertido `client_job_detail_screen.dart` para vertical nos ramos fora de `open` precisamente porque a variante horizontal não mostrava `subtitle`/`note` por passo — em vez de reverter outra vez, a variante horizontal foi estendida para os mostrar numa zona de detalhe única.
+
+**`core/widgets/status_timeline.dart`:**
+- `StatusTimelineStepData` ganhou `dateLabel` (caption curta "dd/MM" sob o label do nó, só em passos `completed`) — `subtitle` deixou de ser usado para datas, fica reservado ao passo `state == current` (ex.: motivo de cancelamento).
+- `StatusTimelineHorizontal` passou a renderizar, por baixo do traço: o `subtitle` do passo atual, e a `note` de QUALQUER passo (não só do atual) — a note de remarcação pendente vive no passo "Proposta aceite", que nunca é `current` nos ramos onde isto importa, por isso a regra do enunciado ("se um passo que não é o atual tiver uma note de aviso") foi generalizada para qualquer note, não só as de aviso, para não perder a note "Data remarcada" (sucesso, não aviso).
+- A largura de cada nó (`_horizontalNodeColumnWidth`, 72px) passou a ser calculada por `LayoutBuilder`: mantém-se 72px sempre que os passos cabem nessa largura; só encolhe (com um mínimo de 12px por conector) quando não cabe. Sem isto, 4 nós fixos a 72px (`buildJobTimeline` nos ramos confirmed/awaitingConfirmation/completed) overflowavam por 8px a 360dp dentro de cartões com `AppSpacing.lg` (24px) de margem — `worker_my_job_detail_view.dart` (ambos os corpos) e o ramo não-`open` de `client_job_detail_screen.dart`. Verificado com um widget test (texto a 1.3×, 360dp, pior caso de padding) — sem overflow depois do fix, removido no fim (não ficou nenhum ficheiro de teste novo).
+- Classe `StatusTimeline` (vertical) e os widgets privados que só ela usava (`_TimelineRow`, `_TimelineRowState`) **removidos** — zero utilizadores depois da conversão.
+- `StatusTimelineCard` (novo, público) — extrai o `Container` (fundo `AppColors.primaryContainer`, raio `AppRadius.card`) que existia como `_TimelineCard` privado e quase idêntico em `client_job_detail_screen.dart` e `client_scheduled_job_detail_screen.dart`; `supportingLabel`/`supportingLabelColor` continuam a existir para texto independente dos passos (aviso de expiração do ramo `open`; frase "Serviço agendado para..." do ecrã dedicado a `confirmed`).
+
+**`features/jobs/application/job_timeline.dart`:** labels mais longos encurtados para caberem em ~14 caracteres / 2 linhas (cor do nó continua a vir de `presentation().color` — só o texto do nó muda, os badges de estado em toda a app continuam a usar `presentation().label` sem alteração):
+
+| Label antigo (longo) | Label novo (nó da timeline) | Onde |
+|---|---|---|
+| "À espera de proposta" | "Sem proposta" | `JobStatus.open`, sem propostas ainda — só aparece via `buildJobTimeline` quando o worker olha para o seu próprio job ainda `open` (`worker_my_job_detail_view.dart`); o cliente usa sempre o stepper `_buildOpenStepperSteps`, inalterado |
+| "Marcado como concluído" | "Trabalho feito" | passo intermédio, nunca confundido com "Concluído" (completado só depois da confirmação do cliente) |
+| "A aguardar confirmação" | "A confirmar" | estado `awaitingConfirmation`, nó current |
+
+Labels já curtos ("Pedido criado", "Proposta aceite", "Sem resposta", "Concluído", "Cancelado") mantidos sem alteração.
+
+**Ficheiros alterados:** `core/widgets/status_timeline.dart`, `features/jobs/application/job_timeline.dart`, `features/jobs/presentation/client_job_detail_screen.dart`, `features/jobs/presentation/client_scheduled_job_detail_screen.dart`, `features/worker/presentation/widgets/worker_my_job_detail_view.dart`.
+
+**O que mudou de sítio:**
+- Datas de passos `completed` ("Pedido criado", "Proposta aceite") → caption "dd/MM" sob o label do nó (antes: `subtitle` nunca renderizado pela variante horizontal nestes ramos, porque estavam todos em vertical).
+- Motivo de cancelamento (subtitle do passo "Cancelado") e notas de remarcação (note do passo "Proposta aceite") → zona de detalhe, centrados, por baixo do traço.
+- `worker_my_job_detail_view.dart` (`_buildOtherBody`): o indicador passou a ser o primeiro elemento do corpo (antes vinha depois de `_JobSummaryCard`, descrição e `_ProposalSummaryCard`); o título de secção "Estado do pedido" foi removido (redundante com o cartão no topo, mesmo padrão dos outros ecrãs).
+- Nenhuma informação da timeline vertical ficou de fora: confirmado campo a campo (dateLabel cobre as datas, note cobre os avisos, subtitle do passo atual cobre o motivo de cancelamento).
+
+**Confirmação do ponto 5 (6+ passos):** nenhum ramo de `buildJobTimeline` nem de `_buildOpenStepperSteps` passa de 4 passos — não foi preciso agrupar nada.
+
+---
+
+### Parte 2 — Foto/nome da contraparte: 4 pontos partidos pelo hardening de segurança de 2026-09-09 (migration 0032)
+
+**Causa raiz comum aos 4:** a migration `archive/0032_audit_fixes.sql` (aplicada à BD viva em 2026-09-09) substituiu a policy `USING(true)` de `profiles` por 3 policies granulares — correção de segurança correta (antes, qualquer autenticado lia o perfil completo de qualquer utilizador, incluindo telefone). Mas 4 pontos do código liam nome/avatar da CONTRAPARTE através de um embedded join do PostgREST (`profiles!<fk>(full_name, avatar_url)`) fora das 2 relações que essas 3 policies cobrem (dono do perfil; worker↔cliente só depois de proposta `accepted`). Nenhum destes 4 pontos foi testado de novo depois do hardening — o join passou a devolver sempre `null`, sem erro nenhum, por isso ninguém reparou até esta auditoria.
+
+**Matriz de pontos de contacto (antes → depois):**
+
+| Ecrã | Quem aparece | Fonte de dados (antes) | Nome/avatar chegavam? | Fonte (depois) |
+|---|---|---|---|---|
+| `WorkerJobDetailScreen` (oportunidade, `open`) | Cliente, ao worker | SELECT direto `profiles` via `clientBasicInfoProvider` | **Não** — RLS só permite depois de proposta aceite; job ainda `open` | RPC `get_open_job_client_identity` (novo provider `openJobClientIdentityProvider`) |
+| `client_proposals_screen.dart` ("Propostas recebidas") | Worker, ao cliente, por proposta `pending` | embedded join `profiles!job_proposals_worker_id_fkey` | **Não** — mesma causa, e é justamente ANTES de aceitar que o cliente mais precisa de ver quem propôs | RPC `get_pending_proposals_for_job` |
+| `worker_help_requests_lobby_screen.dart` (aceitar/rejeitar candidatos) | Candidato ajudante, ao worker principal | embedded join `profiles!help_acceptances_worker_id_fkey` | **Não** — não há policy "principal vê perfil de candidato", só client↔worker de job confirmado | RPC `get_candidates_for_help_request` |
+| `showRatingsSheet` (`client_proposals_screen.dart`, ecrãs de candidatura de ajudante) | Quem avaliou, ao ver as avaliações de um worker | embedded join `rater:profiles!rater_id` | **Não** — `ratings` é pública, mas o nome do rater não | RPC `get_ratings_with_rater_identity` |
+| `worker_my_job_detail_screen.dart` / `worker_job_detail_screen.dart` (job `confirmed`/`awaiting_confirmation`/`completed`) | Cliente, ao worker | SELECT direto `profiles` via `clientBasicInfoProvider` | **Sim** — proposta já `accepted`, RLS permite | inalterado |
+| `client_job_detail_screen.dart` / `client_scheduled_job_detail_screen.dart` / `client_job_confirmed_screen.dart` / `client_rate_worker_screen.dart` (job confirmado) | Worker, ao cliente | SELECT direto `profiles` via `workerBasicInfoProvider` | **Sim** — `client_has_confirmed_job_with_worker` cobre confirmed/awaiting/completed | inalterado |
+| `client_jobs_screen.dart` (lista "Os meus pedidos") | Worker, ao cliente, jobs confirmados | `acceptedProposalForJobProvider` → `workerBasicInfoProvider` | **Sim**, mas a linha inteira desaparecia (não só o avatar) se o nome viesse vazio por qualquer razão | inalterado na fonte; UI já não esconde a linha (ver abaixo) |
+| `get_worker_job_board` ("Os meus trabalhos", todas as tabs) | Cliente ou worker principal, ao worker | RPC já com `person_name`, SECURITY DEFINER | **Sim**, sempre (bypassa RLS) — mas nunca mostrou avatar, cards são texto+ícone genérico por design | inalterado, confirmado por design |
+| `get_help_requests_in_radius` (descoberta de pedidos de ajuda) | Worker principal, ao candidato | RPC, `principal_avatar_url` ausente do `RETURNS TABLE` | **Não** (já corrigido em sessão anterior, migration 0039 escrita) | inalterado — ver nota sobre 0039 abaixo |
+| Dashboard do worker (próximo trabalho/oportunidades), notificações (ambos os lados) | — | — | N/A — nenhum destes ecrãs tenta mostrar avatar (cards texto+ícone genérico, por design) | inalterado |
+| "Pedidos disponíveis" (lista), "Enviar proposta", ecrãs de ajudante (nunca mostram o cliente do job) | — | — | N/A por design (lista mais leve; ajudante não deve ver o cliente, regra de negócio já documentada em `project_overview.md`) | inalterado |
+
+**Correções (RLS → RPC, nunca alargamento de `profiles`):** 4 novas funções SECURITY DEFINER em `supabase/migrations/0040_cross_party_identity_rpcs.sql` (NOVA — NÃO APLICADA), cada uma a expor só nome+avatar (nunca telefone/coordenadas) com a MESMA condição de autorização que a policy já exigia para a linha "principal":
+- `get_open_job_client_identity(p_job_id)` — autorização = `status = 'open'` (igual à policy "Worker vê jobs abertos").
+- `get_pending_proposals_for_job(p_job_id)` — autorização = `job_requests.client_id = auth.uid()` (igual à policy "Client vê propostas dos seus jobs"); devolve as mesmas colunas de `job_proposals` + `worker_name`/`worker_avatar_url`.
+- `get_candidates_for_help_request(p_help_request_id)` — reaproveita directamente `is_principal_worker_for_help_request()`, a mesma função já usada pela policy "Worker principal vê candidatos".
+- `get_ratings_with_rater_identity(p_ratee_id)` — sem restrição adicional (a informação já era pública via `ratings USING(true)`).
+
+**Ficheiros Dart alterados:**
+- `features/jobs/data/job_repository.dart` (+ `fetchOpenJobClientIdentity`), `features/jobs/application/job_providers.dart` (+ `openJobClientIdentityProvider`), `features/worker/presentation/worker_job_detail_screen.dart` (usa o novo provider em vez de `clientBasicInfoProvider`).
+- `features/proposals/data/proposal_repository.dart` (`fetchPendingProposalsForJob` passa a chamar a RPC), `features/proposals/data/proposal_model.dart` (`fromJson` lê `worker_name`/`worker_avatar_url` planos, com fallback ao embedded antigo).
+- `features/help_requests/data/help_request_repository.dart` (`fetchCandidatesForHelpRequest` passa a chamar a RPC), `features/help_requests/data/help_request_model.dart` (idem, `HelpAcceptance.fromJson`).
+- `features/ratings/data/rating_repository.dart` (`fetchRatingsWithRaterNames` passa a chamar a RPC), `features/ratings/data/rating_model.dart` (`Rating.fromJson` + novo campo `raterAvatarUrl`).
+
+**Fallback visual ("—" → papel conhecido):** `core/widgets/user_avatar_with_name.dart` ganhou `fallbackLabel` opcional (mostrado no texto E usado para a inicial do avatar quando `name` vem vazio; omitido mantém o "—" antigo para quem não passar o parâmetro — nenhum call site não tocado muda de comportamento). Aplicado a:
+- `worker_my_job_detail_view.dart` (×2 — cliente ao worker, confirmado e "other body"), `worker_job_detail_view.dart` (cliente ao worker, oportunidade) → `'Cliente'`.
+- `client_job_detail_screen.dart` (`_workerContactCard`) → `'Jardineiro'`; `client_job_confirmed_screen.dart` e `client_scheduled_job_detail_screen.dart` já usavam ícone genérico para o avatar (sem alterar), só o texto "—"→"Jardineiro" no nome.
+- `worker_help_requests_screen.dart` (card de descoberta, nome do principal) → `'Jardineiro'`; `_WorkerSummary` em `worker_help_requests_lobby_view.dart` (candidatos/ajudantes aceites) → `'Jardineiro'` inline (widget local, sem parâmetro — usado só neste papel).
+- `ratings_sheet.dart` (nome do rater) → `'Avaliador'` (papel ambíguo — tanto clientes como principals avaliam um worker, por isso um termo neutro em vez de assumir um dos dois).
+- `client_jobs_screen.dart` + `client_jobs_view.dart`: a lista escondia a linha do worker inteira quando o nome vinha vazio (`if (job.workerName != null && job.workerName!.isNotEmpty)`); passou a distinguir "sem worker" (`null`, esconde) de "há worker mas falta o nome" (`''`, mostra com `fallbackLabel: 'Jardineiro'`) — `workerName` na screen deixou de filtrar nomes vazios para `null`.
+
+**O que continua sem avatar/nome, e porquê:**
+- `get_worker_job_board` ("Os meus trabalhos") — texto+ícone genérico por design, confirmado na sessão anterior (`023e636`); não é um gap.
+- Dashboard do worker e notificações (ambos os lados) — nenhum destes ecrãs usa avatar, design icon+texto consistente em toda a feature; não é um gap.
+- "Pedidos disponíveis" (lista) e "Enviar proposta" — nunca mostraram o cliente; decisão de produto implícita (lista mais leve, identidade só no detalhe) — não alterado por não estar claramente pedido, mas fica registado como candidato a decisão futura.
+- Ajudantes nunca veem o cliente do job — regra de negócio deliberada (`project_overview.md`), confirmado sem nenhuma leak nos ficheiros de `features/help_requests/`.
+
+**`flutter analyze`:** 0 issues novos (5 pré-existentes sem relação, mesmos de 2026-10-12).
+
+---
+
+## 2026-10-12 — Limpeza de dívida técnica: mapeamento de erros, _PlaceholderScreen morto, confirmação do ratings_sheet
+
+### 1. Consolidação do mapeamento de erros
+
+**Antes — 4 funções a traduzir exceções, não só as 2 já conhecidas:**
+
+| Função | Ficheiro | Casos tratados |
+|---|---|---|
+| `friendlyError(e)` | `core/utils/error_utils.dart` | rede, "24h de antecedência", proposta já enviada, duplicado/unique constraint, permission denied/RLS, estado inválido, fallback genérico. Usado em 26+ ficheiros. |
+| `AuthController._mapError(e)` (privado) | `features/auth/application/auth_controller.dart` | invalid login, email já registado, password (genérico, texto desatualizado "6 caracteres"), rede, email not confirmed, rate limit, fallback. 4 call sites (signUp/createProfile/signIn/signOut). |
+| `describePasswordResetError(e)` | `features/auth/application/password_reset_controller.dart` | só lê `.message` de um `AuthException` já classificado por `_throwClassified`; fallback próprio se não for `AuthException`. |
+| `AuthRepository._throwClassified(e)` (privado) | `features/auth/data/auth_repository.dart` | **não encontrado pela auditoria de 2026-09-08** — classifica e relança com `code` estruturado (network/invalidCode/unexpected) para o fluxo de recuperação de senha/confirmação de email: deteção de rede via `AuthRetryableFetchException.statusCode == null` (mais fiável que string matching), `otp_expired`/`otp_disabled`, `same_password`, `weak_password` (texto "demasiado fraca... 8+ caracteres, maiúscula, número"), rate limit, backstop por string. |
+
+Não existia nenhum `auth_error_utils.dart` — a deteção de rede "usada na recuperação de senha" vivia dentro de `_throwClassified`.
+
+**Depois:**
+
+- `friendlyError()` (`error_utils.dart`) passou a ser o ponto único para **mapear uma exceção crua numa mensagem**. Ganhou os casos de autenticação de `_mapError` (invalid login, email já registado, email not confirmed, rate limit, password fraca) e a deteção de rede foi extraída para uma função partilhada `isNetworkError(e)` (type-check `AuthRetryableFetchException` + string fallback, exatamente a lógica que estava em `_throwClassified`) — satisfaz o pedido de reaproveitar a deteção já existente em vez de criar outra.
+- `AuthController._mapError` **removido por completo** — os 4 call sites chamam `friendlyError(e)`. Import de `flutter/foundation.dart` (só servia o `debugPrint` do `_mapError`) também removido.
+- `AuthRepository._throwClassified` **mantido** (não é duplicação de `friendlyError`: produz um `code` estruturado que `PasswordResetController._classify` usa para decidir entre erro inline e `AppSystemStateScreen` — isso não é algo que uma função `String friendlyError(Object)` possa expressar). Simplificado para chamar `isNetworkError(e)` em vez de repetir a lógica duas vezes (type-check no topo + string backstop no fundo); o backstop de string para rede tornou-se redundante e foi removido.
+- `describePasswordResetError` — fallback (caso `e` não seja `AuthException`, o que não deve acontecer em operação normal) passou a chamar `friendlyError(e)` em vez de uma string própria.
+- `weak_password` em `_throwClassified` passou a usar a mesma constante `weakPasswordMessage` do validador client-side.
+
+**Conflitos de texto resolvidos (mesmo caso, textos diferentes):**
+
+1. **Password fraca** — `_mapError` dizia "A password deve ter pelo menos 6 caracteres." (regra antiga, Supabase default); `_throwClassified` dizia "A password é demasiado fraca. Usa 8+ caracteres, uma maiúscula e um número."; o validador client-side (`password_policy.dart`, única fonte da REGRA real) diz "A password tem de ter 8+ caracteres, uma maiúscula e um número." — confirmado em `signup_screen.dart` que esta é a regra realmente aplicada (`passwordPolicyValidator`, partilhado entre signup e nova password da recuperação). **Ficou o texto do validador** (extraído para a constante `weakPasswordMessage` em `password_policy.dart`, reutilizada nos 2 sítios) — o texto de 6 caracteres estava simplesmente desatualizado.
+2. **Rede** — `friendlyError`/`_throwClassified` diziam "Sem ligação à internet. Verifica a tua conexão e tenta novamente."; `_mapError` dizia só "Sem ligação à internet." **Ficou a versão mais longa/acionável** (já era maioria 2-para-1).
+3. **Fallback genérico** — `friendlyError` dizia "Ocorreu um erro inesperado. Tenta novamente."; `_mapError`/`describePasswordResetError`/`_throwClassified` diziam "Ocorreu um erro. Tenta novamente." **Ficou o texto do `friendlyError`** (maior superfície de uso); `_throwClassified` e `describePasswordResetError` ficaram alinhados com ele (o fallback de `_throwClassified` mantém-se literal — é o `code: unexpected` que o `PasswordResetController` lê, não uma chamada a `friendlyError`, para não perder o `code`).
+
+**Nenhum caso foi perdido** — todos os 4 inventários acima estão cobertos em `friendlyError` ou em `_throwClassified` (que continua a existir, agora só reduzido de duplicação interna).
+
+Ficheiros alterados: `core/utils/error_utils.dart`, `core/constants/password_policy.dart`, `features/auth/application/auth_controller.dart`, `features/auth/data/auth_repository.dart`, `features/auth/application/password_reset_controller.dart`. `flutter analyze`: 0 issues novos (5 pré-existentes sem relação).
+
+### 2. `_PlaceholderScreen` duplicado em `client_shell.dart`
+
+**Já não existe** — foi removido na sessão de 2026-09-09 (ver `STATUS.md`, secção "Gaps conhecidos 🔵 BAIXO"), antes desta sessão. Confirmado por leitura direta: `client_shell.dart` (68 linhas) não define nenhuma classe `_PlaceholderScreen`; a única definição do projeto vive em `app_router.dart:563`, usada 2x para as rotas placeholder `/client/messages` e `/worker/messages`. Nenhuma alteração feita — pedido já estava satisfeito.
+
+### 3. `ratings_sheet.dart` / `showRatingsSheet`
+
+**Não removido — a premissa da sessão estava incorreta.** `showRatingsSheet` (plural, `ratings_sheet.dart`) continua com 4 call sites ativos: `worker_help_requests_screen.dart` (import + 1 uso), `worker_help_requests_lobby_screen.dart`, `client_proposals_screen.dart`. O novo ecrã "As minhas avaliações" (`my_ratings_screen.dart` + `my_ratings_route.dart`, rotas `/worker/ratings` e `/client/ratings`) **não é o mesmo widget nem substitui o sheet** — `MyRatingsRoute` mostra sempre as avaliações do PRÓPRIO utilizador (dadas/recebidas, via `myRatingsReceivedProvider`/`myRatingsGivenProvider`, filtrados por `auth.uid()` nas RPCs `get_my_ratings_received`/`get_my_ratings_given`), enquanto `showRatingsSheet` mostra, a partir de um fluxo em curso, as avaliações de um WORKER ESPECÍFICO identificado por `workerId` passado pelo caller (ex.: ver a reputação de um candidato antes de aceitar). São funcionalidades distintas que coexistem — o ecrã novo não veio para substituir o sheet, veio para cobrir um caso que não existia antes ("ver as minhas próprias avaliações"). `rating_sheet.dart` (`showRatingSheet`, singular — submeter avaliação nova) confirmado em uso em 3 call sites (`worker_help_requests_screen.dart`, `worker_my_job_detail_view.dart`, `client_job_detail_screen.dart`), não tocado. Nenhum ficheiro apagado.
+
 ## 2026-09-26 — Wizard "criar pedido" ganha passo 4: rever e publicar
 
 **Contexto:** o wizard de 3 passos publicava diretamente no passo 3 ("Descrição e fotos"), sem

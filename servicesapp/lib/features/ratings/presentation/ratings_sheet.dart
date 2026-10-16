@@ -227,7 +227,9 @@ class _RatingRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  rating.raterName ?? '—',
+                  rating.raterName?.isNotEmpty == true
+                      ? rating.raterName!
+                      : 'Avaliador',
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),

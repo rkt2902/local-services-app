@@ -176,4 +176,22 @@ class JobRepository {
     if (data == null) return null;
     return JobRequest.fromJson(data);
   }
+
+  /// Nome/avatar do cliente para a oportunidade (job `open`, ainda sem
+  /// proposta aceite) — a policy de SELECT de `profiles` só deixa um worker
+  /// ler o perfil do cliente quando já tem proposta `accepted` nesse job,
+  /// por isso um SELECT direto a `profiles` falha aqui (RLS, não bug de
+  /// dados). RPC `get_open_job_client_identity` (migration 0040, NÃO
+  /// aplicada) expõe só estas duas colunas, com a mesma condição da policy
+  /// "Worker vê jobs abertos" (`status = 'open'`) — nunca o telefone.
+  Future<Map<String, String>> fetchOpenJobClientIdentity(String jobId) async {
+    final data = await _client
+        .rpc('get_open_job_client_identity', params: {'p_job_id': jobId})
+        .maybeSingle();
+    if (data == null) return {'full_name': '', 'avatar_url': ''};
+    return {
+      'full_name': data['client_name'] as String? ?? '',
+      'avatar_url': data['client_avatar_url'] as String? ?? '',
+    };
+  }
 }
