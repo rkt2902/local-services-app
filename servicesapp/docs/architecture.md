@@ -353,6 +353,11 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 - `job_requests`: cliente vê os seus; worker vê `open` (qualquer autenticado, sem
   filtro de raio ao nível da RLS — o raio é só um filtro de RPC/UI) + jobs onde tem
   proposta (`worker_has_proposal_for_job`).
+  **Com a 0043 (não aplicada):** o worker deixa de ler `job_requests` por RLS, exceto
+  o worker aceite (`can_see_exact_job_location`). Os outros leem pelas RPCs
+  (`get_job_by_id`, `get_jobs_in_radius`, `get_worker_job_board`), que devolvem
+  `location_area` e coordenadas arredondadas em vez da morada exata até a proposta
+  ser aceite.
 - `job_proposals`: worker vê as suas; cliente vê as dos seus jobs.
 - `notifications`: cada um só vê as suas; sem policy INSERT (só RPCs `SECURITY DEFINER`
   escrevem).
@@ -385,6 +390,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `cancel_job` | `p_job_id, p_reason, p_reason_detail?, p_client_wants_reopen?` | `uuid` (novo job se reaberto) | `JobRepository.cancelJob` |
 | `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name)` | `RatingRepository` |
 | `get_help_requests_in_radius` | `worker_lat, worker_lng, radius_km` | `TABLE(... principal_name, principal_avatar_url, payment_per_helper, confirmed_date/time)` — shape atual é a soma de 0034+0039, ver nota | `HelpRequestRepository` |
+| `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km, p_worker_id?` | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
 | `mark_job_done` | `p_job_id` | `void` | `ProposalRepository.markJobCompleted` |
@@ -441,6 +447,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0038_ratings_mine_received_given.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
 | `0039_help_request_principal_avatar.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
 | `0040_cross_party_identity_rpcs.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
+| `0041_push_notifications.sql` | NÃO aplicada |
+| `0042_security_hardening.sql` | NÃO aplicada (review de 2026-10-16) |
+| `0043_job_location_privacy.sql` | NÃO aplicada; aplicar depois da 0042 e junto com a app nova |
 
 ---
 

@@ -86,6 +86,10 @@ class _ClientCreateJobScheduleScreenState
   /// alguma coisa, deixa de fazer sentido e desaparece sozinho.
   bool _addressLookupFailed = false;
 
+  /// Localidade do pin (do reverse geocoding), mostrada ao jardineiro em vez
+  /// da morada exata até a proposta ser aceite.
+  String? _locationArea;
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +105,7 @@ class _ClientCreateJobScheduleScreenState
     _selectedSizeOptionId = wizard.sizeEstimate?.value;
 
     _addressController.text = wizard.addressText;
+    _locationArea = wizard.locationArea;
     if (wizard.locationLat != null && wizard.locationLng != null) {
       _pinPosition = LatLng(wizard.locationLat!, wizard.locationLng!);
     }
@@ -132,6 +137,8 @@ class _ClientCreateJobScheduleScreenState
       final latlng = LatLng(loc.latitude, loc.longitude);
       setState(() => _pinPosition = latlng);
       _mapController.move(latlng, 14);
+      // Só para atualizar a localidade (o texto escrito não é tocado).
+      _reverseGeocodePin(latlng.latitude, latlng.longitude);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -158,6 +165,10 @@ class _ClientCreateJobScheduleScreenState
   Future<void> _reverseGeocodePin(double lat, double lng) async {
     setState(() => _addressLookupFailed = false);
     final result = await GeocodingService.reverseGeocode(lat, lng);
+    // A localidade guarda-se sempre que o geocoding responde, mesmo que a
+    // morada tenha sido escrita à mão: é o que o jardineiro vê antes de a
+    // proposta ser aceite (migration 0043).
+    if (result != null) _locationArea = result.locationName;
     if (!mounted || _addressController.text.isNotEmpty) return;
     setState(() {
       if (result != null) {
@@ -245,6 +256,7 @@ class _ClientCreateJobScheduleScreenState
     );
     notifier.setLocation(
       addressText: _addressController.text.trim(),
+      locationArea: _locationArea,
       locationLat: _pinPosition!.latitude,
       locationLng: _pinPosition!.longitude,
     );

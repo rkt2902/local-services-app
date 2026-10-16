@@ -70,6 +70,13 @@ assinatura de RPC, pode ser aplicada antes ou depois da app nova. Pode ser
 aplicada antes da 0041 (o REVOKE do trigger de push é condicional).
 Verificação no fim do próprio ficheiro.
 
+**PENDENTE — `0043_job_location_privacy.sql`** — NÃO aplicada ainda. Aplicar
+DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
+`get_job_by_id`). Até haver proposta aceite, o jardineiro vê só a localidade
+(`job_requests.location_area`, coluna nova) e coordenadas arredondadas a ~1 km.
+A morada exata fica para o cliente, o worker aceite e os ajudantes aceites.
+Os workers deixam de ler `job_requests` diretamente (exceto o aceite).
+
 **Regra a partir da 0042:** cada função nova faz
 `REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
 (o Postgres dá EXECUTE a PUBLIC por defeito).

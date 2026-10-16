@@ -3,7 +3,6 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-<<<<<<< Updated upstream
 ## 2026-10-16 — Review completo de segurança e performance (migration 0042 + app)
 
 Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
@@ -16,8 +15,8 @@ Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
 
 **App:** id passa a `pt.projardim.app` (Android applicationId/namespace e iOS bundle id), nome "ProJardim" no ícone, assinatura de release por `android/key.properties` (fallback para debug), chaves de permissão no Info.plist (localização, câmara, fotos: sem elas o iOS fecha a app), `pubspec.lock` passa a ser versionado, stream de notificações com `.limit(50)`, `notificationSync` compara ids em vez de tamanhos, `currentUserProvider` só reconstrói quando muda o id do utilizador, `cacheWidth` nas miniaturas, providers mortos removidos, mensagens novas em `friendlyError`, teste smoke trocado por testes de lógica pura.
 
-**Fica por decidir (produto):** mostrar só a zona aproximada dos pedidos abertos até haver proposta aceite (hoje qualquer conta vê a morada exata de todos os pedidos abertos).
-=======
+**Decidido no mesmo dia (migration 0043):** zona aproximada até haver proposta aceite. O jardineiro vê a localidade (`location_area`, preenchida pela app com o `locationName` do reverse geocoding) e coordenadas arredondadas a 2 casas decimais; a morada exata e as coordenadas reais ficam para o cliente, o worker aceite e os ajudantes aceites. Os workers deixam de ler `job_requests` por RLS (exceto o aceite); a app lê o detalhe por `get_job_by_id`, que devolve a versão certa para cada um. Efeito lateral corrigido: o worker aceite passa a ver as fotos do pedido depois de confirmado (a policy antiga só mostrava fotos de pedidos `open`). Ao candidato a ajudante ainda não aceite também deixa de aparecer o telefone do principal.
+
 ## 2026-10-16 — Extração de dump real da BD viva e verificação do estado das migrations
 
 O utilizador extraiu um dump real da BD viva via `supabase db dump` (CLI, projeto
@@ -68,7 +67,6 @@ verificação/documentação, não tocou em código Dart nem em SQL novo.
 **Gitignore:** `.gitignore` da raiz ganhou `/supabase_*.sql` e `/supabase/.temp/`
 para o dump e a cache de link da CLI (criada por engano na raiz do workspace em
 vez de dentro de `servicesapp/`) nunca irem para o repo.
->>>>>>> Stashed changes
 
 ## 2026-10-16 — 4 bugs visuais/navegação reportados com screenshots reais (Android)
 

@@ -16,6 +16,7 @@ class JobRepository {
     required String clientId,
     required String serviceTypeId,
     required String addressText,
+    String? locationArea,
     required double locationLat,
     required double locationLng,
     required DateMode dateMode,
@@ -29,6 +30,8 @@ class JobRepository {
       'client_id': clientId,
       'service_type_id': serviceTypeId,
       'address_text': addressText,
+      if (locationArea != null && locationArea.isNotEmpty)
+        'location_area': locationArea,
       'location_lat': locationLat,
       'location_lng': locationLng,
       'description': description,
@@ -167,11 +170,13 @@ class JobRepository {
     }).toList();
   }
 
+  /// RPC e não SELECT direto (migration 0043): o worker só lê `job_requests`
+  /// por RLS quando é o aceite. Para oportunidades e propostas pendentes,
+  /// `get_job_by_id` devolve a versão com a zona aproximada em vez da
+  /// morada exata. O cliente e o worker aceite recebem tudo.
   Future<JobRequest?> fetchJobById(String jobId) async {
     final data = await _client
-        .from('job_requests')
-        .select()
-        .eq('id', jobId)
+        .rpc('get_job_by_id', params: {'p_job_id': jobId})
         .maybeSingle();
     if (data == null) return null;
     return JobRequest.fromJson(data);

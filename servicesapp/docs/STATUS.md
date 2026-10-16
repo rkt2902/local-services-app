@@ -251,6 +251,11 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **Até a 0042 ser aplicada, estas falhas continuam abertas na BD viva.**
 
+**Morada dos pedidos (0043, NÃO aplicada):** decisão de 2026-10-16. Até a
+proposta ser aceite, o jardineiro vê só a localidade e coordenadas
+arredondadas (~1 km). Antes, qualquer conta lia a morada exata de todos os
+pedidos abertos.
+
 ### Riscos aceites (sem mudança desde 2026-07-09)
 
 SA1, SA2, SA3 — ver tabela completa em `improvements.md`. Nenhum foi corrigido nem piorado
