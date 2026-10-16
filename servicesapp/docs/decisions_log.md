@@ -3,7 +3,12 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-10-16 — Review completo de segurança e performance (migration 0042 + app)
+## 2026-10-16 — Fecho do review: RPCs sem p_worker_id e policies mais rápidas (migration 0044)
+
+`create_proposal`, `get_jobs_in_radius` e `sync_worker_service_types` deixam de receber `p_worker_id` (DROP explícito das versões antigas; a app nova já não o envia). A app ainda não está publicada, por isso não há versão antiga a proteger.
+
+P4: as policies do public passam a usar `(SELECT auth.uid())`, avaliado uma vez por query. **Exceção: `job_requests`.** A policy de INSERT de `job_requests` consulta `profiles`, e uma policy de `profiles` consulta `job_requests`; com um sublink nas policies de SELECT de `job_requests`, o Postgres recusa o INSERT com "infinite recursion detected in policy". Por isso a migration acaba com uma verificação que faz EXPLAIN de SELECT/INSERT/UPDATE/DELETE em todas as tabelas como `authenticated` e falha inteira se houver recursão. `get_jobs_in_radius` e `get_help_requests_in_radius` pré-filtram por uma caixa de lat/lng, com índice parcial `idx_job_requests_open_location`.
+
 
 Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
 

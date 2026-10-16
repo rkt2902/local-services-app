@@ -52,13 +52,13 @@ renomeado manualmente no Supabase Studio em algum momento. Não requer migration
 nova — é só nome, sem impacto funcional — mas ficou registado para não
 confundir quem for ler o nome do trigger na dashboard.
 
-**PENDENTE — `0041_push_notifications.sql`** — NÃO aplicada ainda.
+**APLICADA — `0041_push_notifications.sql`** — aplicada a 2026-10-16.
 Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
 e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
 aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
 `docs/push_notifications.md`.
 
-**PENDENTE — `0042_security_hardening.sql`** — NÃO aplicada ainda. Corrige as
+**APLICADA — `0042_security_hardening.sql`** — aplicada a 2026-10-16. Corrige as
 falhas do review de 2026-10-16: `cancel_job` e `reject_proposal` sem
 autorização, `create_user_profile` aberta a anon (apagada), escritas diretas
 que saltavam as RPCs (`job_proposals` INSERT/UPDATE, `job_requests` UPDATE,
@@ -70,12 +70,22 @@ assinatura de RPC, pode ser aplicada antes ou depois da app nova. Pode ser
 aplicada antes da 0041 (o REVOKE do trigger de push é condicional).
 Verificação no fim do próprio ficheiro.
 
-**PENDENTE — `0043_job_location_privacy.sql`** — NÃO aplicada ainda. Aplicar
+**APLICADA — `0043_job_location_privacy.sql`** — aplicada a 2026-10-16. Aplicar
 DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
 `get_job_by_id`). Até haver proposta aceite, o jardineiro vê só a localidade
 (`job_requests.location_area`, coluna nova) e coordenadas arredondadas a ~1 km.
 A morada exata fica para o cliente, o worker aceite e os ajudantes aceites.
 Os workers deixam de ler `job_requests` diretamente (exceto o aceite).
+
+**PENDENTE — `0044_rpc_identity_and_policy_perf.sql`** — NÃO aplicada ainda.
+Aplicar junto com a app nova: `create_proposal`, `get_jobs_in_radius` e
+`sync_worker_service_types` deixam de receber `p_worker_id` (DROP das versões
+antigas), por isso a app antiga deixa de conseguir enviar propostas, ver
+oportunidades e guardar serviços. Também troca `auth.uid()` por
+`(SELECT auth.uid())` nas policies do public (exceto `job_requests`, que daria
+recursão), pré-filtra o raio por uma caixa de lat/lng com um índice parcial, e
+no fim verifica que nenhuma policy ficou com recursão; se ficar, falha inteira
+e não aplica nada.
 
 **Regra a partir da 0042:** cada função nova faz
 `REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`

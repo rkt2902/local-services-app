@@ -69,7 +69,7 @@ class WorkerRepository {
       ...profile.toWorkerJson(),
     });
 
-    await _syncServiceTypes(profile.profileId, profile.serviceTypeIds);
+    await _syncServiceTypes(profile.serviceTypeIds);
   }
 
   Future<void> updateProfile(WorkerProfile profile) async {
@@ -84,13 +84,11 @@ class WorkerRepository {
         .update(profile.toWorkerJson())
         .eq('profile_id', profile.profileId);
 
-    await _syncServiceTypes(profile.profileId, profile.serviceTypeIds);
+    await _syncServiceTypes(profile.serviceTypeIds);
   }
 
-  Future<void> _syncServiceTypes(
-      String workerId, List<String> serviceTypeIds) async {
+  Future<void> _syncServiceTypes(List<String> serviceTypeIds) async {
     await _client.rpc('sync_worker_service_types', params: {
-      'p_worker_id': workerId,
       'p_service_type_ids': serviceTypeIds,
     });
   }

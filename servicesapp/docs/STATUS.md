@@ -235,7 +235,7 @@ vulnerabilidade corrigida em 0032 (parâmetro de identidade vindo do cliente em 
 `auth.uid()`). A 0032 está confirmada como aplicada à BD viva desde 2026-09-09 (ver secção
 "Gaps conhecidos" acima) — o código está certo e a correção já chegou à BD viva.
 
-### Review de segurança de 2026-10-16 (migration 0042, NÃO aplicada)
+### Review de segurança de 2026-10-16 (migration 0042, aplicada a 2026-10-16)
 
 O review completo de 2026-10-16 encontrou falhas exploráveis com uma conta
 normal que as auditorias anteriores não apanharam: `cancel_job` sem
@@ -249,9 +249,11 @@ na `0042_security_hardening.sql`, testada num Postgres local com os ataques
 simulados (todos bloqueados) e os fluxos normais da app (todos a funcionar).
 Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
 
-**Até a 0042 ser aplicada, estas falhas continuam abertas na BD viva.**
+**A 0042 foi aplicada na BD viva a 2026-10-16; estas falhas estão fechadas.**
 
-**Morada dos pedidos (0043, NÃO aplicada):** decisão de 2026-10-16. Até a
+**RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
+
+**Morada dos pedidos (0043, aplicada a 2026-10-16):** decisão de 2026-10-16. Até a
 proposta ser aceite, o jardineiro vê só a localidade e coordenadas
 arredondadas (~1 km). Antes, qualquer conta lia a morada exata de todos os
 pedidos abertos.

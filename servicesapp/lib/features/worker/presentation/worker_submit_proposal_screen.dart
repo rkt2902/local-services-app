@@ -83,7 +83,6 @@ class _WorkerSubmitProposalScreenState
     try {
       await ref.read(proposalRepositoryProvider).createProposal(
             jobId: widget.jobId,
-            workerId: userId,
             hourlyRate: draft.hourlyPrice,
             estimatedHoursMin: draft.minimumEstimatedHours.toDouble(),
             estimatedHoursMax: draft.maximumEstimatedHours?.toDouble(),
