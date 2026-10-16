@@ -17,6 +17,57 @@ Relatório: `/mnt/project-files/projardim/review/2026-10-16-review-codigo.md`.
 
 **Decidido no mesmo dia (migration 0043):** zona aproximada até haver proposta aceite. O jardineiro vê a localidade (`location_area`, preenchida pela app com o `locationName` do reverse geocoding) e coordenadas arredondadas a 2 casas decimais; a morada exata e as coordenadas reais ficam para o cliente, o worker aceite e os ajudantes aceites. Os workers deixam de ler `job_requests` por RLS (exceto o aceite); a app lê o detalhe por `get_job_by_id`, que devolve a versão certa para cada um. Efeito lateral corrigido: o worker aceite passa a ver as fotos do pedido depois de confirmado (a policy antiga só mostrava fotos de pedidos `open`). Ao candidato a ajudante ainda não aceite também deixa de aparecer o telefone do principal.
 
+## 2026-10-16 — Extração de dump real da BD viva e verificação do estado das migrations
+
+O utilizador extraiu um dump real da BD viva via `supabase db dump` (CLI, projeto
+`twpflvcoyeiysnychkom`, plano Free), guardado temporariamente em
+`supabase_schema_backup.sql` na raiz do workspace (fora do git, ver entrada de
+gitignore abaixo). É a primeira vez nesta série de sessões com acesso real ao
+schema da BD viva, em vez de depender da palavra do utilizador ou dos cabeçalhos
+dos ficheiros de migration.
+
+**Verificação feita:** comparação linha a linha entre o dump e a soma de
+`0001_consolidated_baseline.sql` + migrations 0033–0040.
+
+- Funções: 37 na BD viva, 37 nas migrations, diff vazio nos dois sentidos.
+- Tabelas: 14 na BD viva, 14 nas migrations, diff vazio.
+- Views: 3 em ambos (`worker_profiles_public`, `worker_rating_summary` com
+  `security_invoker=true`, `worker_public_card`), `security_invoker` coincide.
+- Policies de `profiles`: 5 na BD viva (3 granulares + insert própria + update
+  própria), confirma que não existe policy pública — `database_schema.md`
+  continua desatualizado nesse ponto (discrepância 1 da secção 16 do
+  `ARCHITECTURE.md`, não corrigida porque é fora do âmbito da verificação).
+
+**Resultado principal:** as migrations `0038_ratings_mine_received_given.sql`,
+`0039_help_request_principal_avatar.sql` e `0040_cross_party_identity_rpcs.sql`
+estavam todas marcadas como "NÃO aplicada" em `ARCHITECTURE.md`, `STATUS.md` e
+`supabase/migrations/README.md` — e na verdade já estavam todas aplicadas na BD
+viva (confirmado pela presença das 7 funções que introduzem, com a assinatura
+exata esperada). Os 3 ficheiros foram corrigidos para refletir isto.
+
+**Drift novo encontrado:** o trigger de `job_requests` chama-se `on_job_created`
+na BD viva, mas o ficheiro `0001_consolidated_baseline.sql` define-o como
+`trigger_notify_workers_new_job`. Mesma função (`notify_workers_new_job()`),
+mesmo evento (`AFTER INSERT`) — parece um rename manual feito diretamente no
+Supabase Studio, nunca passou por uma migration deste repo. Sem impacto
+funcional. Registado como ponto 8 novo na secção 16 do `ARCHITECTURE.md`.
+
+**Não confirmado:** o dump foi só de schema (sem `--data-only`), por isso a
+discrepância do seed de `service_types` (ponto 3 da secção 16, "Montagem de
+jardim" vs. "Limpeza de jardim") continua sem resposta — precisa de
+`supabase db dump --data-only` ou de uma query direta.
+
+**Ficheiros alterados:** `supabase/migrations/README.md`, `docs/ARCHITECTURE.md`
+(secção 7 — nota de abertura, tabela de RPCs, trigger, estado das migrations;
+secção 16 — pontos 1, 3, 7 atualizados, ponto 8 novo), `docs/STATUS.md` (nova
+entrada em "Gaps conhecidos", nota de confirmação no item dos 4 RPCs de
+contraparte). Nenhuma migration nova criada — esta tarefa foi só de
+verificação/documentação, não tocou em código Dart nem em SQL novo.
+
+**Gitignore:** `.gitignore` da raiz ganhou `/supabase_*.sql` e `/supabase/.temp/`
+para o dump e a cache de link da CLI (criada por engano na raiz do workspace em
+vez de dentro de `servicesapp/`) nunca irem para o repo.
+
 ## 2026-10-16 — 4 bugs visuais/navegação reportados com screenshots reais (Android)
 
 ### 1. Badge de estado gigante na AppBar

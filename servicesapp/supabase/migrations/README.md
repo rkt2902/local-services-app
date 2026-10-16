@@ -33,26 +33,24 @@ cards) have also been applied — see each file's own header.
 No known delta between the live DB and `0001_consolidated_baseline.sql` as
 of 2026-09-09.
 
-**PENDENTE — `0038_ratings_mine_received_given.sql`** — NÃO aplicada ainda.
-Adiciona `get_my_ratings_received()`/`get_my_ratings_given()` (RPCs
-SECURITY DEFINER, sem parâmetro de identidade) para o ecrã "As minhas
-avaliações". Aplicar manualmente via SQL Editor antes de usar
-`my_ratings_screen.dart`.
+**UPDATE 2026-10-16:** confirmado via dump real da BD viva (`supabase db
+dump`, projeto `twpflvcoyeiysnychkom`) que `0038_ratings_mine_received_given.sql`,
+`0039_help_request_principal_avatar.sql` e `0040_cross_party_identity_rpcs.sql`
+**estão todas aplicadas** — as 7 funções que introduzem
+(`get_my_ratings_received`, `get_my_ratings_given`, `get_help_requests_in_radius`
+no shape pós-0039, `get_open_job_client_identity`, `get_pending_proposals_for_job`,
+`get_candidates_for_help_request`, `get_ratings_with_rater_identity`) existem
+todas na BD viva com a assinatura esperada. As 37 funções, 14 tabelas e 3 views
+da BD viva coincidem exatamente com a soma de `0001_consolidated_baseline.sql` +
+0033–0040, sem funções/tabelas extra nem em falta.
 
-**PENDENTE — `0039_help_request_principal_avatar.sql`** — NÃO aplicada
-ainda. DROP+CREATE de `get_help_requests_in_radius` para incluir
-`principal_avatar_url` (já selecionava `full_name`, nunca o avatar).
-
-**PENDENTE — `0040_cross_party_identity_rpcs.sql`** — NÃO aplicada ainda.
-4 RPCs SECURITY DEFINER novas (`get_open_job_client_identity`,
-`get_pending_proposals_for_job`, `get_candidates_for_help_request`,
-`get_ratings_with_rater_identity`) que corrigem 4 pontos onde o hardening
-de segurança de `archive/0032_audit_fixes.sql` (aplicado 2026-09-09) partiu
-silenciosamente a visibilidade de nome/avatar da contraparte fora das
-relações cobertas pelas 3 policies granulares de `profiles`. Aplicar antes
-de testar: oportunidade `open` do worker, "Propostas recebidas" do
-cliente, lobby de candidatos a ajudante, `showRatingsSheet`. Ver
-`decisions_log.md` 2026-10-15.
+**Drift encontrado (cosmético, não aplicado por nenhuma migration deste repo):**
+o trigger em `job_requests` chama-se `on_job_created` na BD viva, mas
+`0001_consolidated_baseline.sql` define-o como `trigger_notify_workers_new_job`
+(mesma função `notify_workers_new_job()`, mesmo comportamento). Foi provavelmente
+renomeado manualmente no Supabase Studio em algum momento. Não requer migration
+nova — é só nome, sem impacto funcional — mas ficou registado para não
+confundir quem for ler o nome do trigger na dashboard.
 
 **PENDENTE — `0041_push_notifications.sql`** — NÃO aplicada ainda.
 Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
