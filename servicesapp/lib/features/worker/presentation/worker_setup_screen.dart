@@ -13,6 +13,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_category_section.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
@@ -34,6 +35,9 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
 
   File? _avatar;
   final List<String> _selectedServiceTypeIds = [];
+
+  /// Categorias abertas na lista de serviços (todas fechadas no início).
+  final Set<String> _expandedCategories = {};
   final int _radiusKm = 10;
   double? _baseLat;
   double? _baseLng;
@@ -222,6 +226,57 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     }
   }
 
+  void _toggleServiceType(String id) {
+    setState(() {
+      if (_selectedServiceTypeIds.contains(id)) {
+        _selectedServiceTypeIds.remove(id);
+      } else {
+        _selectedServiceTypeIds.add(id);
+      }
+    });
+  }
+
+  Widget _buildCategorySection(ServiceTypeGroup group) {
+    final selectedCount =
+        group.types.where((t) => _selectedServiceTypeIds.contains(t.id)).length;
+    final total = group.types.length;
+    return ServiceCategorySection(
+      icon: serviceIconFor(group.icon),
+      title: group.name,
+      summary: selectedCount == 0
+          ? '$total serviços'
+          : '$selectedCount de $total selecionados',
+      highlighted: selectedCount > 0,
+      expanded: _expandedCategories.contains(group.name),
+      onToggle: () => setState(() {
+        if (!_expandedCategories.remove(group.name)) {
+          _expandedCategories.add(group.name);
+        }
+      }),
+      allSelected: selectedCount == total,
+      onSelectAll: (selectAll) => setState(() {
+        for (final t in group.types) {
+          _selectedServiceTypeIds.remove(t.id);
+          if (selectAll) _selectedServiceTypeIds.add(t.id);
+        }
+      }),
+      child: Wrap(
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        children: [
+          for (final t in group.types)
+            WorkerServiceTypeChip(
+              serviceTypeId: t.id,
+              serviceTypeLabel: t.name,
+              icon: serviceIconFor(t.icon),
+              selected: _selectedServiceTypeIds.contains(t.id),
+              onToggle: _toggleServiceType,
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -314,53 +369,10 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                             textTheme.bodyMedium?.copyWith(color: Colors.red),
                       ),
                       data: (types) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           for (final group in groupServiceTypes(types)) ...[
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                top: AppSpacing.xs,
-                                bottom: AppSpacing.xs,
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    serviceIconFor(group.icon),
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: AppSpacing.xs),
-                                  Text(
-                                    group.name,
-                                    style: textTheme.labelMedium?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Wrap(
-                              spacing: AppSpacing.xs,
-                              runSpacing: AppSpacing.xs,
-                              children: group.types
-                                  .map((t) => WorkerServiceTypeChip(
-                                        serviceTypeId: t.id,
-                                        serviceTypeLabel: t.name,
-                                        icon: serviceIconFor(t.icon),
-                                        selected: _selectedServiceTypeIds
-                                            .contains(t.id),
-                                        onToggle: (id) => setState(() {
-                                          if (_selectedServiceTypeIds
-                                              .contains(id)) {
-                                            _selectedServiceTypeIds
-                                                .remove(id);
-                                          } else {
-                                            _selectedServiceTypeIds.add(id);
-                                          }
-                                        }),
-                                      ))
-                                  .toList(),
-                            ),
+                            _buildCategorySection(group),
                             const SizedBox(height: AppSpacing.xs),
                           ],
                         ],

@@ -3,15 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/widgets/service_category_section.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../worker/data/service_type_model.dart';
@@ -42,8 +41,11 @@ class _ClientCreateJobServiceScreenState
 
   String? _selectedServiceTypeId;
 
-  /// Separador escolhido pelo cliente (nome da categoria).
-  String? _selectedCategory;
+  /// Categoria aberta (nome); `null` com todas fechadas.
+  String? _expandedCategory;
+
+  /// `true` depois de o cliente abrir ou fechar uma categoria.
+  bool _categoryTouched = false;
 
   @override
   void initState() {
@@ -243,55 +245,41 @@ class _ClientCreateJobServiceScreenState
                         );
                       }
 
-                      // Separador ativo: o escolhido, senão o do serviço
-                      // já selecionado, senão o primeiro.
+                      // Uma categoria aberta de cada vez. Antes de o
+                      // cliente tocar em alguma, abre a do serviço já
+                      // escolhido (ao voltar da revisão) ou fica tudo
+                      // fechado.
                       final selectedType = serviceTypes
                           .where((t) => t.id == _selectedServiceTypeId)
                           .firstOrNull;
-                      final activeName = groups.any(
-                              (g) => g.name == _selectedCategory)
-                          ? _selectedCategory!
-                          : (selectedType?.categoryName ?? groups.first.name);
-                      final activeGroup = groups.firstWhere(
-                        (g) => g.name == activeName,
-                        orElse: () => groups.first,
-                      );
+                      final expandedName = _categoryTouched
+                          ? _expandedCategory
+                          : selectedType?.categoryName;
 
                       return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (groups.length > 1) ...[
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  for (final group in groups) ...[
-                                    AppFilterChip(
-                                      label: group.name,
-                                      leadingIcon: serviceIconFor(group.icon),
-                                      selected: group.name == activeGroup.name,
-                                      onPressed: () => setState(
-                                        () => _selectedCategory = group.name,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.xs),
-                                  ],
-                                ],
-                              ),
+                          for (final group in groups) ...[
+                            ServiceCategorySection(
+                              icon: serviceIconFor(group.icon),
+                              title: group.name,
+                              summary: group.types
+                                      .any((t) => t.id == selectedType?.id)
+                                  ? selectedType!.name
+                                  : '${group.types.length} serviços',
+                              highlighted: group.types
+                                  .any((t) => t.id == selectedType?.id),
+                              expanded: expandedName == group.name,
+                              onToggle: () => setState(() {
+                                _categoryTouched = true;
+                                _expandedCategory = expandedName == group.name
+                                    ? null
+                                    : group.name;
+                              }),
+                              child: _serviceGrid(group.types),
                             ),
-                            const SizedBox(height: AppSpacing.sm),
+                            const SizedBox(height: AppSpacing.xs),
                           ],
-                          AnimatedSwitcher(
-                            duration: (MediaQuery.maybeOf(context)
-                                        ?.disableAnimations ??
-                                    false)
-                                ? Duration.zero
-                                : AppMotionDuration.fast,
-                            child: KeyedSubtree(
-                              key: ValueKey(activeGroup.name),
-                              child: _serviceGrid(activeGroup.types),
-                            ),
-                          ),
                         ],
                       );
                     },
