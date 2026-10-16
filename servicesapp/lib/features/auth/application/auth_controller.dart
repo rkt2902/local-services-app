@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/enums.dart';
+import '../../notifications/application/push_notification_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../data/auth_repository.dart';
 import 'auth_providers.dart';
@@ -91,6 +92,7 @@ class AuthController extends Notifier<AuthControllerState> {
   Future<void> signOut() async {
     state = const AuthLoading();
     try {
+      await ref.read(pushNotificationServiceProvider).unregister();
       await _repo.signOut();
       await ref.read(sessionStatusProvider.notifier).refresh();
       state = const AuthSuccess();

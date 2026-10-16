@@ -54,6 +54,12 @@ de testar: oportunidade `open` do worker, "Propostas recebidas" do
 cliente, lobby de candidatos a ajudante, `showRatingsSheet`. Ver
 `decisions_log.md` 2026-10-15.
 
+**PENDENTE — `0041_push_notifications.sql`** — NÃO aplicada ainda.
+Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
+e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
+aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
+`docs/push_notifications.md`.
+
 ## Sources used for consolidation
 
 - `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,
