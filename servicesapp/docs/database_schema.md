@@ -466,7 +466,9 @@ e WebP; o SELECT por policy ficou só para o dono (para não se poder listar o b
 ## Migrations
 
 **Estado a 2026-10-17:** `0001_consolidated_baseline.sql` (estado da BD a 2026-07-09) e
-todas as migrations de `0033` a `0046` estão aplicadas na BD viva. A próxima é a `0047`.
+todas as migrations de `0033` a `0046` estão aplicadas na BD viva. A `0047`
+(`get_candidates_for_help_request` passa a devolver `message`) está criada mas por aplicar.
+A próxima é a `0048`.
 As 32 migrations incrementais antigas estão em `supabase/migrations/archive/`, só para
 histórico (não aplicar). O histórico abaixo é anterior à consolidação.
 

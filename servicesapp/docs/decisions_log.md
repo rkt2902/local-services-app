@@ -3,6 +3,17 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Mensagem do candidato visível ao jardineiro principal
+
+- Antes: `help_acceptances.message` (0034) era gravada pelo ecrã de candidatura mas a
+  RPC `get_candidates_for_help_request` (0040) não a devolvia, por isso ninguém a via.
+- Agora: migration 0047 (DROP + CREATE, porque o `RETURNS TABLE` muda de forma) junta a
+  coluna `message`; mesma autorização (`is_principal_worker_for_help_request`, por
+  `auth.uid()`) e o REVOKE/GRANT da regra da 0042. A app lê-a (vazia ou só espaços
+  conta como sem mensagem) e mostra-a num bloco "Mensagem" no cartão do candidato.
+- Compatível nos dois sentidos: a app nova sem a 0047 aplicada simplesmente não mostra
+  o bloco; a app antiga ignora a coluna nova.
+
 ## 2026-10-17 — Confirmação de email por código de 6 dígitos
 
 - Antes: ligar "Confirm email" no Supabase partia o registo (o `signUp` deixa de abrir

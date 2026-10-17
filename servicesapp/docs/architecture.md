@@ -404,7 +404,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
-| `get_candidates_for_help_request` (0040, aplicada) | `p_help_request_id` | colunas de `help_acceptances` + `worker_name/avatar_url` | `HelpRequestRepository.fetchCandidatesForHelpRequest` |
+| `get_candidates_for_help_request` (0040, aplicada; 0047 por aplicar junta `message`) | `p_help_request_id` | colunas de `help_acceptances` + `worker_name/avatar_url` + `message` (0047) | `HelpRequestRepository.fetchCandidatesForHelpRequest` |
 | `get_ratings_with_rater_identity` (0040, aplicada) | `p_ratee_id` | colunas de `ratings` + `rater_name/avatar_url` | `RatingRepository.fetchRatingsWithRaterNames` |
 | `register_device_token` / `unregister_device_token` (0041) | `p_token, p_platform` / `p_token` | `void` | `PushNotificationService` |
 | `send_job_reminders` (0046) | — | `void` | **pg_cron só** (`job-reminders`), só `service_role` |
@@ -455,8 +455,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0044_rpc_identity_and_policy_perf.sql` | aplicada (confirmado pelo Henrique a 2026-10-17) |
 | `0045_service_catalog.sql` | aplicada (confirmado a 2026-10-17) |
 | `0046_job_day_rules.sql` | aplicada (confirmado a 2026-10-17) |
+| `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
 
-Próxima migration: `0047`.
+Próxima migration: `0048`.
 
 ---
 
@@ -733,11 +734,10 @@ em português — não é um marcador TODO.)
    dump`, sem `--data-only`) só traz schema, não linhas de dados — não confirma qual das
    duas versões de "garden_setup" está semeada na BD viva. Precisa de um
    `supabase db dump --data-only` (ou query direta) para fechar.
-4. **`help_acceptances.message` (migration 0034) é escrito mas nunca lido.**
-   `apply_as_helper_screen.dart` tem um campo de texto livre que é gravado via
-   `HelpRequestRepository.applyToHelpRequest`, mas `HelpAcceptance.fromJson` não lê a
-   coluna `message` e nenhum ecrã do lado do principal (`worker_help_requests_lobby_view.dart`)
-   a mostra — o candidato escreve uma mensagem que ninguém vê.
+4. ~~**`help_acceptances.message` (migration 0034) é escrito mas nunca lido.**~~
+   Resolvido a 2026-10-17: a migration 0047 (criada, por aplicar) acrescenta `message` ao
+   `RETURNS TABLE` de `get_candidates_for_help_request`; `HelpAcceptance.message` lê-a e o
+   cartão do candidato no lobby (`worker_help_requests_lobby_view.dart`) mostra-a.
 5. **`features/proposals/presentation/` está vazia.** Todos os ecrãs de proposta vivem
    em `features/jobs/presentation/` ou `features/worker/presentation/` — convenção real,
    nunca documentada antes deste ficheiro.

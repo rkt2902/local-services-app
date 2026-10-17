@@ -234,7 +234,7 @@ de telefone, etc. — continuam válidos, sem mudança.)
 |---|---|---|---|
 | `worker_public_card` (view, 0033) | N/A — pensada para ser pública (`anon`+`authenticated`) | N/A | Expõe só nome/avatar/bio/zona/serviços/rating agregado. Sem telefone, sem coordenadas, sem raio, sem ferramentas — confirmado por leitura da definição. |
 | `get_help_requests_in_radius` (0034) | Sim — filtra por `auth.uid()`, sem parâmetro de identidade vindo do cliente | N/A | `jp.worker_id <> auth.uid()` e `NOT EXISTS (... ha.worker_id = auth.uid())`. |
-| `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). |
+| `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). Desde a 0047 (por aplicar) chega ao principal via `get_candidates_for_help_request`, que continua a filtrar por `is_principal_worker_for_help_request` (`auth.uid()`). |
 | `get_worker_job_board` (0035) | Sim — **sem parâmetro `p_worker_id`**, só `auth.uid()` | N/A | O cabeçalho da migration cita explicitamente a 0032 como razão de desenho. |
 | `worker_fleet_cards` (0037) | Sim — SELECT/INSERT só do próprio (`worker_id = auth.uid()`) | **Sim até à 0042** — o INSERT não limitava `status`, dava para inserir já `active`. A 0042 exige `status = 'pending'` no WITH CHECK | Mesmo padrão de moderação manual que `job_reports`. |
 
@@ -259,9 +259,11 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **A 0042 foi aplicada na BD viva a 2026-10-16; estas falhas estão fechadas.**
 
-**Catálogo de serviços (0045, NÃO aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
+**Catálogo de serviços (0045, aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
 
-**Regras do dia do trabalho (0046, NÃO aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.
+**Mensagem do candidato a ajudante (0047, NÃO aplicada):** o jardineiro principal vê no lobby o que o candidato escreveu ao candidatar-se. Sem a 0047 aplicada o cartão aparece como antes, sem a mensagem.
+
+**Regras do dia do trabalho (0046, aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.
 
 **RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
 

@@ -195,6 +195,10 @@ class HelpAcceptance {
   final String? fullName;
   final String? avatarUrl;
 
+  /// Mensagem opcional que o candidato escreveu ao candidatar-se
+  /// (`help_acceptances.message`, devolvida pela RPC desde a 0047).
+  final String? message;
+
   const HelpAcceptance({
     required this.id,
     required this.helpRequestId,
@@ -205,6 +209,7 @@ class HelpAcceptance {
     required this.createdAt,
     this.fullName,
     this.avatarUrl,
+    this.message,
   });
 
   factory HelpAcceptance.fromJson(Map<String, dynamic> json) {
@@ -225,6 +230,12 @@ class HelpAcceptance {
       avatarUrl: StorageUrls.trustedOrNull(
           json['worker_avatar_url'] as String? ??
               profileData?['avatar_url'] as String?),
+      message: _trimmedOrNull(json['message'] as String?),
     );
   }
+}
+
+String? _trimmedOrNull(String? value) {
+  final text = value?.trim();
+  return text == null || text.isEmpty ? null : text;
 }

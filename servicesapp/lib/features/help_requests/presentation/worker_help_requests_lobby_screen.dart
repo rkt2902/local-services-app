@@ -222,6 +222,7 @@ class _WorkerHelpRequestsLobbyScreenState
               avatarUrl: c.avatarUrl,
               ratingLabel: _ratingLabelFor(c.workerId),
               equipmentLabel: c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
+              message: c.message,
               statusPresentation: c.status.presentation,
               actionsBlocked: isFilled || isAwaitingApproval,
               blockedReasonLabel: isFilled

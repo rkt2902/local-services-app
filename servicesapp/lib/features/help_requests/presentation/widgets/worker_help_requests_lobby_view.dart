@@ -101,6 +101,7 @@ class WorkerHelpCandidateViewData {
     this.avatarUrl,
     this.ratingLabel,
     this.blockedReasonLabel,
+    this.message,
   });
 
   final String applicationId;
@@ -109,6 +110,9 @@ class WorkerHelpCandidateViewData {
   final String? avatarUrl;
   final String? ratingLabel;
   final String equipmentLabel;
+
+  /// O que o candidato escreveu ao candidatar-se, se escreveu alguma coisa.
+  final String? message;
 
   /// Presenter real de `HelpAcceptanceStatus.pending`.
   final AppStatusPresentation statusPresentation;
@@ -704,6 +708,10 @@ class _CandidateCard extends StatelessWidget {
               trailing:
                   AppStatusBadge.fromPresentation(presentation: candidate.statusPresentation),
             ),
+            if (candidate.message != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _CandidateMessage(message: candidate.message!),
+            ],
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
@@ -750,6 +758,40 @@ class _CandidateCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Mensagem do candidato (`help_acceptances.message`), em bloco citado.
+class _CandidateMessage extends StatelessWidget {
+  const _CandidateMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Mensagem',
+            style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            message,
+            style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+          ),
+        ],
       ),
     );
   }

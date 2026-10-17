@@ -3,7 +3,7 @@
 Guia único, por ordem. Cada passo tem o que fazer, como confirmar que ficou bem e a frase
 para dizeres ao Claude quando acabares. Marca as caixas à medida que avanças.
 
-Estado de partida (17/10/2026): migrations até à 0046 aplicadas; código da versão web,
+Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047 por aplicar (passo 0.1); código da versão web,
 do push FCM e do domínio por `--dart-define` já está no `main`. Nada daqui mexe em código.
 
 Ordem recomendada e porquê:
@@ -28,6 +28,17 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
       [instruções](https://supabase.com/docs/guides/cli). **Corre sempre os comandos
       `supabase` de dentro de `servicesapp/`**, nunca da raiz, senão cria uma pasta
       `supabase/` duplicada.
+
+### 0.1 Migration por aplicar: 0047
+
+- [ ] Supabase > SQL Editor: colar o conteúdo de
+      `supabase/migrations/0047_candidate_message.sql` e correr. Pode correr-se mais do
+      que uma vez sem erro.
+- [ ] Testar: num pedido de ajuda teu com candidatos, o candidato que escreveu uma
+      mensagem ao candidatar-se tem um bloco "Mensagem" no cartão do lobby. Quem não
+      escreveu nada aparece como antes.
+
+**Diz ao Claude:** "0047 aplicada".
 
 ---
 
