@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/picked_photo.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import 'widgets/client_edit_profile_view.dart' as view;
@@ -27,7 +27,7 @@ class ClientEditProfileScreen extends ConsumerStatefulWidget {
 
 class _ClientEditProfileScreenState
     extends ConsumerState<ClientEditProfileScreen> {
-  File? _newAvatar;
+  XFile? _newAvatar;
 
   Future<void> _pickAvatar() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -57,7 +57,7 @@ class _ClientEditProfileScreenState
       maxWidth: 400,
     );
     if (!mounted) return;
-    if (picked != null) setState(() => _newAvatar = File(picked.path));
+    if (picked != null) setState(() => _newAvatar = picked);
   }
 
   /// Upload do avatar (só se houver `_newAvatar` novo) + update de
@@ -104,7 +104,7 @@ class _ClientEditProfileScreenState
     final dataAsync = profileAsync.whenData((profile) {
       if (profile == null) return null;
       final avatarImage = _newAvatar != null
-          ? FileImage(_newAvatar!) as ImageProvider
+          ? pickedPhotoImage(_newAvatar!)
           : (profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null);
       return view.ClientEditProfileViewData(
         profileId: profile.id,

@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/picked_photo.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 
@@ -13,7 +12,7 @@ import '../../../../core/widgets/primary_action_button.dart';
 class MarkCompletedResult {
   const MarkCompletedResult({this.photo});
 
-  final File? photo;
+  final XFile? photo;
 }
 
 /// Folha de confirmação antes de `mark_job_done`. A foto é opcional e
@@ -39,12 +38,16 @@ class MarkCompletedSheet extends StatefulWidget {
 }
 
 class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
-  File? _photo;
+  XFile? _photo;
 
   Future<void> _pick(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source);
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: webPickMaxWidth,
+      imageQuality: webPickImageQuality,
+    );
     if (picked == null || !mounted) return;
-    setState(() => _photo = File(picked.path));
+    setState(() => _photo = picked);
   }
 
   @override
@@ -101,8 +104,8 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(AppRadius.input),
-                          child: Image.file(
-                            photo,
+                          child: Image(
+                            image: pickedPhotoImage(photo),
                             width: AppSpacing.xl * 2,
                             height: AppSpacing.xl * 2,
                             fit: BoxFit.cover,

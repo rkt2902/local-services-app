@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
 
 class WorkerShell extends ConsumerWidget {
@@ -15,46 +16,44 @@ class WorkerShell extends ConsumerWidget {
 
     final selectedIndex = _indexFromLocation(location);
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: AppBottomNavigation(
-        selectedIndex: selectedIndex,
-        onItemSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/worker/home');
-            case 1:
-              context.go('/worker/available-jobs');
-            case 2:
-              context.go('/worker/jobs');
-            case 3:
-              context.go('/worker/profile');
-          }
-        },
-        onCentralActionPressed: () => _showComingSoonSheet(context),
-        items: const [
-          AppBottomNavigationItem(
-            label: 'Início',
-            icon: Icons.home_outlined,
-            selectedIcon: Icons.home_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Pedidos',
-            icon: Icons.work_outline_rounded,
-            selectedIcon: Icons.work_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Trabalhos',
-            icon: Icons.event_note_outlined,
-            selectedIcon: Icons.event_note_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Perfil',
-            icon: Icons.person_outline_rounded,
-            selectedIcon: Icons.person_rounded,
-          ),
-        ],
-      ),
+    return AppAdaptiveShell(
+      selectedIndex: selectedIndex,
+      onItemSelected: (index) {
+        switch (index) {
+          case 0:
+            context.go('/worker/home');
+          case 1:
+            context.go('/worker/available-jobs');
+          case 2:
+            context.go('/worker/jobs');
+          case 3:
+            context.go('/worker/profile');
+        }
+      },
+      onCentralActionPressed: () => _showComingSoonSheet(context),
+      items: const [
+        AppBottomNavigationItem(
+          label: 'Início',
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Pedidos',
+          icon: Icons.work_outline_rounded,
+          selectedIcon: Icons.work_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Trabalhos',
+          icon: Icons.event_note_outlined,
+          selectedIcon: Icons.event_note_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Perfil',
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+        ),
+      ],
+      child: child,
     );
   }
 
@@ -68,10 +67,7 @@ class WorkerShell extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Em breve',
-                style: Theme.of(ctx).textTheme.titleLarge,
-              ),
+              Text('Em breve', style: Theme.of(ctx).textTheme.titleLarge),
               const SizedBox(height: 12),
               const Text(
                 'Brevemente poderás adicionar trabalhos externos e gerir a tua agenda aqui.',

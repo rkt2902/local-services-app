@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_providers.dart';
@@ -68,7 +67,7 @@ class _WorkerEditProfileScreenState
   bool _geocoding = false;
   String? _locationError;
 
-  File? _newAvatar;
+  XFile? _newAvatar;
   final List<String> _tools = [];
   final List<String> _selectedServiceTypeIds = [];
 
@@ -126,15 +125,15 @@ class _WorkerEditProfileScreenState
     if (text.isEmpty) return;
     setState(() => _geocoding = true);
     try {
-      final locations = await locationFromAddress(text);
+      final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
-      if (locations.isEmpty) {
+      if (found == null) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Morada não encontrada.')));
         return;
       }
-      final lat = locations.first.latitude;
-      final lng = locations.first.longitude;
+      final lat = found.lat;
+      final lng = found.lng;
       setState(() {
         _baseLat = lat;
         _baseLng = lng;
@@ -237,7 +236,7 @@ class _WorkerEditProfileScreenState
     final picked =
         await ImagePicker().pickImage(source: source, imageQuality: 70, maxWidth: 400);
     if (!mounted) return;
-    if (picked != null) setState(() => _newAvatar = File(picked.path));
+    if (picked != null) setState(() => _newAvatar = picked);
   }
 
   // ── Serviços/ferramentas (idêntico ao comportamento já existente) ─────────
@@ -395,7 +394,7 @@ class _WorkerEditProfileScreenState
         return AsyncValue.data(view.WorkerProfileEditViewData(
           profileId: profile.profileId,
           avatarImage: _newAvatar != null
-              ? FileImage(_newAvatar!) as ImageProvider
+              ? pickedPhotoImage(_newAvatar!)
               : (profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null),
           locationSummaryLabel: _locationSummaryLabel,
           locationNeedsDefinition: _baseLat == null || _baseLng == null,

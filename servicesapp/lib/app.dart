@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,8 +87,22 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       child: MaterialApp.router(
         title: 'ProJardim',
         theme: AppTheme.light(),
+        scrollBehavior: const _AppScrollBehavior(),
         routerConfig: router,
       ),
     );
   }
+}
+
+/// Na web (PC) deixa arrastar com o rato e o trackpad as listas e o
+/// PageView do onboarding, como no telemóvel se arrasta com o dedo. Por
+/// defeito o Flutter não aceita arrasto de rato; o resto fica igual.
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    ...super.dragDevices,
+    PointerDeviceKind.mouse,
+  };
 }

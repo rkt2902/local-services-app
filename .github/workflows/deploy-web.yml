@@ -1,0 +1,67 @@
+# Publica a versão web (servicesapp/) no Netlify a cada push para main.
+# Também se corre à mão em Actions > Deploy web > Run workflow.
+# Configuração única: ver servicesapp/docs/web.md, secção "Netlify".
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'servicesapp/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: servicesapp
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirmar secrets
+        run: |
+          for name in SUPABASE_URL SUPABASE_ANON_KEY NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Falta o secret $name (Settings > Secrets and variables > Actions)."
+              exit 1
+            fi
+          done
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build web
+        run: >
+          flutter build web --release
+          --dart-define=SUPABASE_URL="$SUPABASE_URL"
+          --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # web/_redirects já vai dentro de build/web (devolve index.html em
+      # qualquer caminho, para /w/<id> e recarregar páginas internas).
+      - name: Publicar no Netlify
+        run: >
+          npx --yes netlify-cli deploy --prod
+          --no-build
+          --dir build/web
+          --site "$NETLIFY_SITE_ID"
+          --auth "$NETLIFY_AUTH_TOKEN"
+          --message "${{ github.sha }}"

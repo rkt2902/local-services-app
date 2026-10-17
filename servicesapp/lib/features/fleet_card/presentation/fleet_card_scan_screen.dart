@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../data/fleet_card_text_extractor.dart';
 
@@ -16,6 +18,10 @@ import '../data/fleet_card_text_extractor.dart';
 /// campos extraídos. A foto nunca é guardada — `extract()` apaga o
 /// ficheiro temporário do image_picker assim que o OCR termina, sucesso
 /// ou falha, antes deste ecrã sequer navegar.
+///
+/// Na web não há OCR (o ML Kit só existe em Android/iOS): o ecrã explica
+/// isso e segue direto para o ecrã de confirmação com os campos vazios,
+/// o mesmo caminho de quando o OCR não consegue ler nada.
 class FleetCardScanScreen extends ConsumerStatefulWidget {
   const FleetCardScanScreen({super.key});
 
@@ -40,19 +46,23 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
       final extracted =
           await const FleetCardTextExtractor().extract(File(picked.path));
       if (!mounted) return;
-      final params = {
-        'barcode': extracted.barcodeValue ?? '',
-        'cardNumber': extracted.cardNumber ?? '',
-        'holderName': extracted.holderName ?? '',
-        'barcodeWasRead': extracted.barcodeWasRead.toString(),
-      };
-      final query = params.entries
-          .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-          .join('&');
-      context.push('/worker/fleet-card/confirm?$query');
+      _goToConfirm(extracted);
     } finally {
       if (mounted) setState(() => _processing = false);
     }
+  }
+
+  void _goToConfirm(FleetCardExtractedData extracted) {
+    final params = {
+      'barcode': extracted.barcodeValue ?? '',
+      'cardNumber': extracted.cardNumber ?? '',
+      'holderName': extracted.holderName ?? '',
+      'barcodeWasRead': extracted.barcodeWasRead.toString(),
+    };
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    context.push('/worker/fleet-card/confirm?$query');
   }
 
   @override
@@ -90,6 +100,11 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
             Expanded(
               child: _processing
                   ? const _ProcessingState()
+                  : kIsWeb
+                  ? _ManualEntryState(
+                      onContinue: () =>
+                          _goToConfirm(const FleetCardExtractedData()),
+                    )
                   : Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Column(
@@ -157,6 +172,58 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
                       ),
                     ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Versão web do passo 1: sem câmara/OCR, só explica e avança.
+class _ManualEntryState extends StatelessWidget {
+  const _ManualEntryState({required this.onContinue});
+
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: AppStaggeredEntrance(
+        index: 0,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.keyboard_outlined,
+                color: AppColors.primary,
+                size: 46,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Preenche os dados do cartão',
+              textAlign: TextAlign.center,
+              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Na versão web não há leitura automática do cartão. Escreve o '
+              'número e o nome no passo seguinte.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            PrimaryActionButton(label: 'Continuar', onPressed: onContinue),
           ],
         ),
       ),

@@ -1,12 +1,15 @@
 {
-    "name": "servicesapp",
-    "short_name": "servicesapp",
+    "name": "ProJardim",
+    "short_name": "ProJardim",
+    "id": "/",
     "start_url": ".",
+    "scope": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F6F8F6",
+    "theme_color": "#2E7D32",
+    "description": "Pedidos de jardinagem e propostas de jardineiros perto de si.",
+    "lang": "pt-PT",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

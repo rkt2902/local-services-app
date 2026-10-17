@@ -1,46 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-PT">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    `$FLUTTER_BASE_HREF` é substituído pelo valor de `--base-href` no
+    `flutter build web` (por defeito "/"). Só muda se a app for servida
+    numa subpasta, por exemplo no GitHub Pages: --base-href /nome-do-repo/
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Pedidos de jardinagem e propostas de jardineiros perto de si.">
+  <meta name="theme-color" content="#2E7D32">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Instalar no ecrã principal (iPhone: Safari > Partilhar > Adicionar ao ecrã principal) -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="servicesapp">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ProJardim">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>servicesapp</title>
+  <title>ProJardim</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #F6F8F6; }
+    /* Ecrã de arranque enquanto o Flutter carrega; sai sozinho quando a app pinta o primeiro frame. */
+    #app-loading {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: #F6F8F6; transition: opacity 200ms ease-out;
+    }
+    #app-loading img { width: 72px; height: 72px; border-radius: 16px; animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 50% { transform: scale(0.92); opacity: 0.8; } }
+    @media (prefers-reduced-motion: reduce) { #app-loading img { animation: none; } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="app-loading" aria-label="A carregar">
+    <img src="icons/Icon-192.png" alt="">
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('app-loading');
+      if (!el) return;
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 250);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -125,16 +124,15 @@ class _ClientCreateJobScheduleScreenState
       _addressLookupFailed = false;
     });
     try {
-      final locations = await locationFromAddress(text);
+      final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
-      if (locations.isEmpty) {
+      if (found == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Morada não encontrada. Tenta ser mais específico.'),
         ));
         return;
       }
-      final loc = locations.first;
-      final latlng = LatLng(loc.latitude, loc.longitude);
+      final latlng = LatLng(found.lat, found.lng);
       setState(() => _pinPosition = latlng);
       _mapController.move(latlng, 14);
       // Só para atualizar a localidade (o texto escrito não é tocado).

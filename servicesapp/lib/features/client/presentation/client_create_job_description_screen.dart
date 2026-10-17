@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -38,7 +37,7 @@ class ClientCreateJobDescriptionScreen extends ConsumerStatefulWidget {
 class _ClientCreateJobDescriptionScreenState
     extends ConsumerState<ClientCreateJobDescriptionScreen> {
   late final TextEditingController _descriptionController;
-  late final List<File> _photos;
+  late final List<XFile> _photos;
 
   @override
   void initState() {
@@ -48,7 +47,7 @@ class _ClientCreateJobDescriptionScreenState
     _descriptionController.addListener(_handleDescriptionChanged);
     // Cópia mutável — `wizard.photos` é `const []` por omissão, e a lista
     // local precisa de suportar add/remove enquanto o utilizador edita.
-    _photos = List<File>.from(wizard.photos);
+    _photos = List<XFile>.from(wizard.photos);
   }
 
   void _handleDescriptionChanged() => setState(() {});
@@ -83,9 +82,13 @@ class _ClientCreateJobDescriptionScreenState
       ),
     );
     if (source == null) return;
-    final picked = await ImagePicker().pickImage(source: source);
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: webPickMaxWidth,
+      imageQuality: webPickImageQuality,
+    );
     if (!mounted || picked == null) return;
-    setState(() => _photos.add(File(picked.path)));
+    setState(() => _photos.add(picked));
   }
 
   void _removePhoto(int index) {
@@ -254,7 +257,7 @@ class _PhotosRow extends StatelessWidget {
     required this.onRemovePhoto,
   });
 
-  final List<File> photos;
+  final List<XFile> photos;
   final int maximumPhotos;
   final VoidCallback onAddPhoto;
   final ValueChanged<int> onRemovePhoto;
@@ -279,7 +282,7 @@ class _PhotosRow extends StatelessWidget {
 class _PhotoPreview extends StatelessWidget {
   const _PhotoPreview({required this.file, required this.onRemove});
 
-  final File file;
+  final XFile file;
   final VoidCallback onRemove;
 
   @override
@@ -293,7 +296,7 @@ class _PhotoPreview extends StatelessWidget {
           Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.input),
-              child: Image.file(file, fit: BoxFit.cover),
+              child: Image(image: pickedPhotoImage(file), fit: BoxFit.cover),
             ),
           ),
           Positioned(

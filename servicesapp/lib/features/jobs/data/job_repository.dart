@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/picked_photo.dart';
 import 'job_model.dart';
 
 class JobRepository {
@@ -57,30 +56,20 @@ class JobRepository {
   Future<String> uploadJobPhoto({
     required String jobId,
     required String clientId,
-    required File file,
+    required XFile file,
   }) async {
     debugPrint('[UPLOAD_PHOTO] Compressing. path=${file.path}');
-    final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
-      file.absolute.path,
-      minWidth: 800,
-      minHeight: 800,
-      quality: 60,
-      format: CompressFormat.jpeg,
-    );
-    debugPrint('[UPLOAD_PHOTO] Compressed. bytes=${compressed?.length}');
-
-    if (compressed == null) {
-      throw Exception('Image compression failed for ${file.path}');
-    }
+    final photo = await photoBytesForUpload(file);
+    debugPrint('[UPLOAD_PHOTO] Compressed. bytes=${photo.bytes.length}');
 
     final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
     debugPrint('[UPLOAD_PHOTO] Uploading to storage. storagePath=$storagePath');
 
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,
-          compressed,
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
+          photo.bytes,
+          fileOptions: FileOptions(
+            contentType: photo.contentType,
             upsert: true,
           ),
         );
@@ -101,26 +90,17 @@ class JobRepository {
   /// bucket, que se passa a `ProposalRepository.markJobCompleted`.
   Future<String> uploadCompletionPhoto({
     required String jobId,
-    required File file,
+    required XFile file,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Não autenticado');
-    final Uint8List? compressed = await FlutterImageCompress.compressWithFile(
-      file.absolute.path,
-      minWidth: 800,
-      minHeight: 800,
-      quality: 60,
-      format: CompressFormat.jpeg,
-    );
-    if (compressed == null) {
-      throw Exception('Image compression failed for ${file.path}');
-    }
+    final photo = await photoBytesForUpload(file);
     final storagePath =
         '$userId/$jobId/done_${DateTime.now().millisecondsSinceEpoch}.jpg';
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,
-          compressed,
-          fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          photo.bytes,
+          fileOptions: FileOptions(contentType: photo.contentType),
         );
     return storagePath;
   }
