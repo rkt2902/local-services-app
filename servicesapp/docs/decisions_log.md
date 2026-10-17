@@ -3,6 +3,15 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Mais testes automáticos e redirect do router testável
+
+- A decisão de redirect saiu de `RouterNotifier.redirect` para a função pura
+  `resolveRedirect` (`core/router/route_guard.dart`), sem mudar o comportamento: o
+  notifier lê os providers e delega. Assim as regras de acesso (sem sessão, sem papel,
+  cliente/jardineiro, setup incompleto, cartão público `/w/`) têm testes.
+- Testes novos: router, preços, datas, força da password, `friendlyError`, enums da BD,
+  `HelpAcceptance.message` e um teste de widget do lobby de ajudantes. Total 67, no CI.
+
 ## 2026-10-17 — Mensagem do candidato visível ao jardineiro principal
 
 - Antes: `help_acceptances.message` (0034) era gravada pelo ecrã de candidatura mas a

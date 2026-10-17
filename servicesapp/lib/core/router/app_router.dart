@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'app_page_transitions.dart';
+import 'route_guard.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_content_width.dart';
 import '../../features/auth/application/session_provider.dart';
@@ -455,82 +456,18 @@ class RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, GoRouterState state) {
     final sessionAsync = _ref.read(sessionStatusProvider);
-    final loc = state.matchedLocation;
-
-    if (sessionAsync.isLoading) {
-      // Return null unconditionally — stay on the current route.
-      // Cold start: loc is '/loading', spinner stays while session resolves.
-      // Mid-session: any token-refresh tick leaves the user exactly where they are.
-      // Redirecting to /loading on a transient tick tears down the current widget
-      // tree mid-flight (e.g. while ImagePicker or a network request is awaiting),
-      // causing silent data loss with no error shown. An allowlist (loadingExempt)
-      // is the wrong fix because it must be grown every time a new route adds an
-      // OS async interaction — this unconditional null eliminates the class of bug.
-      return null;
-    }
-
-    final session = sessionAsync.asData?.value;
-    final isAuthenticated = session?.isAuthenticated ?? false;
-    final role = session?.role;
-    final workerProfileComplete = session?.workerProfileComplete ?? false;
-
-    // Onboarding gate: only for unauthenticated visitors, shown at most once.
-    // Authenticated users (with or without role) bypass this entirely — they
-    // have already committed to the app; onboarding is for first-time visitors.
-    if (!isAuthenticated && !loc.startsWith('/w/')) {
-      final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
-      if (onboardingAsync.isLoading) return null;
-      final hasSeen = onboardingAsync.asData?.value ?? false;
-      if (!hasSeen && loc != '/onboarding') return '/onboarding';
-    }
-
-    if (!isAuthenticated) {
-      const publicRoutes = [
-        '/',
-        '/login',
-        '/signup',
-        '/onboarding',
-        '/forgot-password/request',
-        '/forgot-password/reset',
-        '/verify-email',
-      ];
-      if (publicRoutes.contains(loc)) return null;
-      // Cartão digital do worker — visível sem sessão (link/QR partilhado).
-      if (loc.startsWith('/w/')) return null;
-      return '/';
-    }
-
-    // Authenticated but no profile yet (fresh signup, role not chosen)
-    if (role == null) {
-      return loc == '/choose-role' ? null : '/choose-role';
-    }
-
-    // Cross-role guard: prevent client accessing worker routes and vice versa.
-    // P6 (state.extra! crash on direct nav) means cross-role access currently
-    // crashes before rendering — after P6 is fixed (ID-based routing) this
-    // guard becomes the primary protection against silent wrong-role data.
-    if (role.value == 'client' && loc.startsWith('/worker/')) {
-      return '/client/home';
-    }
-    if (role.value == 'worker' && loc.startsWith('/client/')) {
-      return '/worker/home';
-    }
-
-    if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||
-        loc == '/choose-role') {
-      if (role.value == 'worker') {
-        if (workerProfileComplete) return '/worker/home';
-        return '/worker/setup';
-      }
-      return '/client/home';
-    }
-
-    if (role.value == 'worker' && !workerProfileComplete) {
-      if (loc == '/worker/setup') return null;
-      return '/worker/setup';
-    }
-
-    return null;
+    final session = sessionAsync.isLoading
+        ? null
+        : (sessionAsync.asData?.value ?? SessionStatus.unauthenticated);
+    final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
+    final hasSeenOnboarding = onboardingAsync.isLoading
+        ? null
+        : (onboardingAsync.asData?.value ?? false);
+    return resolveRedirect(
+      location: state.matchedLocation,
+      session: session,
+      hasSeenOnboarding: hasSeenOnboarding,
+    );
   }
 }
 

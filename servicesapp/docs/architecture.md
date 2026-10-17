@@ -679,8 +679,14 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 
 ## 14. Testes
 
-Testes de lógica pura em `test/` (sem rede nem Supabase): política de password,
-`friendlyError` e `StorageUrls`. Sem testes de widget por feature. `flutter analyze`
+67 testes em `test/` (2026-10-17), todos sem rede nem Supabase:
+- lógica: redirects do router (`route_guard_test.dart`, sobre `resolveRedirect` em
+  `core/router/route_guard.dart`, para onde saiu a decisão de `RouterNotifier.redirect`),
+  política de password, `friendlyError`, preços, datas, enums da BD, telefone/WhatsApp,
+  `StorageUrls`, catálogo de serviços e `HelpAcceptance.fromJson`;
+- widgets: shell adaptativo e bottom nav, largura de conteúdo, secção de categorias e
+  cartões do lobby de ajudantes (`help_lobby_view_test.dart`).
+Ecrãs ligados ao Supabase não têm teste (precisavam de mocks dos repositórios). `flutter analyze`
 (2026-10-17): **0 issues** (os 5 avisos antigos, `control_flow_in_finally` e
 `unused_field`, foram corrigidos).
 
