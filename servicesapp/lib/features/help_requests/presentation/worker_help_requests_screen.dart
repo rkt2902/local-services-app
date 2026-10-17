@@ -21,8 +21,8 @@ import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/rating_sheet.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
+import '../../ratings/presentation/submit_rating_sheet.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
 
@@ -771,7 +771,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 if (principalRatingSummary != null &&
                     principalRatingSummary.ratingCount > 0)
                   GestureDetector(
-                    onTap: () => showRatingsSheet(
+                    onTap: () => showWorkerRatingsSheet(
                       context,
                       workerId: principalId,
                       workerName: widget.acceptance.principalName,
@@ -909,7 +909,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
 
   Future<void> _showHelperRatingSheet() async {
     final jobId = widget.acceptance.jobId;
-    final submitted = await showRatingSheet(
+    final submitted = await showSubmitRatingSheet(
       context: context,
       title: 'Avaliar o prestador principal',
       subtitle: widget.acceptance.principalName,

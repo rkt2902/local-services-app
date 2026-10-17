@@ -3,6 +3,37 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Limpeza sem decisões, CI e guia de configuração
+
+- **CI** (`.github/workflows/ci.yml`): `flutter analyze` e `flutter test` em cada PR e
+  push para `main` que mexa em `servicesapp/`. Falha também com `info`, para o analyze
+  ficar a zero.
+- **Avisos do analyze corrigidos (5 para 0):** `control_flow_in_finally` no lobby de
+  ajudantes (o `return` dentro do `finally` passou a `if (mounted)`; os callbacks já
+  apanham os erros, por isso não muda comportamento) e os 3 `unused_field` de
+  `_NotificationCategory` (ficou só `job`; os outros valores voltam quando houver
+  notificações dessas).
+- **Rating sheets renomeados:** `submit_rating_sheet.dart` / `showSubmitRatingSheet` e
+  `worker_ratings_sheet.dart` / `showWorkerRatingsSheet`.
+- **Domínio e email de suporte por `--dart-define`** (`APP_PUBLIC_URL`, `SUPPORT_EMAIL`,
+  em `AppLinks`). Opcionais: sem eles a web usa o próprio site e as apps o placeholder.
+  O deploy web lê-os das Variables do GitHub, se existirem.
+- **`avatar_url` sem migration:** a app só aceita fotos de perfil do Storage do próprio
+  projeto (`StorageUrls`, prefixo derivado de `SUPABASE_URL`), aplicado nos modelos e
+  repositórios que leem `avatar_url`. Fecha o risco do review (um URL externo revelava o
+  IP de quem abre o perfil) sem depender do domínio final. A coluna continua texto livre
+  na BD; um CHECK por migration ficaria preso ao ref do projeto e não acrescenta proteção
+  a quem vê, que é onde estava o risco.
+- **Overflow de 3px nas abas:** não reproduzido (bottom nav testada a 320/360/411 de
+  largura e texto até 1,3x sem overflow). Fica na lista de testes manuais do `SETUP.md`.
+- **Confirmação de email:** não pode ser ligada só no dashboard. O registo cria o perfil
+  logo a seguir ao `signUp` e precisa de sessão; com a confirmação ligada o registo
+  parte. Fica documentado no `SETUP.md` como tarefa de código (código de 6 dígitos, como
+  a recuperação).
+- Docs alinhados com a BD (todas as migrations até à 0046 aplicadas): `database_schema.md`,
+  `ARCHITECTURE.md` secções 7, 9, 12, 14 e 16, `STATUS.md`, README das migrations.
+  Guia novo `docs/SETUP.md`.
+
 ## 2026-10-17 — Versão web (Flutter web) e PWA para iPhone
 
 Pedido do Henrique: sem Mac nem conta Apple, os utilizadores de iPhone usam a app pelo browser. Guia completo em `docs/web.md`.

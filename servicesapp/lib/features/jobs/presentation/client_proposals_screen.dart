@@ -11,7 +11,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/job_providers.dart';
@@ -422,7 +422,7 @@ class _ProposalCard extends ConsumerWidget {
             children: [
               InkWell(
                 onTap: ratingSummary != null && ratingSummary.ratingCount > 0
-                    ? () => showRatingsSheet(
+                    ? () => showWorkerRatingsSheet(
                           context,
                           workerId: proposal.workerId,
                           workerName: workerName,

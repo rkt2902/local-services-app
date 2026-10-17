@@ -1,3 +1,5 @@
+import '../../../core/config/storage_urls.dart';
+
 class Rating {
   final String id;
   final String jobId;
@@ -35,7 +37,8 @@ class Rating {
         // fallback do embedded join antigo (hoje sem call sites).
         raterName: json['rater_name'] as String? ??
             (json['rater'] as Map<String, dynamic>?)?['full_name'] as String?,
-        raterAvatarUrl: json['rater_avatar_url'] as String?,
+        raterAvatarUrl:
+            StorageUrls.trustedOrNull(json['rater_avatar_url'] as String?),
       );
 }
 
@@ -78,7 +81,8 @@ class RatingWithParty {
         createdAt: DateTime.parse(json['created_at'] as String),
         partyId: json['party_id'] as String,
         partyName: json['party_name'] as String? ?? '—',
-        partyAvatarUrl: json['party_avatar_url'] as String?,
+        partyAvatarUrl:
+            StorageUrls.trustedOrNull(json['party_avatar_url'] as String?),
         serviceTypeName: json['service_type_name'] as String?,
       );
 }

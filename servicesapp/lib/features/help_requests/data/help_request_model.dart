@@ -1,4 +1,5 @@
 import '../../../core/constants/enums.dart';
+import '../../../core/config/storage_urls.dart';
 
 class HelpRequestSummary {
   final String id;
@@ -53,7 +54,8 @@ class HelpRequestSummary {
         locationLng: (json['location_lng'] as num).toDouble(),
         serviceTypeId: json['service_type_id'] as String,
         principalName: json['principal_name'] as String? ?? '',
-        principalAvatarUrl: json['principal_avatar_url'] as String?,
+        principalAvatarUrl:
+            StorageUrls.trustedOrNull(json['principal_avatar_url'] as String?),
         paymentPerHelper: (json['payment_per_helper'] as num?)?.toDouble() ?? 0.0,
         confirmedDate: json['confirmed_date'] != null
             ? DateTime.parse(json['confirmed_date'] as String)
@@ -220,8 +222,9 @@ class HelpAcceptance {
       // mantido como fallback (join embutido antigo, hoje sem call sites).
       fullName: json['worker_name'] as String? ??
           profileData?['full_name'] as String?,
-      avatarUrl: json['worker_avatar_url'] as String? ??
-          profileData?['avatar_url'] as String?,
+      avatarUrl: StorageUrls.trustedOrNull(
+          json['worker_avatar_url'] as String? ??
+              profileData?['avatar_url'] as String?),
     );
   }
 }

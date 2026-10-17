@@ -1,5 +1,8 @@
 # ProJardim na web (e no iPhone como app instalada)
 
+> Passo a passo de toda a configuração (Netlify, Supabase, email, push, domínio):
+> `docs/SETUP.md`. Este ficheiro explica a versão web em si.
+
 A mesma app Flutter corre no browser (Flutter web). É o caminho para quem tem
 iPhone enquanto não há conta Apple Developer: abre-se o site no Safari e
 instala-se no ecrã principal, como uma app (PWA).

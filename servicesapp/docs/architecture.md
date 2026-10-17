@@ -72,7 +72,7 @@ lib/
   app.dart                 # MaterialApp.router + AnnotatedRegion<SystemUiOverlayStyle>
   main.dart                # Supabase.initialize + ProviderScope + runApp
   core/
-    config/                 app_links.dart, supabase_config.dart (env via --dart-define)
+    config/                 app_links.dart, storage_urls.dart, supabase_config.dart (env via --dart-define)
     constants/              enums.dart, password_policy.dart
     router/                 app_router.dart, app_page_transitions.dart, app_back_navigation.dart
     services/               geocoding_service.dart
@@ -281,7 +281,7 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 ## 6. Auth e sessão
 
 - **Registo**: `AuthRepository.signUp` (`auth.signUp` com `data: {full_name, phone}`)
-  → `createProfile` (`profiles.upsert`, não uma RPC — ver secção 16) → `/choose-role`
+  → `createProfile` (`profiles.upsert`, não uma RPC; a antiga `create_user_profile` foi apagada na 0042) → `/choose-role`
   escreve `role` → `/worker/setup` ou `/client/home`.
 - **Login**: `signInWithPassword`. **Confirmação de email está desativada no dashboard
   Supabase** (decisão deliberada — ver `decisions_log.md` 2026-06-05); o ecrã/fluxo
@@ -313,8 +313,8 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 ## 7. Backend Supabase
 
 **Fonte:** `supabase/migrations/0001_consolidated_baseline.sql` (schema completo até
-2026-07-09, reconstruído de um snapshot da BD viva) + migrations numeradas 0033–0040
-aplicadas por cima. `archive/` tem as 32 migrations incrementais originais — não
+2026-07-09, reconstruído de um snapshot da BD viva) + migrations numeradas 0033–0046
+aplicadas por cima (todas aplicadas na BD viva, confirmado pelo Henrique a 2026-10-17). `archive/` tem as 32 migrations incrementais originais — não
 aplicar, só para git blame. **Verificado em 2026-10-16 contra um dump real da BD
 viva** (`supabase db dump`, projeto `twpflvcoyeiysnychkom`): as 37 funções, 14
 tabelas e 3 views da BD viva coincidem exatamente com a soma das migrations
@@ -327,14 +327,15 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 
 | Tabela | Propósito | Colunas-chave |
 |---|---|---|
-| `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` |
+| `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` (texto livre; a app só mostra URLs do Storage do projeto, `StorageUrls`) |
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
-| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at` |
+| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046) |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
 | `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required` |
-| `notifications` | 19 tipos (secção 9) | `type`, `related_id`, `read` |
+| `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
+| `device_tokens` (0041) | tokens FCM | `token` PK, `user_id`, `platform`; escrita só por RPC |
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
 | `help_acceptances` | candidaturas de ajudantes | `agreed_rate`, `brought_equipment`, `message` (0034 — ver secção 16) |
 | `ratings` | avaliações | `UNIQUE(job_id, rater_id, ratee_id)`, `CHECK(rater_id <> ratee_id)` |
@@ -345,9 +346,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 
 - `profiles`: próprio vê/edita o seu; **sem policy pública** desde o hardening de 0032
   — worker só vê cliente com proposta `accepted`; cliente só vê worker com job
-  confirmado (via `client_has_confirmed_job_with_worker`). `database_schema.md` ainda
-  descreve uma policy pública "limitada a full_name/avatar_url" que já não existe —
-  ver secção 16.
+  confirmado (via `client_has_confirmed_job_with_worker`).
 - `worker_profiles`: owner-only SELECT (0030) — descoberta pública passa pela view
   `worker_profiles_public`.
 - `job_requests`: cliente vê os seus; worker vê `open` (qualquer autenticado, sem
@@ -372,7 +371,6 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 
 | Função | Parâmetros | Devolve | Chamada por |
 |---|---|---|---|
-| `create_user_profile` | `user_id, full_name, phone, user_role` | `void` | **nenhum caller em `lib/`** — ver secção 16 |
 | `worker_has_proposal_for_job` | `job_id` | `boolean` | só RLS |
 | `is_principal_worker_for_help_request` | `p_help_request_id` | `boolean` | RLS + reaproveitada em `get_candidates_for_help_request` (0040) |
 | `client_has_confirmed_job_with_worker` | `worker_id` | `boolean` | só RLS |
@@ -393,7 +391,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
-| `mark_job_done` | `p_job_id` | `void` | `ProposalRepository.markJobCompleted` |
+| `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho) | `void` | `ProposalRepository.markJobCompleted` |
 | `propose_reschedule` | `p_job_id, p_new_date, p_new_time?, p_new_flexible?` | `void` | `JobRepository.proposeReschedule` |
 | `reject_help_candidate` | `p_help_acceptance_id` | `void` | `HelpRequestRepository.rejectHelpCandidate` |
 | `reject_reschedule` | `p_job_id` | `void` | `JobRepository.rejectReschedule` |
@@ -407,6 +405,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
 | `get_candidates_for_help_request` (0040, aplicada) | `p_help_request_id` | colunas de `help_acceptances` + `worker_name/avatar_url` | `HelpRequestRepository.fetchCandidatesForHelpRequest` |
 | `get_ratings_with_rater_identity` (0040, aplicada) | `p_ratee_id` | colunas de `ratings` + `rater_name/avatar_url` | `RatingRepository.fetchRatingsWithRaterNames` |
+| `register_device_token` / `unregister_device_token` (0041) | `p_token, p_platform` / `p_token` | `void` | `PushNotificationService` |
+| `send_job_reminders` (0046) | — | `void` | **pg_cron só** (`job-reminders`), só `service_role` |
+| `cleanup_old_notifications` (0042) | — | `void` | **pg_cron só** (`cleanup-old-notifications`) |
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -436,7 +437,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data.
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data.
 
 ### Estado das migrations
 
@@ -450,9 +451,11 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0041_push_notifications.sql` | aplicada a 2026-10-16 |
 | `0042_security_hardening.sql` | aplicada a 2026-10-16 (review de segurança) |
 | `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
-| `0044_rpc_identity_and_policy_perf.sql` | NÃO aplicada; aplicar junto com a app nova (RPCs sem `p_worker_id`) |
-| `0045_service_catalog.sql` | NÃO aplicada; aplicar antes da app nova (catálogo de serviços com ícones) |
-| `0046_job_day_rules.sql` | NÃO aplicada; depois da 0044 (concluir só no dia, foto, expiração por data, lembretes `job_reminder`) |
+| `0044_rpc_identity_and_policy_perf.sql` | aplicada (confirmado pelo Henrique a 2026-10-17) |
+| `0045_service_catalog.sql` | aplicada (confirmado a 2026-10-17) |
+| `0046_job_day_rules.sql` | aplicada (confirmado a 2026-10-17) |
+
+Próxima migration: `0047`.
 
 ---
 
@@ -489,8 +492,8 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 
 ## 9. Notificações
 
-19 tipos (`notification_types.dart`), todos inseridos por RPCs `SECURITY DEFINER` ou
-pelo trigger `notify_workers_new_job` — nunca por INSERT direto do Flutter (sem policy
+20 tipos (`notification_types.dart`; o 20.º é `job_reminder`, da 0046), todos inseridos por RPCs `SECURITY DEFINER`, pelo cron
+ou pelo trigger `notify_workers_new_job` — nunca por INSERT direto do Flutter (sem policy
 INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 (`notificationsStreamProvider`, Realtime sobre `notifications`):
 
@@ -605,6 +608,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | OCR (ML Kit) | `fleet_card_text_extractor.dart` | `google_mlkit_text_recognition`, local, a foto é apagada logo depois de extrair os 3 campos — nunca vai a Storage |
 | QR | `qr_flutter` | cartão partilhável do worker (`worker_profile_screen.dart`) e estado ativo do cartão frota (`fleet_card_screen.dart`) |
 | Partilhar | `share_plus` | partilhar o link do cartão do worker |
+| Domínio e suporte | `core/config/app_links.dart` | `APP_PUBLIC_URL` e `SUPPORT_EMAIL` por `--dart-define` (opcionais; sem eles: na web o próprio site, nas apps `projardim.pt`). Usados no link `/w/:id`, no `User-Agent` do Nominatim e em "Contacto & suporte" |
 | Fotos | `image_picker` (seleção) + `flutter_image_compress` (`job_repository.dart`: `minWidth/minHeight: 800`, `quality: 60`, JPEG) antes do upload para Storage |
 
 ---
@@ -673,16 +677,15 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 
 ## 14. Testes
 
-Só 1 ficheiro: `test/widget_test.dart` — smoke test (`pumpWidget(App())`, confirma que
-`MaterialApp` existe). Sem testes de widget/unit por feature. `flutter analyze` (corrido
-nesta sessão, 2026-10-16): **5 issues, nenhum erro** — 2 `info` (`control_flow_in_finally`
-em `worker_help_requests_lobby_view.dart:226,892`) + 3 `warning` (`unused_field` em
-`notifications_screen.dart:23`, campos `message`/`review`/`system`). Nenhum destes foi
-corrigido em nenhuma sessão até agora — ficam como dívida técnica conhecida de baixa
-severidade.
+Testes de lógica pura em `test/` (sem rede nem Supabase): política de password,
+`friendlyError` e `StorageUrls`. Sem testes de widget por feature. `flutter analyze`
+(2026-10-17): **0 issues** (os 5 avisos antigos, `control_flow_in_finally` e
+`unused_field`, foram corrigidos).
 
-Para correr: `flutter analyze` (raiz de `servicesapp/`), `flutter test`. Sem scripts de
-CI configurados no repositório.
+Para correr: `flutter analyze` (raiz de `servicesapp/`), `flutter test`. **CI**:
+`.github/workflows/ci.yml` corre os dois em cada PR e em cada push para `main` que mexa
+em `servicesapp/` (falha também com avisos `info`, para manter o analyze a zero).
+`.github/workflows/deploy-web.yml` publica a versão web no Netlify (ver `SETUP.md`).
 
 ---
 
@@ -707,9 +710,11 @@ em português — não é um marcador TODO.)
 
 ---
 
-## 16. Discrepâncias encontradas (não corrigidas — listadas para decisão)
+## 16. Discrepâncias encontradas (listadas para decisão; as resolvidas estão riscadas)
 
-1. **`database_schema.md` descreve uma policy pública de `profiles` que já não existe.**
+1. ~~`database_schema.md` descreve uma policy pública de `profiles` que já não existe.~~
+   **Resolvido em 2026-10-17**: `database_schema.md` foi alinhado com a BD (policies de
+   `profiles`, colunas das 0041 a 0046, crons, triggers, storage). Contexto original:
    Diz "SELECT público limitado a `full_name`/`avatar_url`" — essa era a policy
    `USING(true)` original, substituída em 0032 por 3 policies granulares (dono; worker↔
    cliente só com job confirmado/proposta aceite). **Confirmado em 2026-10-16 por dump
@@ -717,7 +722,8 @@ em português — não é um marcador TODO.)
    granulares + próprio-insere + próprio-atualiza, sem nenhuma policy pública.
    `database_schema.md` continua desatualizado e não foi corrigido (fora do âmbito
    desta verificação, que se focou em `ARCHITECTURE.md`/migrations).
-2. **`create_user_profile` (RPC, `SECURITY DEFINER`) não tem nenhum caller em `lib/`.**
+2. ~~`create_user_profile` (RPC, `SECURITY DEFINER`) não tem nenhum caller em `lib/`.~~
+   **Resolvido**: apagada na 0042 (S2 do review de segurança). Contexto original:
    A criação de perfil acontece via `AuthRepository.createProfile` →
    `_client.from('profiles').upsert(...)` direto. A função fica na BD sem uso — manter,
    remover ou documentar como legado é uma decisão a tomar.

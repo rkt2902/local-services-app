@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/picked_photo.dart';
 import 'job_model.dart';
+import '../../../core/config/storage_urls.dart';
 
 class JobRepository {
   const JobRepository(this._client);
@@ -207,7 +208,8 @@ class JobRepository {
     if (data == null) return {'full_name': '', 'avatar_url': ''};
     return {
       'full_name': data['client_name'] as String? ?? '',
-      'avatar_url': data['client_avatar_url'] as String? ?? '',
+      'avatar_url':
+          StorageUrls.trustedOrEmpty(data['client_avatar_url'] as String?),
     };
   }
 }

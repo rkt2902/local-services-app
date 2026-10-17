@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_links.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
@@ -41,7 +42,8 @@ class ClientProfileScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               const Text(
                 'Precisas de ajuda? Escreve-nos para '
-                'suporte@projardim.pt e respondemos o mais depressa possível.',
+                '${AppLinks.supportEmail} e respondemos o mais depressa '
+                'possível.',
               ),
             ],
           ),

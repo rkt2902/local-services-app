@@ -2,6 +2,11 @@
 
 > Schema Supabase (PostgreSQL). Ler antes de criar migrations ou alterar tabelas.
 > Toda alteração de schema deve ser refletida aqui E em `decisions_log.md`.
+>
+> **Alinhado com a BD a 2026-10-17** (todas as migrations até à `0046` aplicadas,
+> confirmado pelo Henrique). Para a lista completa e atual de RPCs, policies e views,
+> `ARCHITECTURE.md` secção 7 e os ficheiros de `supabase/migrations/` são a referência;
+> este ficheiro descreve as tabelas e colunas.
 
 ## Princípios
 1. Nomes genéricos: a BD não sabe que isto é jardinagem.
@@ -65,9 +70,11 @@ Dados base de qualquer utilizador. 1:1 com `auth.users`.
 | role         | text        | CHECK in (`client`,`worker`)              |
 | full_name    | text        |                                           |
 | phone        | text        | nullable, usado para contacto pós-confirmação |
-| avatar_url   | text        | nullable                                  |
+| avatar_url   | text        | nullable. Texto livre na BD; a app só mostra URLs do Storage do próprio projeto (`core/config/storage_urls.dart`) |
 | created_at   | timestamptz | default `now()`                           |
 | updated_at   | timestamptz | default `now()`                           |
+
+`role` não muda por UPDATE direto (trigger `tg_prevent_profile_role_change`).
 
 ### worker_profiles
 Dados específicos de quem presta serviço. 1:1 com `profiles` (apenas role=worker).
@@ -95,6 +102,10 @@ Categorias de topo (Jardinagem, Limpeza, etc.). Geridas via dashboard Supabase n
 | name       | text    | nome visível (PT)              |
 | icon       | text    | nullable                       |
 | active     | bool    | default `true`                 |
+| sort_order | int     | default 100 (0045)             |
+
+Desde a 0045: Jardinagem (`gardening`), Agricultura (`agriculture`) e Floresta
+(`forestry`).
 
 ### service_types
 Serviços dentro de uma categoria (corte de relva, poda, etc.).
@@ -106,8 +117,11 @@ Serviços dentro de uma categoria (corte de relva, poda, etc.).
 | slug         | text    |                                    |
 | name         | text    | nome visível (PT)                  |
 | active       | bool    | default `true`                     |
+| icon         | text    | nullable (0045): nome de um ícone Material sem `_outlined`; a app traduz em `core/widgets/service_icon.dart` |
+| sort_order   | int     | default 100 (0045)                 |
 
-UNIQUE (`category_id`, `slug`).
+UNIQUE (`category_id`, `slug`). A 0045 semeia 33 tipos; os 3 originais (`lawn_mowing`,
+`pruning`, `garden_setup`) mantêm o id e o nome.
 
 ### worker_service_types
 Que serviços cada worker faz (N:N).
@@ -156,8 +170,18 @@ Pedidos criados por clientes.
 | cancelled_worker_id       | uuid        | nullable, FK → `profiles.id` — worker que cancelou um job confirmado; excluído do novo job reaberto |
 | excluded_worker_ids       | uuid[]      | default `'{}'` — lista generalizada de workers excluídos de ver/propor no job reaberto |
 | expires_at                | timestamptz | created_at + 48h (para `no_response`)                       |
+| location_area             | text        | nullable (0043): localidade; é o que os workers sem proposta aceite veem em vez da morada exata |
+| completion_photo_path     | text        | nullable (0046): foto opcional do worker ao marcar concluído (bucket `job-photos`) |
+| marked_done_at            | timestamptz | nullable (0046): quando passou a `awaiting_confirmation`; conta os 3 dias da auto-confirmação |
+| day_reminder_sent_on      | date        | nullable (0046): controlo do lembrete da manhã do dia |
+| overdue_notified_at       | timestamptz | nullable (0046): aviso "a data passou sem concluir" |
+| confirmation_reminder_sent_at | timestamptz | nullable (0046): lembrete ao cliente para confirmar |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
+
+Desde a 0043 os workers só leem esta tabela diretamente se forem o worker aceite (ou
+ajudante aceite). Os outros leem por `get_job_by_id`, `get_jobs_in_radius` e
+`get_worker_job_board`, que devolvem a localidade e coordenadas arredondadas (cerca de 1 km).
 
 ### job_photos
 Fotos anexadas a um pedido (Storage bucket `job-photos`). Máximo 2 por pedido.
@@ -213,8 +237,14 @@ Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
 --        job_marked_done, job_completed, job_no_response,
 --        reschedule_proposed, reschedule_accepted, reschedule_rejected,
 --        help_request_approved, help_accepted, help_rejected,
---        help_job_cancelled, help_request_reopened, help_withdrew
+--        help_job_cancelled, help_request_reopened, help_withdrew,
+--        job_reminder (0046)
 ```
+
+20 tipos. Cada INSERT dispara o trigger `notifications_send_push` (0041), que chama a
+Edge Function `send-push` se o destinatário tiver dispositivos em `device_tokens` e o
+Vault tiver os segredos (ver `SETUP.md`). Notificações lidas com mais de 90 dias, ou
+quaisquer com mais de 180, são apagadas pelo cron `cleanup-old-notifications` (0042).
 
 | coluna       | tipo        | notas                                       |
 |--------------|-------------|---------------------------------------------|
@@ -274,16 +304,39 @@ Avaliações simples.
 
 UNIQUE (`job_id`, `rater_id`, `ratee_id`) — uma avaliação por par por job.
 
+### device_tokens (0041)
+Um token FCM por dispositivo. Escrita só pelas RPCs `register_device_token` /
+`unregister_device_token` (identidade por `auth.uid()`); SELECT só do próprio.
+
+| coluna     | tipo        | notas                                         |
+|------------|-------------|-----------------------------------------------|
+| token      | text PK     | token FCM                                     |
+| user_id    | uuid        | FK → `profiles.id`, `ON DELETE CASCADE`       |
+| platform   | text        | CHECK in (`android`,`ios`,`web`)              |
+| created_at | timestamptz |                                               |
+| updated_at | timestamptz |                                               |
+
+### worker_fleet_cards (0037)
+Pedidos de cartão frota (demo). O worker só insere com `status = 'pending'` e só vê os
+seus; a ativação é manual por SQL (service role). Ver a migration para as colunas.
+
 ---
 
 ## RPC Functions (security definer)
 
 Todas as funções de transição de estado são `SECURITY DEFINER` e correm numa
-transação: validam permissões, atualizam tabelas e inserem notificação.
+transação: validam permissões, atualizam tabelas e inserem notificação. Identidade
+sempre por `auth.uid()`, nunca um `p_worker_id`/`p_client_id` vindo da app.
+
+> A tabela abaixo é o núcleo histórico. A lista completa e atual (incluindo as RPCs das
+> migrations 0035, 0038, 0040, 0041, 0043 e 0046) está em `ARCHITECTURE.md` secção 7.
+> `create_user_profile` foi apagada na 0042 (a app cria o perfil por upsert em `profiles`).
+> `mark_job_done` ganhou `p_photo_path` opcional e só funciona a partir do dia do trabalho
+> (0046). `create_proposal`, `get_jobs_in_radius` e `sync_worker_service_types` deixaram
+> de receber `p_worker_id` (0044).
 
 | Função                       | Descrição                                                          |
 |------------------------------|--------------------------------------------------------------------|
-| `create_user_profile`        | Cria perfil após registo (upsert)                                  |
 | `create_proposal`            | Cria proposta com data agendada (resolve condição de corrida)      |
 | `accept_proposal`            | Aceita proposta, rejeita outras, copia data para job; auto-cria `help_request` quando `people_needed > 1` |
 | `reject_proposal`            | Recusa proposta, job volta a `open`                                |
@@ -316,7 +369,7 @@ transação: validam permissões, atualizam tabelas e inserem notificação.
 >
 > **Nota sobre `accept_reschedule`:** corpo igualmente actualizado com verificação completa de autorização. Ver decisions_log 2026-06-26.
 >
-> **Nota sobre `reject_reschedule`:** corrigida em migration 0016 com o mesmo padrão `v_is_client` / `v_is_worker` de `accept_reschedule`. Migration escrita, **NÃO aplicada** — ver decisions_log 2026-06-26.
+> **Nota sobre `reject_reschedule`:** corrigida em migration 0016 com o mesmo padrão `v_is_client` / `v_is_worker` de `accept_reschedule` (aplicada; está na baseline consolidada). Ver decisions_log 2026-06-26.
 
 ---
 
@@ -326,7 +379,10 @@ A extensão `pg_cron` foi activada manualmente neste projecto em 2026-06-25.
 
 | Jobname | Cron | Função | Descrição |
 |---|---|---|---|
-| `auto-confirm-completed-jobs` | `0 */3 * * *` (cada 3h) | `auto_confirm_completed_jobs()` | Confirma automaticamente jobs em `awaiting_confirmation` há mais de 3 dias; protege o worker de clientes que não respondem |
+| `auto-confirm-completed-jobs` | `0 */3 * * *` (cada 3h) | `auto_confirm_completed_jobs()` | Confirma automaticamente jobs em `awaiting_confirmation` há mais de 3 dias (desde a 0046 contados a partir de `marked_done_at`) |
+| `auto-expire-jobs` | `0 */3 * * *` (cada 3h) | `auto_expire_jobs()` | 48h sem proposta aceite → `no_response`; desde a 0046 também pedidos abertos com data fixa passada, e trabalhos confirmados 3 dias depois da data → `cancelled` (`cancel_reason = 'expired'`) |
+| `job-reminders` | `30 7 * * *` | `send_job_reminders()` | 0046: lembrete na manhã do dia, aviso de data passada e lembrete ao cliente para confirmar (`job_reminder`) |
+| `cleanup-old-notifications` | `30 3 * * *` | `cleanup_old_notifications()` | 0042: apaga notificações antigas |
 
 **Verificar registo do cron após aplicar migration 0014:**
 ```sql
@@ -354,6 +410,12 @@ Todas as tabelas têm índices `_pkey` gerados automaticamente pelas constraints
 | Trigger | Tabela | Evento | Função |
 |---|---|---|---|
 | `on_job_created` | `job_requests` | AFTER INSERT FOR EACH ROW | `notify_workers_new_job()` |
+| `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` |
+| `notifications_send_push` | `notifications` | AFTER INSERT | `notifications_send_push()` (0041, via `pg_net`) |
+
+Nota: na BD viva o trigger de `job_requests` chama-se `on_job_created`; o ficheiro
+`0001_consolidated_baseline.sql` chama-lhe `trigger_notify_workers_new_job`. Mesma
+função e evento, sem impacto (ver `ARCHITECTURE.md` secção 16).
 
 O trigger `on_job_created` percorre todos os `worker_profiles` dentro do raio Haversine do novo job e insere uma notificação `new_job_in_radius` para cada um.
 
@@ -362,37 +424,53 @@ O trigger `on_job_created` percorre todos os `worker_profiles` dentro do raio Ha
 ## Row Level Security (resumo)
 A RLS é definida em detalhe nas migrations. Princípios:
 
-- `profiles`: cada user vê/edita o seu; SELECT público limitado a `full_name`/`avatar_url`.
-- `worker_profiles`: SELECT público (clientes precisam de ver workers); UPDATE só pelo próprio.
+- `profiles`: cada user vê/edita o seu. **Sem SELECT público** desde a 0032: o worker só
+  vê o cliente com proposta aceite e o cliente só vê o worker com job confirmado
+  (`client_has_confirmed_job_with_worker`). Nome e foto da contraparte noutros momentos
+  (oportunidade aberta, propostas pendentes, candidatos a ajudante, avaliações) vêm das
+  RPCs da 0040. São 5 policies: dono vê, dono insere, dono atualiza e as 2 cruzadas.
+- `worker_profiles`: SELECT só do próprio (0030); a descoberta passa pela view
+  `worker_profiles_public` (sem coordenadas) e o cartão público pela view
+  `worker_public_card` (0033, também para `anon`).
 - `service_categories` / `service_types`: SELECT público; INSERT/UPDATE só admin.
-- `job_requests`: client vê os seus; worker vê jobs `open` + jobs em que tem proposta.
+- `job_requests`: client vê os seus; desde a 0043 o worker só lê diretamente os jobs em
+  que é o worker aceite ou ajudante aceite. O resto passa pelas RPCs mascaradas. INSERT
+  direto pelo cliente com limite de pedidos recentes (0042).
 - `job_proposals`: client vê propostas dos seus jobs; worker vê só as suas.
 - `notifications`: cada user vê e gere só as suas; sem política INSERT — todas as inserções acontecem dentro de funções SECURITY DEFINER (que contornam RLS). Não existe uma política "Sistema insere notificações" na BD viva.
 - `help_requests` / `help_acceptances`: worker principal e workers candidatos/aceites. SELECT em `help_requests` para candidatos adicionado em migration 0012 (sem esta política, `fetchHelpRequestById` retornava null para workers que aplicaram mas não são o principal). SELECT para o **worker principal** adicionado em migration 0026 (`"Worker principal vê os seus help requests"` — `EXISTS job_proposals WHERE worker_id = auth.uid()`); a ausência desta policy causava tanto o erro de permissão ao criar (RETURNING falhava) como o lobby vazio (C3.2 — fechado para o principal). **Gap residual (C3.2 cliente):** cliente só vê `pending_approval`; SELECT de `open`/`filled` pelo cliente continua backlog (ver M5 em improvements.md Fases 4-5).
-- `ratings`: SELECT público (para reputação); INSERT só pelo `rater_id` autenticado.
+- `ratings`: SELECT público (para reputação); sem INSERT direto desde a 0042, só pelas RPCs
+  `submit_*_rating`.
 - `job_reports`: INSERT pelo próprio reporter; SELECT só dos seus próprios reports (sem acesso a reports de outros — moderação é feita via Studio/service role).
 
-**Gaps de segurança — estado após migration 0016 (escrita, NÃO aplicada):**
-- `job_proposals` UPDATE: política recriada em 0016 com `WITH CHECK (auth.uid() = worker_id AND status = 'superseded')`. (P-FA4 — aguarda aplicação manual)
-- `reject_reschedule` RPC: corrigida em 0016 com verificação explícita de `v_is_client` / `v_is_worker`. (P-8-4 — aguarda aplicação manual)
+Desde a 0042 as escritas de negócio (propostas, avaliações, decisões sobre candidatos)
+são só por RPC; as escritas diretas que restam têm `WITH CHECK` apertado (ver o
+cabeçalho da 0042). Cada função nova faz `REVOKE EXECUTE ... FROM PUBLIC, anon`.
 
 ---
 
 ## Storage
 
-Todos os buckets têm `public = true` e sem limite de tamanho ou restrição de MIME type ao nível do bucket (confirmado via snapshot 2026-06-26). As restrições de negócio (máx. 2 fotos, compressão) são aplicadas no cliente Flutter.
+Os buckets são `public = true` (os URLs de `getPublicUrl` funcionam sem policy de
+SELECT). Desde a 0042, `avatars` e `job-photos` têm limite de 2 MB e só aceitam JPEG, PNG
+e WebP; o SELECT por policy ficou só para o dono (para não se poder listar o bucket).
 
 | Bucket | public | Políticas RLS activas |
 |---|---|---|
-| `job-photos` | true | SELECT público; INSERT por utilizadores autenticados |
-| `avatars` | true | SELECT público; INSERT por utilizadores autenticados; UPDATE pelo próprio (via `storage.foldername`) |
+| `job-photos` | true | SELECT/UPDATE só pelo dono (primeira pasta = `auth.uid()`); INSERT pelo dono |
+| `avatars` | true | SELECT/UPDATE só pelo dono (nome do ficheiro = `auth.uid()`); INSERT pelo dono |
 | `worker-photos` | true | **Nenhuma política RLS activa** — bucket criado mas upload via API bloqueado; funcionalidade de fotos de trabalho do worker deixada para pós-MVP |
 
 ---
 
 ## Migrations
 
-`supabase/migrations/0001_baseline.sql` é a fonte de verdade do schema a partir de 2026-06-19.
+**Estado a 2026-10-17:** `0001_consolidated_baseline.sql` (estado da BD a 2026-07-09) e
+todas as migrations de `0033` a `0046` estão aplicadas na BD viva. A próxima é a `0047`.
+As 32 migrations incrementais antigas estão em `supabase/migrations/archive/`, só para
+histórico (não aplicar). O histórico abaixo é anterior à consolidação.
+
+Histórico: `supabase/migrations/0001_baseline.sql` foi a fonte de verdade do schema a partir de 2026-06-19.
 Criado por inspeção do código Dart + docs; os corpos das funções são reconstruídos — verificar
 contra um `pg_dump` live antes de usar num réplica de produção.
 

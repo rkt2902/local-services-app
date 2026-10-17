@@ -18,6 +18,8 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 - `decisions_log.md` — histórico de decisões técnicas, por data.
 - `improvements.md` — dívida técnica e ideias futuras conhecidas.
 - `motion_spec.md` — especificação de movimento.
+- `SETUP.md` — configuração que só o Henrique faz (Netlify, Supabase, email, Firebase,
+  domínio), por ordem.
 
 ## Regras que nunca se quebram
 

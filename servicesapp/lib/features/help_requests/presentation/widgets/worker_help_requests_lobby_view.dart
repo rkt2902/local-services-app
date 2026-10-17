@@ -223,14 +223,15 @@ class _WorkerHelpRequestsLobbyViewState
     try {
       confirmed = await widget.onRejectCandidate(candidate.applicationId);
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _processingApplications.remove(candidate.applicationId);
-        if (confirmed) {
-          _successMessage = 'Candidatura recusada.';
-          _successVisible = true;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _processingApplications.remove(candidate.applicationId);
+          if (confirmed) {
+            _successMessage = 'Candidatura recusada.';
+            _successVisible = true;
+          }
+        });
+      }
     }
   }
 
@@ -889,8 +890,7 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
     try {
       confirmed = await widget.onConfirm(_rateController.text.trim());
     } finally {
-      if (!mounted) return;
-      setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = false);
     }
 
     if (!mounted || !confirmed) return;

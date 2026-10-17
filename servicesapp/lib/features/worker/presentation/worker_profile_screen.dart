@@ -38,7 +38,8 @@ class WorkerProfileScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               const Text(
                 'Precisas de ajuda? Escreve-nos para '
-                'suporte@projardim.pt e respondemos o mais depressa possível.',
+                '${AppLinks.supportEmail} e respondemos o mais depressa '
+                'possível.',
               ),
             ],
           ),

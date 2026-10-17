@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/picked_photo.dart';
 import 'client_profile_model.dart';
+import '../../../core/config/storage_urls.dart';
 
 class ClientRepository {
   final SupabaseClient _client;
@@ -59,7 +60,7 @@ class ClientRepository {
     return {
       'full_name': data['full_name'] as String? ?? '',
       'phone': data['phone'] as String? ?? '',
-      'avatar_url': data['avatar_url'] as String? ?? '',
+      'avatar_url': StorageUrls.trustedOrEmpty(data['avatar_url'] as String?),
     };
   }
 }

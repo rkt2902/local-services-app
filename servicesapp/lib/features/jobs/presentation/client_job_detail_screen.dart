@@ -31,7 +31,7 @@ import '../application/job_labels.dart';
 import '../application/job_timeline.dart';
 import '../../../core/widgets/app_bar_title.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/rating_sheet.dart';
+import '../../ratings/presentation/submit_rating_sheet.dart';
 import 'client_scheduled_job_detail_screen.dart';
 
 class ClientJobDetailScreen extends ConsumerStatefulWidget {
@@ -942,7 +942,7 @@ class _ClientJobDetailScreenState
   }
 
   Future<void> _showClientRatingSheet() async {
-    final submitted = await showRatingSheet(
+    final submitted = await showSubmitRatingSheet(
       context: context,
       title: 'Avaliar o trabalho',
       subtitle:

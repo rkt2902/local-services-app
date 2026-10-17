@@ -1,5 +1,8 @@
 # Notificações push (FCM)
 
+> Os passos de configuração, por ordem e com testes, estão em `docs/SETUP.md`
+> (secção 4). Este ficheiro explica como o push funciona.
+
 Grátis: Firebase Cloud Messaging não tem custo, e a Edge Function cabe no
 plano gratuito do Supabase.
 

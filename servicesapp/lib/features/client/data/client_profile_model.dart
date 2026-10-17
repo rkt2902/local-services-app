@@ -1,3 +1,5 @@
+import '../../../core/config/storage_urls.dart';
+
 class ClientProfile {
   final String id;
   final String fullName;
@@ -17,7 +19,7 @@ class ClientProfile {
         id: json['id'] as String,
         fullName: json['full_name'] as String,
         phone: json['phone'] as String? ?? '',
-        avatarUrl: json['avatar_url'] as String?,
+        avatarUrl: StorageUrls.trustedOrNull(json['avatar_url'] as String?),
         createdAt: json['created_at'] == null
             ? null
             : DateTime.parse(json['created_at'] as String),
