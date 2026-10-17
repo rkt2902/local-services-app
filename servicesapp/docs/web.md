@@ -19,29 +19,62 @@ flutter build web --release --dart-define=SUPABASE_URL=... --dart-define=SUPABAS
 Os valores são os mesmos do `.vscode/launch.json`. A anon key é pública por
 natureza (vai sempre dentro da app), a segurança está na RLS.
 
-## 2. Onde alojar de graça
+## 2. Pôr online no Netlify (grátis)
 
-Todas estas opções dão HTTPS, que é obrigatório para o GPS e para instalar no
-iPhone. A app usa URLs sem `#` (por exemplo `/w/<id>`), por isso o alojamento
-tem de devolver `index.html` para qualquer caminho. Os ficheiros para isso já
-estão no repo.
+O Netlify dá HTTPS, que é obrigatório para o GPS e para instalar no iPhone.
+A app usa URLs sem `#` (por exemplo `/w/<id>`); o ficheiro `web/_redirects`
+já faz o Netlify devolver `index.html` em qualquer caminho.
 
-| Serviço | Como | Config já incluída |
-|---|---|---|
-| **Netlify** (recomendado, o mais simples) | app.netlify.com > Add new site > Deploy manually > arrastar a pasta `build/web` | `web/_redirects` (vai para `build/web` sozinho) |
-| Firebase Hosting | `npm i -g firebase-tools`, `firebase login`, `firebase init hosting` (escolher o projeto, responder "não" a reescrever o index.html), `firebase deploy` | `firebase.json` em `servicesapp/` |
-| Vercel | `npm i -g vercel`, `cd build/web`, `vercel --prod` | `web/vercel.json` |
-| Cloudflare Pages | Upload direto da pasta `build/web` | `web/_redirects` (mesmo formato do Netlify) |
-| GitHub Pages | Não recomendado: não faz o reencaminhamento para `index.html` (recarregar numa página interna dá 404) e obriga a `--base-href /nome-do-repo/` | nenhuma |
+### Primeira vez (à mão, uns minutos)
 
-Depois de cada alteração: `flutter build web ...` outra vez e voltar a publicar
-(no Netlify, arrastar a pasta nova para "Deploys").
+1. Criar conta em netlify.com ("Sign up with GitHub").
+2. No PC, em `servicesapp/`: `flutter build web --release` com as
+   `--dart-define` do `.vscode/launch.json` (ver secção 1).
+3. Abrir app.netlify.com/drop e arrastar a pasta `build/web`. Em segundos
+   dá um endereço do tipo `https://nome-aleatorio.netlify.app`.
+4. Site configuration > Change site name > `projardim` (fica
+   `https://projardim.netlify.app`, se o nome estiver livre).
+5. Abrir esse endereço no telemóvel.
+
+### Automático a cada push para `main`
+
+O workflow `.github/workflows/deploy-web.yml` compila e publica sozinho.
+Configura-se uma vez:
+
+1. Netlify: avatar > User settings > Applications > Personal access tokens >
+   New access token. Copiar o token.
+2. Netlify: no site > Site configuration > Site details > copiar o
+   **Site ID**.
+3. GitHub: repo > Settings > Secrets and variables > Actions > New
+   repository secret, criar 4:
+   - `NETLIFY_AUTH_TOKEN` (passo 1)
+   - `NETLIFY_SITE_ID` (passo 2)
+   - `SUPABASE_URL` e `SUPABASE_ANON_KEY` (os mesmos do `launch.json`)
+4. A partir daí cada merge no `main` que mexa em `servicesapp/` publica a
+   versão nova. Para publicar sem esperar: Actions > Deploy web > Run
+   workflow. Se faltar algum secret o workflow para logo e diz qual.
+
+Alternativas com config já incluída, se um dia for preciso: Firebase Hosting
+(`firebase.json`), Vercel (`web/vercel.json`), Cloudflare Pages
+(`web/_redirects`).
+
+### Ver no telemóvel antes de publicar
+
+Com o PC e o telemóvel na mesma rede Wi-Fi:
+
+```bash
+flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080 --dart-define=...
+```
+
+e abrir `http://<IP do PC>:8080` no telemóvel (o IP vê-se com `ipconfig`
+no Windows). Serve para ver o aspeto; sem HTTPS o GPS não funciona e não dá
+para instalar.
 
 ## 3. O que configurar no Supabase
 
 Dashboard > Authentication > URL Configuration:
 
-- **Site URL**: o endereço final, por exemplo `https://projardim.netlify.app`.
+- **Site URL**: o endereço do Netlify, por exemplo `https://projardim.netlify.app`.
 - **Redirect URLs**: adicionar `https://projardim.netlify.app/**` e, para
   testar no PC, `http://localhost:*/**`.
 
