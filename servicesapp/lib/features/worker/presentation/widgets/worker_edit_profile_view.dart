@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
+import '../../../../core/widgets/service_category_section.dart';
 
 /// 3 secções do formulário de edição do worker, navegadas dentro do mesmo
 /// ecrã (sem trocar de rota) via [AppFadeThroughSwitcher].
@@ -1252,6 +1253,54 @@ class _WorkerServicesToolsEditorState
     }
   }
 
+  /// Categorias abertas (todas fechadas no início).
+  final Set<String> _expandedCategories = {};
+
+  Widget _serviceChips(List<WorkerServiceSelectionViewData> services) {
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        for (final service in services)
+          AppFilterChip(
+            label: service.label,
+            leadingIcon: service.icon,
+            selected: service.selected,
+            showCheckmark: service.selected,
+            onPressed: () => widget.onToggleService(service.id),
+          ),
+      ],
+    );
+  }
+
+  Widget _categorySection(List<WorkerServiceSelectionViewData> group) {
+    final first = group.first;
+    final selectedCount = group.where((s) => s.selected).length;
+    final total = group.length;
+    return ServiceCategorySection(
+      icon: first.categoryIcon,
+      title: first.categoryName.isEmpty ? 'Serviços' : first.categoryName,
+      summary: selectedCount == 0
+          ? '$total serviços'
+          : '$selectedCount de $total selecionados',
+      highlighted: selectedCount > 0,
+      expanded: _expandedCategories.contains(first.categoryName),
+      onToggle: () => setState(() {
+        if (!_expandedCategories.remove(first.categoryName)) {
+          _expandedCategories.add(first.categoryName);
+        }
+      }),
+      allSelected: selectedCount == total,
+      onSelectAll: (selectAll) {
+        // O ecrã-pai só sabe alternar um serviço de cada vez.
+        for (final service in group) {
+          if (service.selected != selectAll) widget.onToggleService(service.id);
+        }
+      },
+      child: _serviceChips(group),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -1308,52 +1357,19 @@ class _WorkerServicesToolsEditorState
                     index: 2,
                     child: visibleServices.isEmpty
                         ? const _NoServicesMatch()
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (final group
-                                  in _groupByCategory(visibleServices)) ...[
-                                if (group.first.categoryName.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      top: AppSpacing.xs,
-                                      bottom: AppSpacing.xs,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          group.first.categoryIcon,
-                                          size: 18,
-                                          color: AppColors.primary,
-                                        ),
-                                        const SizedBox(width: AppSpacing.xs),
-                                        Text(
-                                          group.first.categoryName,
-                                          style: textTheme.labelLarge?.copyWith(
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                Wrap(
-                                  spacing: AppSpacing.xs,
-                                  runSpacing: AppSpacing.xs,
-                                  children: group.map((service) {
-                                    return AppFilterChip(
-                                      label: service.label,
-                                      leadingIcon: service.icon,
-                                      selected: service.selected,
-                                      showCheckmark: service.selected,
-                                      onPressed: () =>
-                                          widget.onToggleService(service.id),
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: AppSpacing.sm),
-                              ],
-                            ],
-                          ),
+                        : _query.isNotEmpty
+                            // Com pesquisa: só os resultados, sem categorias.
+                            ? _serviceChips(visibleServices)
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (final group
+                                      in _groupByCategory(visibleServices)) ...[
+                                    _categorySection(group),
+                                    const SizedBox(height: AppSpacing.xs),
+                                  ],
+                                ],
+                              ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   const Divider(color: AppColors.divider),
