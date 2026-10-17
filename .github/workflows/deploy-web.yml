@@ -49,11 +49,21 @@ jobs:
 
       - run: flutter pub get
 
+      # APP_PUBLIC_URL e SUPPORT_EMAIL são opcionais (Settings > Secrets and
+      # variables > Actions > Variables). Sem eles a app usa o próprio site e
+      # o email por defeito. Ver servicesapp/docs/SETUP.md.
       - name: Build web
-        run: >
-          flutter build web --release
-          --dart-define=SUPABASE_URL="$SUPABASE_URL"
-          --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+        env:
+          APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
+          SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+        run: |
+          extra=()
+          if [ -n "$APP_PUBLIC_URL" ]; then extra+=(--dart-define=APP_PUBLIC_URL="$APP_PUBLIC_URL"); fi
+          if [ -n "$SUPPORT_EMAIL" ]; then extra+=(--dart-define=SUPPORT_EMAIL="$SUPPORT_EMAIL"); fi
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            "${extra[@]}"
 
       # web/_redirects já vai dentro de build/web (devolve index.html em
       # qualquer caminho, para /w/<id> e recarregar páginas internas).

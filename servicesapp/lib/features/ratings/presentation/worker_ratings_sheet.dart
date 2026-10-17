@@ -9,7 +9,7 @@ import '../application/rating_providers.dart';
 /// Opens a read-only bottom sheet showing a worker's average rating and
 /// the list of individual ratings with rater names and comments.
 /// Uses Consumer internally — no WidgetRef needed from the call site.
-Future<void> showRatingsSheet(
+Future<void> showWorkerRatingsSheet(
   BuildContext context, {
   required String workerId,
   required String workerName,

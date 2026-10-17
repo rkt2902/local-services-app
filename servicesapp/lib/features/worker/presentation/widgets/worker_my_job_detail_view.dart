@@ -17,7 +17,7 @@ import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/status_timeline.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
 import '../../../ratings/application/rating_providers.dart';
-import '../../../ratings/presentation/rating_sheet.dart';
+import '../../../ratings/presentation/submit_rating_sheet.dart';
 
 /// Dados de apresentação do ecrã "O meu trabalho" (Flow 6 + estados
 /// preservados de sessões anteriores).
@@ -1289,7 +1289,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
   }
 
   Future<void> _showSheet() async {
-    final submitted = await showRatingSheet(
+    final submitted = await showSubmitRatingSheet(
       context: context,
       title: widget.title,
       successMessage: 'Avaliação enviada!',

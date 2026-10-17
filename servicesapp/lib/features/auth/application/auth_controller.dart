@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import '../../notifications/application/push_notification_service.dart';
 import '../../../core/utils/error_utils.dart';
@@ -24,7 +25,17 @@ class AuthError extends AuthControllerState {
 }
 
 class AuthSuccess extends AuthControllerState {
-  const AuthSuccess();
+  /// Só no registo: `true` quando "Confirm email" está ligado no Supabase e
+  /// o utilizador tem de escrever o código do email antes de continuar.
+  final bool needsEmailConfirmation;
+  const AuthSuccess({this.needsEmailConfirmation = false});
+}
+
+/// Login de uma conta com email por confirmar. O código já foi reenviado;
+/// o ecrã de login leva para `/verify-email`.
+class AuthEmailNotConfirmed extends AuthControllerState {
+  final String email;
+  const AuthEmailNotConfirmed(this.email);
 }
 
 class AuthController extends Notifier<AuthControllerState> {
@@ -41,13 +52,13 @@ class AuthController extends Notifier<AuthControllerState> {
   }) async {
     state = const AuthLoading();
     try {
-      await _repo.signUp(
+      final needsConfirmation = await _repo.signUp(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone,
       );
-      state = const AuthSuccess();
+      state = AuthSuccess(needsEmailConfirmation: needsConfirmation);
     } catch (e) {
       state = AuthError(friendlyError(e));
     }
@@ -85,6 +96,15 @@ class AuthController extends Notifier<AuthControllerState> {
       await ref.read(sessionStatusProvider.notifier).refresh();
       state = const AuthSuccess();
     } catch (e) {
+      if (_isEmailNotConfirmed(e)) {
+        // Melhor esforço: se o reenvio falhar (limite de 60s, rede), o
+        // ecrã de verificação tem o botão de reenviar.
+        try {
+          await _repo.resendSignupConfirmation(email);
+        } catch (_) {}
+        state = AuthEmailNotConfirmed(email);
+        return;
+      }
       state = AuthError(friendlyError(e));
     }
   }
@@ -100,6 +120,11 @@ class AuthController extends Notifier<AuthControllerState> {
       state = AuthError(friendlyError(e));
     }
   }
+}
+
+bool _isEmailNotConfirmed(Object e) {
+  if (e is AuthException && e.code == 'email_not_confirmed') return true;
+  return e.toString().toLowerCase().contains('email not confirmed');
 }
 
 final authControllerProvider =

@@ -26,22 +26,25 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     final pending = ref.read(pendingSignupProvider);
+    // Com confirmação de email a app pode ter sido fechada entre o registo
+    // e o código: aí o nome e o telefone vêm dos metadados do signUp.
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
     setState(() => _submitting = true);
     try {
       await ref.read(authControllerProvider.notifier).createProfile(
         userId: user.id,
-        fullName: pending.fullName ?? '',
-        phone: pending.phone ?? '',
+        fullName: pending.fullName ?? metadata['full_name'] as String? ?? '',
+        phone: pending.phone ?? metadata['phone'] as String? ?? '',
         role: _selectedRole!,
       );
       if (!mounted) return;
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
       ref.read(pendingSignupProvider.notifier).clear();
-      // Preparação para confirmação de email (ver verify_email_screen.dart)
-      // — sessão continua ativa (sem signOut), o utilizador entra na app
-      // normalmente a partir dali; nada aqui bloqueia o acesso.
-      context.go('/verify-email?email=${Uri.encodeComponent(user.email ?? '')}');
+      // O email já está confirmado neste ponto (código em /verify-email, ou
+      // confirmação desligada no Supabase). O router leva ao início do papel
+      // (ou a /worker/setup) assim que sessionStatusProvider recarregar.
+      context.go('/');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

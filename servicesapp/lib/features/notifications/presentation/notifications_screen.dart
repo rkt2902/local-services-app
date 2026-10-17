@@ -15,16 +15,15 @@ import '../application/notification_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
 
-/// Categoria de alto nível de uma notificação. Hoje todos os 19 tipos reais
-/// mapeiam para `job` — a app não envia notificações de mensagem (sem chat
-/// in-app, só WhatsApp externo) nem de avaliação recebida. `message` e
-/// `system` ficam preparados no enum para quando essas notificações
-/// existirem; sem conteúdo real hoje, não têm filtro próprio na UI.
-enum _NotificationCategory { job, message, review, system }
+/// Categoria de alto nível de uma notificação. Hoje todos os tipos reais
+/// mapeiam para `job`: a app não envia notificações de mensagem (sem chat
+/// in-app, só WhatsApp externo) nem de avaliação recebida. Quando essas
+/// notificações existirem, acrescenta-se aqui o valor (`message`, `review`,
+/// `system`) e o filtro correspondente na UI.
+enum _NotificationCategory { job }
 
-// `type` são consts String (não enum) — sem exaustividade de compilador
-// possível. Todos os 19 tipos reais (ver notification_types.dart) caem em
-// `job` hoje; `message`/`review`/`system` ficam sem produtores.
+// `type` são consts String (não enum), sem exaustividade de compilador
+// possível. Todos os tipos reais (ver notification_types.dart) caem em `job`.
 _NotificationCategory _categoryForType(String type) => _NotificationCategory.job;
 
 enum _NotificationFilter { all, jobs }

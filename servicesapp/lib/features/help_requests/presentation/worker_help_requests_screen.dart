@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -21,8 +22,8 @@ import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/rating_sheet.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
+import '../../ratings/presentation/submit_rating_sheet.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
 
@@ -711,11 +712,8 @@ class _AcceptedCard extends ConsumerStatefulWidget {
 }
 
 class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
-  Future<void> _openWhatsApp(String phone) async {
-    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    final uri = Uri.parse('https://wa.me/$clean');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _openWhatsApp(String phone) =>
+      openWhatsAppOrWarn(context, phone);
 
   @override
   Widget build(BuildContext context) {
@@ -771,7 +769,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 if (principalRatingSummary != null &&
                     principalRatingSummary.ratingCount > 0)
                   GestureDetector(
-                    onTap: () => showRatingsSheet(
+                    onTap: () => showWorkerRatingsSheet(
                       context,
                       workerId: principalId,
                       workerName: widget.acceptance.principalName,
@@ -909,7 +907,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
 
   Future<void> _showHelperRatingSheet() async {
     final jobId = widget.acceptance.jobId;
-    final submitted = await showRatingSheet(
+    final submitted = await showSubmitRatingSheet(
       context: context,
       title: 'Avaliar o prestador principal',
       subtitle: widget.acceptance.principalName,

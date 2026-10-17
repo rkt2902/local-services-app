@@ -9,7 +9,7 @@ import '../theme/app_motion_tokens.dart';
 /// avaliação", tokens `fast · reward`).
 ///
 /// Substitui as duas implementações anteriores e não partilhadas
-/// (`client_rate_worker_screen.dart` e `rating_sheet.dart`), que tinham
+/// (`client_rate_worker_screen.dart` e `submit_rating_sheet.dart`), que tinham
 /// comportamento inconsistente entre si.
 ///
 /// - Ao aparecer: as 5 estrelas surgem uma a uma, 100ms de intervalo —

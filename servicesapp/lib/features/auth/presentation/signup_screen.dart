@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_password_strength_meter.dart';
@@ -58,6 +59,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _nameController.text.trim(),
       _phoneController.text.trim(),
     );
+    if (currentState.needsEmailConfirmation) {
+      final email = Uri.encodeComponent(_emailController.text.trim());
+      context.go('/verify-email?email=$email');
+      return;
+    }
     context.go('/choose-role');
   }
 
@@ -131,11 +137,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       AppTextField(
                         controller: _phoneController,
                         label: 'Telemóvel',
+                        hintText: '912 345 678',
                         keyboardType: TextInputType.phone,
                         autofillHints: const [AutofillHints.telephoneNumber],
-                        validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Introduza o telemóvel.'
-                            : null,
+                        validator: (v) => phoneValidator(
+                          v,
+                          emptyMessage: 'Introduza o telemóvel.',
+                        ),
                       ),
                       const SizedBox(height: 14),
                       AppTextField(

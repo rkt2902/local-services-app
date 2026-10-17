@@ -8,6 +8,15 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-17, limpeza sem decisões:** todas as migrations até à 0046 aplicadas
+(confirmado pelo Henrique). CI no GitHub Actions (`ci.yml`: `flutter analyze` + `flutter
+test` em cada PR); `flutter analyze` a 0 issues. Domínio público e email de suporte por
+`--dart-define` (`APP_PUBLIC_URL`, `SUPPORT_EMAIL`). A app só mostra fotos de perfil que
+venham do Storage do próprio projeto (fecha o ponto do `avatar_url` do review de 16/10
+sem migration). Toda a configuração que só o Henrique pode fazer está em `docs/SETUP.md`.
+Telefone validado e WhatsApp sempre com indicativo. Confirmação de email por código de 6
+dígitos pronta no código; liga-se no Supabase depois do SMTP (`SETUP.md` 3.3).
+
 **2026-10-17, versão web:** a app compila e corre no browser (Flutter web) e instala-se no
 iPhone como PWA. Na web não há OCR do cartão frota (dados à mão) nem push FCM; o resto
 funciona igual. Layout com largura máxima centrada em tablet/PC e navegação lateral a
@@ -174,11 +183,12 @@ RPCs existem na BD com a assinatura esperada, os 4 fluxos já podem ser testados
   botão em lado nenhum da app aponta para estas duas rotas.
 - `/w/:workerId` (cartão público do worker) — a rota e o ecrã funcionam se visitados
   diretamente, mas **nada na app gera internamente um `context.push`/`go` para lá**.
-  `AppLinks.publicWorkerProfileUrl()` só produz uma string de texto (`https://projardim.pt/w/...`)
-  usada para mostrar num QR/partilhar — como o domínio é placeholder (ver abaixo) e não há
-  universal links/deep link handler configurado, esta rota é hoje inalcançável tanto de dentro
-  como de fora da app. Não é um bug de navegação — é infraestrutura de partilha que ainda não
-  tem para onde apontar.
+  `AppLinks.publicWorkerProfileUrl()` só produz uma string de texto usada para mostrar num
+  QR/partilhar. **Atualizado 2026-10-17:** na web o link aponta para o próprio site e já
+  funciona; nas apps nativas usa `APP_PUBLIC_URL` (`--dart-define`) ou, sem ele, o
+  placeholder `projardim.pt`. Com o site publicado e `APP_PUBLIC_URL` definido, o QR das
+  apps abre o cartão no browser. Abrir diretamente dentro da app instalada (app links)
+  continua por fazer e precisa do domínio final (ver `SETUP.md`).
 
 ### 🟡 MÉDIO — gaps de UX/segurança antes do lançamento mais amplo
 
@@ -198,18 +208,11 @@ de telefone, etc. — continuam válidos, sem mudança.)
   é uma decisão deliberada e documentada (estes 3 casos preservam o botão de recuar de
   propósito), não um esquecimento — mas vale a pena ter presente que a regra "notificações
   usam go" tem exceções.
-- **Duas funções de rating sheet com nomes quase idênticos** — `rating_sheet.dart`
-  (`showRatingSheet`, singular — submeter uma avaliação nova) e `ratings_sheet.dart`
-  (`showRatingsSheet`, plural — ver avaliações já recebidas). Ambos ativamente usados, nenhum
-  é código morto, mas o nome quase igual é uma armadilha fácil ao navegar o código.
-  **Reconfirmado 2026-10-12:** `showRatingsSheet` continua com 4 call sites ativos
-  (`worker_help_requests_screen.dart`, `worker_help_requests_lobby_screen.dart`,
-  `client_proposals_screen.dart`) e **não foi substituído** pelo novo ecrã "As minhas
-  avaliações" (`my_ratings_screen.dart`/`my_ratings_route.dart`, rotas `/worker/ratings` e
-  `/client/ratings`) — são funcionalidades diferentes: o ecrã novo mostra só as avaliações do
-  próprio utilizador (dadas/recebidas, filtradas por `auth.uid()`); o sheet mostra, a partir de
-  um fluxo, as avaliações de OUTRO worker específico (`workerId` passado pelo caller). Nenhum
-  dos dois ficheiros foi apagado.
+- ✅ **Rating sheets renomeados (2026-10-17).** Os dois ficheiros com nomes quase iguais
+  passaram a `submit_rating_sheet.dart` (`showSubmitRatingSheet`, submeter uma avaliação
+  nova) e `worker_ratings_sheet.dart` (`showWorkerRatingsSheet`, ver as avaliações de outro
+  worker a partir de um fluxo). Continuam os dois em uso e são diferentes do ecrã
+  "As minhas avaliações" (`my_ratings_screen.dart`).
 
 ### 🔵 BAIXO — limpeza conhecida
 
@@ -231,7 +234,7 @@ de telefone, etc. — continuam válidos, sem mudança.)
 |---|---|---|---|
 | `worker_public_card` (view, 0033) | N/A — pensada para ser pública (`anon`+`authenticated`) | N/A | Expõe só nome/avatar/bio/zona/serviços/rating agregado. Sem telefone, sem coordenadas, sem raio, sem ferramentas — confirmado por leitura da definição. |
 | `get_help_requests_in_radius` (0034) | Sim — filtra por `auth.uid()`, sem parâmetro de identidade vindo do cliente | N/A | `jp.worker_id <> auth.uid()` e `NOT EXISTS (... ha.worker_id = auth.uid())`. |
-| `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). |
+| `help_acceptances.message` (0034) | Coberto pelas policies row-level já existentes | N/A | Coluna nova, sem policy nova necessária (raciocínio documentado na própria migration). Desde a 0047 (por aplicar) chega ao principal via `get_candidates_for_help_request`, que continua a filtrar por `is_principal_worker_for_help_request` (`auth.uid()`). |
 | `get_worker_job_board` (0035) | Sim — **sem parâmetro `p_worker_id`**, só `auth.uid()` | N/A | O cabeçalho da migration cita explicitamente a 0032 como razão de desenho. |
 | `worker_fleet_cards` (0037) | Sim — SELECT/INSERT só do próprio (`worker_id = auth.uid()`) | **Sim até à 0042** — o INSERT não limitava `status`, dava para inserir já `active`. A 0042 exige `status = 'pending'` no WITH CHECK | Mesmo padrão de moderação manual que `job_reports`. |
 
@@ -256,9 +259,11 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **A 0042 foi aplicada na BD viva a 2026-10-16; estas falhas estão fechadas.**
 
-**Catálogo de serviços (0045, NÃO aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
+**Catálogo de serviços (0045, aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
 
-**Regras do dia do trabalho (0046, NÃO aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.
+**Mensagem do candidato a ajudante (0047, NÃO aplicada):** o jardineiro principal vê no lobby o que o candidato escreveu ao candidatar-se. Sem a 0047 aplicada o cartão aparece como antes, sem a mensagem.
+
+**Regras do dia do trabalho (0046, aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.
 
 **RPCs sem `p_worker_id` e policies mais rápidas (0044, NÃO aplicada):** fecha os pontos baixos que ficaram do review. Aplicar junto com a app nova.
 

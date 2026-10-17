@@ -10,10 +10,10 @@ import '../../../core/widgets/rating_stars_input.dart';
 /// Segue o padrão T4 já estabelecido no projeto para submissões (ver
 /// decisions_log.md, "pop → go → snackBar → invalidate"): a sheet fecha-se
 /// a si própria e mostra a confirmação — o caller só invalida os
-/// providers relevantes depois de `showRatingSheet` devolver `true`, nunca
+/// providers relevantes depois de `showSubmitRatingSheet` devolver `true`, nunca
 /// antes. Isto também evita invalidar um provider que o ecrã por trás da
 /// sheet ainda esteja a observar em pleno fecho da modal.
-Future<bool?> showRatingSheet({
+Future<bool?> showSubmitRatingSheet({
   required BuildContext context,
   required String title,
   required String successMessage,

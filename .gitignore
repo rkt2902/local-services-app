@@ -18,3 +18,10 @@
 # (o projeto Supabase real fica em servicesapp/supabase/, nao na raiz)
 /supabase_*.sql
 /supabase/.temp/
+
+# Firebase (push FCM): ficheiros de configuração locais e a chave da
+# service account nunca vão para o git (ver servicesapp/docs/SETUP.md)
+**/google-services.json
+**/GoogleService-Info.plist
+*firebase-adminsdk*.json
+*service-account*.json

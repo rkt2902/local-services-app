@@ -8,6 +8,7 @@ import '../../../core/utils/picked_photo.dart';
 import 'worker_profile_model.dart';
 import 'worker_public_card_model.dart';
 import 'service_type_model.dart';
+import '../../../core/config/storage_urls.dart';
 
 class WorkerRepository {
   final SupabaseClient _client;
@@ -40,7 +41,8 @@ class WorkerRepository {
       workerData,
       fullName: profileData['full_name'] as String,
       phone: profileData['phone'] as String? ?? '',
-      avatarUrl: profileData['avatar_url'] as String?,
+      avatarUrl:
+          StorageUrls.trustedOrNull(profileData['avatar_url'] as String?),
       serviceTypeIds: serviceTypeIds,
     );
   }
@@ -117,7 +119,7 @@ class WorkerRepository {
     return {
       'full_name': data['full_name'] as String? ?? '',
       'phone': data['phone'] as String? ?? '',
-      'avatar_url': data['avatar_url'] as String? ?? '',
+      'avatar_url': StorageUrls.trustedOrEmpty(data['avatar_url'] as String?),
     };
   }
 

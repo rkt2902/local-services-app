@@ -11,7 +11,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/ratings_sheet.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 import '../data/help_request_model.dart';
@@ -139,7 +139,7 @@ class _WorkerHelpRequestsLobbyScreenState
   }
 
   void _viewRatings(String workerId, String name) {
-    showRatingsSheet(context, workerId: workerId, workerName: name);
+    showWorkerRatingsSheet(context, workerId: workerId, workerName: name);
   }
 
   @override
@@ -222,6 +222,7 @@ class _WorkerHelpRequestsLobbyScreenState
               avatarUrl: c.avatarUrl,
               ratingLabel: _ratingLabelFor(c.workerId),
               equipmentLabel: c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
+              message: c.message,
               statusPresentation: c.status.presentation,
               actionsBlocked: isFilled || isAwaitingApproval,
               blockedReasonLabel: isFilled
