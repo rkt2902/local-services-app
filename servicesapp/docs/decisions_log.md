@@ -3,6 +3,22 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Validação de telefone e link de WhatsApp com indicativo
+
+- Bug encontrado: os 5 sítios que abrem o WhatsApp faziam `wa.me/<número sem espaços>`.
+  Um número português escrito sem `+351` (o normal) abria `wa.me/912345678`, que o
+  WhatsApp não reconhece. Agora há um helper único, `openWhatsAppOrWarn`
+  (`core/utils/phone_utils.dart`), que normaliza para `351912345678` e mostra uma
+  SnackBar se o número for inválido. Cobre também os números já gravados.
+- Validação no registo e nos dois ecrãs de editar perfil: 9 dígitos portugueses (2, 3 ou
+  9 à frente), com ou sem `+351`/`00351`, ou número estrangeiro com indicativo.
+  Espaços, hífenes, pontos e parênteses são aceites. O número continua a ser gravado como
+  foi escrito.
+- Sem migration: os limites na BD que estavam na lista (`people_needed >= 1`,
+  `slots_needed >= 1`) já existem na baseline, e `hourly_rate > 0` é validado por
+  `create_proposal`, a única forma de criar propostas desde a 0042. Um CHECK no telefone
+  na BD bloquearia qualquer UPDATE de perfil de quem já tem um número antigo inválido.
+
 ## 2026-10-17 — Limpeza sem decisões, CI e guia de configuração
 
 - **CI** (`.github/workflows/ci.yml`): `flutter analyze` e `flutter test` em cada PR e

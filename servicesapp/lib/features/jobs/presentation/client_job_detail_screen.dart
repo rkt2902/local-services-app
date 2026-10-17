@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../application/job_providers.dart';
@@ -389,15 +389,7 @@ class _ClientJobDetailScreenState
               FilledButton.icon(
                 onPressed: phone.isEmpty
                     ? null
-                    : () async {
-                        final clean =
-                            phone.replaceAll(RegExp(r'[\s\-]'), '');
-                        final uri = Uri.parse('https://wa.me/$clean');
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
-                        }
-                      },
+                    : () => openWhatsAppOrWarn(context, phone),
                 style: FilledButton.styleFrom(
                   elevation: 0,
                   backgroundColor: AppColors.surface,

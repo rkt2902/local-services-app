@@ -32,7 +32,7 @@
 | **M4** — CHECK constraints `people_needed ≥ 1` e `slots_needed ≥ 1` | `accept_proposal` pode calcular `slots_needed = -1` se `people_needed = 0` chegar à BD | S | migration (manual apply) |
 | **P-8-8** — Jobs cancelados em `open` invisíveis no histórico | Pode ser intencional (menos lixo) ou omissão — não está registado | S | decisão de produto necessária |
 | **SA1** — `auto_confirm`/`auto_expire` sem check auth | Qualquer autenticado pode invocar via RPC; funções são idempotentes | S | migration (manual apply) |
-| **B1/B2 Fases 6-7** — Validação de email e telefone | Telefone aceita "1"; link WhatsApp construído com número inválido = link quebrado | S | nenhuma |
+| ~~**B1/B2 Fases 6-7**~~ ✅ Validação de telefone | Resolvido 2026-10-17: `core/utils/phone_utils.dart` valida no registo e nos perfis e o link WhatsApp leva sempre o indicativo (351 por defeito). Email continua só com `@` | S | — |
 | ~~**P8/B4**~~ ✅ — `worker_setup_screen` chama Supabase diretamente | Resolvido 2026-07-10: `fetchNameAndPhone` em `AuthRepository` | S | — |
 
 ### 🔵 PÓS-LANÇAMENTO — deliberadamente adiado
@@ -188,7 +188,7 @@ Coluna nullable que predata o split min/max (2026-06-11). Não mapeada em `JobPr
 
 ---
 
-### B2 Fases 6-7 — Validação de tamanho mínimo no telefone
+### B2 Fases 6-7 ✅ RESOLVIDO 2026-10-17 — Validação de tamanho mínimo no telefone
 
 Número como `"1"` ou `"abc"` passa e fica guardado. Link WhatsApp construído com `wa.me/<número limpo>` — número inválido = link quebrado.
 

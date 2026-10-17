@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -711,11 +712,8 @@ class _AcceptedCard extends ConsumerStatefulWidget {
 }
 
 class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
-  Future<void> _openWhatsApp(String phone) async {
-    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    final uri = Uri.parse('https://wa.me/$clean');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _openWhatsApp(String phone) =>
+      openWhatsAppOrWarn(context, phone);
 
   @override
   Widget build(BuildContext context) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/picked_photo.dart';
@@ -346,8 +347,7 @@ class _WorkerEditProfileScreenState
   String? _fullNameValidator(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
 
-  String? _phoneValidator(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Introduz o teu telefone.' : null;
+  String? _phoneValidator(String? value) => phoneValidator(value);
 
   // ── Resumos formatados ───────────────────────────────────────────────────
 

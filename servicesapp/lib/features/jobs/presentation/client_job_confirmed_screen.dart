@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -109,7 +109,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
       priceLabel: priceLabel,
       onCallPressed: workerPhone.isEmpty
           ? null
-          : () => _openWhatsApp(workerPhone),
+          : () => openWhatsAppOrWarn(context, workerPhone),
       onWorkerPressed: () {
         // Sem ecrã de perfil público do worker no cliente hoje — sem-op
         // seguro em vez de navegar para um sítio que não existe.
@@ -118,12 +118,6 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
         GoRouter.of(context).pushReplacement('/client/job/$jobId');
       },
     );
-  }
-
-  Future<void> _openWhatsApp(String phone) async {
-    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    final uri = Uri.parse('https://wa.me/$clean');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   String _confirmedScheduleLabel(JobRequest job) {

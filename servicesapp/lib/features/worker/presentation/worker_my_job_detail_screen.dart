@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
@@ -186,12 +186,8 @@ class _WorkerMyJobDetailScreenState
     }
   }
 
-  Future<void> _openWhatsApp(String phone) async {
-    if (phone.isEmpty) return;
-    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    final uri = Uri.parse('https://wa.me/$clean');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _openWhatsApp(String phone) =>
+      openWhatsAppOrWarn(context, phone);
 
   Future<void> _showAddHelperSheet() async {
     int slotsNeeded = 1;
