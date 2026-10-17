@@ -3,7 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/widgets/app_adaptive_shell.dart';
 import 'package:servicesapp/core/widgets/app_bottom_navigation.dart';
 
-Widget _shell(Size size, ValueChanged<int> onSelected) {
+Widget _shell(
+  Size size,
+  ValueChanged<int> onSelected, {
+  Widget child = const Text('conteúdo'),
+}) {
   return MediaQuery(
     data: MediaQueryData(size: size),
     child: MaterialApp(
@@ -33,7 +37,7 @@ Widget _shell(Size size, ValueChanged<int> onSelected) {
             selectedIcon: Icons.person,
           ),
         ],
-        child: const Text('conteúdo'),
+        child: child,
       ),
     ),
   );
@@ -62,5 +66,33 @@ void main() {
     await tester.tap(find.text('C'));
     expect(selected, 2);
     expect(tester.getSize(find.text('conteúdo')).width, lessThanOrEqualTo(640));
+  });
+
+  testWidgets('telemóvel deitado continua com a bottom nav', (tester) async {
+    tester.view.physicalSize = const Size(932, 430);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_shell(const Size(932, 430), (_) {}));
+    expect(find.byType(AppBottomNavigation), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+  });
+
+  testWidgets('trocar de bottom nav para lateral mantém o estado do ecrã', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(700, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const field = TextField();
+    await tester.pumpWidget(
+      _shell(const Size(700, 1000), (_) {}, child: field),
+    );
+    await tester.enterText(find.byType(TextField), 'texto');
+    tester.view.physicalSize = const Size(1200, 1000);
+    await tester.pumpWidget(
+      _shell(const Size(1200, 1000), (_) {}, child: field),
+    );
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('texto'), findsOneWidget);
   });
 }

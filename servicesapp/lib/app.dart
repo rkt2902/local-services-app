@@ -96,15 +96,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
 /// Na web (PC) deixa arrastar com o rato e o trackpad as listas e o
 /// PageView do onboarding, como no telemóvel se arrasta com o dedo. Por
-/// defeito o Flutter só aceita arrasto de toque e caneta.
+/// defeito o Flutter não aceita arrasto de rato; o resto fica igual.
 class _AppScrollBehavior extends MaterialScrollBehavior {
   const _AppScrollBehavior();
 
   @override
   Set<PointerDeviceKind> get dragDevices => {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.stylus,
-        PointerDeviceKind.mouse,
-        PointerDeviceKind.trackpad,
-      };
+    ...super.dragDevices,
+    PointerDeviceKind.mouse,
+  };
 }

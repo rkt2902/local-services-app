@@ -28,7 +28,7 @@ Future<({Uint8List bytes, String contentType})> photoBytesForUpload(
   if (kIsWeb) {
     return (
       bytes: await file.readAsBytes(),
-      contentType: file.mimeType ?? 'image/jpeg',
+      contentType: pickedPhotoContentType(file),
     );
   }
   final compressed = await FlutterImageCompress.compressWithFile(
@@ -42,4 +42,17 @@ Future<({Uint8List bytes, String contentType})> photoBytesForUpload(
     throw Exception('Image compression failed for ${file.path}');
   }
   return (bytes: compressed, contentType: 'image/jpeg');
+}
+
+/// Tipo MIME de uma foto escolhida na web, para o Storage a servir bem.
+/// O browser costuma dar `mimeType`; se não der, deduz pela extensão.
+String pickedPhotoContentType(XFile file) {
+  final mime = file.mimeType;
+  if (mime != null && mime.startsWith('image/')) return mime;
+  final name = file.name.toLowerCase();
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.gif')) return 'image/gif';
+  if (name.endsWith('.heic') || name.endsWith('.heif')) return 'image/heic';
+  return 'image/jpeg';
 }

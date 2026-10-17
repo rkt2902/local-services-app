@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/utils/picked_photo.dart';
 import 'worker_profile_model.dart';
 import 'worker_public_card_model.dart';
 import 'service_type_model.dart';
@@ -128,14 +133,24 @@ class WorkerRepository {
 
   Future<String> uploadAvatar(String userId, XFile file) async {
     final path = '$userId.jpg';
-    await _client.storage.from('avatars').uploadBinary(
-          path,
-          await file.readAsBytes(),
-          fileOptions: FileOptions(
-            upsert: true,
-            contentType: file.mimeType ?? 'image/jpeg',
-          ),
-        );
+    final bucket = _client.storage.from('avatars');
+    if (kIsWeb) {
+      // Na web não há ficheiro em disco: envia os bytes do browser.
+      await bucket.uploadBinary(
+        path,
+        await file.readAsBytes(),
+        fileOptions: FileOptions(
+          upsert: true,
+          contentType: pickedPhotoContentType(file),
+        ),
+      );
+    } else {
+      await bucket.upload(
+        path,
+        File(file.path),
+        fileOptions: const FileOptions(upsert: true),
+      );
+    }
     final url = _client.storage.from('avatars').getPublicUrl(path);
     return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
   }
