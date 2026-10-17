@@ -73,9 +73,12 @@
 | 9 | Propor remarcação | Cliente ou Worker | `propose_reschedule` | outro lado → `reschedule_proposed` | `confirmed` (inalterado) | `accepted` (inalterado) |
 | 10 | Aceitar remarcação | outro lado | `accept_reschedule` | quem propôs → `reschedule_accepted` | `confirmed` (nova data) | `accepted` (inalterado) |
 | 11 | Recusar remarcação | outro lado | `reject_reschedule` | quem propôs → `reschedule_rejected` | `confirmed` (data original) | `accepted` (inalterado) |
-| 12 | Marcar concluído | Worker | `mark_job_done` | Cliente → `job_marked_done` | `awaiting_confirmation` | `accepted` |
+| 12 | Marcar concluído (desde 0046 só a partir de `confirmed_date`, foto opcional) | Worker | `mark_job_done` | Cliente → `job_marked_done` | `awaiting_confirmation` | `accepted` |
 | 13 | Confirmar conclusão | Cliente | `confirm_job_completion` | Worker → `job_completed` | `completed` | `accepted` |
-| 14 | Sem resposta 48h | Sistema | — (cron/check) | Cliente → `job_no_response` | `no_response` | — |
+| 14 | Sem resposta 48h, ou data fixa passada (0046) | Sistema | `auto_expire_jobs` (cron) | Cliente → `job_no_response` | `no_response` | `pending` → `rejected` |
+| 15 | Confirmado, 3 dias depois da data sem conclusão (0046) | Sistema | `auto_expire_jobs` (cron) | Cliente e worker → `job_cancelled`; ajudantes → `help_job_cancelled` | `cancelled` (`cancel_reason = expired`) | `accepted` |
+| 16 | Marcado concluído, 3 dias sem confirmação | Sistema | `auto_confirm_completed_jobs` (cron) | Os dois → `job_completed` | `completed` | `accepted` |
+| — | Lembretes (0046): manhã do dia, data passada, conclusão por confirmar | Sistema | `send_job_reminders` (cron) | `job_reminder` | inalterado | inalterado |
 
 ## Transições de equipa de ajudantes (Fase 9)
 
@@ -140,6 +143,7 @@
 | `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
 | `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider`, `clientJobsProvider` |
 | `job_no_response` | `clientJobsProvider` |
+| `job_reminder` (0046) | igual a `reschedule_*` |
 | `help_request_approved` | `helpRequestsForJobProvider` |
 | `help_accepted` | `jobByIdProvider`, `myHelpAcceptancesProvider` |
 | `help_rejected` | `myHelpAcceptancesProvider` |

@@ -144,7 +144,10 @@ class NotificationHandler {
         );
 
       case NotificationType.jobCompleted:
-        // Sent to both sides when the job is fully confirmed. relatedId = job_id.
+      case NotificationType.jobReminder:
+        // jobCompleted: sent to both sides when the job is fully confirmed.
+        // jobReminder (0046): morning of the job day, date passed without
+        // completion, or completion awaiting the client. relatedId = job_id.
         // Client: go directly. Worker: resolve proposalId first.
         if (notification.relatedId == null) break;
         final sessionCompleted = ref.read(sessionStatusProvider).asData?.value;

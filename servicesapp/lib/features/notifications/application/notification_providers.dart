@@ -112,6 +112,7 @@ final notificationSyncProvider = Provider<void>((ref) {
         case NotificationType.rescheduleProposed:
         case NotificationType.rescheduleAccepted:
         case NotificationType.rescheduleRejected:
+        case NotificationType.jobReminder:
           ref.invalidate(clientJobsProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
           ref.invalidate(scheduledWorkerProposalsProvider);

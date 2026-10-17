@@ -74,6 +74,12 @@ String friendlyError(Object e) {
       msg.contains('insufficient_privilege')) {
     return 'Não tens permissão para esta ação.';
   }
+  if (msg.contains('dia do trabalho')) {
+    return 'Só podes marcar como concluído a partir do dia do trabalho.';
+  }
+  if (msg.contains('foto de conclusão')) {
+    return 'Não foi possível guardar a foto. Tenta novamente ou conclui sem foto.';
+  }
   if (msg.contains('não autorizado') ||
       msg.contains('não está a aguardar') ||
       msg.contains('not authorized') ||

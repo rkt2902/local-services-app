@@ -9,6 +9,10 @@ abstract class NotificationType {
   static const jobMarkedDone = 'job_marked_done';
   static const jobCompleted = 'job_completed';
   static const jobNoResponse = 'job_no_response';
+
+  /// Lembretes do cron `send_job_reminders` (migration 0046): manhã do dia
+  /// do trabalho, data passada sem conclusão, conclusão por confirmar.
+  static const jobReminder = 'job_reminder';
   static const rescheduleProposed = 'reschedule_proposed';
   static const rescheduleAccepted = 'reschedule_accepted';
   static const rescheduleRejected = 'reschedule_rejected';

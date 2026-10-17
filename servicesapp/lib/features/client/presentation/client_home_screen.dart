@@ -57,7 +57,6 @@ class ClientHomeScreen extends ConsumerWidget {
         for (final job in activeRaw)
           view.ClientHomeActiveJobViewData(
             id: job.id,
-            referenceLabel: '#${job.id.substring(0, 8)}',
             serviceLabel: serviceTypes
                     .where((t) => t.id == job.serviceTypeId)
                     .map((t) => t.name)

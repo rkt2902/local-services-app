@@ -8,9 +8,11 @@ import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/job_timeline.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -20,6 +22,7 @@ import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
+import 'widgets/mark_completed_sheet.dart';
 import 'widgets/worker_my_job_detail_view.dart' as view;
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
@@ -305,27 +308,20 @@ class _WorkerMyJobDetailScreenState
   /// [_onCompletionFeedbackFinished], chamado pela view depois do feedback.
   Future<bool> _markCompleted() async {
     final scaffold = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Tens a certeza?'),
-        content: const Text('Esta ação não pode ser desfeita.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(false),
-            child: const Text('Não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return false;
+    final result = await MarkCompletedSheet.show(context);
+    if (result == null || !mounted) return false;
 
     try {
-      await ref.read(proposalRepositoryProvider).markJobCompleted(widget.jobId);
+      String? photoPath;
+      final photo = result.photo;
+      if (photo != null) {
+        photoPath = await ref
+            .read(jobRepositoryProvider)
+            .uploadCompletionPhoto(jobId: widget.jobId, file: photo);
+      }
+      await ref
+          .read(proposalRepositoryProvider)
+          .markJobCompleted(widget.jobId, photoPath: photoPath);
       return true;
     } catch (e) {
       if (mounted) {
@@ -386,6 +382,14 @@ class _WorkerMyJobDetailScreenState
     final photos = photosAsync.asData?.value ?? const <String>[];
     final avatarUrl = clientInfo?['avatar_url'];
 
+    // Só a partir do dia do trabalho (a RPC também valida, migration 0046).
+    // Sem data confirmada (horário flexível) fica sempre disponível.
+    final today = DateUtils.dateOnly(DateTime.now());
+    final confirmedDay =
+        job.confirmedDate == null ? null : DateUtils.dateOnly(job.confirmedDate!);
+    final canMarkCompleted =
+        confirmedDay == null || !confirmedDay.isAfter(today);
+
     final cancelBlockedBy24h = job.confirmedDate != null &&
         job.confirmedDate!.difference(DateTime.now()).inHours < 24;
 
@@ -429,6 +433,16 @@ class _WorkerMyJobDetailScreenState
       proposedRescheduleLabel: _proposedRescheduleLabel(job),
       cancelBlockedBy24h: cancelBlockedBy24h,
       helpersForRating: helpersForRatingAsync.asData?.value ?? const [],
+      agreedPriceLabel: agreedPriceLabel(
+        proposal.hourlyRate,
+        proposal.estimatedHoursMin,
+        proposal.estimatedHoursMax,
+      ),
+      canMarkCompleted: canMarkCompleted,
+      markCompletedHint: confirmedDay == null
+          ? null
+          : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
+      titleSubtitle: jobDistinguisherLabel(job),
       proposingReschedule: _proposingReschedule,
       acceptingReschedule: _acceptingReschedule,
       rejectingReschedule: _rejectingReschedule,

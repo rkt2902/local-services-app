@@ -13,12 +13,16 @@ class AddressMapLink extends StatelessWidget {
   final double lat;
   final double lng;
 
-  Future<void> _openMaps() async {
+  /// Abre o Google Maps (app ou browser) nestas coordenadas. Público para
+  /// ecrãs que querem um botão próprio em vez do link com a morada.
+  static Future<void> openInMaps(double lat, double lng) async {
     final uri = Uri.parse(
       'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('$lat,$lng')}',
     );
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
+
+  Future<void> _openMaps() => openInMaps(lat, lng);
 
   @override
   Widget build(BuildContext context) {

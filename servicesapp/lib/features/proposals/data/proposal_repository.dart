@@ -183,8 +183,14 @@ class ProposalRepository {
     });
   }
 
-  Future<void> markJobCompleted(String jobId) async {
-    await _client.rpc('mark_job_done', params: {'p_job_id': jobId});
+  /// [photoPath] é o caminho devolvido por
+  /// `JobRepository.uploadCompletionPhoto` (opcional). A RPC recusa antes
+  /// do dia do trabalho (migration 0046).
+  Future<void> markJobCompleted(String jobId, {String? photoPath}) async {
+    await _client.rpc('mark_job_done', params: {
+      'p_job_id': jobId,
+      'p_photo_path': ?photoPath,
+    });
   }
 
   Future<void> confirmJobCompletion(String jobId) async {
