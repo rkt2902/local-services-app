@@ -48,6 +48,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = authState is AuthLoading;
 
     ref.listen(authControllerProvider, (_, next) {
+      if (next is AuthEmailNotConfirmed) {
+        context.go('/verify-email?email=${Uri.encodeComponent(next.email)}');
+        return;
+      }
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.message), backgroundColor: Colors.red),

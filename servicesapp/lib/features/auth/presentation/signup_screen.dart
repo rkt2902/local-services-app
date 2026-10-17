@@ -59,6 +59,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _nameController.text.trim(),
       _phoneController.text.trim(),
     );
+    if (currentState.needsEmailConfirmation) {
+      final email = Uri.encodeComponent(_emailController.text.trim());
+      context.go('/verify-email?email=$email');
+      return;
+    }
     context.go('/choose-role');
   }
 

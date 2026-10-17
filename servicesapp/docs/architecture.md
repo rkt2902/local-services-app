@@ -194,16 +194,15 @@ Ecrãs simples (sem este grau de complexidade) ficam num único ficheiro
 2. Não autenticado e ainda não viu onboarding → `/onboarding` (exceto `/w/:workerId`).
 3. Não autenticado → só rotas públicas passam: `/`, `/login`, `/signup`, `/onboarding`,
    `/forgot-password/request`, `/forgot-password/reset`, `/verify-email`,
-   `/email-confirmed`, `/w/:workerId`. Resto → `/`.
+   `/w/:workerId`. Resto → `/`.
 4. Autenticado sem `role` ainda → só `/choose-role`.
 5. **Cross-role guard**: `role == client` e rota começa por `/worker/` → `/client/home`
    (e vice-versa).
 6. Em `/`, `/loading`, `/login`, `/signup`, `/choose-role` → redireciona para o
    dashboard do papel (`worker` incompleto → `/worker/setup`).
-7. **`workerSetupExemptRoutes`**: `role == worker` e perfil incompleto → força
-   `/worker/setup`, EXCETO em `['/worker/setup', '/verify-email', '/email-confirmed']`
-   — sem esta isenção, o ecrã de verificação de email pisca e desaparece sozinho
-   quando `sessionStatusProvider` recarrega a meio.
+7. `role == worker` e perfil incompleto → força `/worker/setup`. (Até 2026-10-17 havia
+   isenções para `/verify-email` e `/email-confirmed`; deixaram de ser precisas porque a
+   confirmação acontece antes de haver papel.)
 
 ### Transições (`app_page_transitions.dart`)
 
@@ -220,7 +219,7 @@ Os 3 builders também envolvem a página num `PopScope` interno (`_wrapWithBackF
 que cobre o botão/gesto de voltar do sistema para TODAS as rotas de uma vez — ver
 secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 
-### Tabela de rotas (43 no total: 34 fora dos shells + 4 + 5)
+### Tabela de rotas (42 no total: 33 fora dos shells + 4 + 5)
 
 | Path | Ecrã | Shell | Transição |
 |---|---|---|---|
@@ -232,8 +231,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/choose-role` | `ChooseRoleScreen` | fora | shared-axis |
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
-| `/verify-email` | `VerifyEmailScreen` | fora | shared-axis |
-| `/email-confirmed` | `EmailConfirmedScreen` | fora | shared-axis |
+| `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/worker/setup` | `WorkerSetupScreen` | fora | default |
 | `/worker/profile/edit` | `WorkerEditProfileScreen` | fora | default |
 | `/notifications` | `NotificationsScreen` | fora | fade-through |
@@ -268,7 +266,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/jobs` | `WorkerJobsScreen` | **WorkerShell** | idem |
 | `/worker/messages` | `_PlaceholderScreen` | **WorkerShell** | órfã |
 
-Todos os ecrãs de sub-fluxo (34 fora do shell) usam `SafeArea` próprio e não mostram a
+Todos os ecrãs de sub-fluxo (33 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.
 
 ### Botão de voltar
@@ -283,12 +281,15 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 - **Registo**: `AuthRepository.signUp` (`auth.signUp` com `data: {full_name, phone}`)
   → `createProfile` (`profiles.upsert`, não uma RPC; a antiga `create_user_profile` foi apagada na 0042) → `/choose-role`
   escreve `role` → `/worker/setup` ou `/client/home`.
-- **Login**: `signInWithPassword`. **Confirmação de email está desativada no dashboard
-  Supabase** (decisão deliberada — ver `decisions_log.md` 2026-06-05); o ecrã/fluxo
-  existe (`verify_email_screen.dart`, `email_confirmed_screen.dart`,
-  `verifySignupEmail`/`resendSignupConfirmation`) mas é só preparação para quando for
-  ligada — tem TODOs explícitos sobre o deep link real (app_links, intent-filter
-  Android, `CFBundleURLTypes` iOS) que ainda não foram feitos.
+- **Login**: `signInWithPassword`. Conta com email por confirmar (`email_not_confirmed`)
+  → `AuthEmailNotConfirmed`: reenvia o código e vai para `/verify-email`.
+- **Confirmação de email por código (2026-10-17)**: funciona com "Confirm email" ligado
+  ou desligado no Supabase. Desligado: `signUp` abre sessão e o fluxo segue para
+  `/choose-role` como sempre. Ligado: `signUp` não abre sessão (`AuthSuccess.
+  needsEmailConfirmation`), o registo vai para `/verify-email` (código de 6 dígitos do
+  template "Confirm signup" com `{{ .Token }}`), `verifySignupCode` (`verifyOTP` tipo
+  `signup`) abre a sessão e segue para `/choose-role`. Sem deep links. Se a app fechar a
+  meio, o nome e o telefone vêm de `user.userMetadata` (gravados no `signUp`).
 - **Escolha de papel**: `/choose-role`, grava `role` em `profiles`.
 - **Setup do worker**: `/worker/setup` — raio, base (GPS + `GeocodingService`), serviços,
   ferramentas; `RouterNotifier` força esta rota enquanto `workerProfileComplete == false`.
@@ -694,11 +695,8 @@ em `servicesapp/` (falha também com avisos `info`, para manter o analyze a zero
 Varrimento completo de `lib/` e `supabase/` por `TODO`/`FIXME`/`XXX` — poucos, todos
 já com contexto registado:
 
-- **Confirmação de email / deep link real** (`auth_repository.dart:169`,
-  `email_confirmed_screen.dart:9,25,26`, `verify_email_screen.dart:15,22,23`) — grupo de
-  6 comentários, todos sobre o mesmo trabalho pendente: registar `app_links`, o
-  intent-filter Android e o `CFBundleURLTypes` iOS para quando "Confirm email" for
-  ligado a sério no dashboard Supabase (hoje desativado de propósito).
+- ~~Confirmação de email / deep link real~~ — resolvido a 2026-10-17 com confirmação por
+  código (sem deep links); os TODOs e `email_confirmed_screen.dart` foram removidos.
 - **Mapa estilizado revertido** (`client_create_job_schedule_screen.dart:437`) —
   `TODO(mapa-estilizado)`, decisão de reverter já tomada, comentário descreve o porquê.
 - `supabase/migrations/archive/0001_baseline.sql:446` — `TODO: add SELECT policy for

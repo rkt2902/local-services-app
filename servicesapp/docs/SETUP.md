@@ -15,8 +15,7 @@ Ordem recomendada e porquê:
 5. Domínio real (quando o comprares; até lá o `netlify.app` serve)
 6. Testes manuais que ficaram pendentes
 
-Duas coisas que **não** são para ligar ainda, explicadas no fim: a confirmação de email e
-os app links.
+Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 ---
 
@@ -91,8 +90,8 @@ Supabase > Authentication > URL Configuration.
   - `https://projardim.netlify.app/**`
   - `http://localhost:*/**` (para testar no PC com `flutter run -d chrome`)
 
-Isto ainda não muda nada visível (a recuperação de senha é por código, não por link).
-Passa a contar quando a confirmação de email for ligada.
+Isto não muda nada visível hoje: a recuperação de senha e a confirmação de email são
+por código, não por link. Fica certo para quando algum email tiver links.
 
 **Diz ao Claude:** "URLs do Supabase configurados."
 
@@ -146,6 +145,40 @@ código e o teste não prova nada.
 - [ ] Em Brevo > Transactional > Logs aparece o envio.
 
 **Diz ao Claude:** "SMTP Brevo ligado e o reset de senha por código funciona em release."
+
+### 3.3 Confirmação de email por código
+
+A app já trata isto: com a opção ligada, o registo pede o código de 6 dígitos que chega
+por email antes de escolher o papel; quem tentar entrar sem ter confirmado recebe um
+código novo e vai para o mesmo ecrã. Com a opção desligada tudo funciona como hoje.
+Só liga depois de o 3.2 estar a funcionar (sem SMTP os emails não chegam).
+
+- [ ] Authentication > Emails > Templates > **Confirm signup**:
+
+      Assunto: `Confirma o teu email no ProJardim`
+
+      ```html
+      <h2>Bem-vindo ao ProJardim</h2>
+      <p>Usa este código na app para confirmar o teu email:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
+      <p>Se não criaste uma conta, ignora este email.</p>
+      ```
+- [ ] Authentication > Providers > Email > ligar **Confirm email** e guardar.
+
+Os utilizadores que já existem não são afetados (a migration 0036 marcou-os todos como
+confirmados).
+
+### Testar (no site do Netlify)
+
+- [ ] Registar uma conta nova com um email teu. A app mostra "Confirme o seu email" e
+      chega um email com 6 dígitos.
+- [ ] Código errado mostra erro; código certo leva a "Escolher papel" e depois ao início.
+- [ ] Registar outra conta, fechar a app antes de pôr o código, voltar e fazer login com
+      essa conta. Vai para o ecrã do código e chega um código novo.
+- [ ] "Reenviar código" só fica ativo ao fim de 60 segundos e manda um email novo.
+- [ ] Entrar com uma conta antiga continua igual.
+
+**Diz ao Claude:** "Confirmação de email ligada, o registo com código funciona."
 
 ---
 
@@ -301,17 +334,6 @@ Coisas que ficaram para testar num telemóvel real (o ambiente do Claude não te
 ---
 
 ## Não ligar ainda
-
-### Confirmação de email ("Confirm email" no Supabase)
-
-**Não ligues.** Hoje a app cria o perfil logo a seguir ao registo, e isso precisa de uma
-sessão. Com a confirmação ligada, o registo não abre sessão e falha no ecrã "Escolher
-papel". Antes é preciso mudar o fluxo de registo no código. O caminho mais simples é o
-mesmo da recuperação de senha: um código de 6 dígitos no email, escrito na app, sem deep
-links.
-
-**Diz ao Claude:** "Quero ativar a confirmação de email por código." Ele muda o fluxo e
-diz-te quando ligar a opção e que template pôr em "Confirm signup".
 
 ### App links (abrir `https://<domínio>/w/...` diretamente na app instalada)
 

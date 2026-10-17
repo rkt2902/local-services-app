@@ -14,6 +14,8 @@ test` em cada PR); `flutter analyze` a 0 issues. Domínio público e email de su
 `--dart-define` (`APP_PUBLIC_URL`, `SUPPORT_EMAIL`). A app só mostra fotos de perfil que
 venham do Storage do próprio projeto (fecha o ponto do `avatar_url` do review de 16/10
 sem migration). Toda a configuração que só o Henrique pode fazer está em `docs/SETUP.md`.
+Telefone validado e WhatsApp sempre com indicativo. Confirmação de email por código de 6
+dígitos pronta no código; liga-se no Supabase depois do SMTP (`SETUP.md` 3.3).
 
 **2026-10-17, versão web:** a app compila e corre no browser (Flutter web) e instala-se no
 iPhone como PWA. Na web não há OCR do cartão frota (dados à mão) nem push FCM; o resto

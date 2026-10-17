@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Confirmação de email por código de 6 dígitos
+
+- Antes: ligar "Confirm email" no Supabase partia o registo (o `signUp` deixa de abrir
+  sessão e `choose_role_screen` cria o perfil com `currentUser`). O ecrã
+  `/verify-email` era cosmético e `/email-confirmed` esperava um deep link nunca feito.
+- Agora (escolhido pelo Henrique entre as tarefas sem configuração): mesmo padrão da
+  recuperação de senha, código no email e `verifyOTP(type: signup)`, sem deep links nem
+  app_links. `signUp` devolve se precisa de confirmação; o registo vai para
+  `/verify-email` (OTP + reenviar com 60s) e, com a sessão aberta, para `/choose-role`.
+  Login de conta por confirmar reenvia o código e vai para o mesmo ecrã. Com a opção
+  desligada no Supabase o fluxo é o de sempre, sem o ecrã cosmético depois do papel.
+- Removidos `email_confirmed_screen.dart`, a rota `/email-confirmed`,
+  `emailConfirmationModeProvider` (atalho de debug) e os TODOs de deep link no
+  AndroidManifest e no Info.plist. O nome e o telefone vêm de `userMetadata` se a app
+  fechar entre o registo e o código.
+- Configuração (template "Confirm signup" com `{{ .Token }}`, ligar a opção): `SETUP.md`
+  passo 3.3.
+
 ## 2026-10-17 — Validação de telefone e link de WhatsApp com indicativo
 
 - Bug encontrado: os 5 sítios que abrem o WhatsApp faziam `wa.me/<número sem espaços>`.
