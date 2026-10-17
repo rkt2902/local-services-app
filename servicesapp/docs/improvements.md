@@ -84,6 +84,14 @@ ALTER TABLE help_requests ADD CONSTRAINT check_slots_needed CHECK (slots_needed 
 
 ## 🔵 Baixa prioridade / Limpeza — Por resolver
 
+### WEB-1 — Push na web e design próprio para PC (2026-10-17)
+
+A versão web (`docs/web.md`) não tem notificações push: o FCM web precisa de configuração
+Firebase web, VAPID key e service worker, e no iPhone só funciona com a PWA instalada
+(iOS 16.4+). Os ecrãs largos usam os designs mobile centrados (640 de largura); um layout
+próprio para PC (lista e detalhe lado a lado, por exemplo) fica para quando houver designs.
+O OCR do cartão frota não existe na web (dados à mão).
+
 ### ~~P2 / M2 Fases 0-3~~ ✅ RESOLVIDO 2026-07-12 — Cores hex hardcoded
 
 Criado `app_colors.dart` com `AppColors.primary` e `AppColors.statusActive`. `app_router.dart` e `status_timeline.dart` usam agora os tokens. `AppTheme._seed` privado eliminado.

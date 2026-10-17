@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/enums.dart';
 
@@ -38,7 +37,7 @@ class ClientCreateJobWizardState {
   final double? locationLng;
 
   final String description;
-  final List<File> photos;
+  final List<XFile> photos;
 
   ClientCreateJobWizardState copyWith({
     String? serviceTypeId,
@@ -51,7 +50,7 @@ class ClientCreateJobWizardState {
     double? locationLat,
     double? locationLng,
     String? description,
-    List<File>? photos,
+    List<XFile>? photos,
   }) {
     return ClientCreateJobWizardState(
       serviceTypeId: serviceTypeId ?? this.serviceTypeId,
@@ -115,7 +114,7 @@ class ClientCreateJobWizardNotifier
 
   void setDescriptionAndPhotos({
     required String description,
-    required List<File> photos,
+    required List<XFile> photos,
   }) {
     state = state.copyWith(description: description, photos: photos);
   }

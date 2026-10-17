@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
 
 class ClientShell extends ConsumerWidget {
@@ -15,47 +16,45 @@ class ClientShell extends ConsumerWidget {
 
     final selectedIndex = _indexFromLocation(location);
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: AppBottomNavigation(
-        selectedIndex: selectedIndex,
-        onItemSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/client/home');
-            case 1:
-              context.go('/client/jobs');
-            case 2:
-              context.push('/notifications');
-            case 3:
-              context.go('/client/profile');
-          }
-        },
-        onCentralActionPressed: () => context.push('/client/create-job'),
-        centralActionTooltip: 'Criar pedido',
-        items: const [
-          AppBottomNavigationItem(
-            label: 'Início',
-            icon: Icons.home_outlined,
-            selectedIcon: Icons.home_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Pedidos',
-            icon: Icons.list_alt_outlined,
-            selectedIcon: Icons.list_alt_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Alertas',
-            icon: Icons.notifications_none_rounded,
-            selectedIcon: Icons.notifications_rounded,
-          ),
-          AppBottomNavigationItem(
-            label: 'Conta',
-            icon: Icons.person_outline_rounded,
-            selectedIcon: Icons.person_rounded,
-          ),
-        ],
-      ),
+    return AppAdaptiveShell(
+      selectedIndex: selectedIndex,
+      onItemSelected: (index) {
+        switch (index) {
+          case 0:
+            context.go('/client/home');
+          case 1:
+            context.go('/client/jobs');
+          case 2:
+            context.push('/notifications');
+          case 3:
+            context.go('/client/profile');
+        }
+      },
+      onCentralActionPressed: () => context.push('/client/create-job'),
+      centralActionTooltip: 'Criar pedido',
+      items: const [
+        AppBottomNavigationItem(
+          label: 'Início',
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Pedidos',
+          icon: Icons.list_alt_outlined,
+          selectedIcon: Icons.list_alt_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Alertas',
+          icon: Icons.notifications_none_rounded,
+          selectedIcon: Icons.notifications_rounded,
+        ),
+        AppBottomNavigationItem(
+          label: 'Conta',
+          icon: Icons.person_outline_rounded,
+          selectedIcon: Icons.person_rounded,
+        ),
+      ],
+      child: child,
     );
   }
 

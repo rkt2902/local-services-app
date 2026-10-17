@@ -3,6 +3,18 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-17 — Versão web (Flutter web) e PWA para iPhone
+
+Pedido do Henrique: sem Mac nem conta Apple, os utilizadores de iPhone usam a app pelo browser. Guia completo em `docs/web.md`.
+
+- Flutter web, não uma reescrita. A mesma base de código compila para web (`flutter build web`).
+- Fotos passam a circular como `XFile` em vez de `dart:io` `File` (na web não há ficheiros). Helper único em `core/utils/picked_photo.dart`: pré-visualização (`pickedPhotoImage`) e bytes para upload (`photoBytesForUpload`, compressão nativa igual à de antes no telemóvel; na web o próprio picker redimensiona para 1600px, qualidade 70). Avatares passam de `upload(File)` para `uploadBinary(bytes)`.
+- Pesquisa de morada: `GeocodingService.searchAddress`. No telemóvel continua o package `geocoding`; na web (que não tem implementação) usa a pesquisa do Nominatim limitada a Portugal. Na web os pedidos ao Nominatim vão sem `User-Agent` próprio (o browser não deixa e obrigaria a preflight CORS).
+- Cartão frota na web: sem OCR (ML Kit só existe em Android/iOS); o passo 1 explica e segue para o ecrã de confirmação com os campos vazios. Push FCM continua desligado na web (já estava).
+- Layout: designs só mobile, por isso o conteúdo fica com largura máxima de 640 centrada (`AppContentWidth`, `AppBreakpoints`), aplicado num só sítio (3 builders de transição, rotas com `builder` simples e shells). A partir de 840 de largura os shells usam `NavigationRail` em vez da bottom nav (`AppAdaptiveShell`), com os mesmos destinos e a ação central como botão no topo.
+- URLs sem `#` (`usePathUrlStrategy`), para o link `/w/:workerId` ficar limpo. Obriga o alojamento a devolver `index.html` em qualquer caminho: `web/_redirects` (Netlify, Cloudflare), `web/vercel.json`, `firebase.json`. Na web o link do cartão do jardineiro usa o próprio domínio do site (`Uri.base.origin`), por isso já funciona.
+- PWA: `manifest.json` e `index.html` com nome ProJardim, cores da marca, ícones novos (folha branca em fundo `#2E7D32`), `apple-touch-icon` e ecrã de arranque simples até ao primeiro frame. Arrastar com rato/trackpad ativo (onboarding e listas no PC).
+
 ## 2026-10-16 — Regras do dia do trabalho: concluir, expirar e lembrar (migration 0046)
 
 Pedido do Henrique depois de testar o ecrã confirmado do jardineiro.

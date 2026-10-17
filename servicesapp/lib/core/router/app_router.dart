@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'app_page_transitions.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_content_width.dart';
 import '../../features/auth/application/session_provider.dart';
 import '../../features/auth/presentation/landing_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -79,8 +80,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           const ProJardimOnboardingScreen(),
         ),
       ),
-      GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const AppContentWidth(child: LandingScreen()),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (_, _) => const AppContentWidth(child: LoginScreen()),
+      ),
       // Passos do fluxo de registo — sempre alcançados a partir do passo
       // anterior, nunca de um card de lista: shared-axis (docs/motion_spec.md
       // §4). '/' e '/login' ficam de fora de propósito: têm origens
@@ -151,10 +158,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(path: '/worker/setup', builder: (_, _) => const WorkerSetupScreen()),
+      GoRoute(
+        path: '/worker/setup',
+        builder: (_, _) => const AppContentWidth(child: WorkerSetupScreen()),
+      ),
       GoRoute(
         path: '/worker/profile/edit',
-        builder: (_, _) => const WorkerEditProfileScreen(),
+        builder: (_, _) =>
+            const AppContentWidth(child: WorkerEditProfileScreen()),
       ),
       // Fade-through: alcançado a partir de um ícone de sino em 4 ecrãs
       // diferentes, nunca de um card — destino sem relação direta com a
@@ -185,14 +196,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/w/:workerId',
         builder: (_, state) {
           final workerId = state.pathParameters['workerId']!;
-          return WorkerPublicProfileScreen(workerId: workerId);
+          return AppContentWidth(
+            child: WorkerPublicProfileScreen(workerId: workerId),
+          );
         },
       ),
       // Fora dos ShellRoutes de propósito — ecrãs de sub-fluxo (detalhe,
       // formulário, lobby), não devem mostrar a bottom nav persistente.
       GoRoute(
         path: '/client/profile/edit',
-        builder: (_, _) => const ClientEditProfileScreen(),
+        builder: (_, _) =>
+            const AppContentWidth(child: ClientEditProfileScreen()),
       ),
       // Wizard "criar pedido" — 4 passos sempre sequenciais, cada um só
       // alcançado a partir do anterior: shared-axis. `fromReview=true`

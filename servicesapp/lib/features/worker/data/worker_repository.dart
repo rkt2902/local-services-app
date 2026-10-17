@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'worker_profile_model.dart';
 import 'worker_public_card_model.dart';
@@ -126,12 +126,15 @@ class WorkerRepository {
     return WorkerPublicCard.fromJson(data);
   }
 
-  Future<String> uploadAvatar(String userId, File file) async {
+  Future<String> uploadAvatar(String userId, XFile file) async {
     final path = '$userId.jpg';
-    await _client.storage.from('avatars').upload(
+    await _client.storage.from('avatars').uploadBinary(
           path,
-          file,
-          fileOptions: const FileOptions(upsert: true),
+          await file.readAsBytes(),
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: file.mimeType ?? 'image/jpeg',
+          ),
         );
     final url = _client.storage.from('avatars').getPublicUrl(path);
     return '$url?v=${DateTime.now().millisecondsSinceEpoch}';

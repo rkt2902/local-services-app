@@ -8,6 +8,11 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-17, versão web:** a app compila e corre no browser (Flutter web) e instala-se no
+iPhone como PWA. Na web não há OCR do cartão frota (dados à mão) nem push FCM; o resto
+funciona igual. Layout com largura máxima centrada em tablet/PC e navegação lateral a
+partir de 840 de largura. Falta alojar e configurar Site URL no Supabase (ver `docs/web.md`).
+
 Tudo o que já estava descrito na versão anterior deste ficheiro (2026-07-09) continua válido:
 autenticação, perfil de worker, criação de pedido, descoberta de jobs, propostas, ajudantes,
 ciclo de vida do job (incl. remarcação — **RC/"Remarcação" está implementada de ponta a ponta**,

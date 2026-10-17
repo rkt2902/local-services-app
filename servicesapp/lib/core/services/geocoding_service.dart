@@ -1,10 +1,53 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:geocoding/geocoding.dart' as native;
 import 'package:http/http.dart' as http;
 
 class GeocodingService {
   static const String _nominatimUrl =
       'https://nominatim.openstreetmap.org/reverse';
+  static const String _nominatimSearchUrl =
+      'https://nominatim.openstreetmap.org/search';
+
+  /// No browser não se pode mudar o `User-Agent` (e um header extra obriga
+  /// a um preflight CORS); o Nominatim identifica a app pelo `Referer`.
+  static Map<String, String> get _headers => kIsWeb
+      ? const {}
+      : const {'User-Agent': 'ProJardim/1.0 (https://projardim.pt)'};
+
+  /// Morada escrita → coordenadas. `null` se não houver resultado; lança em
+  /// erro de rede para o ecrã mostrar "Erro ao pesquisar morada".
+  ///
+  /// No telemóvel usa o geocoder do sistema (package `geocoding`, como
+  /// sempre). Na web esse package não existe, por isso usa a pesquisa do
+  /// Nominatim, limitada a Portugal.
+  static Future<({double lat, double lng})?> searchAddress(String text) async {
+    if (!kIsWeb) {
+      final locations = await native.locationFromAddress(text);
+      if (locations.isEmpty) return null;
+      return (lat: locations.first.latitude, lng: locations.first.longitude);
+    }
+    final uri = Uri.parse(_nominatimSearchUrl).replace(queryParameters: {
+      'q': text,
+      'format': 'json',
+      'limit': '1',
+      'countrycodes': 'pt',
+      'accept-language': 'pt',
+    });
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) {
+      throw Exception('Nominatim search HTTP ${response.statusCode}');
+    }
+    final results = jsonDecode(response.body) as List<dynamic>;
+    if (results.isEmpty) return null;
+    final first = results.first as Map<String, dynamic>;
+    final lat = double.tryParse(first['lat'] as String? ?? '');
+    final lng = double.tryParse(first['lon'] as String? ?? '');
+    if (lat == null || lng == null) return null;
+    return (lat: lat, lng: lng);
+  }
 
   /// Returns {locationName, addressText} from lat/lng via Nominatim.
   /// locationName = city or town (for public display, no street)
@@ -34,7 +77,7 @@ class GeocodingService {
         // User-Agent identificável, sem domínio-placeholder — Nominatim
         // documenta que bloqueia/penaliza tráfego com identificação que
         // pareça genérica ou de exemplo (ex.: `example.com`).
-        headers: {'User-Agent': 'ProJardim/1.0 (https://projardim.pt)'},
+        headers: _headers,
       ).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
         debugPrint(

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 /// Resultado do OCR local — os 3 campos são heurísticas best-effort, nunca
@@ -33,6 +34,9 @@ class FleetCardTextExtractor {
   static final RegExp _nonLetters = RegExp(r'[^A-Za-zÀ-ÿ]');
 
   Future<FleetCardExtractedData> extract(File imageFile) async {
+    // ML Kit não tem implementação web; o ecrã de scan já não chega aqui
+    // na web, isto é só uma rede de segurança.
+    if (kIsWeb) return const FleetCardExtractedData();
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
       final inputImage = InputImage.fromFilePath(imageFile.path);

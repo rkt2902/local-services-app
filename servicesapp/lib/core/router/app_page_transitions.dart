@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'app_back_navigation.dart';
 import '../theme/app_motion_tokens.dart';
+import '../widgets/app_content_width.dart';
 
 /// Transições de página para o router — docs/motion_spec.md §4.
 ///
@@ -48,7 +49,9 @@ Widget _wrapWithBackFallback(GoRouterState state, Widget child) {
           if (didPop) return;
           context.go(roleHome);
         },
-        child: child,
+        // Largura máxima centrada em tablet/PC (web), sem efeito no
+        // telemóvel — ver app_content_width.dart.
+        child: AppContentWidth(child: child),
       );
     },
   );

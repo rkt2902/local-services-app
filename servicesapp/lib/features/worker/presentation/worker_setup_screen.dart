@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/geocoding_service.dart';
@@ -10,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -33,7 +32,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
 
-  File? _avatar;
+  XFile? _avatar;
   final List<String> _selectedServiceTypeIds = [];
 
   /// Categorias abertas na lista de serviços (todas fechadas no início).
@@ -88,7 +87,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     final picked = await ImagePicker()
         .pickImage(source: source, imageQuality: 70, maxWidth: 400);
     if (!mounted) return;
-    if (picked != null) setState(() => _avatar = File(picked.path));
+    if (picked != null) setState(() => _avatar = picked);
   }
 
   Future<void> _geocodeAddress() async {
@@ -96,15 +95,15 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     if (text.isEmpty) return;
     setState(() => _geocoding = true);
     try {
-      final locations = await locationFromAddress(text);
+      final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
-      if (locations.isEmpty) {
+      if (found == null) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Morada não encontrada.')));
         return;
       }
-      final lat = locations.first.latitude;
-      final lng = locations.first.longitude;
+      final lat = found.lat;
+      final lng = found.lng;
       setState(() {
         _baseLat = lat;
         _baseLng = lng;
@@ -565,7 +564,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
     required this.onPressed,
   });
 
-  final File? avatar;
+  final XFile? avatar;
   final VoidCallback onPressed;
 
   @override
@@ -597,7 +596,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
                       color: AppColors.primaryContainer,
                       image: hasPhoto
                           ? DecorationImage(
-                              image: FileImage(avatar!),
+                              image: pickedPhotoImage(avatar!),
                               fit: BoxFit.cover,
                             )
                           : null,

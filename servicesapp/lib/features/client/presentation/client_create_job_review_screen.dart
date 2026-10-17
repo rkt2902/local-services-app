@@ -11,6 +11,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -108,9 +109,9 @@ class _ClientCreateJobReviewScreenState
       );
 
       // Upload só acontece agora, no momento real de publicar — as fotos
-      // até aqui são só `File` locais guardadas no wizard provider, nunca
+      // até aqui são só `XFile` locais guardadas no wizard provider, nunca
       // enviadas antes disto (nem pela revisão, que só as mostra com
-      // `Image.file`).
+      // `pickedPhotoImage`).
       for (final photo in wizard.photos) {
         await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
       }
@@ -164,7 +165,7 @@ class _ClientCreateJobReviewScreenState
     final addressLabel =
         wizard.addressText.isEmpty ? 'Localização no mapa' : wizard.addressText;
 
-    final photos = wizard.photos.map<ImageProvider>(FileImage.new).toList();
+    final photos = wizard.photos.map<ImageProvider>(pickedPhotoImage).toList();
     final overflowCount = photos.length - 2;
     final photosOverflowLabel = overflowCount > 0 ? '+$overflowCount' : null;
 
