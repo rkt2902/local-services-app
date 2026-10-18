@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Destaques e redes sociais no perfil do jardineiro (0051)
+
+- **Onde:** nova secção "Destaques e redes sociais" em Editar perfil (a apresentação/bio já
+  existia na vista geral e continua lá). O cliente vê tudo na folha que abre ao tocar no
+  jardineiro numa proposta, que passa a abrir sempre (antes só com avaliações), e no
+  cartão `/w/:workerId`.
+- **Formato:** destaques em `text[]` (5 × 80); links em `jsonb` `[{kind, url}]` com um campo
+  por tipo (Instagram, Facebook, Site, Outro) em vez de uma lista livre: mais simples de
+  preencher no telemóvel e chega para mostrar a empresa ou fotos. `@nome` vira o link
+  completo; `http://` vira `https://`.
+- **Segurança:** os links abrem fora da app e são vistos por visitantes sem conta, por isso
+  a BD tem CHECK (só `https://`, sem `user@`, tamanho máximo) e a app volta a filtrar ao ler.
+  Escrita pelo UPDATE owner-only já existente em `worker_profiles`, sem RPC nova.
+- **Sem selo "Verificado":** a secção diz "Informação partilhada pelo jardineiro".
+- **Compatibilidade:** `WorkerProfile.showcaseSupported` só fica `true` se a linha lida já
+  tem as colunas; até lá a app não as envia no UPDATE (senão o PostgREST recusava gravar o
+  perfil inteiro) e a secção diz "Em breve".
+- **Numeração:** 0051, porque a thread do login com Google e Facebook pode usar a 0050.
+
 ## 2026-10-18 — Tokens do design system, acessibilidade e docs em dia
 
 - **Cores soltas trocadas por tokens:** os ~30 `Colors.red`/`redAccent` (SnackBars de erro,

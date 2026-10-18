@@ -13,10 +13,16 @@ import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/service_category_section.dart';
+import '../../data/worker_showcase.dart';
 
-/// 3 secções do formulário de edição do worker, navegadas dentro do mesmo
+/// Secções do formulário de edição do worker, navegadas dentro do mesmo
 /// ecrã (sem trocar de rota) via [AppFadeThroughSwitcher].
-enum WorkerProfileEditSection { overview, baseLocation, servicesAndTools }
+enum WorkerProfileEditSection {
+  overview,
+  baseLocation,
+  servicesAndTools,
+  showcase,
+}
 
 /// Dados de apresentação do formulário de edição do worker.
 ///
@@ -36,6 +42,8 @@ class WorkerProfileEditViewData {
     required this.ratingsSummaryLabel,
     required this.baseLocation,
     required this.servicesAndTools,
+    required this.showcaseSummaryLabel,
+    required this.showcase,
     this.avatarImage,
   });
 
@@ -51,9 +59,27 @@ class WorkerProfileEditViewData {
   final String servicesSummaryLabel;
   final String toolsSummaryLabel;
   final String ratingsSummaryLabel;
+  final String showcaseSummaryLabel;
 
   final WorkerBaseLocationViewData baseLocation;
   final WorkerServicesToolsViewData servicesAndTools;
+  final WorkerShowcaseEditViewData showcase;
+}
+
+/// Destaques e links (0051) que aparecem no perfil visto pelo cliente.
+class WorkerShowcaseEditViewData {
+  const WorkerShowcaseEditViewData({
+    required this.highlights,
+    required this.maxHighlights,
+    required this.available,
+  });
+
+  final List<String> highlights;
+  final int maxHighlights;
+
+  /// false enquanto a migration 0051 não estiver aplicada: a secção mostra
+  /// um aviso em vez do formulário.
+  final bool available;
 }
 
 class WorkerBaseLocationViewData {
@@ -144,6 +170,20 @@ class WorkerProfileEditScreen extends StatelessWidget {
     required this.onAddTool,
     required this.onRemoveTool,
     required this.onSaveServicesAndTools,
+    required this.onOpenShowcase,
+    required this.highlightInputController,
+    required this.instagramController,
+    required this.facebookController,
+    required this.websiteController,
+    required this.otherLinkController,
+    required this.instagramValidator,
+    required this.facebookValidator,
+    required this.websiteValidator,
+    required this.otherLinkValidator,
+    required this.onAddHighlight,
+    required this.onRemoveHighlight,
+    required this.onPreviewPublicProfile,
+    required this.onSaveShowcase,
     this.fullNameValidator,
     this.phoneValidator,
     this.onRetry,
@@ -188,6 +228,21 @@ class WorkerProfileEditScreen extends StatelessWidget {
   final VoidCallback onAddTool;
   final ValueChanged<String> onRemoveTool;
   final Future<bool> Function() onSaveServicesAndTools;
+
+  final VoidCallback onOpenShowcase;
+  final TextEditingController highlightInputController;
+  final TextEditingController instagramController;
+  final TextEditingController facebookController;
+  final TextEditingController websiteController;
+  final TextEditingController otherLinkController;
+  final String? Function(String?) instagramValidator;
+  final String? Function(String?) facebookValidator;
+  final String? Function(String?) websiteValidator;
+  final String? Function(String?) otherLinkValidator;
+  final VoidCallback onAddHighlight;
+  final ValueChanged<int> onRemoveHighlight;
+  final VoidCallback onPreviewPublicProfile;
+  final Future<bool> Function() onSaveShowcase;
 
   final VoidCallback? onRetry;
 
@@ -234,6 +289,7 @@ class WorkerProfileEditScreen extends StatelessWidget {
                     onOpenBaseLocation: onOpenBaseLocation,
                     onOpenServicesAndTools: onOpenServicesAndTools,
                     onOpenRatings: onOpenRatings,
+                    onOpenShowcase: onOpenShowcase,
                     onSave: onSaveOverview,
                   ),
                 WorkerProfileEditSection.baseLocation =>
@@ -262,6 +318,24 @@ class WorkerProfileEditScreen extends StatelessWidget {
                     onRemoveTool: onRemoveTool,
                     onSave: onSaveServicesAndTools,
                   ),
+                WorkerProfileEditSection.showcase => _WorkerShowcaseEditor(
+                    key: ValueKey('showcase_${data.profileId}'),
+                    data: data.showcase,
+                    highlightInputController: highlightInputController,
+                    instagramController: instagramController,
+                    facebookController: facebookController,
+                    websiteController: websiteController,
+                    otherLinkController: otherLinkController,
+                    instagramValidator: instagramValidator,
+                    facebookValidator: facebookValidator,
+                    websiteValidator: websiteValidator,
+                    otherLinkValidator: otherLinkValidator,
+                    onBack: onSectionBack,
+                    onAddHighlight: onAddHighlight,
+                    onRemoveHighlight: onRemoveHighlight,
+                    onPreview: onPreviewPublicProfile,
+                    onSave: onSaveShowcase,
+                  ),
               },
             );
           },
@@ -275,6 +349,7 @@ class WorkerProfileEditScreen extends StatelessWidget {
       WorkerProfileEditSection.overview => 'O meu perfil',
       WorkerProfileEditSection.baseLocation => 'Localização base',
       WorkerProfileEditSection.servicesAndTools => 'Serviços e ferramentas',
+      WorkerProfileEditSection.showcase => 'Destaques e redes',
     };
   }
 }
@@ -299,6 +374,7 @@ class _WorkerProfileOverview extends StatefulWidget {
     required this.onOpenBaseLocation,
     required this.onOpenServicesAndTools,
     required this.onOpenRatings,
+    required this.onOpenShowcase,
     required this.onSave,
   });
 
@@ -317,6 +393,7 @@ class _WorkerProfileOverview extends StatefulWidget {
   final VoidCallback onOpenBaseLocation;
   final VoidCallback onOpenServicesAndTools;
   final VoidCallback onOpenRatings;
+  final VoidCallback onOpenShowcase;
 
   final Future<bool> Function() onSave;
 
@@ -497,6 +574,16 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                     const SizedBox(height: AppSpacing.xs),
                     AppStaggeredEntrance(
                       index: 9,
+                      child: _ProfileSectionRow(
+                        icon: Icons.workspace_premium_outlined,
+                        title: 'Destaques e redes sociais',
+                        summary: widget.data.showcaseSummaryLabel,
+                        onTap: widget.onOpenShowcase,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppStaggeredEntrance(
+                      index: 10,
                       child: _ProfileSectionRow(
                         icon: Icons.star_border_rounded,
                         title: 'As minhas avaliações',
@@ -1518,6 +1605,356 @@ class _NoServicesMatch extends StatelessWidget {
       child: Text(
         'Nenhum serviço corresponde à pesquisa.',
         style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 4. DESTAQUES E REDES SOCIAIS
+// -----------------------------------------------------------------------------
+
+class _WorkerShowcaseEditor extends StatefulWidget {
+  const _WorkerShowcaseEditor({
+    super.key,
+    required this.data,
+    required this.highlightInputController,
+    required this.instagramController,
+    required this.facebookController,
+    required this.websiteController,
+    required this.otherLinkController,
+    required this.instagramValidator,
+    required this.facebookValidator,
+    required this.websiteValidator,
+    required this.otherLinkValidator,
+    required this.onBack,
+    required this.onAddHighlight,
+    required this.onRemoveHighlight,
+    required this.onPreview,
+    required this.onSave,
+  });
+
+  final WorkerShowcaseEditViewData data;
+  final TextEditingController highlightInputController;
+  final TextEditingController instagramController;
+  final TextEditingController facebookController;
+  final TextEditingController websiteController;
+  final TextEditingController otherLinkController;
+  final String? Function(String?) instagramValidator;
+  final String? Function(String?) facebookValidator;
+  final String? Function(String?) websiteValidator;
+  final String? Function(String?) otherLinkValidator;
+
+  final VoidCallback onBack;
+  final VoidCallback onAddHighlight;
+  final ValueChanged<int> onRemoveHighlight;
+  final VoidCallback onPreview;
+  final Future<bool> Function() onSave;
+
+  @override
+  State<_WorkerShowcaseEditor> createState() => _WorkerShowcaseEditorState();
+}
+
+class _WorkerShowcaseEditorState extends State<_WorkerShowcaseEditor> {
+  final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
+  bool _successVisible = false;
+  Timer? _successTimer;
+
+  @override
+  void dispose() {
+    _successTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    _successTimer?.cancel();
+    setState(() {
+      _saving = true;
+      _successVisible = false;
+    });
+
+    final confirmed = await widget.onSave();
+
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _successVisible = confirmed;
+    });
+    if (confirmed) {
+      _successTimer = Timer(const Duration(milliseconds: 1100), () {
+        if (mounted) setState(() => _successVisible = false);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final data = widget.data;
+
+    if (!data.available) {
+      return Column(
+        children: [
+          _ProfileHeader(title: 'Destaques e redes', onBack: widget.onBack),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: AppStaggeredEntrance(
+              index: 0,
+              child: Text(
+                'Esta secção ainda não está disponível. Tenta mais tarde.',
+                style: textTheme.bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final canAddHighlight = data.highlights.length < data.maxHighlights;
+
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _ProfileHeader(title: 'Destaques e redes', onBack: widget.onBack),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  key: const PageStorageKey('worker_profile_showcase'),
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  children: [
+                    AppStaggeredEntrance(
+                      index: 0,
+                      child: Text(
+                        'Aparece no teu perfil, junto das avaliações, quando '
+                        'um cliente vê a tua proposta ou abre o teu cartão.',
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 1,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Em destaque',
+                              style: textTheme.titleMedium
+                                  ?.copyWith(color: AppColors.textPrimary),
+                            ),
+                          ),
+                          Text(
+                            '${data.highlights.length} de ${data.maxHighlights}',
+                            style: textTheme.labelMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    if (canAddHighlight)
+                      AppStaggeredEntrance(
+                        index: 2,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: AppTextField(
+                                controller: widget.highlightInputController,
+                                label: 'Ex.: 10 anos de experiência',
+                                maxLength: maxWorkerHighlightLength,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => widget.onAddHighlight(),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            _AddToolButton(onPressed: widget.onAddHighlight),
+                          ],
+                        ),
+                      ),
+                    if (data.highlights.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      AppStaggeredEntrance(
+                        index: 3,
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < data.highlights.length; i++)
+                              _HighlightRow(
+                                label: data.highlights[i],
+                                onRemove: () => widget.onRemoveHighlight(i),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    const Divider(color: AppColors.divider),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppStaggeredEntrance(
+                      index: 4,
+                      child: Text(
+                        'Redes sociais e site',
+                        style: textTheme.titleMedium
+                            ?.copyWith(color: AppColors.textPrimary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    AppStaggeredEntrance(
+                      index: 4,
+                      child: Text(
+                        'Para o cliente ver fotos dos teus trabalhos ou a tua '
+                        'empresa. Todos opcionais.',
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppStaggeredEntrance(
+                      index: 5,
+                      child: Column(
+                        children: [
+                          AppTextField(
+                            controller: widget.instagramController,
+                            label: 'Instagram',
+                            hintText: '@ojeujardim',
+                            keyboardType: TextInputType.url,
+                            validator: widget.instagramValidator,
+                            suffixIcon: const Icon(
+                              Icons.camera_alt_outlined,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppTextField(
+                            controller: widget.facebookController,
+                            label: 'Facebook',
+                            hintText: 'facebook.com/ojeujardim',
+                            keyboardType: TextInputType.url,
+                            validator: widget.facebookValidator,
+                            suffixIcon: const Icon(
+                              Icons.facebook_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppTextField(
+                            controller: widget.websiteController,
+                            label: 'Site ou portefólio',
+                            hintText: 'www.ojeujardim.pt',
+                            keyboardType: TextInputType.url,
+                            validator: widget.websiteValidator,
+                            suffixIcon: const Icon(
+                              Icons.language_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppTextField(
+                            controller: widget.otherLinkController,
+                            label: 'Outro link (TikTok, YouTube, Google Maps)',
+                            keyboardType: TextInputType.url,
+                            textInputAction: TextInputAction.done,
+                            validator: widget.otherLinkValidator,
+                            suffixIcon: const Icon(
+                              Icons.link_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 6,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: widget.onPreview,
+                          icon: const Icon(
+                            Icons.visibility_outlined,
+                            color: AppColors.primary,
+                          ),
+                          label: Text(
+                            'Ver como o cliente vê',
+                            style: textTheme.labelLarge
+                                ?.copyWith(color: AppColors.primary),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              color: AppColors.surface,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: PrimaryActionButton(
+                label: _saving ? 'A guardar...' : 'Guardar alterações',
+                onPressed: _saving ? null : _save,
+              ),
+            ),
+          ],
+        ),
+        Positioned.fill(
+          child: AppSuccessFeedback(
+            visible: _successVisible,
+            message: 'Alterações guardadas com sucesso.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HighlightRow extends StatelessWidget {
+  const _HighlightRow({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            size: 18,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              label,
+              style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+          IconButton(
+            onPressed: onRemove,
+            tooltip: 'Remover destaque',
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 18,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

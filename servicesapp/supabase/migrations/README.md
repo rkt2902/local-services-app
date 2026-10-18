@@ -128,6 +128,11 @@ All snapshot data came from a single `snapshot_tables.csv` file.
 0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
 Ver o cabeçalho do ficheiro.
 
+**`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
+Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
+`worker_profiles`, com CHECK na BD (só `https://`), e as duas colunas no fim de
+`worker_public_card`. A 0050 ficou reservada para outra thread.
+
 **`0049_pending_decisions.sql`: criada, NÃO aplicada** (aplicar depois da 0048).
 Eliminar conta, editar pedido, gestão da equipa, avisos com o trabalho e a data, avisos
 aos ajudantes, remarcar trabalho atrasado, fecho ao fim de 14 dias sem escolha, report
