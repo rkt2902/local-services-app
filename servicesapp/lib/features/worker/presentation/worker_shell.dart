@@ -116,8 +116,7 @@ class WorkerShell extends ConsumerWidget {
   }
 
   /// Só cobre as rotas de topo (mesmo padrão do WorkerShell anterior): rotas
-  /// de detalhe (job/proposta/help-requests) e "/worker/messages" (removida
-  /// da bottom nav, mas a rota continua a existir) recaem no default (0).
+  /// de detalhe (job/proposta/help-requests) recaem no default (0).
   int _indexFromLocation(String location) {
     if (location.startsWith('/worker/available-jobs')) return 1;
     if (location.startsWith('/worker/jobs')) return 2;

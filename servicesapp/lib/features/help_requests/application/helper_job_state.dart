@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
@@ -117,8 +116,10 @@ HelpAcceptanceSummary? findHelperAcceptanceFor(
 /// sem a função (PostgREST `PGRST202`), uma mensagem calma em vez de um
 /// erro genérico.
 String helpActionErrorMessage(Object error) {
-  if (error is PostgrestException && error.code == 'PGRST202') {
-    return 'Esta opção ainda não está disponível. Tenta novamente mais tarde.';
-  }
-  return friendlyError(error);
+  // As RPCs da 0049 recusam com mensagens já em português (P0001).
+  return rpcErrorMessage(
+    error,
+    unavailableMessage:
+        'Esta opção ainda não está disponível. Tenta novamente mais tarde.',
+  );
 }

@@ -126,7 +126,13 @@ All snapshot data came from a single `snapshot_tables.csv` file.
 
 **`0048_worker_helper_flow_fixes.sql`: criada, NÃO aplicada** (aplicar depois da
 0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
-Ver o cabeçalho do ficheiro. **Próxima migration: `0049`.**
+Ver o cabeçalho do ficheiro.
+
+**`0049_pending_decisions.sql`: criada, NÃO aplicada** (aplicar depois da 0048).
+Eliminar conta, editar pedido, gestão da equipa, avisos com o trabalho e a data, avisos
+aos ajudantes, remarcar trabalho atrasado, fecho ao fim de 14 dias sem escolha, report
+trava a confirmação automática, avaliação do cliente deixa de ser copiada para os
+ajudantes. **Próxima migration: `0050`.**
 
 **`0047_candidate_message.sql`: criada, NÃO aplicada.** Aplicar no SQL Editor (pode
 ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viva

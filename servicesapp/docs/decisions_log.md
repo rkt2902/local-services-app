@@ -3,6 +3,30 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Decisões pendentes, todas feitas (defaults escolhidos pelo Claude)
+
+O Henrique pediu para fazer tudo o que estava por decidir. Defaults escolhidos:
+- **Mensagens:** sem chat na app (regra do projeto); rotas `/client/messages` e
+  `/worker/messages` removidas.
+- **Disponibilidade em texto livre:** quarta opção no passo 2 do pedido ("Indicar
+  disponibilidade", até 200 caracteres), mostrada no lugar da data dos dois lados.
+- **Editar pedido:** enquanto está aberto, tudo menos as fotos; quem já propôs é avisado.
+- **Eliminar conta:** anonimiza (perfil "Conta eliminada", dados pessoais limpos, login
+  bloqueado) em vez de apagar, porque avaliações e histórico de outras pessoas
+  referenciam o perfil. Recusa com trabalho em curso. Fotos no Storage ficam (o Supabase
+  não deixa apagar por SQL).
+- **Propostas sem fim:** pedido sem data fixa com propostas e sem escolha fecha aos 14 dias.
+- **Remarcar atrasado:** permitido depois da data; continua bloqueado no próprio dia.
+- **Report de problema:** suspende a confirmação automática daquele trabalho.
+- **Avaliação do cliente:** deixa de ser copiada para os ajudantes.
+- **Avisos:** levam o serviço e a data; ajudantes avisados de nova data, trabalho feito,
+  concluído e lembrete do dia.
+- **Equipa:** o responsável pode alterar vagas, fechar o pedido de ajuda e retirar
+  ajudantes. Ecrã próprio do ajudante em `/worker/help/:id`. Cartão "O que falta fazer"
+  no Início do jardineiro. Botão central do jardineiro abre atalhos.
+- **Outros:** publicar de novo, voltar ao destino depois do login, puxar para atualizar,
+  telefone gravado como `+351…`, preços com vírgula também no jardineiro.
+
 ## 2026-10-18 — Revisão de todos os fluxos (cliente, jardineiro, ajudantes)
 
 - Pedida pelo Henrique ("para o worker e ajudantes depois não fica muito claro").

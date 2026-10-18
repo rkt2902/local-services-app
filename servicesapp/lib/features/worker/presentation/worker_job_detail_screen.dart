@@ -133,7 +133,11 @@ class WorkerJobDetailScreen extends ConsumerWidget {
           ? '${job.addressText} · morada exata depois de aceite'
           : 'Localização não especificada',
       distanceLabel: distanceLabel,
-      deadlineLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),
+      deadlineLabel: jobDeadlineLabel(
+        job.dateMode,
+        job.preferredDate,
+        availabilityText: job.availabilityText,
+      ),
       areaLabel: _areaLabel(job),
       // O MVP não tem orçamento no pedido (só nasce quando um worker
       // propõe) — mesma decisão já usada no dashboard e na lista de

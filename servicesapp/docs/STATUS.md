@@ -176,11 +176,8 @@ de pontos de contacto, ficheiros, migration) em `decisions_log.md` 2026-10-15.
 RPCs existem na BD com a assinatura esperada, os 4 fluxos já podem ser testados.
 
 **Rotas órfãs — declaradas, sem nenhum caminho de navegação real**
-- `/client/messages` e `/worker/messages` — só `_PlaceholderScreen('Mensagens')`. Confirmado
-  por leitura direta de `client_shell.dart` e `worker_shell.dart`: a bottom nav tem só 4 itens
-  em ambos, "Mensagens" não é um deles. `worker_shell.dart` documenta isto explicitamente no
-  seu próprio comentário ("removida da bottom nav, mas a rota continua a existir"). Nenhum
-  botão em lado nenhum da app aponta para estas duas rotas.
+- ~~`/client/messages` e `/worker/messages`~~ removidas a 2026-10-18 (decisão: sem chat na
+  app, contacto só por WhatsApp).
 - `/w/:workerId` (cartão público do worker) — a rota e o ecrã funcionam se visitados
   diretamente, mas **nada na app gera internamente um `context.push`/`go` para lá**.
   `AppLinks.publicWorkerProfileUrl()` só produz uma string de texto usada para mostrar num

@@ -3,7 +3,7 @@
 Guia único, por ordem. Cada passo tem o que fazer, como confirmar que ficou bem e a frase
 para dizeres ao Claude quando acabares. Marca as caixas à medida que avanças.
 
-Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047 e 0048 por aplicar (passos 0.1 e 0.2); código da versão web,
+Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047, 0048 e 0049 por aplicar (passos 0.1 a 0.3); código da versão web,
 do push FCM e do domínio por `--dart-define` já está no `main`. Nada daqui mexe em código.
 
 Ordem recomendada e porquê:
@@ -53,7 +53,22 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
   - O cliente cancela um pedido com propostas pendentes: cada jardineiro recebe
     "Pedido cancelado". Na aba Trabalhos, "Histórico" mostra-o como "Cancelado".
 
-**Diz ao Claude:** "0047 e 0048 aplicadas".
+### 0.3 Migration por aplicar: 0049 (depois da 0048)
+
+- [ ] SQL Editor: colar `supabase/migrations/0049_pending_decisions.sql` e correr.
+- [ ] Testar:
+  - Conta > Eliminar conta com um trabalho em curso: recusa com a explicação. Sem
+    trabalho em curso: sai da app e o login com essa conta deixa de funcionar.
+  - Cliente edita um pedido aberto com propostas: os jardineiros recebem "Pedido
+    alterado".
+  - Jardineiro responsável, na equipa: alterar vagas, fechar o pedido de ajuda, retirar
+    um ajudante (o ajudante é avisado).
+  - Os avisos passam a dizer o serviço e a data, por exemplo "(Corte de relva, 21/10)".
+  - Num trabalho com a data já passada, remarcar passa a funcionar.
+  - No SQL Editor: `SELECT send_job_reminders(); SELECT auto_expire_jobs(); SELECT
+    auto_confirm_completed_jobs();` correm sem erro.
+
+**Diz ao Claude:** "0047, 0048 e 0049 aplicadas".
 
 ---
 

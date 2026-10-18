@@ -232,6 +232,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
+| `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
+| `/worker/help/:acceptanceId` | `WorkerHelperJobScreen` (trabalho visto pelo ajudante) | fora | container-transform / shared-axis |
 | `/session-error` | `SessionErrorScreen` (perfil não carregou: tentar de novo ou sair) | fora | shared-axis |
 | `/worker/setup` | `WorkerSetupScreen` | fora | default |
 | `/worker/profile/edit` | `WorkerEditProfileScreen` | fora | default |
@@ -260,12 +262,10 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/client/home` | `ClientHomeScreen` | **ClientShell** | sem transição própria (IndexedStack do shell) |
 | `/client/jobs` | `ClientJobsScreen` | **ClientShell** | idem |
 | `/client/profile` | `ClientProfileScreen` | **ClientShell** | idem |
-| `/client/messages` | `_PlaceholderScreen` | **ClientShell** | órfã — sem item na bottom nav |
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
 | `/worker/jobs` | `WorkerJobsScreen` | **WorkerShell** | idem |
-| `/worker/messages` | `_PlaceholderScreen` | **WorkerShell** | órfã |
 
 Todos os ecrãs de sub-fluxo (33 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.
@@ -458,8 +458,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0046_job_day_rules.sql` | aplicada (confirmado a 2026-10-17) |
 | `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
 | `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
+| `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
 
-Próxima migration: `0049`.
+Próxima migration: `0050`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
