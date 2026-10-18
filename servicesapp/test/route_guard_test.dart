@@ -81,6 +81,24 @@ void main() {
     });
   });
 
+  group('com sessão mas perfil por carregar (rede)', () {
+    const failed = SessionStatus.profileError;
+
+    test('vai para /session-error, nunca para /choose-role', () {
+      expect(_go('/loading', failed), '/session-error');
+      expect(_go('/client/home', failed), '/session-error');
+      expect(_go('/choose-role', failed), '/session-error');
+      expect(_go('/session-error', failed), isNull);
+    });
+
+    test('depois de recuperar, sai de /session-error para o início', () {
+      expect(_go('/session-error', _client), '/client/home');
+      expect(_go('/session-error', _worker), '/worker/home');
+      expect(_go('/session-error', _noRole), '/choose-role');
+      expect(_go('/session-error', SessionStatus.unauthenticated), '/');
+    });
+  });
+
   group('cliente', () {
     test('entradas levam para /client/home', () {
       for (final loc in ['/', '/loading', '/login', '/signup', '/choose-role']) {

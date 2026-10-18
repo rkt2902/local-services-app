@@ -99,11 +99,16 @@ class NotificationHandler {
         }
 
       case NotificationType.jobReopened:
-        // Sent to workers whose proposals were on the original cancelled job.
-        // relatedId = job_id — go (not push) to avoid keyReservation crash.
+        // cancel_job (0043) só envia isto ao CLIENTE, quando o jardineiro
+        // cancela e o pedido é reaberto. relatedId = id do pedido NOVO.
+        // Encaminha pelo papel atual, para nunca mandar um cliente para uma
+        // rota /worker/ (o guard cross-role atirava-o para a home).
         if (notification.relatedId == null) break;
+        final sessionReopened = ref.read(sessionStatusProvider).asData?.value;
         context.go(
-          '/worker/job/${notification.relatedId}',
+          sessionReopened?.role == UserRole.worker
+              ? '/worker/job/${notification.relatedId}'
+              : '/client/job/${notification.relatedId}',
           extra: {'entryTransition': 'sharedAxis'},
         );
 
@@ -224,8 +229,14 @@ class NotificationHandler {
           extra: {'entryTransition': 'sharedAxis'},
         );
 
+      case NotificationType.helpRequestPendingApproval:
+        // Só o cliente recebe (0048). relatedId = job_id.
+        if (notification.relatedId == null) break;
+        context.go('/client/job/${notification.relatedId}');
+
+      case NotificationType.helpCandidateApplied:
       case NotificationType.helpWithdrew:
-        // Principal is told a helper withdrew. relatedId = help_request_id.
+        // Principal is told a helper applied (0048) or withdrew. relatedId = help_request_id.
         // Resolve job_id via fetch, then push to the lobby. Fallback to home.
         if (notification.relatedId == null) break;
         final helpRequestWithdrew = await ref

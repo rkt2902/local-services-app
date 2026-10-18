@@ -10,12 +10,27 @@ class SessionStatus {
   final UserRole? role;
   final bool workerProfileComplete;
 
+  /// `true` quando há sessão mas o perfil (papel) não se conseguiu ler —
+  /// tipicamente sem rede. Diferente de `role == null` com sucesso (conta
+  /// nova, papel por escolher): aqui NÃO se pode mandar para
+  /// `/choose-role`, onde escolher de novo reescreveria o perfil. O router
+  /// manda para `/session-error`, com "Tentar novamente".
+  final bool profileLoadFailed;
+
   const SessionStatus({
     this.isLoading = false,
     required this.isAuthenticated,
     required this.role,
     required this.workerProfileComplete,
+    this.profileLoadFailed = false,
   });
+
+  static const profileError = SessionStatus(
+    isAuthenticated: true,
+    role: null,
+    workerProfileComplete: false,
+    profileLoadFailed: true,
+  );
 
   static const unauthenticated = SessionStatus(
     isAuthenticated: false,
@@ -30,6 +45,11 @@ class SessionStatus {
     workerProfileComplete: false,
   );
 }
+
+// Último estado resolvido com papel, guardado fora do notifier porque o
+// Riverpod 3 recria o notifier a cada rebuild (invalidate no resume da app).
+String? _lastResolvedUserId;
+SessionStatus? _lastResolved;
 
 class SessionNotifier extends AsyncNotifier<SessionStatus> {
   @override
@@ -59,17 +79,26 @@ class SessionNotifier extends AsyncNotifier<SessionStatus> {
         workerComplete =
             await ref.read(workerRepositoryProvider).hasProfile(userId);
       }
-      return SessionStatus(
+      final status = SessionStatus(
         isAuthenticated: true,
         role: role,
         workerProfileComplete: workerComplete,
       );
+      if (role != null) {
+        _lastResolvedUserId = userId;
+        _lastResolved = status;
+      }
+      return status;
     } catch (_) {
-      return const SessionStatus(
-        isAuthenticated: true,
-        role: null,
-        workerProfileComplete: false,
-      );
+      // Falha a ler o perfil (rede, timeout). Se este utilizador já tinha
+      // papel resolvido nesta execução (ex.: a app voltou do fundo sem
+      // rede), mantém-se o último valor: o papel não muda depois de
+      // escolhido (trigger `prevent_profile_role_change`). Senão, estado
+      // de erro, nunca `role: null` (isso mandava para /choose-role).
+      if (_lastResolvedUserId == userId && _lastResolved != null) {
+        return _lastResolved!;
+      }
+      return SessionStatus.profileError;
     }
   }
 

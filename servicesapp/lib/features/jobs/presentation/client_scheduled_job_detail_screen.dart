@@ -53,6 +53,7 @@ class _ClientScheduledJobDetailScreenState
     extends ConsumerState<ClientScheduledJobDetailScreen> {
   bool _saving = false;
   bool _proposingReschedule = false;
+  bool _respondingReschedule = false;
   final Set<String> _approvingHelp = {};
 
   Future<void> _cancelJob() async {
@@ -64,7 +65,7 @@ class _ClientScheduledJobDetailScreenState
       builder: (ctx) => AlertDialog(
         title: const Text('Voltar a publicar?'),
         content: const Text(
-            'Queres voltar a publicar este pedido para encontrar outro prestador?'),
+            'Queres voltar a publicar este pedido para encontrar outro jardineiro?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -77,7 +78,9 @@ class _ClientScheduledJobDetailScreenState
         ],
       ),
     );
-    if (!mounted) return;
+    // Fechar o diálogo sem responder (toque fora, voltar) é desistir, não
+    // "Não": antes cancelava na mesma.
+    if (wantsReopen == null || !mounted) return;
 
     setState(() => _saving = true);
     final scaffold = ScaffoldMessenger.of(context);
@@ -88,17 +91,18 @@ class _ClientScheduledJobDetailScreenState
             jobId: widget.jobId,
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
-            clientWantsReopen: wantsReopen ?? false,
+            clientWantsReopen: wantsReopen,
           );
       navigatedAway = true;
       router.go('/client/jobs');
       if (newJobId != null) {
         scaffold.showSnackBar(const SnackBar(
-            content: Text('Pedido cancelado e reaberto para encontrar outro prestador.')));
+            content: Text('Pedido cancelado e reaberto para encontrar outro jardineiro.')));
       } else {
         scaffold.showSnackBar(const SnackBar(content: Text('Pedido cancelado.')));
       }
       ref.invalidate(clientJobsProvider);
+      ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -134,6 +138,8 @@ class _ClientScheduledJobDetailScreenState
   }
 
   Future<void> _acceptReschedule() async {
+    if (_respondingReschedule) return;
+    setState(() => _respondingReschedule = true);
     final scaffold = ScaffoldMessenger.of(context);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
@@ -144,10 +150,14 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
+    } finally {
+      if (mounted) setState(() => _respondingReschedule = false);
     }
   }
 
   Future<void> _rejectReschedule() async {
+    if (_respondingReschedule) return;
+    setState(() => _respondingReschedule = true);
     final scaffold = ScaffoldMessenger.of(context);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
@@ -158,6 +168,8 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
       );
+    } finally {
+      if (mounted) setState(() => _respondingReschedule = false);
     }
   }
 
@@ -168,7 +180,7 @@ class _ClientScheduledJobDetailScreenState
       await ref.read(helpRequestRepositoryProvider).approveHelpRequest(helpRequestId);
       ref.invalidate(helpRequestsForJobProvider(widget.jobId));
       scaffold.showSnackBar(const SnackBar(
-        content: Text('Equipa aprovada! O prestador pode agora procurar ajudantes.'),
+        content: Text('Equipa aprovada! O jardineiro responsável pode agora procurar ajudantes.'),
       ));
     } catch (e) {
       scaffold.showSnackBar(
@@ -230,12 +242,22 @@ class _ClientScheduledJobDetailScreenState
             '—';
         final workerPhone = workerInfoAsync.asData?.value['phone'] ?? '';
 
+        // Mesmas regras do servidor (`cancel_job`, `propose_reschedule`):
+        // compara datas, só até à véspera do trabalho; e nada disto
+        // enquanto houver uma remarcação por responder.
+        final reschedulePending =
+            job.rescheduleStatus == RescheduleStatus.pending;
+        final onOrAfterJobDay =
+            isOnOrAfterJobDay(job.confirmedDate, DateTime.now());
         final canReschedule =
-            !_proposingReschedule && job.rescheduleStatus != RescheduleStatus.pending;
-        final within24h = job.confirmedDate != null &&
-            job.confirmedDate!.difference(DateTime.now()).inHours < 24;
-        final canCancel =
-            !_saving && job.rescheduleStatus != RescheduleStatus.pending && !within24h;
+            !_proposingReschedule && !reschedulePending && !onOrAfterJobDay;
+        final canCancel = !_saving && !reschedulePending && !onOrAfterJobDay;
+        final String? actionsNotice = reschedulePending
+            ? 'Enquanto houver uma remarcação por responder não podes '
+                'cancelar nem remarcar.'
+            : onOrAfterJobDay
+                ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
+                : null;
 
         Widget? rescheduleIncomingBanner;
         if (job.rescheduleStatus == RescheduleStatus.pending &&
@@ -273,7 +295,7 @@ class _ClientScheduledJobDetailScreenState
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: _acceptReschedule,
+                        onPressed: _respondingReschedule ? null : _acceptReschedule,
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.surface,
@@ -287,7 +309,7 @@ class _ClientScheduledJobDetailScreenState
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _rejectReschedule,
+                        onPressed: _respondingReschedule ? null : _rejectReschedule,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textPrimary,
                           side: const BorderSide(color: AppColors.divider),
@@ -492,7 +514,7 @@ class _ClientScheduledJobDetailScreenState
                 ),
                 BottomActionsBar(children: [
                   PrimaryActionButton(
-                    label: 'Enviar mensagem',
+                    label: 'Falar por WhatsApp',
                     onPressed: workerPhone.isEmpty ? null : () => _openWhatsApp(workerPhone),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -526,10 +548,10 @@ class _ClientScheduledJobDetailScreenState
                       ),
                     ],
                   ),
-                  if (within24h) ...[
+                  if (actionsNotice != null) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      'Cancelamento disponível até 24h antes da data confirmada.',
+                      actionsNotice,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
@@ -634,7 +656,7 @@ class _WorkerContactCard extends StatelessWidget {
         final avatarUrl = info['avatar_url'];
         final rating = ratingAsync.asData?.value;
         final ratingLabel = rating != null && rating.ratingCount > 0
-            ? '★ ${rating.avgRating.toStringAsFixed(1)} (${rating.ratingCount})'
+            ? '★ ${decimalLabel(rating.avgRating, 1)} (${rating.ratingCount})'
             : 'Sem avaliações ainda';
 
         return Row(
@@ -705,7 +727,7 @@ class _PendingHelpRequestCard extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
-                'O prestador pediu ajuda extra para este trabalho',
+                'O jardineiro responsável pediu ajuda extra para este trabalho',
                 style: Theme.of(context)
                     .textTheme
                     .titleSmall

@@ -5,11 +5,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
@@ -17,6 +21,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
+import '../application/worker_job_rules.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_job_detail_view.dart' as view;
 import 'worker_my_job_detail_screen.dart' as my_job;
@@ -38,14 +43,17 @@ class WorkerJobDetailScreen extends ConsumerWidget {
       loading: () => const Scaffold(
         body: AppScreenLoadingSkeleton(),
       ),
-      error: (e, _) => Scaffold(
-        body: Center(child: Text(friendlyError(e))),
+      error: (e, _) => _MessageScaffold(
+        child: Text(
+          friendlyError(e),
+          textAlign: TextAlign.center,
+        ),
       ),
       data: (job) {
+        // get_job_by_id (0043) não devolve nada a quem já não pode ver o
+        // pedido: deixou de estar aberto e o worker não tinha proposta.
         if (job == null) {
-          return const Scaffold(
-            body: Center(child: Text('Pedido não encontrado.')),
-          );
+          return const _MessageScaffold(child: view.WorkerJobUnavailableBanner());
         }
         return _buildDetail(context, ref, job);
       },
@@ -56,10 +64,16 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     // Pedido já confirmado com este worker (ex.: aberto por uma notificação
     // antiga de "novo pedido"): mostra o ecrã do trabalho, com morada exata,
     // mapa e valor acordado, em vez da oportunidade ("Preço a combinar").
-    if (job.status != JobStatus.open) {
+    final unavailable = job.status != JobStatus.open;
+    if (unavailable) {
       final myId = ref.watch(currentUserIdProvider) ?? '';
-      final accepted =
-          ref.watch(acceptedProposalForJobProvider(jobId)).asData?.value;
+      final acceptedAsync = ref.watch(acceptedProposalForJobProvider(jobId));
+      // Espera pela proposta aceite para não piscar "já não está
+      // disponível" ao próprio worker aceite.
+      if (acceptedAsync.isLoading) {
+        return const Scaffold(body: AppScreenLoadingSkeleton());
+      }
+      final accepted = acceptedAsync.asData?.value;
       if (accepted != null && myId.isNotEmpty && accepted.workerId == myId) {
         return my_job.WorkerMyJobDetailScreen(
           proposalId: accepted.id,
@@ -77,7 +91,8 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     final workerProposalAsync = currentUserId.isEmpty
         ? const AsyncValue<JobProposal?>.data(null)
         : ref.watch(workerProposalForJobProvider((jobId, currentUserId)));
-    final alreadySent = workerProposalAsync.asData?.value != null;
+    final myPendingProposal =
+        unavailable ? null : workerProposalAsync.asData?.value;
 
     final serviceType =
         serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
@@ -96,7 +111,9 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     }
 
     AppStatusPresentation? badge;
-    if (job.urgency == Urgency.urgent) {
+    if (unavailable) {
+      badge = null;
+    } else if (job.urgency == Urgency.urgent) {
       badge = urgentStatusPresentation;
     } else if (DateTime.now().difference(job.createdAt).inHours < 24) {
       badge = const AppStatusPresentation(
@@ -134,13 +151,46 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     return view.WorkerJobDetailScreen(
       data: data,
       onBack: () => goBackOrToRoleHome(context),
-      onSendProposalPressed: alreadySent
-          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Já enviaste uma proposta para este pedido.'),
-                ),
-              )
-          : () => context.push('/worker/job/$jobId/propose'),
+      unavailable: unavailable,
+      unavailableReason: jobUnavailableReason(
+        job.status,
+        cancelReason: job.cancelReason,
+      ),
+      onViewMyProposalPressed: myPendingProposal == null
+          ? null
+          : () => context.push(
+                '/worker/my-job/${myPendingProposal.id}?jobId=$jobId',
+              ),
+      onSendProposalPressed: () => context.push('/worker/job/$jobId/propose'),
+    );
+  }
+}
+
+/// Ecrã inteiro só com uma mensagem (erro ou pedido indisponível), sempre
+/// com voltar (fallback para a home quando aberto por notificação).
+class _MessageScaffold extends StatelessWidget {
+  const _MessageScaffold({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        elevation: 0,
+        leading: const AppBackButton(),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: AppStaggeredEntrance(index: 0, child: child),
+          ),
+        ),
+      ),
     );
   }
 }

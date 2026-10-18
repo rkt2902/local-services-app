@@ -33,3 +33,16 @@ void goBackOrToRoleHome(BuildContext context) {
   final location = GoRouterState.of(context).matchedLocation;
   context.go(roleHomeRouteFor(location));
 }
+
+/// "Voltar com fallback" para um destino fixo — ecrãs fora dos papéis
+/// (recuperação de senha, cartão público `/w/:id`) onde a home do papel não
+/// faz sentido. Mesma regra de [goBackOrToRoleHome]: pop se houver stack
+/// (navegação normal), senão `go(fallbackLocation)` — nunca um `pop()` sem
+/// nada por baixo, que rebenta num refresh da web ou num link direto.
+void goBackOr(BuildContext context, String fallbackLocation) {
+  if (context.canPop()) {
+    context.pop();
+    return;
+  }
+  context.go(fallbackLocation);
+}

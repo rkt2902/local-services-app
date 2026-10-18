@@ -20,6 +20,9 @@ import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../../core/router/app_back_navigation.dart';
+import '../../worker/application/worker_job_rules.dart';
+import '../../worker/application/worker_list_invalidation.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/submit_rating_sheet.dart';
@@ -212,13 +215,16 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
   Future<void> _onRefresh() async => ref.invalidate(myHelpAcceptancesProvider);
 
   Future<void> _withdraw(HelpAcceptanceSummary ha) async {
+    final isPending = ha.status == HelpAcceptanceStatus.pending;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirmar desistência'),
-        content: const Text(
-          'Tens a certeza que queres desistir desta ajuda? '
-          'O worker principal será notificado.',
+        title: Text(isPending ? 'Retirar candidatura' : 'Confirmar desistência'),
+        content: Text(
+          isPending
+              ? 'A tua candidatura deixa de aparecer ao jardineiro responsável.'
+              : 'Tens a certeza que queres desistir desta ajuda? '
+                  'O jardineiro responsável vai ser notificado.',
         ),
         actions: [
           TextButton(
@@ -227,7 +233,7 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Desistir'),
+            child: Text(isPending ? 'Retirar' : 'Desistir'),
           ),
         ],
       ),
@@ -240,10 +246,13 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
           .read(helpRequestRepositoryProvider)
           .withdrawHelpAcceptance(ha.id);
       if (!mounted) return;
-      ref.invalidate(myHelpAcceptancesProvider);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Desististe desta ajuda.')),
-      );
+      // Regra T4 (sem navegação): SnackBar → invalidar.
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          isPending ? 'Candidatura retirada.' : 'Desististe desta ajuda.',
+        ),
+      ));
+      invalidateWorkerLists(ref);
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(SnackBar(
@@ -287,16 +296,18 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
           );
         }
 
+        // Uma candidatura num trabalho cancelado/expirado vai para o
+        // histórico, mesmo que tenha sido aceite (sem Desistir nem WhatsApp).
+        HelperCardKind kindOf(HelpAcceptanceSummary a) =>
+            helperCardKind(a.status, a.jobStatus);
         final pending = acceptances
-            .where((a) => a.status == HelpAcceptanceStatus.pending)
+            .where((a) => kindOf(a) == HelperCardKind.pending)
             .toList();
         final accepted = acceptances
-            .where((a) => a.status == HelpAcceptanceStatus.accepted)
+            .where((a) => kindOf(a) == HelperCardKind.active)
             .toList();
         final history = acceptances
-            .where((a) =>
-                a.status == HelpAcceptanceStatus.rejected ||
-                a.status == HelpAcceptanceStatus.cancelled)
+            .where((a) => kindOf(a) == HelperCardKind.history)
             .toList();
 
         return RefreshIndicator(
@@ -310,7 +321,11 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
                 ...pending.map(
                   (a) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _PendingCard(acceptance: a),
+                    child: _PendingCard(
+                      acceptance: a,
+                      isWithdrawing: _withdrawing.contains(a.id),
+                      onWithdraw: () => _withdraw(a),
+                    ),
                   ),
                 ),
               ],
@@ -366,7 +381,6 @@ class _HelpRequestsHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final canPop = Navigator.of(context).canPop();
 
     return Container(
       width: double.infinity,
@@ -382,11 +396,12 @@ class _HelpRequestsHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              if (canPop)
-                Padding(
+              // Sempre visível: aberto por notificação (context.go) não há
+              // stack, e o voltar cai para a home do papel.
+              Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.xxs),
                   child: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => goBackOrToRoleHome(context),
                     tooltip: 'Voltar',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -627,8 +642,14 @@ Widget _jobStatusBadgeFromRaw(String rawStatus) => AppStatusBadge.fromPresentati
 // ─── Candidature cards ────────────────────────────────────────────────────────
 
 class _PendingCard extends StatelessWidget {
-  const _PendingCard({required this.acceptance});
+  const _PendingCard({
+    required this.acceptance,
+    required this.isWithdrawing,
+    required this.onWithdraw,
+  });
   final HelpAcceptanceSummary acceptance;
+  final bool isWithdrawing;
+  final VoidCallback onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -679,8 +700,25 @@ class _PendingCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 _Meta(
                   icon: Icons.person_outline,
-                  label: 'Principal: ${acceptance.principalName}',
+                  label: 'À espera da decisão de ${acceptance.principalName}',
                 ),
+                if (acceptance.confirmedDate != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  _Meta(
+                    icon: Icons.event_outlined,
+                    label: _scheduleLabel(
+                      acceptance.confirmedDate!,
+                      acceptance.confirmedTime,
+                    ),
+                  ),
+                ],
+                if (acceptance.addressText.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  _Meta(
+                    icon: Icons.place_outlined,
+                    label: acceptance.addressText,
+                  ),
+                ],
                 if (acceptance.broughtEquipment) ...[
                   const SizedBox(height: 4),
                   _Meta(
@@ -688,6 +726,16 @@ class _PendingCard extends StatelessWidget {
                     label: 'Levo equipamento',
                   ),
                 ],
+                const SizedBox(height: AppSpacing.xs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: isWithdrawing ? null : onWithdraw,
+                    child: Text(
+                      isWithdrawing ? 'A retirar...' : 'Retirar candidatura',
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -763,7 +811,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 Expanded(
                   child: _Meta(
                     icon: Icons.person_outline,
-                    label: 'Principal: ${widget.acceptance.principalName}',
+                    label: 'Responsável: ${widget.acceptance.principalName}',
                   ),
                 ),
                 if (principalRatingSummary != null &&
@@ -823,7 +871,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 onPressed: () =>
                     _openWhatsApp(widget.acceptance.principalPhone),
                 icon: const Icon(Icons.chat_outlined, size: 18),
-                label: const Text('Contactar principal via WhatsApp'),
+                label: const Text('Contactar responsável via WhatsApp'),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -853,7 +901,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                       Icon(Icons.check_circle,
                           color: theme.colorScheme.primary, size: 18),
                       const SizedBox(width: 8),
-                      Text('Prestador avaliado',
+                      Text('Responsável avaliado',
                           style: theme.textTheme.bodySmall),
                       const Spacer(),
                       Row(
@@ -874,12 +922,12 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                     width: double.infinity,
                     child: FilledButton.tonal(
                       onPressed: _showHelperRatingSheet,
-                      child: const Text('Avaliar o prestador'),
+                      child: const Text('Avaliar o responsável'),
                     ),
                   );
                 },
               )
-            else if (!isCompleted)
+            else if (helperCanWithdraw(widget.acceptance.jobStatus))
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -909,7 +957,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
     final jobId = widget.acceptance.jobId;
     final submitted = await showSubmitRatingSheet(
       context: context,
-      title: 'Avaliar o prestador principal',
+      title: 'Avaliar o jardineiro responsável',
       subtitle: widget.acceptance.principalName,
       successMessage: 'Avaliação enviada!',
       onSubmit: (stars, comment) async {
@@ -953,16 +1001,25 @@ class _HistoryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Principal: ${acceptance.principalName}',
+                  'Responsável: ${acceptance.principalName}',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
               ],
             ),
           ),
-          AppStatusBadge.fromPresentation(
-            presentation: acceptance.status.presentation,
-          ),
+          Builder(builder: (context) {
+            final override =
+                helperHistoryLabel(acceptance.status, acceptance.jobStatus);
+            return override != null
+                ? AppStatusBadge(
+                    label: override,
+                    statusColor: AppStatusColor.cancelled,
+                  )
+                : AppStatusBadge.fromPresentation(
+                    presentation: acceptance.status.presentation,
+                  );
+          }),
         ],
       ),
     );
@@ -1194,7 +1251,9 @@ class _Meta extends StatelessWidget {
             size: 14,
             color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Flexible(
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ),
       ],
     );
   }

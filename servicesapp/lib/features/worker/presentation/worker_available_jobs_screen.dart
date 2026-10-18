@@ -45,33 +45,6 @@ class _WorkerAvailableJobsScreenState
   /// (comportamento atual, sem filtro extra).
   int? _radiusOverrideKm;
 
-  Future<void> _showComingSoon() async {
-    await showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Em breve', style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              const Text(
-                'Filtros adicionais (prazo, tamanho do trabalho) vão chegar em breve.',
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Fechar'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _pickDistance(int profileRadiusKm) async {
     final options = ({2, 5, 10, profileRadiusKm}
           ..removeWhere((r) => r > profileRadiusKm))
@@ -241,7 +214,6 @@ class _WorkerAvailableJobsScreenState
       serviceTypeIconOf: (s) => serviceIconFor(s.icon),
       onJobPressed: (id) => context.push('/worker/job/$id'),
       onSearchChanged: (query) => setState(() => _searchQuery = query),
-      onFiltersPressed: _showComingSoon,
       onFiltersChanged: (filters) => setState(() => _filters = filters),
       onDistancePressed: () => _pickDistance(profileRadiusKm),
       distanceLabel: '≤ $effectiveRadiusKm km',

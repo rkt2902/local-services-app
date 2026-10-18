@@ -199,6 +199,9 @@ class HelpAcceptance {
   /// (`help_acceptances.message`, devolvida pela RPC desde a 0047).
   final String? message;
 
+  /// Telefone do ajudante, só quando já foi aceite (RPC desde a 0048).
+  final String? workerPhone;
+
   const HelpAcceptance({
     required this.id,
     required this.helpRequestId,
@@ -210,6 +213,7 @@ class HelpAcceptance {
     this.fullName,
     this.avatarUrl,
     this.message,
+    this.workerPhone,
   });
 
   factory HelpAcceptance.fromJson(Map<String, dynamic> json) {
@@ -231,6 +235,7 @@ class HelpAcceptance {
           json['worker_avatar_url'] as String? ??
               profileData?['avatar_url'] as String?),
       message: _trimmedOrNull(json['message'] as String?),
+      workerPhone: _trimmedOrNull(json['worker_phone'] as String?),
     );
   }
 }

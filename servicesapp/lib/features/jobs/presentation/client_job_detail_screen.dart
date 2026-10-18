@@ -55,8 +55,8 @@ class _ClientJobDetailScreenState
   /// (que só tem id/job_id/reporter_id/description/created_at). Ao
   /// selecionar, pré-preenche o texto livre existente; não muda o schema.
   static const _commonProblems = [
-    (id: 'no_show', label: 'Não apareceu', prefill: 'O prestador não apareceu — '),
-    (id: 'late', label: 'Atraso', prefill: 'O prestador chegou com atraso — '),
+    (id: 'no_show', label: 'Não apareceu', prefill: 'O jardineiro responsável não apareceu. '),
+    (id: 'late', label: 'Atraso', prefill: 'O jardineiro responsável chegou com atraso. '),
     (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto — '),
   ];
 
@@ -102,6 +102,7 @@ class _ClientJobDetailScreenState
             const SnackBar(content: Text('Pedido cancelado.')));
         ref.invalidate(clientJobsProvider);
         ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
+        ref.invalidate(jobByIdProvider(widget.jobId));
       } catch (e) {
         scaffold.showSnackBar(
           SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -143,7 +144,6 @@ class _ClientJobDetailScreenState
       await ref
           .read(proposalRepositoryProvider)
           .confirmJobCompletion(widget.jobId);
-      ref.invalidate(clientJobsProvider);
       return true;
     } catch (e) {
       scaffold.showSnackBar(
@@ -156,13 +156,15 @@ class _ClientJobDetailScreenState
     }
   }
 
+  /// Depois de confirmar fica no próprio pedido (agora `completed`) e abre
+  /// logo a avaliação: era o passo seguinte natural e, ao sair para a
+  /// lista, ficava esquecido.
   Future<void> _handleConfirmCompleted() async {
     final success = await _confirmJobCompletion();
     if (!mounted || !success) return;
 
     setState(() => _showCompletedFeedback = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     final disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -175,7 +177,11 @@ class _ClientJobDetailScreenState
     scaffold.showSnackBar(
       const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
     );
-    router.go('/client/jobs');
+    // Sem navegação: o ecrã fica e passa a mostrar o ramo `completed`.
+    ref.invalidate(clientJobsProvider);
+    ref.invalidate(jobByIdProvider(widget.jobId));
+    ref.invalidate(myRatingForJobProvider(widget.jobId));
+    await _showClientRatingSheet();
   }
 
   /// Foto que o worker juntou ao marcar como concluído (migration 0046).
@@ -216,6 +222,7 @@ class _ClientJobDetailScreenState
     final scaffold = ScaffoldMessenger.of(context);
 
     bool submitting = false;
+    String? errorText;
     final submitted = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -253,13 +260,24 @@ class _ClientJobDetailScreenState
                       return null;
                     },
                   ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      errorText!,
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: AppStatusColor.cancelled.foreground),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: submitting
                         ? null
                         : () async {
                             if (!formKey.currentState!.validate()) return;
-                            setSheetState(() => submitting = true);
+                            setSheetState(() {
+                              submitting = true;
+                              errorText = null;
+                            });
                             try {
                               await ref
                                   .read(proposalRepositoryProvider)
@@ -269,10 +287,13 @@ class _ClientJobDetailScreenState
                                   );
                               if (ctx.mounted) Navigator.pop(ctx, true);
                             } catch (e) {
-                              setSheetState(() => submitting = false);
-                              scaffold.showSnackBar(SnackBar(
-                                  content: Text(friendlyError(e)),
-                                  backgroundColor: Colors.red));
+                              // Dentro da sheet: um SnackBar ficava
+                              // escondido por trás dela.
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                submitting = false;
+                                errorText = friendlyError(e);
+                              });
                             }
                           },
                     child: submitting
@@ -414,14 +435,13 @@ class _ClientJobDetailScreenState
       loading: () => const Scaffold(
         body: AppScreenLoadingSkeleton(),
       ),
-      error: (e, _) => Scaffold(
-        body: SafeArea(child: Center(child: Text(friendlyError(e)))),
+      error: (e, _) => _JobDetailMessage(
+        message: friendlyError(e),
+        onRetry: () => ref.invalidate(jobByIdProvider(widget.jobId)),
       ),
       data: (job) {
         if (job == null) {
-          return const Scaffold(
-            body: SafeArea(child: Center(child: Text('Pedido não encontrado.'))),
-          );
+          return const _JobDetailMessage(message: 'Pedido não encontrado.');
         }
 
         // `confirmed` tem ecrã próprio (doc.txt, "7b. Detalhe do pedido
@@ -554,7 +574,7 @@ class _ClientJobDetailScreenState
             child: StatusTimelineCard(
               steps: timelineSteps,
               supportingLabel:
-                  job.status == JobStatus.open ? _openExpiryNotice(job) : null,
+                  job.status == JobStatus.open ? openJobExpiryNotice(job) : null,
               supportingLabelColor: statusPresentation.color.foreground,
             ),
           ),
@@ -770,33 +790,11 @@ class _ClientJobDetailScreenState
           detailChildren.add(const SizedBox(height: AppSpacing.md));
           detailChildren.add(_buildClientRatingSection(theme, ratingAsync));
 
-          // Direção inversa de _buildClientRatingSection acima (essa é o
-          // worker/ajudantes a avaliarem o CLIENTE); este botão abre um ecrã
-          // novo para o cliente avaliar o WORKER principal —
-          // submit_principal_rating, já usada do lado do worker para avaliar
-          // ajudantes, nunca antes chamada a partir do cliente.
-          if (workerId.isNotEmpty) {
-            bottomBar = BottomActionsBar(children: [
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push(
-                    '/client/job/${widget.jobId}/rate-worker?workerId=$workerId',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.divider),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.input),
-                    ),
-                  ),
-                  icon: const Icon(Icons.star_outline_rounded),
-                  label: const Text('Avaliar profissional'),
-                ),
-              ),
-            ]);
-          }
+          // Entrada única para avaliar: o cartão "Avaliar agora" acima
+          // (`submit_client_rating`, cobre o jardineiro e os ajudantes) e
+          // que passa a "Trabalho avaliado" depois. O antigo botão
+          // "Avaliar profissional" chamava `submit_principal_rating`, que
+          // recusa sempre o cliente, e foi removido.
         }
 
         return Scaffold(
@@ -910,7 +908,7 @@ class _ClientJobDetailScreenState
                       ?.copyWith(color: AppColors.textPrimary)),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                'Partilha a tua experiência com o prestador e ajudantes.',
+                'Partilha a tua experiência com o jardineiro responsável e os ajudantes.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -938,9 +936,9 @@ class _ClientJobDetailScreenState
       context: context,
       title: 'Avaliar o trabalho',
       subtitle:
-          'A nota é partilhada com o prestador e ajudantes. O comentário aparece no perfil do prestador.',
+          'A nota é partilhada com o jardineiro responsável e os ajudantes. O comentário aparece no perfil do jardineiro responsável.',
       successMessage:
-          'Avaliação enviada! Cobre o prestador e ajudantes deste trabalho.',
+          'Avaliação enviada! Cobre o jardineiro responsável e os ajudantes deste trabalho.',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitClientRating(
               jobId: widget.jobId,
@@ -1008,12 +1006,55 @@ List<StatusTimelineStepData> _buildOpenStepperSteps(JobRequest job) {
   ];
 }
 
-/// `expires_at` é o prazo de expiração do PEDIDO INTEIRO (`created_at` +
-/// 48h, para `no_response`), não um prazo dedicado a propostas — a frase
-/// evita implicar o contrário.
-String _openExpiryNotice(JobRequest job) {
-  final formatted = DateFormat("dd/MM 'às' HH:mm").format(job.expiresAt);
-  return 'Expira a $formatted se não houver nenhuma proposta aceite até lá';
+/// Ecrã de erro/pedido inexistente com saída (voltar ou ir para o início)
+/// e, quando faz sentido, "Tentar novamente".
+class _JobDetailMessage extends StatelessWidget {
+  const _JobDetailMessage({required this.message, this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        elevation: 0,
+        leading: const AppBackButton(),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: AppStaggeredEntrance(
+              index: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: textTheme.titleMedium
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    OutlinedButton(
+                      onPressed: onRetry,
+                      child: const Text('Tentar novamente'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ServiceSummaryRow extends StatelessWidget {

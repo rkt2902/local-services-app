@@ -181,7 +181,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                     AppStaggeredEntrance(
                       index: 1,
                       child: Text(
-                        'Confirme o seu email',
+                        'Confirma o teu email',
                         textAlign: TextAlign.center,
                         style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                       ),
@@ -227,7 +227,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                         alignment: WrapAlignment.center,
                         children: [
                           Text(
-                            'Não recebeu? Veja também o spam. ',
+                            'Não recebeste? Vê também o spam. ',
                             style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                           ),
                           TextButton(
@@ -247,6 +247,28 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                           ),
                         ],
                       ),
+                    ),
+                    // Quem já tem conta não precisa de ficar preso aqui.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        Text(
+                          'Já tens conta?',
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        TextButton(
+                          onPressed: () => context.go('/login'),
+                          child: Text(
+                            'Entra ou recupera a senha.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: AppSpacing.sm),

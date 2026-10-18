@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -45,11 +46,24 @@ class _ClientCreateJobReviewScreenState
   bool _successVisible = false;
   Timer? _successTimer;
 
-  bool get _interactionEnabled => !_publishing;
+  /// `true` depois de o pedido ser criado: não se publica duas vezes.
+  bool _published = false;
+
+  bool get _interactionEnabled => !_publishing && !_published;
+
+  /// Limpeza depois de o pedido existir (invalidar a lista e limpar o
+  /// rascunho). Se o ecrã sair antes do temporizador de sucesso, corre na
+  /// mesma, fora do dispose.
+  VoidCallback? _pendingCleanup;
 
   @override
   void dispose() {
-    _successTimer?.cancel();
+    final pending = _successTimer;
+    final cleanup = _pendingCleanup;
+    if (pending != null && pending.isActive && cleanup != null) {
+      pending.cancel();
+      Future.microtask(cleanup);
+    }
     super.dispose();
   }
 
@@ -66,7 +80,7 @@ class _ClientCreateJobReviewScreenState
   }
 
   Future<void> _publish() async {
-    if (_publishing) return;
+    if (_publishing || _published) return;
     FocusScope.of(context).unfocus();
 
     final wizard = ref.read(clientCreateJobWizardProvider);
@@ -87,12 +101,17 @@ class _ClientCreateJobReviewScreenState
     });
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    // Capturados antes dos awaits: o ecrã pode já não existir quando o
+    // temporizador de sucesso disparar (ex.: o utilizador voltou atrás).
+    final container = ProviderScope.containerOf(context, listen: false);
+    final wizardNotifier = ref.read(clientCreateJobWizardProvider.notifier);
 
+    final String jobId;
     try {
       final user = ref.read(currentUserProvider)!;
       final repo = ref.read(jobRepositoryProvider);
 
-      final jobId = await repo.createJob(
+      jobId = await repo.createJob(
         clientId: user.id,
         serviceTypeId: wizard.serviceTypeId!,
         addressText: wizard.addressText,
@@ -105,43 +124,84 @@ class _ClientCreateJobReviewScreenState
             : null,
         urgency: wizard.urgency,
         sizeEstimate: wizard.sizeEstimate,
-        description: wizard.description,
-      );
-
-      // Upload só acontece agora, no momento real de publicar — as fotos
-      // até aqui são só `XFile` locais guardadas no wizard provider, nunca
-      // enviadas antes disto (nem pela revisão, que só as mostra com
-      // `pickedPhotoImage`).
-      for (final photo in wizard.photos) {
-        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
-      }
-
-      ref.invalidate(clientJobsProvider);
-      ref.read(clientCreateJobWizardProvider.notifier).reset();
-
-      if (!mounted) return;
-      setState(() {
-        _publishing = false;
-        _successVisible = true;
-      });
-
-      final disableAnimations =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-      _successTimer?.cancel();
-      _successTimer = Timer(
-        disableAnimations ? Duration.zero : const Duration(milliseconds: 1100),
-        () {
-          if (!mounted) return;
-          router.go('/client/home');
-        },
+        description: wizard.description.trim(),
       );
     } catch (e) {
+      // O pedido não foi criado: pode repetir-se sem risco de duplicar.
       if (!mounted) return;
       setState(() => _publishing = false);
       messenger.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(friendlyError(e)),
+          backgroundColor: AppStatusColor.cancelled.foreground,
+        ),
       );
+      return;
     }
+
+    _published = true;
+    void cleanup() {
+      container.invalidate(clientJobsProvider);
+      wizardNotifier.reset();
+    }
+
+    _pendingCleanup = cleanup;
+
+    // A partir daqui o pedido JÁ existe. Uma falha nas fotos não pode
+    // devolver o utilizador ao botão "Publicar" (repetir criava um pedido
+    // duplicado): segue para o pedido com um aviso.
+    // Upload só acontece agora, no momento real de publicar — as fotos
+    // até aqui são só `XFile` locais guardadas no wizard provider.
+    var failedPhotos = 0;
+    final user = ref.read(currentUserProvider);
+    final repo = ref.read(jobRepositoryProvider);
+    for (final photo in wizard.photos) {
+      try {
+        await repo.uploadJobPhoto(jobId: jobId, clientId: user!.id, file: photo);
+      } catch (_) {
+        failedPhotos++;
+      }
+    }
+
+    void finish() {
+      // T4: navegar → SnackBar → invalidar (e limpar o rascunho, que este
+      // ecrã observa).
+      if (failedPhotos > 0) {
+        router.go('/client/job/$jobId');
+        messenger.showSnackBar(SnackBar(
+          content: Text(failedPhotos == 1
+              ? 'Pedido publicado, mas não foi possível enviar 1 foto.'
+              : 'Pedido publicado, mas não foi possível enviar $failedPhotos fotos.'),
+        ));
+      } else {
+        router.go('/client/home');
+      }
+      cleanup();
+    }
+
+    if (!mounted) {
+      // Saiu durante o upload: só limpa, sem navegar a partir de um ecrã
+      // que já não existe.
+      cleanup();
+      return;
+    }
+    if (failedPhotos > 0) {
+      finish();
+      return;
+    }
+
+    setState(() {
+      _publishing = false;
+      _successVisible = true;
+    });
+
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    _successTimer?.cancel();
+    _successTimer = Timer(
+      disableAnimations ? Duration.zero : const Duration(milliseconds: 1100),
+      finish,
+    );
   }
 
   @override
@@ -176,7 +236,9 @@ class _ClientCreateJobReviewScreenState
         surfaceTintColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          onPressed: _interactionEnabled ? () => context.pop() : null,
+          onPressed: _interactionEnabled
+              ? () => goBackOr(context, '/client/create-job/description')
+              : null,
           tooltip: 'Voltar',
           icon: Icon(
             Icons.arrow_back_rounded,
@@ -228,14 +290,14 @@ class _ClientCreateJobReviewScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Reveja o seu pedido',
+                              'Revê o teu pedido',
                               style: textTheme.titleMedium?.copyWith(
                                 color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
-                              'Confirme os detalhes antes de publicar.',
+                              'Confirma os detalhes antes de publicar.',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textSecondary,
                               ),

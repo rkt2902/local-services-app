@@ -27,6 +27,31 @@ void main() {
     });
   });
 
+  group('preços com vírgula', () {
+    test('preço por hora e horas', () {
+      expect(hourlyRateLabel(25), '25,00 €/h');
+      expect(hourlyRateLabel(0), 'Preço a definir');
+      expect(estimatedHoursLabel(1.5, 3), '1,5 - 3,0 h');
+      expect(estimatedHoursLabel(null, 2), '2,0 h');
+      expect(estimatedHoursLabel(null, null), '');
+      expect(decimalLabel(4.25, 1), '4,3');
+    });
+
+    test('ordenação por preço põe as propostas sem horas no fim', () {
+      final proposals = [
+        (hourlyRate: 10.0, hoursMin: null, hoursMax: null),
+        (hourlyRate: 20.0, hoursMin: 4.0, hoursMax: 6.0), // 80
+        (hourlyRate: 5.0, hoursMin: null, hoursMax: null),
+        (hourlyRate: 15.0, hoursMin: 2.0, hoursMax: null), // 30
+        (hourlyRate: 12.0, hoursMin: null, hoursMax: 5.0), // 60
+      ]..sort(compareByEstimatedPrice);
+      expect(
+        proposals.map((p) => p.hourlyRate).toList(),
+        [15.0, 12.0, 20.0, 5.0, 10.0],
+      );
+    });
+  });
+
   group('jobDeadlineLabel', () {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day, 15);
@@ -79,6 +104,37 @@ void main() {
       expect(
         friendlyError(const AuthException('over_email_send_rate_limit')),
         startsWith('Demasiadas tentativas'),
+      );
+    });
+
+    test('email já registado', () {
+      expect(
+        friendlyError(const AuthException('User already registered')),
+        'Este email já está registado.',
+      );
+    });
+
+    test('regra da véspera de cancelar e remarcar', () {
+      expect(
+        friendlyError(Exception(
+            'O cancelamento requer pelo menos 24h de antecedência.')),
+        'Só podes cancelar até à véspera do trabalho.',
+      );
+      expect(
+        friendlyError(Exception(
+            'Não pode remarcar com menos de 24h de antecedência')),
+        'Só podes remarcar até à véspera do trabalho.',
+      );
+    });
+
+    test('remarcação pendente', () {
+      expect(
+        friendlyError(Exception('Já existe uma remarcação pendente')),
+        'Já existe uma remarcação pendente. Aguarda a resposta.',
+      );
+      expect(
+        friendlyError(Exception('Sem remarcação pendente')),
+        startsWith('Esta remarcação já foi respondida'),
       );
     });
 

@@ -84,7 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Entre na sua conta ProJardim',
+                        'Entra na tua conta ProJardim',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium
                             ?.copyWith(color: AppColors.textSecondary),
@@ -97,7 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         autofillHints: const [AutofillHints.email],
                         validator: (value) {
                           final text = value?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduza o email.';
+                          if (text.isEmpty) return 'Introduz o email.';
                           if (!text.contains('@')) return 'Email inválido.';
                           return null;
                         },
@@ -120,7 +120,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         validator: (value) {
                           if ((value ?? '').isEmpty) {
-                            return 'Introduza a password.';
+                            return 'Introduz a password.';
                           }
                           if ((value ?? '').length < 6) {
                             return 'Mínimo 6 caracteres.';
@@ -231,7 +231,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      'Não tem conta? ',
+                      'Não tens conta? ',
                       style: textTheme.bodyMedium
                           ?.copyWith(color: AppColors.textSecondary),
                     ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_back_navigation.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_motion.dart';
@@ -57,7 +58,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
           _ResetStep.verifyCode => VerifyResetCodeScreen(
               key: const ValueKey('verify'),
               email: widget.email,
-              onBack: () => context.pop(),
+              onBack: () => goBackOr(context, '/login'),
               onVerified: () => setState(() => _step = _ResetStep.newPassword),
             ),
           _ResetStep.newPassword => NewPasswordScreen(

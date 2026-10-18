@@ -564,7 +564,7 @@ class _ActiveEmpty extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Crie um pedido e receba propostas de jardineiros perto de si.',
+          'Cria um pedido e recebe propostas de jardineiros perto de ti.',
           textAlign: TextAlign.center,
           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
@@ -710,13 +710,13 @@ class _ClientJobsError extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Não foi possível carregar os seus pedidos.',
+                'Não foi possível carregar os teus pedidos.',
                 textAlign: TextAlign.center,
                 style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Verifique a ligação e tente novamente.',
+                'Verifica a ligação e tenta novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
               ),

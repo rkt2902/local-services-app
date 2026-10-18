@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_motion_tokens.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/rating_stars_input.dart';
 
@@ -29,6 +31,7 @@ Future<bool?> showSubmitRatingSheet({
     isScrollControlled: true,
     builder: (sheetCtx) {
       bool submitting = false;
+      String? errorText;
       return StatefulBuilder(
         builder: (ctx, setSheetState) {
           final inset = MediaQuery.viewInsetsOf(ctx).bottom;
@@ -86,12 +89,24 @@ Future<bool?> showSubmitRatingSheet({
                       alignLabelWithHint: true,
                     ),
                   ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      errorText!,
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: AppStatusColor.cancelled.foreground,
+                          ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: (submitting || selectedStars == 0)
                         ? null
                         : () async {
-                            setSheetState(() => submitting = true);
+                            setSheetState(() {
+                              submitting = true;
+                              errorText = null;
+                            });
                             try {
                               final raw =
                                   commentController.text.trim();
@@ -101,15 +116,13 @@ Future<bool?> showSubmitRatingSheet({
                                 Navigator.pop(ctx, true);
                               }
                             } catch (e) {
-                              setSheetState(
-                                  () => submitting = false);
-                              if (ctx.mounted) {
-                                scaffold.showSnackBar(SnackBar(
-                                  content: Text(friendlyError(e)),
-                                  backgroundColor:
-                                      Theme.of(ctx).colorScheme.error,
-                                ));
-                              }
+                              // Erro dentro da sheet: um SnackBar ficava
+                              // escondido por trás dela.
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                submitting = false;
+                                errorText = friendlyError(e);
+                              });
                             }
                           },
                     child: submitting

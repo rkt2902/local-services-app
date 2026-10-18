@@ -342,7 +342,7 @@ class _WorkerSubmitProposalScreenState
         ),
         titleSpacing: 0,
         title: Text(
-          'A sua proposta',
+          'A tua proposta',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
       ),
@@ -399,7 +399,7 @@ class _WorkerSubmitProposalScreenState
                       ),
                       if (_showSelectionErrors && _selectedDate == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
-                        const _SelectionError(message: 'Selecione uma data.'),
+                        const _SelectionError(message: 'Seleciona uma data.'),
                       ],
                       const SizedBox(height: AppSpacing.xs),
                       _TimeSlotSelector(
@@ -414,7 +414,7 @@ class _WorkerSubmitProposalScreenState
                       if (_showSelectionErrors &&
                           _selectedTimeSlotId == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
-                        const _SelectionError(message: 'Selecione um período.'),
+                        const _SelectionError(message: 'Seleciona um período.'),
                       ],
                       const SizedBox(height: AppSpacing.sm),
                       Text(
@@ -437,7 +437,7 @@ class _WorkerSubmitProposalScreenState
                           _selectedDurationOptionId == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
                         const _SelectionError(
-                          message: 'Selecione uma duração.',
+                          message: 'Seleciona uma duração.',
                         ),
                       ],
                       const SizedBox(height: AppSpacing.sm),
@@ -482,8 +482,8 @@ class _WorkerSubmitProposalScreenState
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Descreva o que inclui a proposta '
-                        '— varia por serviço.',
+                        'Descreve o que inclui a proposta '
+                        '(varia por serviço).',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -547,7 +547,7 @@ class _HourlyPriceField extends StatelessWidget {
         final price = _parsePrice(value ?? '');
 
         if (price == null || price <= 0) {
-          return 'Introduza um preço válido.';
+          return 'Introduz um preço válido.';
         }
 
         return null;

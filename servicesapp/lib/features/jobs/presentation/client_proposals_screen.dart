@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -32,7 +34,6 @@ class ClientProposalsScreen extends ConsumerStatefulWidget {
 
 class _ClientProposalsScreenState
     extends ConsumerState<ClientProposalsScreen> {
-  String _sortBy = 'price';
   final Map<String, bool> _accepting = {};
 
   Future<void> _acceptProposal(JobProposal proposal, String serviceLabel) async {
@@ -47,6 +48,12 @@ class _ClientProposalsScreenState
       GoRouter.of(context).go(
         '/client/job/${widget.jobId}/confirmed?workerId=${proposal.workerId}',
       );
+      // T4: invalidar só depois de navegar. Antes era feito dentro de
+      // _submitAccept, com este ecrã (que observa estes providers) ainda
+      // montado por baixo da sheet a fechar.
+      ref.invalidate(clientJobsProvider);
+      ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
+      ref.invalidate(jobByIdProvider(widget.jobId));
     }
   }
 
@@ -77,9 +84,6 @@ class _ClientProposalsScreenState
       await ref
           .read(proposalRepositoryProvider)
           .acceptProposal(proposal.id, widget.jobId);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
-      ref.invalidate(jobByIdProvider(widget.jobId));
       return const _AcceptOutcome.accepted();
     } catch (e) {
       // A RPC `accept_proposal` não devolve um ERRCODE dedicado para
@@ -118,9 +122,9 @@ class _ClientProposalsScreenState
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: proposalsAsync.when(
-          loading: () => _ProposalsLoading(onBack: () => context.pop()),
+          loading: () => _ProposalsLoading(onBack: () => _back(context)),
           error: (e, _) => _ProposalsError(
-            onBack: () => context.pop(),
+            onBack: () => _back(context),
             onRetry: () => ref.invalidate(pendingProposalsForJobProvider(widget.jobId)),
           ),
           data: (proposals) {
@@ -129,14 +133,20 @@ class _ClientProposalsScreenState
                 : '${proposals.length} '
                     '${proposals.length == 1 ? 'proposta' : 'propostas'}';
 
-            final sorted = [...proposals];
-            if (_sortBy == 'price') {
-              sorted.sort((a, b) {
-                final aEst = a.hourlyRate * (a.estimatedHoursMin ?? 0);
-                final bEst = b.hourlyRate * (b.estimatedHoursMin ?? 0);
-                return aEst.compareTo(bEst);
-              });
-            }
+            final sorted = [...proposals]..sort(
+                (a, b) => compareByEstimatedPrice(
+                  (
+                    hourlyRate: a.hourlyRate,
+                    hoursMin: a.estimatedHoursMin,
+                    hoursMax: a.estimatedHoursMax,
+                  ),
+                  (
+                    hourlyRate: b.hourlyRate,
+                    hoursMin: b.estimatedHoursMin,
+                    hoursMax: b.estimatedHoursMax,
+                  ),
+                ),
+              );
             final anyAccepting = _accepting.values.any((v) => v);
 
             // "Recomendada" é só um marcador de ranking da app — não é
@@ -156,7 +166,7 @@ class _ClientProposalsScreenState
 
             return Column(
               children: [
-                _ProposalsHeader(subtitle: subtitle, onBack: () => context.pop()),
+                _ProposalsHeader(subtitle: subtitle, onBack: () => _back(context)),
                 Expanded(
                   child: proposals.isEmpty
                       ? const _ProposalsEmpty()
@@ -168,22 +178,13 @@ class _ClientProposalsScreenState
                             AppSpacing.lg,
                           ),
                           children: [
-                            SegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(value: 'price', label: Text('Por preço')),
-                                ButtonSegment(
-                                  value: 'rating',
-                                  label: Text('Por avaliação'),
-                                  tooltip: 'Disponível após as primeiras avaliações',
-                                  enabled: false,
-                                ),
-                              ],
-                              selected: {_sortBy},
-                              onSelectionChanged: (sel) =>
-                                  setState(() => _sortBy = sel.first),
-                              style: const ButtonStyle(
-                                visualDensity: VisualDensity.compact,
-                              ),
+                            // Só há uma ordenação: o antigo "Por avaliação"
+                            // estava sempre desativado e foi removido.
+                            Text(
+                              'Ordenadas por preço estimado, da mais barata '
+                              'para a mais cara.',
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: AppSpacing.md),
                             for (var i = 0; i < sorted.length; i++)
@@ -211,6 +212,13 @@ class _ClientProposalsScreenState
   }
 }
 
+/// Voltar com fallback para o detalhe do pedido: num refresh da web ou link
+/// direto não há stack e `pop()` rebentava.
+void _back(BuildContext context) {
+  final jobId = GoRouterState.of(context).pathParameters['id'];
+  goBackOr(context, jobId == null ? '/client/home' : '/client/job/$jobId');
+}
+
 class _ProposalsHeader extends StatelessWidget {
   const _ProposalsHeader({required this.subtitle, required this.onBack});
 
@@ -234,6 +242,7 @@ class _ProposalsHeader extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onBack,
+            tooltip: 'Voltar',
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),
           const SizedBox(width: AppSpacing.xxs),
@@ -399,12 +408,11 @@ class _ProposalCard extends ConsumerWidget {
     final ratingSummary =
         ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
 
-    final hoursStr = _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
+    final hoursStr =
+        estimatedHoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
     final scheduleStr = _formatProposedSchedule(proposal);
     final teamEstimateStr = _teamTotalEstimate(proposal);
-    final priceLabel = proposal.hourlyRate > 0
-        ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
-        : 'Preço a definir';
+    final priceLabel = hourlyRateLabel(proposal.hourlyRate);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -454,7 +462,7 @@ class _ProposalCard extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             ratingSummary != null && ratingSummary.ratingCount > 0
-                                ? '★ ${ratingSummary.avgRating.toStringAsFixed(1)} '
+                                ? '★ ${decimalLabel(ratingSummary.avgRating, 1)} '
                                     '(${ratingSummary.ratingCount})'
                                 : 'Sem avaliações ainda',
                             style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
@@ -617,11 +625,15 @@ class _AcceptProposalSheet extends StatefulWidget {
 
 class _AcceptProposalSheetState extends State<_AcceptProposalSheet> {
   bool _submitting = false;
+  String? _errorMessage;
   _SheetState _sheetState = _SheetState.confirmation;
 
   Future<void> _accept() async {
     if (_submitting) return;
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
 
     final result = await widget.onAccept();
     if (!mounted) return;
@@ -639,13 +651,13 @@ class _AcceptProposalSheetState extends State<_AcceptProposalSheet> {
       return;
     }
 
-    setState(() => _submitting = false);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(result.errorMessage ?? 'Não foi possível aceitar. Tenta novamente.'),
-        action: SnackBarAction(label: 'Repetir', onPressed: _accept),
-      ));
+    // Erro dentro da sheet: um SnackBar ficava escondido por trás dela.
+    // O botão "Aceitar" serve de "Repetir".
+    setState(() {
+      _submitting = false;
+      _errorMessage =
+          result.errorMessage ?? 'Não foi possível aceitar. Tenta novamente.';
+    });
   }
 
   @override
@@ -674,6 +686,7 @@ class _AcceptProposalSheetState extends State<_AcceptProposalSheet> {
                   proposal: widget.proposal,
                   serviceLabel: widget.serviceLabel,
                   submitting: _submitting,
+                  errorMessage: _errorMessage,
                   onConfirm: _accept,
                   onBack: _submitting ? null : () => Navigator.of(context).pop(false),
                 ),
@@ -691,11 +704,13 @@ class _ProposalConfirmation extends StatelessWidget {
     required this.submitting,
     required this.onConfirm,
     required this.onBack,
+    this.errorMessage,
   });
 
   final JobProposal proposal;
   final String serviceLabel;
   final bool submitting;
+  final String? errorMessage;
   final VoidCallback onConfirm;
   final VoidCallback? onBack;
 
@@ -703,7 +718,7 @@ class _ProposalConfirmation extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final priceLabel = proposal.hourlyRate > 0
-        ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
+        ? hourlyRateLabel(proposal.hourlyRate)
         : 'preço a definir';
     final proposalDateLabel = _formatProposedSchedule(proposal);
 
@@ -763,13 +778,29 @@ class _ProposalConfirmation extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'Depois de aceitares, podes cancelar até 24h antes da data combinada.',
+                    'Depois de aceitares, podes cancelar até à véspera da data combinada.',
                     style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
                   ),
                 ),
               ],
             ),
           ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppStatusColor.cancelled.background,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+              child: Text(
+                errorMessage!,
+                style: textTheme.bodySmall
+                    ?.copyWith(color: AppStatusColor.cancelled.foreground),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           PrimaryActionButton(
             label: submitting ? 'A confirmar...' : 'Aceitar proposta · $priceLabel',
@@ -802,9 +833,7 @@ class _ProposalSummaryCard extends StatelessWidget {
     final workerName =
         proposal.workerName?.isNotEmpty == true ? proposal.workerName! : '—';
     final workerAvatarUrl = proposal.workerAvatarUrl ?? '';
-    final priceLabel = proposal.hourlyRate > 0
-        ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
-        : 'Preço a definir';
+    final priceLabel = hourlyRateLabel(proposal.hourlyRate);
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
@@ -972,13 +1001,6 @@ String _formatProposedSchedule(JobProposal proposal) {
   return date;
 }
 
-String _hoursLabel(double? min, double? max) {
-  if (min != null && max != null) return '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)} h';
-  if (min != null) return '${min.toStringAsFixed(1)} h';
-  if (max != null) return '${max.toStringAsFixed(1)} h';
-  return '';
-}
-
 String _teamTotalEstimate(JobProposal p) {
   if (p.peopleNeeded <= 1 || p.hourlyRate <= 0) return '';
   final factor = p.helpersEquipmentRequired ? 1.0 : 0.75;
@@ -988,11 +1010,11 @@ String _teamTotalEstimate(JobProposal p) {
   if (min != null && max != null) {
     final lo = (p.hourlyRate * min * multiplier).round();
     final hi = (p.hourlyRate * max * multiplier).round();
-    return '≈ €$lo - €$hi (equipa incluída)';
+    return '≈ $lo a $hi € (equipa incluída)';
   } else if (min != null) {
-    return '≈ €${(p.hourlyRate * min * multiplier).round()} (equipa incluída)';
+    return '≈ ${(p.hourlyRate * min * multiplier).round()} € (equipa incluída)';
   } else if (max != null) {
-    return '≈ €${(p.hourlyRate * max * multiplier).round()} (equipa incluída)';
+    return '≈ ${(p.hourlyRate * max * multiplier).round()} € (equipa incluída)';
   }
   return '';
 }

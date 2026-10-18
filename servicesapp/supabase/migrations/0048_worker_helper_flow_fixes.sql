@@ -26,8 +26,10 @@
 --   8. O cliente é avisado quando há um pedido de ajudantes para aprovar.
 --   9. get_candidates_for_help_request devolve o telefone só dos
 --      ajudantes já aceites (contacto por WhatsApp no lobby).
---  10. get_worker_job_board devolve job_status e um separador "closed"
---      (propostas não escolhidas, retiradas, trabalhos cancelados).
+--  10. get_worker_job_board devolve job_status, e o separador
+--      "completed" passa a ser o histórico todo: trabalhos concluídos e
+--      também propostas não escolhidas e trabalhos cancelados ou
+--      expirados (antes desapareciam de todas as listas).
 --
 -- Identidade sempre por auth.uid(); nenhuma RPC recebe ids de utilizador.
 -- ══════════════════════════════════════════════════════════════
@@ -462,7 +464,7 @@ REVOKE EXECUTE ON FUNCTION public.get_candidates_for_help_request(uuid) FROM PUB
 GRANT  EXECUTE ON FUNCTION public.get_candidates_for_help_request(uuid) TO authenticated, service_role;
 
 
--- ── 10. get_worker_job_board: job_status e separador "closed" ───
+-- ── 10. get_worker_job_board: job_status e histórico completo ───
 -- RETURNS TABLE muda de forma: DROP explícito antes de recriar.
 
 DROP FUNCTION IF EXISTS public.get_worker_job_board(text, integer, integer);
@@ -524,7 +526,7 @@ AS $function$
         WHEN jp.status = 'pending' AND jr.status = 'open' THEN 'pending'
         WHEN jp.status = 'accepted' AND jr.status IN ('confirmed', 'awaiting_confirmation') THEN 'scheduled'
         WHEN jp.status = 'accepted' AND jr.status = 'completed' THEN 'completed'
-        ELSE 'closed'
+        ELSE 'completed'
       END AS bucket
     FROM   job_proposals jp
     JOIN   job_requests  jr ON jr.id = jp.job_id
@@ -560,7 +562,7 @@ AS $function$
         WHEN ha.status = 'pending' THEN 'pending'
         WHEN ha.status = 'accepted' AND jr.status IN ('confirmed', 'awaiting_confirmation') THEN 'scheduled'
         WHEN ha.status = 'accepted' AND jr.status = 'completed' THEN 'completed'
-        ELSE 'closed'
+        ELSE 'completed'
       END AS bucket
     FROM   help_acceptances ha
     JOIN   help_requests hr  ON hr.id = ha.help_request_id
@@ -581,7 +583,7 @@ AS $function$
   ORDER BY
     CASE WHEN p_tab = 'scheduled' THEN confirmed_date END ASC NULLS LAST,
     CASE WHEN p_tab = 'scheduled' THEN confirmed_time END ASC NULLS LAST,
-    CASE WHEN p_tab IN ('completed', 'closed') THEN job_updated_at END DESC NULLS LAST,
+    CASE WHEN p_tab = 'completed' THEN job_updated_at END DESC NULLS LAST,
     CASE WHEN p_tab = 'pending'   THEN created_at     END DESC NULLS LAST,
     entry_id
   LIMIT p_page_size OFFSET (p_page * p_page_size);

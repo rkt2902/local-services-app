@@ -6,6 +6,7 @@ import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
@@ -58,10 +59,23 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  /// Marca como lida ANTES de navegar: `NotificationHandler` faz
+  /// `context.go()` e este ecrã é desmontado, e usar `ref` depois disso
+  /// lançava StateError (e a notificação ficava por ler). O contentor é
+  /// capturado antes, para invalidar depois da navegação (regra T4).
   Future<void> _onNotificationPressed(AppNotification notification) async {
+    final repo = ref.read(notificationRepositoryProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    if (!notification.read) {
+      try {
+        await repo.markAsRead(notification.id);
+      } catch (_) {
+        // Sem rede: abre na mesma, fica por ler.
+      }
+    }
+    if (!mounted) return;
     await NotificationHandler.handle(context, ref, notification);
-    await ref.read(notificationRepositoryProvider).markAsRead(notification.id);
-    ref.invalidate(allNotificationsProvider);
+    container.invalidate(allNotificationsProvider);
   }
 
   @override
@@ -70,14 +84,48 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     if (allAsync.isLoading) {
-      return const Scaffold(body: AppScreenLoadingSkeleton());
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          elevation: 0,
+          leading: const AppBackButton(),
+          title: const Text('Notificações'),
+        ),
+        body: const AppScreenLoadingSkeleton(),
+      );
     }
 
     if (allAsync.hasError) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Notificações')),
-        body: Center(child: Text(friendlyError(allAsync.error!))),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          elevation: 0,
+          leading: const AppBackButton(),
+          title: const Text('Notificações'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  friendlyError(allAsync.error!),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(allNotificationsProvider),
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -108,6 +156,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        leading: const AppBackButton(),
         title: Text(
           'Notificações',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
@@ -116,7 +165,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           if (hasUnread)
             TextButton(
               onPressed: () => _clearAll(all),
-              child: const Text('Limpar'),
+              child: const Text('Marcar todas como lidas'),
             ),
           const SizedBox(width: AppSpacing.xs),
         ],

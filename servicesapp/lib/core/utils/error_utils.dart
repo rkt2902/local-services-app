@@ -31,7 +31,9 @@ String friendlyError(Object e) {
 
   // Autenticação (antes em AuthController._mapError)
   if (msg.contains('invalid login')) return 'Email ou password incorretos.';
-  if (msg.contains('email already')) return 'Este email já está registado.';
+  if (msg.contains('email already') || msg.contains('user already registered')) {
+    return 'Este email já está registado.';
+  }
   if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
     return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
   }
@@ -57,6 +59,25 @@ String friendlyError(Object e) {
   }
   if (msg.contains('maior que zero')) {
     return 'O valor tem de ser maior que zero.';
+  }
+
+  // Regra da véspera de `cancel_job` e `propose_reschedule`: a mensagem
+  // do servidor diz "24h de antecedência" mas compara datas (só até ao dia
+  // anterior ao trabalho).
+  if (msg.contains('antecedência')) {
+    if (msg.contains('remarcar')) {
+      return 'Só podes remarcar até à véspera do trabalho.';
+    }
+    if (msg.contains('cancelamento')) {
+      return 'Só podes cancelar até à véspera do trabalho.';
+    }
+    return 'Esta ação só é possível até à véspera do trabalho.';
+  }
+  if (msg.contains('remarcação pendente')) {
+    if (msg.contains('sem remarcação')) {
+      return 'Esta remarcação já foi respondida. Atualiza o pedido.';
+    }
+    return 'Já existe uma remarcação pendente. Aguarda a resposta.';
   }
 
   // Genéricos

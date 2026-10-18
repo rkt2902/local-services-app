@@ -71,7 +71,7 @@ class PasswordChangedScreen extends StatelessWidget {
                       AppStaggeredEntrance(
                         index: 2,
                         child: Text(
-                          'A sua senha foi atualizada com sucesso. Já pode entrar.',
+                          'A tua senha foi atualizada com sucesso. Já podes entrar.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                         ),

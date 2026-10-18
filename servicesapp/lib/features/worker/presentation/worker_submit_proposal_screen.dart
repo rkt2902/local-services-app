@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../auth/application/auth_providers.dart';
-import '../../jobs/application/job_providers.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../proposals/application/proposal_providers.dart';
+import '../application/worker_list_invalidation.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_submit_proposal_view.dart' as view;
 
@@ -94,10 +95,15 @@ class _WorkerSubmitProposalScreenState
             scheduledFlexible: false,
           );
       if (!mounted) return;
-      router.pop();
+      // Regra T4: navegar → SnackBar → invalidar. Sem stack (link direto)
+      // volta ao detalhe do pedido em vez de rebentar no pop.
+      if (router.canPop()) {
+        router.pop();
+      } else {
+        router.go('/worker/job/${widget.jobId}');
+      }
       scaffold.showSnackBar(const SnackBar(content: Text('Proposta enviada!')));
-      ref.invalidate(jobsInRadiusProvider);
-      ref.invalidate(workerProposalForJobProvider);
+      invalidateWorkerLists(ref, jobId: widget.jobId);
     } catch (e) {
       if (!mounted) return;
       scaffold.showSnackBar(
@@ -121,7 +127,7 @@ class _WorkerSubmitProposalScreenState
       suggestedHourlyPriceLabel: suggestedLabel,
       timeSlots: _timeSlots,
       durationOptions: _durationOptions,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onSelectDate: _selectDate,
       onSubmit: _submit,
       initialHourlyPrice:

@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_back_navigation.dart';
+import '../../../core/widgets/app_back_button.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/enums.dart';
@@ -89,6 +91,18 @@ class _ClientCreateJobScheduleScreenState
   /// da morada exata até a proposta ser aceite.
   String? _locationArea;
 
+  /// `true` enquanto a morada do campo veio do pin (reverse geocoding) e o
+  /// utilizador não lhe mexeu: ao mover o pin é substituída pela nova.
+  /// Escrita à mão nunca é tocada.
+  bool _addressAutoFilled = false;
+
+  /// Texto posto pelo geocoding; qualquer diferença vem do utilizador.
+  String? _autoFilledText;
+
+  /// Só a resposta do último pin conta: um toque rápido em dois sítios não
+  /// pode deixar a morada/localidade do primeiro.
+  int _geocodeRequest = 0;
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +118,9 @@ class _ClientCreateJobScheduleScreenState
     _selectedSizeOptionId = wizard.sizeEstimate?.value;
 
     _addressController.text = wizard.addressText;
+    _addressAutoFilled = wizard.addressAutoFilled;
+    if (_addressAutoFilled) _autoFilledText = wizard.addressText;
+    _addressController.addListener(_onAddressChanged);
     _locationArea = wizard.locationArea;
     if (wizard.locationLat != null && wizard.locationLng != null) {
       _pinPosition = LatLng(wizard.locationLat!, wizard.locationLng!);
@@ -112,8 +129,21 @@ class _ClientCreateJobScheduleScreenState
 
   @override
   void dispose() {
+    _addressController.removeListener(_onAddressChanged);
     _addressController.dispose();
     super.dispose();
+  }
+
+  void _onAddressChanged() {
+    if (_addressAutoFilled && _addressController.text != _autoFilledText) {
+      _addressAutoFilled = false;
+    }
+  }
+
+  void _fillAddressFromPin(String text) {
+    _autoFilledText = text;
+    _addressController.text = text;
+    _addressAutoFilled = true;
   }
 
   Future<void> _geocode() async {
@@ -152,8 +182,10 @@ class _ClientCreateJobScheduleScreenState
     _reverseGeocodePin(point.latitude, point.longitude);
   }
 
-  /// Preenche a morada a partir do pin sempre que o campo ainda está vazio
-  /// — nunca sobrescreve texto que o utilizador já tenha escrito à mão.
+  /// Preenche a morada a partir do pin quando o campo está vazio ou ainda
+  /// tem a morada automática de um pin anterior — nunca sobrescreve texto
+  /// que o utilizador tenha escrito à mão. A localidade antiga apaga-se
+  /// logo: pertence ao pin anterior.
   /// Se o `GeocodingService` falhar (sem rede, sem resultado do Nominatim
   /// para este ponto), NÃO inventa texto de morada — isso era o próprio
   /// bug ("Localização aproximada (lat, lng)" gravado como se fosse uma
@@ -161,17 +193,29 @@ class _ClientCreateJobScheduleScreenState
   /// aviso à parte (ver `build`) deixando claro que o pin/localização
   /// ficou guardado, só a rua é que não foi identificada.
   Future<void> _reverseGeocodePin(double lat, double lng) async {
-    setState(() => _addressLookupFailed = false);
+    final request = ++_geocodeRequest;
+    setState(() {
+      _addressLookupFailed = false;
+      _locationArea = null;
+    });
     final result = await GeocodingService.reverseGeocode(lat, lng);
+    if (!mounted || request != _geocodeRequest) return;
     // A localidade guarda-se sempre que o geocoding responde, mesmo que a
     // morada tenha sido escrita à mão: é o que o jardineiro vê antes de a
     // proposta ser aceite (migration 0043).
     if (result != null) _locationArea = result.locationName;
-    if (!mounted || _addressController.text.isNotEmpty) return;
+    final canReplace =
+        _addressController.text.isEmpty || _addressAutoFilled;
+    if (!canReplace) return;
     setState(() {
       if (result != null) {
-        _addressController.text = result.addressText;
+        _fillAddressFromPin(result.addressText);
       } else {
+        // A morada automática era do pin anterior: já não serve.
+        if (_addressAutoFilled) {
+          _addressController.clear();
+          _addressAutoFilled = false;
+        }
         _addressLookupFailed = true;
       }
     });
@@ -254,13 +298,14 @@ class _ClientCreateJobScheduleScreenState
     );
     notifier.setLocation(
       addressText: _addressController.text.trim(),
+      addressAutoFilled: _addressAutoFilled,
       locationArea: _locationArea,
       locationLat: _pinPosition!.latitude,
       locationLng: _pinPosition!.longitude,
     );
 
     if (widget.fromReview) {
-      context.pop();
+      goBackOr(context, '/client/create-job/review');
     } else {
       context.push('/client/create-job/description');
     }
@@ -276,14 +321,7 @@ class _ClientCreateJobScheduleScreenState
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        leading: const AppBackButton(),
         titleSpacing: 0,
         title: Text(
           'Criar pedido',

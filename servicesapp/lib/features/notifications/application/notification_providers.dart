@@ -83,6 +83,8 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(pendingProposalsForJobProvider);
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(workerProposalForJobProvider);
+          // proposal_count do pedido mudou (detalhe e prazo de expiração).
+          if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
         case NotificationType.proposalAccepted:
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(pendingWorkerProposalsProvider);
@@ -132,6 +134,8 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(myRatingForJobAndRateeProvider);
         case NotificationType.jobNoResponse:
           ref.invalidate(clientJobsProvider);
+          // O pedido passou a `no_response`: o detalhe aberto tem de mudar.
+          if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
         case NotificationType.helpRequestApproved:
           // Principal worker's help_request moved from pending_approval → open.
           ref.invalidate(helpRequestsForJobProvider);

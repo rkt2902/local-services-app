@@ -2,6 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../auth/application/auth_providers.dart';
+
+/// Marca "não mexer" do `copyWith` para campos que podem voltar a `null`.
+const _unset = Object();
 
 /// Dados acumulados ao longo do wizard de 3 passos de criação de pedido.
 ///
@@ -17,6 +21,7 @@ class ClientCreateJobWizardState {
     this.urgency = Urgency.normal,
     this.sizeEstimate,
     this.addressText = '',
+    this.addressAutoFilled = false,
     this.locationArea,
     this.locationLat,
     this.locationLng,
@@ -32,6 +37,10 @@ class ClientCreateJobWizardState {
   final SizeEstimate? sizeEstimate;
 
   final String addressText;
+
+  /// `true` quando [addressText] veio do reverse geocoding do pin e não foi
+  /// escrita/alterada à mão: ao mover o pin, a morada é substituída.
+  final bool addressAutoFilled;
   final String? locationArea;
   final double? locationLat;
   final double? locationLng;
@@ -46,7 +55,8 @@ class ClientCreateJobWizardState {
     Urgency? urgency,
     SizeEstimate? sizeEstimate,
     String? addressText,
-    String? locationArea,
+    bool? addressAutoFilled,
+    Object? locationArea = _unset,
     double? locationLat,
     double? locationLng,
     String? description,
@@ -59,7 +69,12 @@ class ClientCreateJobWizardState {
       urgency: urgency ?? this.urgency,
       sizeEstimate: sizeEstimate ?? this.sizeEstimate,
       addressText: addressText ?? this.addressText,
-      locationArea: locationArea ?? this.locationArea,
+      addressAutoFilled: addressAutoFilled ?? this.addressAutoFilled,
+      // `null` explícito apaga a localidade (o pin mudou e ainda não há
+      // localidade nova); omitido mantém a atual.
+      locationArea: identical(locationArea, _unset)
+          ? this.locationArea
+          : locationArea as String?,
       locationLat: locationLat ?? this.locationLat,
       locationLng: locationLng ?? this.locationLng,
       description: description ?? this.description,
@@ -71,7 +86,12 @@ class ClientCreateJobWizardState {
 class ClientCreateJobWizardNotifier
     extends Notifier<ClientCreateJobWizardState> {
   @override
-  ClientCreateJobWizardState build() => const ClientCreateJobWizardState();
+  ClientCreateJobWizardState build() {
+    // Rascunho por utilizador: ao terminar sessão ou trocar de conta o
+    // provider reconstrói-se e o rascunho do anterior desaparece.
+    ref.watch(currentUserIdProvider);
+    return const ClientCreateJobWizardState();
+  }
 
   void setService(String serviceTypeId) {
     state = state.copyWith(serviceTypeId: serviceTypeId);
@@ -90,6 +110,7 @@ class ClientCreateJobWizardNotifier
       urgency: urgency,
       sizeEstimate: sizeEstimate,
       addressText: state.addressText,
+      addressAutoFilled: state.addressAutoFilled,
       locationArea: state.locationArea,
       locationLat: state.locationLat,
       locationLng: state.locationLng,
@@ -100,12 +121,14 @@ class ClientCreateJobWizardNotifier
 
   void setLocation({
     required String addressText,
-    String? locationArea,
+    required bool addressAutoFilled,
+    required String? locationArea,
     required double locationLat,
     required double locationLng,
   }) {
     state = state.copyWith(
       addressText: addressText,
+      addressAutoFilled: addressAutoFilled,
       locationArea: locationArea,
       locationLat: locationLat,
       locationLng: locationLng,

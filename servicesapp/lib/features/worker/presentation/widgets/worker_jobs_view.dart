@@ -67,9 +67,13 @@ class WorkerJobsScreen extends StatelessWidget {
     this.highlightedJobId,
     this.onLoadMore,
     this.loadingMore = false,
+    this.onFindJobsPressed,
   });
 
   final WorkerJobsTab selectedTab;
+
+  /// CTA dos estados vazios ("Ver pedidos disponíveis").
+  final VoidCallback? onFindJobsPressed;
 
   final int pendingCount;
   final int scheduledCount;
@@ -153,7 +157,7 @@ class WorkerJobsScreen extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: _JobsTabButton(
-                      label: 'Concluídos',
+                      label: 'Histórico',
                       count: completedCount,
                       selected:
                           selectedTab == WorkerJobsTab.completed,
@@ -184,6 +188,11 @@ class WorkerJobsScreen extends StatelessWidget {
                   highlightedJobId: highlightedJobId,
                   onLoadMore: onLoadMore,
                   loadingMore: loadingMore,
+                  emptyMessage: _emptyMessageFor(selectedTab),
+                  emptyActionLabel: selectedTab == WorkerJobsTab.completed
+                      ? null
+                      : 'Ver pedidos disponíveis',
+                  onEmptyActionPressed: onFindJobsPressed,
                 ),
               ),
             ),
@@ -193,6 +202,18 @@ class WorkerJobsScreen extends StatelessWidget {
     );
   }
 }
+
+String _emptyMessageFor(WorkerJobsTab tab) => switch (tab) {
+      WorkerJobsTab.pending =>
+        'Sem propostas nem candidaturas à espera de resposta. '
+            'Envia uma proposta a um pedido perto de ti.',
+      WorkerJobsTab.scheduled =>
+        'Ainda não tens trabalhos agendados. Quando um cliente aceitar a '
+            'tua proposta, o trabalho aparece aqui.',
+      WorkerJobsTab.completed =>
+        'Ainda não tens histórico. Os trabalhos concluídos, cancelados ou '
+            'que não foram para ti aparecem aqui.',
+    };
 
 class _JobsTabButton extends StatelessWidget {
   const _JobsTabButton({
@@ -275,8 +296,15 @@ class _JobsTabContent extends StatefulWidget {
     required this.highlightedJobId,
     required this.onLoadMore,
     required this.loadingMore,
+    required this.emptyMessage,
+    this.emptyActionLabel,
+    this.onEmptyActionPressed,
     super.key,
   });
+
+  final String emptyMessage;
+  final String? emptyActionLabel;
+  final VoidCallback? onEmptyActionPressed;
 
   final List<WorkerJobListItemViewData> jobs;
   final bool loading;
@@ -372,10 +400,11 @@ class _JobsTabContentState extends State<_JobsTabContent> {
     }
 
     if (widget.jobs.isEmpty) {
-      final emptyState = const _JobsMessageState(
+      final emptyState = _JobsMessageState(
         icon: Icons.work_outline_rounded,
-        message:
-            'Não existem trabalhos nesta categoria.',
+        message: widget.emptyMessage,
+        actionLabel: widget.emptyActionLabel,
+        onActionPressed: widget.onEmptyActionPressed,
       );
 
       if (widget.onRefresh == null) return emptyState;

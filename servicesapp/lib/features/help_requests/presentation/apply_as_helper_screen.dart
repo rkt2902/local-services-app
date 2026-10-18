@@ -15,6 +15,8 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../../core/router/app_back_navigation.dart';
+import '../../worker/application/worker_list_invalidation.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
 
@@ -158,7 +160,6 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                 : _messageController.text.trim(),
           );
       if (!mounted) return;
-      ref.invalidate(helpRequestSummariesInRadiusProvider);
 
       final disableAnimations =
           MediaQuery.maybeOf(context)?.disableAnimations ?? false;
@@ -174,7 +175,17 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
             : const Duration(milliseconds: 1100),
         () {
           if (!mounted) return;
-          context.pop(true);
+          // Regra T4: navegar → invalidar. Aberto sem stack (link direto)
+          // não há nada para fazer pop: vai para "As minhas candidaturas".
+          if (context.canPop()) {
+            context.pop(true);
+          } else {
+            context.go(
+              '/worker/help-requests',
+              extra: const {'initialTabIndex': 1},
+            );
+          }
+          invalidateWorkerLists(ref);
         },
       );
     } catch (e) {
@@ -218,7 +229,8 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: IconButton(
-            onPressed: () => context.pop(),
+            onPressed: () => goBackOrToRoleHome(context),
+            tooltip: 'Voltar',
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           ),
         ),
@@ -272,7 +284,8 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () => context.pop(),
+                    onPressed: () => goBackOrToRoleHome(context),
+                    tooltip: 'Voltar',
                     icon: const Icon(Icons.arrow_back,
                         color: AppColors.textPrimary),
                   ),
@@ -751,7 +764,9 @@ class _InfoBox extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
-              'Se for aceite, este trabalho entra em "Os meus trabalhos" como Ajudante.',
+              'A candidatura aparece já em "Os meus trabalhos", nos Pendentes, '
+              'até o responsável decidir. O valor mostrado é uma sugestão: '
+              'o responsável fixa a taxa final quando te aceitar.',
               style: textTheme.labelMedium
                   ?.copyWith(color: AppStatusColor.info.foreground),
             ),

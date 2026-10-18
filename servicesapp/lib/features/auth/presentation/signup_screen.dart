@@ -117,7 +117,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         label: 'Nome completo',
                         autofillHints: const [AutofillHints.name],
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Introduza o nome completo.'
+                            ? 'Introduz o nome completo.'
                             : null,
                       ),
                       const SizedBox(height: 14),
@@ -128,7 +128,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         autofillHints: const [AutofillHints.email],
                         validator: (v) {
                           final text = v?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduza o email.';
+                          if (text.isEmpty) return 'Introduz o email.';
                           if (!text.contains('@')) return 'Email inválido.';
                           return null;
                         },
@@ -142,7 +142,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         autofillHints: const [AutofillHints.telephoneNumber],
                         validator: (v) => phoneValidator(
                           v,
-                          emptyMessage: 'Introduza o telemóvel.',
+                          emptyMessage: 'Introduz o telemóvel.',
                         ),
                       ),
                       const SizedBox(height: 14),

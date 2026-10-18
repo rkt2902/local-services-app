@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -59,6 +60,9 @@ class WorkerJobDetailScreen extends StatelessWidget {
     required this.onSendProposalPressed,
     super.key,
     this.onClientPressed,
+    this.unavailable = false,
+    this.unavailableReason,
+    this.onViewMyProposalPressed,
   });
 
   final WorkerJobDetailViewData data;
@@ -66,6 +70,18 @@ class WorkerJobDetailScreen extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onSendProposalPressed;
   final VoidCallback? onClientPressed;
+
+  /// Pedido já não aberto (e não é do worker): só leitura, sem
+  /// "Enviar proposta".
+  final bool unavailable;
+
+  /// Porquê (outro jardineiro ficou com ele, cancelado, expirado), quando
+  /// se sabe.
+  final String? unavailableReason;
+
+  /// Não nulo quando o worker já tem uma proposta pendente neste pedido:
+  /// troca "Enviar proposta" por "Ver a minha proposta".
+  final VoidCallback? onViewMyProposalPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -201,13 +217,105 @@ class WorkerJobDetailScreen extends StatelessWidget {
                 AppSpacing.lg,
                 AppSpacing.lg,
               ),
-              child: PrimaryActionButton(
-                label: 'Enviar proposta',
-                onPressed: onSendProposalPressed,
-              ),
+              child: _buildFooter(context),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+extension on WorkerJobDetailScreen {
+  Widget _buildFooter(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    if (unavailable) {
+      return WorkerJobUnavailableBanner(reason: unavailableReason);
+    }
+
+    if (onViewMyProposalPressed != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.schedule_outlined,
+                color: AppStatusColor.waiting.foreground,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Proposta enviada, à espera do cliente',
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: AppStatusColor.waiting.foreground),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          PrimaryActionButton(
+            label: 'Ver a minha proposta',
+            onPressed: onViewMyProposalPressed,
+          ),
+        ],
+      );
+    }
+
+    return PrimaryActionButton(
+      label: 'Enviar proposta',
+      onPressed: onSendProposalPressed,
+    );
+  }
+}
+
+/// "Este pedido já não está disponível." + motivo (se se souber). Usado no
+/// rodapé do detalhe e no ecrã inteiro quando o pedido nem sequer carrega.
+class WorkerJobUnavailableBanner extends StatelessWidget {
+  const WorkerJobUnavailableBanner({super.key, this.reason});
+
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final color = AppStatusColor.neutral;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.block_outlined, color: color.foreground),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Este pedido já não está disponível.',
+                  style: textTheme.titleSmall?.copyWith(color: color.foreground),
+                ),
+                if (reason != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    reason!,
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: color.foreground),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

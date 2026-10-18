@@ -24,22 +24,22 @@ import 'widgets/worker_help_requests_lobby_view.dart';
 /// que fala com Supabase; o widget de apresentação não sabe que Riverpod
 /// existe.
 ///
-/// Nota de navegação (2026-09): confirmado que hoje este ecrã só é
-/// alcançável a partir de 2 tipos de notificação (`helpRequestApproved`,
-/// `helpWithdrew`) — ambos só disparam quando já existe um `HelpRequest`
-/// para o job. Não há nenhum botão em nenhum outro ecrã que abra este
-/// lobby diretamente. Isto significa que o estado vazio ("Sem vagas neste
-/// trabalho") é hoje inalcançável através da navegação normal da app —
-/// mantido por robustez (ex.: um deep link futuro, ou se o worker chegar
-/// aqui e o único `HelpRequest` for cancelado entretanto), não porque haja
-/// um caminho real que o produza agora.
+/// Navegação: aberto pelo cartão "Equipa" do ecrã "O meu trabalho"
+/// ([fromMyJob] = true) ou por 2 notificações (`helpRequestApproved`,
+/// `helpWithdrew`). O estado vazio ("Pedir ajudantes") volta ao ecrã do
+/// trabalho, que é onde vive a sheet de pedir ajudantes.
 class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
   const WorkerHelpRequestsLobbyScreen({
     super.key,
     required this.jobId,
+    this.fromMyJob = false,
   });
 
   final String jobId;
+
+  /// `true` quando o ecrã anterior na stack é o "O meu trabalho" deste
+  /// pedido: aí basta um pop para lá voltar.
+  final bool fromMyJob;
 
   @override
   ConsumerState<WorkerHelpRequestsLobbyScreen> createState() =>
@@ -138,6 +138,24 @@ class _WorkerHelpRequestsLobbyScreenState
     return '$service · ${jobDistinguisherLabel(job)}';
   }
 
+  /// "Pedir ajudantes" no estado vazio: a sheet vive no ecrã do trabalho.
+  /// Veio de lá → pop. Senão (notificação) → substitui este ecrã pelo do
+  /// trabalho, sem duplicar a stack. Sem proposta conhecida → voltar.
+  void _goToJobToRequestHelpers(JobProposal? proposal) {
+    if (widget.fromMyJob && context.canPop()) {
+      context.pop();
+      return;
+    }
+    if (proposal != null) {
+      context.pushReplacement(
+        '/worker/my-job/${proposal.id}?jobId=${widget.jobId}',
+        extra: const {'entryTransition': 'sharedAxis'},
+      );
+      return;
+    }
+    goBackOrToRoleHome(context);
+  }
+
   void _viewRatings(String workerId, String name) {
     showWorkerRatingsSheet(context, workerId: workerId, workerName: name);
   }
@@ -211,6 +229,7 @@ class _WorkerHelpRequestsLobbyScreenState
                         ? '€${c.agreedRate.toStringAsFixed(2)}/hora'
                         : null,
                     statusPresentation: c.status.presentation,
+                    phone: c.workerPhone,
                   ))
               .toList(),
           pendingCandidates: pending.map((c) {
@@ -249,7 +268,7 @@ class _WorkerHelpRequestsLobbyScreenState
     return WorkerHelpRequestsLobbyView(
       dataAsync: dataAsync,
       onBack: () => goBackOrToRoleHome(context),
-      onRequestHelpers: () => context.pop(),
+      onRequestHelpers: () => _goToJobToRequestHelpers(proposal),
       onAcceptCandidate: _acceptCandidate,
       onRejectCandidate: _rejectCandidate,
       onViewRatings: _viewRatings,

@@ -105,6 +105,20 @@ class HelpRequestRepository {
     required bool broughtEquipment,
     String? message,
   }) async {
+    final text = message?.trim();
+    try {
+      // 0048: RPC que também permite voltar a candidatar-se depois de uma
+      // recusa ou desistência e avisa o jardineiro responsável.
+      await _client.rpc('apply_to_help_request', params: {
+        'p_help_request_id': helpRequestId,
+        'p_brought_equipment': broughtEquipment,
+        'p_message': (text == null || text.isEmpty) ? null : text,
+      });
+      return;
+    } on PostgrestException catch (e) {
+      // BD ainda sem a 0048 (função inexistente): caminho antigo.
+      if (e.code != 'PGRST202') rethrow;
+    }
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Não autenticado');
     await _client.from('help_acceptances').insert({

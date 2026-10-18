@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/phone_utils.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -58,11 +60,21 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     if (job == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          elevation: 0,
+          leading: const AppBackButton(),
+        ),
         body: Center(
-          child: Text(
-            jobAsync.hasError
-                ? friendlyError(jobAsync.error!)
-                : 'Pedido não encontrado.',
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              jobAsync.hasError
+                  ? friendlyError(jobAsync.error!)
+                  : 'Pedido não encontrado.',
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       );
@@ -95,7 +107,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
               : null,
       workerRatingLabel:
           rating != null && rating.ratingCount > 0
-              ? rating.avgRating.toStringAsFixed(1)
+              ? decimalLabel(rating.avgRating, 1)
               : '—',
       workerReviewsLabel: rating != null
           ? '${rating.ratingCount} '
@@ -110,10 +122,9 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
       onCallPressed: workerPhone.isEmpty
           ? null
           : () => openWhatsAppOrWarn(context, workerPhone),
-      onWorkerPressed: () {
-        // Sem ecrã de perfil público do worker no cliente hoje — sem-op
-        // seguro em vez de navegar para um sítio que não existe.
-      },
+      // Cartão público do jardineiro (`/w/:workerId`), o mesmo do link/QR.
+      onWorkerPressed: () => context.push('/w/$workerId'),
+      onClosePressed: () => goBackOrToRoleHome(context),
       onViewJobPressed: () {
         GoRouter.of(context).pushReplacement('/client/job/$jobId');
       },
@@ -141,6 +152,7 @@ class _ClientJobConfirmedView extends StatelessWidget {
     required this.priceLabel,
     required this.onCallPressed,
     required this.onWorkerPressed,
+    required this.onClosePressed,
     required this.onViewJobPressed,
   });
 
@@ -156,6 +168,7 @@ class _ClientJobConfirmedView extends StatelessWidget {
 
   final VoidCallback? onCallPressed;
   final VoidCallback onWorkerPressed;
+  final VoidCallback onClosePressed;
   final VoidCallback onViewJobPressed;
 
   @override
@@ -189,13 +202,24 @@ class _ClientJobConfirmedView extends StatelessWidget {
                 width: double.infinity,
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  topInset + AppSpacing.md,
+                  topInset + AppSpacing.xs,
                   AppSpacing.lg,
                   AppSpacing.lg,
                 ),
                 color: AppColors.primary,
                 child: Column(
                   children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: onClosePressed,
+                        tooltip: 'Fechar',
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.surface,
+                        ),
+                      ),
+                    ),
                     Container(
                       width: 54,
                       height: 54,
@@ -277,6 +301,10 @@ class _ClientJobConfirmedView extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.textSecondary,
                             ),
                           ],
                         ),

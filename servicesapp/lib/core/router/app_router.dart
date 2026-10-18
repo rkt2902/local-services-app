@@ -13,6 +13,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/auth/presentation/request_password_reset_screen.dart';
 import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
+import '../../features/auth/presentation/session_error_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
@@ -102,6 +103,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/choose-role',
         pageBuilder: (context, state) =>
             buildSharedAxisPage(context, state, const ChooseRoleScreen()),
+      ),
+      // Sessão aberta mas o perfil não carregou (sem rede): ver
+      // resolveRedirect em route_guard.dart.
+      GoRoute(
+        path: sessionErrorRoute,
+        builder: (_, _) => const SessionErrorScreen(),
       ),
       // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
       // /forgot-password/reset. Os passos 2-4 (verificar código, nova
@@ -269,9 +276,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // proposta) — sem card de lista nem notificação envolvidos.
       GoRoute(
         path: '/client/job/:id/confirmed',
+        // Sem `?workerId=` (link incompleto) vai para o detalhe do pedido,
+        // que mostra o mesmo conteúdo, em vez de rebentar no `!`.
+        redirect: _redirectWithoutWorkerId,
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          final workerId = state.uri.queryParameters['workerId']!;
+          final workerId = state.uri.queryParameters['workerId'] ?? '';
           return buildSharedAxisPage(
             context,
             state,
@@ -281,9 +291,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/client/job/:id/rate-worker',
+        redirect: _redirectWithoutWorkerId,
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          final workerId = state.uri.queryParameters['workerId']!;
+          final workerId = state.uri.queryParameters['workerId'] ?? '';
           return buildSharedAxisPage(
             context,
             state,
@@ -304,16 +315,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Só alcançado a partir de notificações (helpRequestApproved,
-      // helpWithdrew) — sem card in-app que abra este lobby diretamente.
+      // Alcançado pelo cartão "Equipa" de worker_my_job_detail_screen
+      // (extra `fromMyJob`) e por notificações (helpRequestApproved,
+      // helpWithdrew).
       GoRoute(
         path: '/worker/job/:id/help-requests',
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
+          final extra = state.extra;
+          final fromMyJob = extra is Map && extra['fromMyJob'] == true;
           return buildSharedAxisPage(
             context,
             state,
-            WorkerHelpRequestsLobbyScreen(jobId: jobId),
+            WorkerHelpRequestsLobbyScreen(jobId: jobId, fromMyJob: fromMyJob),
           );
         },
       ),
@@ -336,7 +350,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/worker/my-job/:id',
         pageBuilder: (context, state) {
           final proposalId = state.pathParameters['id']!;
-          final jobId = state.uri.queryParameters['jobId']!;
+          // Sem `?jobId=` (link antigo/incompleto) o ecrã resolve o pedido a
+          // partir da própria proposta, em vez de rebentar aqui.
+          final jobId = state.uri.queryParameters['jobId'] ?? '';
           final child = WorkerMyJobDetailScreen(
             proposalId: proposalId,
             jobId: jobId,
@@ -469,6 +485,14 @@ class RouterNotifier extends ChangeNotifier {
       hasSeenOnboarding: hasSeenOnboarding,
     );
   }
+}
+
+/// Rotas de cliente que precisam de `?workerId=`: sem ele, vão para o
+/// detalhe do próprio pedido.
+String? _redirectWithoutWorkerId(BuildContext context, GoRouterState state) {
+  final workerId = state.uri.queryParameters['workerId'] ?? '';
+  if (workerId.isNotEmpty) return null;
+  return '/client/job/${state.pathParameters['id']}';
 }
 
 /// Hint opcional em `extra` para escolher a transição de entrada nas

@@ -42,6 +42,7 @@ class ClientAccountScreen extends StatelessWidget {
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
+    required this.onSignOutPressed,
     super.key,
   });
 
@@ -53,6 +54,7 @@ class ClientAccountScreen extends StatelessWidget {
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
+  final VoidCallback onSignOutPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +163,22 @@ class ClientAccountScreen extends StatelessWidget {
                       onAboutPressed();
                   }
                 },
+              ),
+            ),
+            const SizedBox(
+              height: AppSpacing.md,
+            ),
+            AppStaggeredEntrance(
+              index: 3,
+              child: AppAccountMenuGroup(
+                items: const [
+                  AppAccountMenuItem(
+                    id: 'sign_out',
+                    label: 'Terminar sessão',
+                    icon: Icons.logout_rounded,
+                  ),
+                ],
+                onItemPressed: (_) => onSignOutPressed(),
               ),
             ),
           ],

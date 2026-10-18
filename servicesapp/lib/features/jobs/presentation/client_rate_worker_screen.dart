@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/router/app_back_navigation.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -14,11 +16,14 @@ import '../../../core/widgets/rating_stars_input.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
 
-/// Ecrã novo — cliente avalia o worker principal (direção inversa de
-/// `_buildClientRatingSection`/`_showClientRatingSheet` em
-/// client_job_detail_screen.dart, que é o worker/ajudantes a avaliarem o
-/// cliente). RPC `submit_principal_rating`, já usada do lado do worker
-/// para avaliar ajudantes — nunca antes chamada a partir do cliente.
+/// Cliente avalia o trabalho (jardineiro principal e ajudantes) pela RPC
+/// `submit_client_rating`, a mesma do cartão "Avaliar agora" do detalhe do
+/// pedido. Antes chamava `submit_principal_rating`, que só aceita o
+/// jardineiro principal como autor e falhava sempre para o cliente.
+///
+/// Sem botão a abrir este ecrã: a entrada é o cartão "Avaliar agora" em
+/// `client_job_detail_screen.dart`. A rota fica para links antigos; se o
+/// trabalho já foi avaliado, mostra isso em vez do formulário.
 class ClientRateWorkerScreen extends ConsumerStatefulWidget {
   const ClientRateWorkerScreen({
     super.key,
@@ -67,15 +72,13 @@ class _ClientRateWorkerScreenState
     setState(() => _submitting = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(ratingRepositoryProvider).submitPrincipalRating(
+      await ref.read(ratingRepositoryProvider).submitClientRating(
             jobId: widget.jobId,
-            rateeId: widget.workerId,
             stars: _rating,
             comment: _commentController.text.trim().isEmpty
                 ? null
                 : _commentController.text.trim(),
           );
-      ref.invalidate(myRatingForJobAndRateeProvider((widget.jobId, widget.workerId)));
 
       if (!mounted) return;
       setState(() {
@@ -90,14 +93,21 @@ class _ClientRateWorkerScreenState
         disableAnimations ? Duration.zero : const Duration(milliseconds: 1100),
         () {
           if (!mounted) return;
-          GoRouter.of(context).pop();
+          // T4: sair primeiro, invalidar depois. Sem stack (link direto),
+          // vai para o detalhe do pedido em vez de um pop() sem destino.
+          final container = ProviderScope.containerOf(context, listen: false);
+          goBackOr(context, '/client/job/${widget.jobId}');
+          container.invalidate(myRatingForJobProvider(widget.jobId));
         },
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
       messenger.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(friendlyError(e)),
+          backgroundColor: AppStatusColor.cancelled.foreground,
+        ),
       );
     }
   }
@@ -112,6 +122,8 @@ class _ClientRateWorkerScreenState
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final existingRating =
+        ref.watch(myRatingForJobProvider(widget.jobId)).asData?.value;
     final workerInfoAsync = ref.watch(workerBasicInfoProvider(widget.workerId));
     final workerInfo = workerInfoAsync.asData?.value ?? const {};
     final workerName = workerInfo['full_name'] ?? '';
@@ -125,21 +137,18 @@ class _ClientRateWorkerScreenState
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        leading: AppBackButton(fallbackLocation: '/client/job/${widget.jobId}'),
         titleSpacing: 0,
         title: Text(
           'Avaliar',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
       ),
-      body: Stack(
+      body: existingRating != null && !_showSuccessFeedback
+          ? _AlreadyRated(
+              onViewJob: () => goBackOr(context, '/client/job/${widget.jobId}'),
+            )
+          : Stack(
         children: [
           Column(
             children: [
@@ -172,7 +181,7 @@ class _ClientRateWorkerScreenState
                       AppStaggeredEntrance(
                         index: 1,
                         child: Text(
-                          'Avaliar ${workerName.isEmpty ? 'o prestador' : workerName}',
+                          'Avaliar ${workerName.isEmpty ? 'o jardineiro' : workerName}',
                           textAlign: TextAlign.center,
                           style: textTheme.titleLarge?.copyWith(
                             color: AppColors.textPrimary,
@@ -181,7 +190,7 @@ class _ClientRateWorkerScreenState
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        'Como foi a sua experiência?',
+                        'Como foi a tua experiência?',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
@@ -218,7 +227,7 @@ class _ClientRateWorkerScreenState
                         index: 2,
                         child: AppTextField(
                           controller: _commentController,
-                          label: 'Conte-nos mais (opcional)',
+                          label: 'Conta-nos mais (opcional)',
                           minLines: 3,
                           maxLines: 5,
                           textInputAction: TextInputAction.newline,
@@ -250,6 +259,39 @@ class _ClientRateWorkerScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AlreadyRated extends StatelessWidget {
+  const _AlreadyRated({required this.onViewJob});
+
+  final VoidCallback onViewJob;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppStaggeredEntrance(
+          index: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_rounded, color: AppColors.primary),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Já avaliaste este trabalho.',
+                textAlign: TextAlign.center,
+                style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              PrimaryActionButton(label: 'Ver pedido', onPressed: onViewJob),
+            ],
+          ),
+        ),
       ),
     );
   }

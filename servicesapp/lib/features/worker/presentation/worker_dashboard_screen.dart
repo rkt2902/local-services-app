@@ -264,7 +264,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                     AppStaggeredEntrance(
                       index: 3,
                       child: const _SectionHeader(
-                        title: 'Oportunidades perto de si',
+                        title: 'Oportunidades perto de ti',
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -644,7 +644,7 @@ class _NearbyOpportunitiesSection extends StatelessWidget {
     if (opportunities.isEmpty) {
       return const _DashboardEmptyCard(
         icon: Icons.search_off_rounded,
-        message: 'Não existem oportunidades disponíveis perto de si.',
+        message: 'Não existem oportunidades disponíveis perto de ti.',
       );
     }
 

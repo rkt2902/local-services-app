@@ -22,4 +22,9 @@ abstract class NotificationType {
   static const helpJobCancelled = 'help_job_cancelled';
   static const helpRequestReopened = 'help_request_reopened';
   static const helpWithdrew = 'help_withdrew';
+
+  /// Migration 0048: novo candidato (para o jardineiro responsável, abre a
+  /// equipa) e pedido de ajudantes por aprovar (para o cliente).
+  static const helpCandidateApplied = 'help_candidate_applied';
+  static const helpRequestPendingApproval = 'help_request_pending_approval';
 }

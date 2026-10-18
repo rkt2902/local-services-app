@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_back_navigation.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/picked_photo.dart';
@@ -50,7 +52,22 @@ class _ClientCreateJobDescriptionScreenState
     _photos = List<XFile>.from(wizard.photos);
   }
 
-  void _handleDescriptionChanged() => setState(() {});
+  void _handleDescriptionChanged() {
+    setState(() {});
+    _saveDraft();
+  }
+
+  /// Guarda o rascunho a cada alteração: antes só se gravava em
+  /// "Continuar" e voltar ao passo anterior perdia a descrição e as fotos.
+  /// Vindo da revisão não grava sozinho: aí sair sem "Continuar" é desistir
+  /// da edição (e a revisão não pode ficar com uma descrição inválida).
+  void _saveDraft() {
+    if (widget.fromReview) return;
+    ref.read(clientCreateJobWizardProvider.notifier).setDescriptionAndPhotos(
+          description: _descriptionController.text,
+          photos: List<XFile>.unmodifiable(_photos),
+        );
+  }
 
   @override
   void dispose() {
@@ -89,10 +106,12 @@ class _ClientCreateJobDescriptionScreenState
     );
     if (!mounted || picked == null) return;
     setState(() => _photos.add(picked));
+    _saveDraft();
   }
 
   void _removePhoto(int index) {
     setState(() => _photos.removeAt(index));
+    _saveDraft();
   }
 
   bool get _canContinue =>
@@ -103,11 +122,11 @@ class _ClientCreateJobDescriptionScreenState
 
     ref.read(clientCreateJobWizardProvider.notifier).setDescriptionAndPhotos(
           description: _descriptionController.text.trim(),
-          photos: _photos,
+          photos: List<XFile>.unmodifiable(_photos),
         );
 
     if (widget.fromReview) {
-      context.pop();
+      goBackOr(context, '/client/create-job/review');
     } else {
       context.push('/client/create-job/review');
     }
@@ -124,14 +143,7 @@ class _ClientCreateJobDescriptionScreenState
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        leading: const AppBackButton(),
         titleSpacing: 0,
         title: Text(
           'Criar pedido',
@@ -163,7 +175,7 @@ class _ClientCreateJobDescriptionScreenState
                   AppStaggeredEntrance(
                     index: 0,
                     child: Text(
-                      'Descreva o que precisa',
+                      'Descreve o que precisas',
                       style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
@@ -206,7 +218,7 @@ class _ClientCreateJobDescriptionScreenState
                   AppStaggeredEntrance(
                     index: 2,
                     child: Text(
-                      'Adicione até $_maximumPhotos fotos (opcional)',
+                      'Adiciona até $_maximumPhotos fotos (opcional)',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
