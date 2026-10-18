@@ -11,6 +11,11 @@ const publicRoutes = {
   '/verify-email',
 };
 
+/// Caminho do deep link de volta do login Google/Facebook nas apps
+/// (`pt.projardim.app://login-callback`). O Supabase lê a sessão do link;
+/// o router só tem de sair daqui, senão mostrava "página não encontrada".
+const oauthCallbackRoute = '/login-callback';
+
 /// Ecrã de erro quando há sessão mas o perfil não se conseguiu ler.
 const sessionErrorRoute = '/session-error';
 
@@ -71,6 +76,7 @@ String? resolveRedirect({
   Uri? uri,
 }) {
   final loc = location;
+  if (loc == oauthCallbackRoute) return '/';
   // Sessão a carregar: ficar sempre onde está. Mandar para /loading num
   // refresh de token a meio da sessão destrói a árvore de widgets atual
   // (por exemplo com o ImagePicker aberto) e perde dados sem aviso.

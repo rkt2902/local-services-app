@@ -69,14 +69,21 @@ class AuthController extends Notifier<AuthControllerState> {
     required String fullName,
     required String phone,
     required UserRole role,
+    String? socialAvatarUrl,
   }) async {
     state = const AuthLoading();
     try {
+      // Conta Google/Facebook: copia a foto para o Storage antes de criar o
+      // perfil (melhor esforço, null se falhar).
+      final avatarUrl = socialAvatarUrl == null
+          ? null
+          : await _repo.importSocialAvatar(userId, socialAvatarUrl);
       await _repo.createProfile(
         userId: userId,
         fullName: fullName,
         phone: phone,
         role: role,
+        avatarUrl: avatarUrl,
       );
       state = const AuthSuccess();
       // Fire and forget — don't await, let navigation happen immediately
@@ -105,6 +112,20 @@ class AuthController extends Notifier<AuthControllerState> {
         state = AuthEmailNotConfirmed(email);
         return;
       }
+      state = AuthError(friendlyError(e));
+    }
+  }
+
+  /// Abre o login do Google ou do Facebook. A sessão chega depois por
+  /// redirect (`onAuthStateChange`) e o router decide o destino, por isso
+  /// isto só muda o estado se não der para abrir a página.
+  Future<void> signInWithSocial(
+    OAuthProvider provider, {
+    String? returnTo,
+  }) async {
+    try {
+      await _repo.signInWithSocial(provider, returnTo: returnTo);
+    } catch (e) {
       state = AuthError(friendlyError(e));
     }
   }

@@ -37,6 +37,14 @@ String? _go(String loc, SessionStatus? session, {bool? seen = true}) {
 String _from(String target) => '/?from=${Uri.encodeComponent(target)}';
 
 void main() {
+  group('volta do login Google/Facebook (deep link)', () {
+    test('sai de /login-callback com ou sem sessão', () {
+      expect(_go('/login-callback', null), '/');
+      expect(_go('/login-callback', SessionStatus.unauthenticated), '/');
+      expect(_go('/login-callback', _noRole), '/');
+    });
+  });
+
   group('sessão a carregar', () {
     test('fica sempre onde está', () {
       for (final loc in ['/loading', '/client/home', '/worker/jobs', '/login']) {

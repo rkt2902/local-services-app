@@ -3,6 +3,29 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Login com Google e Facebook
+
+- **Um só caminho para tudo:** `signInWithOAuth` do Supabase (página do Google/Facebook no
+  browser, volta por redirect), em vez de `google_sign_in`/`flutter_facebook_auth` nativos.
+  Funciona igual na web, Android e iOS e só precisa de um cliente OAuth "Web" no Google e de
+  uma app na Meta, sem SHA-1, `google-services.json` nem chaves nas apps. Custa um salto ao
+  browser no telemóvel.
+- **Volta às apps:** deep link `pt.projardim.app://login-callback` (intent-filter no
+  `AndroidManifest.xml`, `CFBundleURLTypes` no `Info.plist`); o `supabase_flutter` lê a
+  sessão do link e o router manda `/login-callback` para `/`. Na web volta a
+  `<origem>/` (com `?from=` se havia destino guardado).
+- **Conta nova:** sem trigger nem migration. Continua a ser `/choose-role` a criar o perfil;
+  aí, sem telemóvel nos dados (conta social), o ecrã pede nome (já preenchido com o da
+  conta) e telemóvel, porque o contacto é por WhatsApp.
+- **Foto:** a app só mostra fotos do Storage do projeto (`StorageUrls`), por isso ao criar o
+  perfil a foto da conta é descarregada e enviada para `avatars/<id>.jpg` (Google em 400 px).
+  Melhor esforço: se falhar (na web o browser pode bloquear o download por CORS), a conta é
+  criada sem foto.
+- **Termos:** quem entra assim não vê a caixa dos termos do registo; os botões têm por baixo
+  "Ao continuar com Google ou Facebook aceitas os Termos e a Política de Privacidade".
+- **Apple:** fica para quando houver app iOS publicada (a App Store exige-o se houver outro
+  login social).
+
 ## 2026-10-18 — Tokens do design system, acessibilidade e docs em dia
 
 - **Cores soltas trocadas por tokens:** os ~30 `Colors.red`/`redAccent` (SnackBars de erro,

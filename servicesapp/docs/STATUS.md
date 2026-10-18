@@ -8,6 +8,13 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-18, login com Google e Facebook:** botões "Continuar com Google/Facebook" no
+login e no registo, pelo OAuth do Supabase (`signInWithOAuth`), na web e nas apps (deep
+link `pt.projardim.app://login-callback`). Conta nova escolhe o papel e escreve só o
+telemóvel; o nome vem da conta e a foto é copiada para o Storage (`avatars/<id>.jpg`).
+Falta a configuração no Google Cloud, na Meta e no Supabase (`SETUP.md` passo 7); até lá
+os botões dão erro. Sem migration.
+
 **2026-10-18, limpeza de docs e design system:** os itens SA1, SA2, SA3, M4 (CHECKs),
 contacto do jardineiro responsável para ajudantes, P-8-8, P1/A1 (labels de `JobStatus`),
 reskin de `client_jobs_screen` e shimmer nas listas estavam marcados como abertos mas já
