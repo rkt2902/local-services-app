@@ -86,6 +86,7 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Voltar',
                     onPressed: _processing ? null : () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                   ),

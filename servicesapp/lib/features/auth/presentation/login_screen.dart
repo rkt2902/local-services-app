@@ -117,6 +117,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.password],
                         suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Mostrar palavra-passe'
+                              : 'Esconder palavra-passe',
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
                           icon: Icon(

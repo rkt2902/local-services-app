@@ -239,6 +239,7 @@ class _NotificationButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(unreadCountProvider);
     return IconButton(
+      tooltip: 'Notificações',
       icon: Badge(
         label: Text('$count'),
         isLabelVisible: count > 0,

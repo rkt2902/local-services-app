@@ -269,6 +269,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           ),

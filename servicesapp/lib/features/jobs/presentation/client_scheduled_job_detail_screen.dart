@@ -608,6 +608,7 @@ class _ScheduledHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),
@@ -913,6 +914,7 @@ class _LoadingHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),

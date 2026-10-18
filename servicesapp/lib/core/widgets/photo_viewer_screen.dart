@@ -40,6 +40,7 @@ class _PhotoViewerScreenState extends State<PhotoViewerScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         leading: IconButton(
+          tooltip: 'Fechar',
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),

@@ -301,6 +301,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                   children: [
                     if (context.canPop())
                       IconButton(
+                        tooltip: 'Voltar',
                         onPressed: context.pop,
                         icon: const Icon(Icons.arrow_back_rounded,
                             color: AppColors.textPrimary),
@@ -462,6 +463,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                                 ),
                               )
                             : IconButton(
+                                tooltip: 'Procurar morada',
                                 icon: const Icon(Icons.search,
                                     color: AppColors.primary),
                                 onPressed: _geocodeAddress,

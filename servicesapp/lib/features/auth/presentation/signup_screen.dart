@@ -92,6 +92,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Voltar',
                     onPressed: () =>
                         context.canPop() ? context.pop() : context.go('/'),
                     icon: const Icon(Icons.arrow_back_rounded),
@@ -153,6 +154,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.newPassword],
                         suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Mostrar palavra-passe'
+                              : 'Esconder palavra-passe',
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
                           icon: Icon(

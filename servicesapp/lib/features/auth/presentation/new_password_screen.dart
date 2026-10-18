@@ -114,6 +114,9 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.newPassword],
                         suffixIcon: IconButton(
+                          tooltip: _passwordVisible
+                              ? 'Esconder palavra-passe'
+                              : 'Mostrar palavra-passe',
                           onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
                           icon: Icon(
                             _passwordVisible
@@ -135,6 +138,9 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                         autofillHints: const [AutofillHints.newPassword],
                         onFieldSubmitted: (_) => _submit(),
                         suffixIcon: IconButton(
+                          tooltip: _confirmVisible
+                              ? 'Esconder palavra-passe'
+                              : 'Mostrar palavra-passe',
                           onPressed: () => setState(() => _confirmVisible = !_confirmVisible),
                           icon: Icon(
                             _confirmVisible

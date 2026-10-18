@@ -234,6 +234,7 @@ class _WorkerMyJobDetailScreenState
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Menos um ajudante',
                       icon: const Icon(Icons.remove),
                       onPressed: slotsNeeded <= 1
                           ? null
@@ -244,6 +245,7 @@ class _WorkerMyJobDetailScreenState
                       style: Theme.of(sheetCtx).textTheme.titleMedium,
                     ),
                     IconButton(
+                      tooltip: 'Mais um ajudante',
                       icon: const Icon(Icons.add),
                       onPressed: () => setSheetState(() => slotsNeeded++),
                     ),
