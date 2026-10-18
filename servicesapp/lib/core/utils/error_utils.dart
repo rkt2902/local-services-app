@@ -111,3 +111,25 @@ String friendlyError(Object e) {
 
   return 'Ocorreu um erro inesperado. Tenta novamente.';
 }
+
+/// `true` quando a RPC chamada não existe na base de dados (o PostgREST
+/// responde `PGRST202`): a app já conhece uma função cuja migration ainda
+/// não foi aplicada.
+bool isMissingRpcError(Object e) =>
+    e is PostgrestException && e.code == 'PGRST202';
+
+/// Mensagem para o erro de uma RPC recente (ex.: `delete_my_account`,
+/// `update_job_request`, migration 0049):
+/// - função em falta (migration por aplicar) → [unavailableMessage];
+/// - recusa levantada pela própria função (`RAISE EXCEPTION`, código
+///   `P0001`) → a mensagem dela, que já vem escrita em português para o
+///   utilizador;
+/// - o resto → [friendlyError].
+String rpcErrorMessage(Object e, {required String unavailableMessage}) {
+  if (isMissingRpcError(e)) return unavailableMessage;
+  if (e is PostgrestException && e.code == 'P0001') {
+    final message = e.message.trim();
+    if (message.isNotEmpty) return message;
+  }
+  return friendlyError(e);
+}

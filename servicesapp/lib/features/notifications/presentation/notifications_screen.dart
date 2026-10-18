@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -437,6 +438,18 @@ class _NotificationsEmptyState extends StatelessWidget {
         (Icons.person_remove_alt_1, Colors.orange.shade700),
       NotificationType.jobReminder =>
         (Icons.alarm_rounded, AppColors.primary),
+      NotificationType.jobUpdated =>
+        (Icons.edit_note_rounded, AppStatusColor.info.foreground),
+      NotificationType.helpRemoved =>
+        (Icons.person_remove_outlined, AppStatusColor.cancelled.foreground),
+      NotificationType.helpJobRescheduled =>
+        (Icons.event_repeat_rounded, AppStatusColor.waiting.foreground),
+      NotificationType.helpJobDone =>
+        (Icons.task_alt_rounded, AppStatusColor.info.foreground),
+      NotificationType.helpJobCompleted =>
+        (Icons.verified_outlined, AppStatusColor.success.foreground),
+      NotificationType.helpCandidateApplied =>
+        (Icons.person_search_outlined, AppStatusColor.waiting.foreground),
       // Restantes 9 tipos (jobCancelled, jobReopened, reschedule*,
       // jobMarkedDone, jobCompleted, jobNoResponse): sem ícone dedicado,
       // caem no genérico de "trabalho" — todos são eventos de job.

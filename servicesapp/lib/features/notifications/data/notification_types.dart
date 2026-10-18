@@ -27,4 +27,21 @@ abstract class NotificationType {
   /// equipa) e pedido de ajudantes por aprovar (para o cliente).
   static const helpCandidateApplied = 'help_candidate_applied';
   static const helpRequestPendingApproval = 'help_request_pending_approval';
+
+  /// Migration 0049. `relatedId` = id do pedido (`job_requests.id`) em todos.
+  ///
+  /// [jobUpdated]: o cliente alterou um pedido a que o jardineiro propôs.
+  static const jobUpdated = 'job_updated';
+
+  /// Para o ajudante: foi retirado da equipa pelo responsável.
+  static const helpRemoved = 'help_removed';
+
+  /// Para o ajudante: o trabalho em que ajuda mudou de data.
+  static const helpJobRescheduled = 'help_job_rescheduled';
+
+  /// Para o ajudante: o responsável marcou o trabalho como feito.
+  static const helpJobDone = 'help_job_done';
+
+  /// Para o ajudante: o trabalho ficou concluído (pode avaliar).
+  static const helpJobCompleted = 'help_job_completed';
 }

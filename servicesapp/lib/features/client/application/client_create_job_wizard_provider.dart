@@ -18,6 +18,7 @@ class ClientCreateJobWizardState {
     this.serviceTypeId,
     this.dateMode = DateMode.flexible,
     this.preferredDate,
+    this.availabilityText = '',
     this.urgency = Urgency.normal,
     this.sizeEstimate,
     this.addressText = '',
@@ -33,6 +34,10 @@ class ClientCreateJobWizardState {
 
   final DateMode dateMode;
   final DateTime? preferredDate;
+
+  /// Texto livre de disponibilidade (`DateMode.availability`), ex.:
+  /// "Sábados de manhã". Vazio nos outros modos.
+  final String availabilityText;
   final Urgency urgency;
   final SizeEstimate? sizeEstimate;
 
@@ -52,6 +57,7 @@ class ClientCreateJobWizardState {
     String? serviceTypeId,
     DateMode? dateMode,
     DateTime? preferredDate,
+    String? availabilityText,
     Urgency? urgency,
     SizeEstimate? sizeEstimate,
     String? addressText,
@@ -66,6 +72,7 @@ class ClientCreateJobWizardState {
       serviceTypeId: serviceTypeId ?? this.serviceTypeId,
       dateMode: dateMode ?? this.dateMode,
       preferredDate: preferredDate ?? this.preferredDate,
+      availabilityText: availabilityText ?? this.availabilityText,
       urgency: urgency ?? this.urgency,
       sizeEstimate: sizeEstimate ?? this.sizeEstimate,
       addressText: addressText ?? this.addressText,
@@ -100,6 +107,7 @@ class ClientCreateJobWizardNotifier
   void setSchedule({
     required DateMode dateMode,
     DateTime? preferredDate,
+    String availabilityText = '',
     required Urgency urgency,
     required SizeEstimate sizeEstimate,
   }) {
@@ -107,6 +115,7 @@ class ClientCreateJobWizardNotifier
       serviceTypeId: state.serviceTypeId,
       dateMode: dateMode,
       preferredDate: preferredDate,
+      availabilityText: availabilityText,
       urgency: urgency,
       sizeEstimate: sizeEstimate,
       addressText: state.addressText,
@@ -141,6 +150,10 @@ class ClientCreateJobWizardNotifier
   }) {
     state = state.copyWith(description: description, photos: photos);
   }
+
+  /// Começa o wizard já preenchido (ex.: "Publicar de novo" a partir de um
+  /// pedido antigo, ver `republishWizardState`).
+  void startFrom(ClientCreateJobWizardState draft) => state = draft;
 
   void reset() => state = const ClientCreateJobWizardState();
 }

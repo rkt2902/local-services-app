@@ -32,6 +32,8 @@ import '../application/job_timeline.dart';
 import '../../../core/widgets/app_bar_title.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/submit_rating_sheet.dart';
+import '../../client/application/client_create_job_wizard_provider.dart';
+import '../../client/application/job_request_form.dart';
 import 'client_scheduled_job_detail_screen.dart';
 
 class ClientJobDetailScreen extends ConsumerStatefulWidget {
@@ -112,6 +114,21 @@ class _ClientJobDetailScreenState
       }
       return;
     }
+  }
+
+  /// "Publicar de novo": abre o wizard de criar pedido já preenchido com
+  /// este pedido, no primeiro passo que precise de alguma coisa (data que
+  /// já passou, por exemplo) ou logo na revisão.
+  void _republish(JobRequest job, List<ServiceType> serviceTypes) {
+    final draft = republishWizardState(
+      job,
+      now: DateTime.now(),
+      // Catálogo ainda por carregar: assume que o serviço continua a existir.
+      serviceStillOffered: serviceTypes.isEmpty ||
+          serviceTypes.any((s) => s.id == job.serviceTypeId),
+    );
+    ref.read(clientCreateJobWizardProvider.notifier).startFrom(draft);
+    context.push(wizardFirstIncompleteRoute(draft));
   }
 
   /// Devolve true só depois da RPC confirmar sucesso — a navegação/snackbar
@@ -594,9 +611,10 @@ class _ClientJobDetailScreenState
           AppStaggeredEntrance(
             index: 2,
             child: _JobMetadataCard(
-              preferredDateLabel: job.preferredDate == null
-                  ? 'Flexível'
-                  : DateFormat('dd/MM/yyyy').format(job.preferredDate!),
+              dateRowLabel: job.dateMode == DateMode.availability
+                  ? 'Disponibilidade'
+                  : 'Data preferida',
+              preferredDateLabel: _preferredDateLabel(job),
               urgencyLabel: job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
               sizeLabel: job.sizeEstimate?.label,
             ),
@@ -683,6 +701,18 @@ class _ClientJobDetailScreenState
                       label: proposalsButtonLabel,
                       onPressed: () =>
                           context.push('/client/job/${widget.jobId}/proposals'),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => context
+                                .push('/client/job/${widget.jobId}/edit'),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Editar pedido'),
+                      ),
                     ),
                   ]),
                 ],
@@ -781,6 +811,15 @@ class _ClientJobDetailScreenState
                 icon: const Icon(Icons.error_outline_rounded),
                 label: const Text('Reportar problema'),
               ),
+            ),
+          ]);
+        }
+
+        if (canRepublishJob(job)) {
+          bottomBar = BottomActionsBar(children: [
+            PrimaryActionButton(
+              label: 'Publicar de novo',
+              onPressed: () => _republish(job, serviceTypesForDetail),
             ),
           ]);
         }
@@ -954,6 +993,16 @@ class _ClientJobDetailScreenState
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+/// Data do pedido: a data fixa, o texto de disponibilidade ou "Flexível".
+String _preferredDateLabel(JobRequest job) {
+  if (job.dateMode == DateMode.availability) {
+    final text = job.availabilityText?.trim() ?? '';
+    return text.isEmpty ? 'A combinar' : text;
+  }
+  if (job.preferredDate == null) return 'Flexível';
+  return DateFormat('dd/MM/yyyy').format(job.preferredDate!);
+}
+
 String _formatConfirmedSchedule(JobRequest job) {
   if (job.confirmedDate == null) return '';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
@@ -1116,11 +1165,13 @@ class _ServiceSummaryRow extends StatelessWidget {
 
 class _JobMetadataCard extends StatelessWidget {
   const _JobMetadataCard({
+    required this.dateRowLabel,
     required this.preferredDateLabel,
     required this.urgencyLabel,
     this.sizeLabel,
   });
 
+  final String dateRowLabel;
   final String preferredDateLabel;
   final String urgencyLabel;
   final String? sizeLabel;
@@ -1137,7 +1188,11 @@ class _JobMetadataCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _MetadataRow(label: 'Data preferida', value: preferredDateLabel),
+          _MetadataRow(
+            label: dateRowLabel,
+            value: preferredDateLabel,
+            valueMaxLines: 3,
+          ),
           const SizedBox(height: AppSpacing.sm),
           _MetadataRow(label: 'Urgência', value: urgencyLabel),
           if (sizeLabel != null) ...[
@@ -1151,16 +1206,22 @@ class _JobMetadataCard extends StatelessWidget {
 }
 
 class _MetadataRow extends StatelessWidget {
-  const _MetadataRow({required this.label, required this.value});
+  const _MetadataRow({
+    required this.label,
+    required this.value,
+    this.valueMaxLines = 1,
+  });
 
   final String label;
   final String value;
+  final int valueMaxLines;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Text(
@@ -1176,7 +1237,7 @@ class _MetadataRow extends StatelessWidget {
         Flexible(
           child: Text(
             value,
-            maxLines: 1,
+            maxLines: valueMaxLines,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: textTheme.bodyMedium?.copyWith(

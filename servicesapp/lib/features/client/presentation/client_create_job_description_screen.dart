@@ -14,10 +14,12 @@ import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import '../application/job_request_form.dart';
 
 const _maximumPhotos = 2;
-const _maximumDescriptionLength = 500;
-const _minimumDescriptionLength = 10;
+// Limites partilhados com "Editar pedido" (job_request_form.dart).
+const _maximumDescriptionLength = jobDescriptionMaxLength;
+const _minimumDescriptionLength = jobDescriptionMinLength;
 
 /// Passo 3/4 de "Criar pedido" — descrição e fotos.
 ///

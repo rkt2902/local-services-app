@@ -140,6 +140,11 @@ class HelpAcceptanceSummary {
   final double locationLng;
   final String principalPhone;
 
+  /// Pagamento por ajudante sugerido pelo responsável no pedido de ajuda
+  /// (`payment_per_helper`, devolvido por `get_my_help_acceptances` desde a
+  /// 0049). `null` com a BD antiga ou quando não foi definido.
+  final double? paymentPerHelper;
+
   const HelpAcceptanceSummary({
     required this.id,
     required this.helpRequestId,
@@ -158,6 +163,7 @@ class HelpAcceptanceSummary {
     this.locationLat = 0.0,
     this.locationLng = 0.0,
     this.principalPhone = '',
+    this.paymentPerHelper,
   });
 
   factory HelpAcceptanceSummary.fromJson(Map<String, dynamic> json) =>
@@ -181,6 +187,7 @@ class HelpAcceptanceSummary {
         locationLat: (json['location_lat'] as num?)?.toDouble() ?? 0.0,
         locationLng: (json['location_lng'] as num?)?.toDouble() ?? 0.0,
         principalPhone: json['principal_phone'] as String? ?? '',
+        paymentPerHelper: (json['payment_per_helper'] as num?)?.toDouble(),
       );
 }
 

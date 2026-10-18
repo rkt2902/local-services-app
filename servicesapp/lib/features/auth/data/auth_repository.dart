@@ -90,6 +90,21 @@ class AuthRepository {
     await _client.auth.signOut();
   }
 
+  /// Eliminar a própria conta (RPC `delete_my_account`, migration 0049):
+  /// o servidor recusa (com mensagem em português) se houver trabalho em
+  /// curso; senão anonimiza o perfil e bloqueia o login. A identidade vem
+  /// de `auth.uid()` dentro da função. Depois chamar [signOutLocally].
+  Future<void> deleteMyAccount() async {
+    await _client.rpc('delete_my_account');
+  }
+
+  /// Fecha a sessão só neste dispositivo, sem pedir nada ao servidor. Usado
+  /// depois de eliminar a conta: o login já está bloqueado e um logout
+  /// global podia falhar e deixar a app presa numa sessão morta.
+  Future<void> signOutLocally() async {
+    await _client.auth.signOut(scope: SignOutScope.local);
+  }
+
   // ── Recuperação de senha ───────────────────────────────────────────────
   //
   // As 3 chamadas usam a API real do Supabase para reset por OTP (não

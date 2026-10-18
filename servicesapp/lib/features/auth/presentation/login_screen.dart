@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_brand_badge.dart';
@@ -30,6 +31,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    // Destino original (rota privada aberta sem sessão), se houver.
+    final returnTo =
+        GoRouterState.of(context).uri.queryParameters[returnToParam];
     await ref.read(authControllerProvider.notifier).signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -37,8 +41,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
-    // Router will redirect based on role — just go to root and let redirect handle it
-    context.go('/');
+    // O router decide o destino pelo papel: o início do papel ou, se veio
+    // de uma rota privada, essa rota (resolveRedirect/safeReturnTarget).
+    context.go(returnTo == null || returnTo.isEmpty
+        ? '/'
+        : '/?$returnToParam=${Uri.encodeComponent(returnTo)}');
   }
 
   @override

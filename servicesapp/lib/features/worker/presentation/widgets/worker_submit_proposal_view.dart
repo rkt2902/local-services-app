@@ -182,13 +182,13 @@ class _WorkerSubmitProposalScreenState
 
     if (maximumHours == null) {
       return '≈ ${duration.label} estimadas · total aproximado a partir de '
-          '€${_formatMoney(minimumTotal)}';
+          '${_formatMoney(minimumTotal)} €';
     }
 
     final maximumTotal = price * maximumHours;
 
     return '≈ ${duration.label} estimadas · total aproximado '
-        '€${_formatMoney(minimumTotal)}–${_formatMoney(maximumTotal)}';
+        '${_formatMoney(minimumTotal)} a ${_formatMoney(maximumTotal)} €';
   }
 
   @override

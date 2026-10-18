@@ -72,6 +72,7 @@ class ClientHomeScreen extends StatelessWidget {
     required this.onNotificationsPressed,
     required this.onActiveJobPressed,
     required this.onViewAllJobsPressed,
+    this.onRefresh,
     super.key,
   });
 
@@ -83,13 +84,18 @@ class ClientHomeScreen extends StatelessWidget {
 
   final ValueChanged<String> onActiveJobPressed;
 
+  /// Pull-to-refresh: o indicador roda até o `Future` terminar.
+  final Future<void> Function()? onRefresh;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
+        child: _refreshable(CustomScrollView(
+          // Rolável mesmo com pouco conteúdo, para o pull-to-refresh.
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
@@ -173,8 +179,18 @@ class ClientHomeScreen extends StatelessWidget {
               ),
             ),
           ],
-        ),
+        )),
       ),
+    );
+  }
+
+  Widget _refreshable(Widget scrollable) {
+    final refresh = onRefresh;
+    if (refresh == null) return scrollable;
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: refresh,
+      child: scrollable,
     );
   }
 }

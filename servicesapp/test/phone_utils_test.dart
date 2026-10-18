@@ -56,4 +56,23 @@ void main() {
     );
     expect(whatsAppUri('1'), isNull);
   });
+
+  group('phoneForStorage', () {
+    test('português fica +351 e só dígitos', () {
+      expect(phoneForStorage('912 345 678'), '+351912345678');
+      expect(phoneForStorage('00351 912-345-678'), '+351912345678');
+      expect(phoneForStorage('+351 912 345 678'), '+351912345678');
+      expect(phoneForStorage('351912345678'), '+351912345678');
+      expect(phoneForStorage('253 123 456'), '+351253123456');
+    });
+
+    test('estrangeiro fica +<dígitos>', () {
+      expect(phoneForStorage('+44 20 7946 0958'), '+442079460958');
+      expect(phoneForStorage('0033 6 12 34 56 78'), '+33612345678');
+    });
+
+    test('inválido fica como foi escrito (sem espaços nas pontas)', () {
+      expect(phoneForStorage('  abc  '), 'abc');
+    });
+  });
 }

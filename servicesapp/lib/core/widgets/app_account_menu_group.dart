@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
+import 'package:servicesapp/core/theme/app_status_color.dart';
 
 class AppAccountMenuItem {
   const AppAccountMenuItem({
@@ -10,12 +11,16 @@ class AppAccountMenuItem {
     required this.label,
     required this.icon,
     this.trailingLabel,
+    this.destructive = false,
   });
 
   final String id;
   final String label;
   final IconData icon;
   final String? trailingLabel;
+
+  /// Ação destrutiva (ex.: "Eliminar conta"): ícone e texto a vermelho.
+  final bool destructive;
 }
 
 class AppAccountMenuGroup extends StatelessWidget {
@@ -73,6 +78,7 @@ class _AccountMenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final destructiveColor = AppStatusColor.cancelled.foreground;
 
     return Material(
       color: Colors.transparent,
@@ -95,7 +101,7 @@ class _AccountMenuRow extends StatelessWidget {
                 Icon(
                   item.icon,
                   size: 21,
-                  color: AppColors.primary,
+                  color: item.destructive ? destructiveColor : AppColors.primary,
                 ),
                 const SizedBox(
                   width: AppSpacing.sm,
@@ -104,7 +110,9 @@ class _AccountMenuRow extends StatelessWidget {
                   child: Text(
                     item.label,
                     style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
+                      color: item.destructive
+                          ? destructiveColor
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ),

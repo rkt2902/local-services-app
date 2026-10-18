@@ -159,6 +159,32 @@ class HelpRequestRepository {
     });
   }
 
+  /// Fecha um pedido de ajuda do responsável (0049). As candidaturas
+  /// pendentes e os ajudantes aceites são avisados pela própria RPC.
+  Future<void> cancelHelpRequest(String helpRequestId) async {
+    await _client.rpc('cancel_help_request', params: {
+      'p_help_request_id': helpRequestId,
+    });
+  }
+
+  /// Retira um ajudante aceite da equipa (0049).
+  Future<void> removeHelpHelper(String helpAcceptanceId) async {
+    await _client.rpc('remove_help_helper', params: {
+      'p_help_acceptance_id': helpAcceptanceId,
+    });
+  }
+
+  /// Muda o número de vagas (1 a 10, nunca abaixo dos aceites; 0049).
+  Future<void> updateHelpRequestSlots({
+    required String helpRequestId,
+    required int slots,
+  }) async {
+    await _client.rpc('update_help_request_slots', params: {
+      'p_help_request_id': helpRequestId,
+      'p_slots': slots,
+    });
+  }
+
   Future<List<HelpAcceptanceSummary>> fetchMyHelpAcceptances() async {
     final data = await _client.rpc('get_my_help_acceptances');
     return (data as List)

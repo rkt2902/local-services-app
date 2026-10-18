@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/router/app_back_navigation.dart';
-import '../../../core/widgets/app_back_button.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/services/geocoding_service.dart';
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_status_color.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_step_progress.dart';
-import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import '../application/job_request_form.dart';
+import 'widgets/job_location_picker.dart';
+import 'widgets/job_schedule_fields.dart';
 
 /// Opção de dimensão apresentada no passo 2 — `id` corresponde ao
 /// `SizeEstimate.value` real, para conversão direta sem tabela extra.
@@ -39,20 +36,19 @@ const _sizeOptions = [
   ClientJobSizeOption(id: 'large', label: 'Grande\n(300m²+)'),
 ];
 
-/// Escolha de urgência no passo 2.
+/// Escolha de prazo no passo 2.
 ///
 /// NOTA DE INTEGRAÇÃO: não é o mesmo conceito que `Urgency` (o model real
-/// só tem normal/urgent). "Flexível" aqui só define `DateMode.flexible` —
-/// não mexe em `Urgency`, que fica em `Urgency.normal` por omissão.
-enum ClientJobUrgency { flexible, normal, urgent }
+/// só tem normal/urgent). "Flexível" aqui só define `DateMode.flexible` e
+/// "Indicar disponibilidade" define `DateMode.availability` (texto livre
+/// em `availability_text`); nenhum dos dois mexe em `Urgency`, que fica em
+/// `Urgency.normal` por omissão.
+enum ClientJobUrgency { flexible, normal, urgent, availability }
 
-/// Passo 2/3 de "Criar pedido" — data, urgência, dimensão e localização.
+/// Passo 2/4 de "Criar pedido": prazo, dimensão e localização.
 ///
-/// A localização (mapa/GPS/morada) pertencia ao ecrã único original
-/// (`create_job_screen.dart`) e não tem lugar no mockup de 3 passos — decidi
-/// mantê-la aqui (fim deste passo) em vez de criar um 4º passo, para não
-/// alargar o wizard além do que foi pedido ("fluxo de 3 passos"). Ver
-/// relatório final para a razão desta escolha.
+/// A localização (mapa/GPS/morada) vive no widget partilhado
+/// `JobLocationPicker`, também usado em "Editar pedido".
 class ClientCreateJobScheduleScreen extends ConsumerStatefulWidget {
   const ClientCreateJobScheduleScreen({super.key, this.fromReview = false});
 
@@ -68,40 +64,13 @@ class ClientCreateJobScheduleScreen extends ConsumerStatefulWidget {
 
 class _ClientCreateJobScheduleScreenState
     extends ConsumerState<ClientCreateJobScheduleScreen> {
-  final _addressController = TextEditingController();
-  final _mapController = MapController();
+  final _availabilityController = TextEditingController();
 
   late ClientJobUrgency _urgency;
   DateTime? _selectedDate;
   String? _selectedSizeOptionId;
-
-  LatLng? _pinPosition;
-  bool _loadingLocation = false;
-  bool _geocoding = false;
-  String? _locationError;
-
-  /// `true` quando o reverse geocoding do pin (GPS ou toque no mapa) não
-  /// devolveu rua nenhuma — mostra um aviso separado em vez de inventar
-  /// texto de morada. Só interessa enquanto o campo continuar vazio (ver
-  /// condição de exibição no `build`) — assim que o utilizador escrever
-  /// alguma coisa, deixa de fazer sentido e desaparece sozinho.
-  bool _addressLookupFailed = false;
-
-  /// Localidade do pin (do reverse geocoding), mostrada ao jardineiro em vez
-  /// da morada exata até a proposta ser aceite.
-  String? _locationArea;
-
-  /// `true` enquanto a morada do campo veio do pin (reverse geocoding) e o
-  /// utilizador não lhe mexeu: ao mover o pin é substituída pela nova.
-  /// Escrita à mão nunca é tocada.
-  bool _addressAutoFilled = false;
-
-  /// Texto posto pelo geocoding; qualquer diferença vem do utilizador.
-  String? _autoFilledText;
-
-  /// Só a resposta do último pin conta: um toque rápido em dois sítios não
-  /// pode deixar a morada/localidade do primeiro.
-  int _geocodeRequest = 0;
+  late JobLocationValue _location;
+  late final JobLocationValue _initialLocation;
 
   @override
   void initState() {
@@ -109,157 +78,36 @@ class _ClientCreateJobScheduleScreenState
 
     final wizard = ref.read(clientCreateJobWizardProvider);
 
-    _urgency = wizard.urgency == Urgency.urgent
-        ? ClientJobUrgency.urgent
-        : wizard.dateMode == DateMode.flexible
-            ? ClientJobUrgency.flexible
-            : ClientJobUrgency.normal;
+    _urgency = switch (wizard.dateMode) {
+      DateMode.availability => ClientJobUrgency.availability,
+      DateMode.flexible => ClientJobUrgency.flexible,
+      DateMode.fixed => wizard.urgency == Urgency.urgent
+          ? ClientJobUrgency.urgent
+          : ClientJobUrgency.normal,
+    };
     _selectedDate = wizard.preferredDate;
     _selectedSizeOptionId = wizard.sizeEstimate?.value;
+    _availabilityController.text = wizard.availabilityText;
+    _availabilityController.addListener(_onAvailabilityChanged);
 
-    _addressController.text = wizard.addressText;
-    _addressAutoFilled = wizard.addressAutoFilled;
-    if (_addressAutoFilled) _autoFilledText = wizard.addressText;
-    _addressController.addListener(_onAddressChanged);
-    _locationArea = wizard.locationArea;
-    if (wizard.locationLat != null && wizard.locationLng != null) {
-      _pinPosition = LatLng(wizard.locationLat!, wizard.locationLng!);
-    }
+    _initialLocation = JobLocationValue(
+      addressText: wizard.addressText,
+      addressAutoFilled: wizard.addressAutoFilled,
+      locationArea: wizard.locationArea,
+      lat: wizard.locationLat,
+      lng: wizard.locationLng,
+    );
+    _location = _initialLocation;
   }
 
   @override
   void dispose() {
-    _addressController.removeListener(_onAddressChanged);
-    _addressController.dispose();
+    _availabilityController.removeListener(_onAvailabilityChanged);
+    _availabilityController.dispose();
     super.dispose();
   }
 
-  void _onAddressChanged() {
-    if (_addressAutoFilled && _addressController.text != _autoFilledText) {
-      _addressAutoFilled = false;
-    }
-  }
-
-  void _fillAddressFromPin(String text) {
-    _autoFilledText = text;
-    _addressController.text = text;
-    _addressAutoFilled = true;
-  }
-
-  Future<void> _geocode() async {
-    final text = _addressController.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _geocoding = true;
-      _addressLookupFailed = false;
-    });
-    try {
-      final found = await GeocodingService.searchAddress(text);
-      if (!mounted) return;
-      if (found == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Morada não encontrada. Tenta ser mais específico.'),
-        ));
-        return;
-      }
-      final latlng = LatLng(found.lat, found.lng);
-      setState(() => _pinPosition = latlng);
-      _mapController.move(latlng, 14);
-      // Só para atualizar a localidade (o texto escrito não é tocado).
-      _reverseGeocodePin(latlng.latitude, latlng.longitude);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao pesquisar morada.'),
-      ));
-    } finally {
-      if (mounted) setState(() => _geocoding = false);
-    }
-  }
-
-  void _onMapTap(TapPosition _, LatLng point) {
-    setState(() => _pinPosition = point);
-    _reverseGeocodePin(point.latitude, point.longitude);
-  }
-
-  /// Preenche a morada a partir do pin quando o campo está vazio ou ainda
-  /// tem a morada automática de um pin anterior — nunca sobrescreve texto
-  /// que o utilizador tenha escrito à mão. A localidade antiga apaga-se
-  /// logo: pertence ao pin anterior.
-  /// Se o `GeocodingService` falhar (sem rede, sem resultado do Nominatim
-  /// para este ponto), NÃO inventa texto de morada — isso era o próprio
-  /// bug ("Localização aproximada (lat, lng)" gravado como se fosse uma
-  /// morada real). Em vez disso liga `_addressLookupFailed`, que mostra um
-  /// aviso à parte (ver `build`) deixando claro que o pin/localização
-  /// ficou guardado, só a rua é que não foi identificada.
-  Future<void> _reverseGeocodePin(double lat, double lng) async {
-    final request = ++_geocodeRequest;
-    setState(() {
-      _addressLookupFailed = false;
-      _locationArea = null;
-    });
-    final result = await GeocodingService.reverseGeocode(lat, lng);
-    if (!mounted || request != _geocodeRequest) return;
-    // A localidade guarda-se sempre que o geocoding responde, mesmo que a
-    // morada tenha sido escrita à mão: é o que o jardineiro vê antes de a
-    // proposta ser aceite (migration 0043).
-    if (result != null) _locationArea = result.locationName;
-    final canReplace =
-        _addressController.text.isEmpty || _addressAutoFilled;
-    if (!canReplace) return;
-    setState(() {
-      if (result != null) {
-        _fillAddressFromPin(result.addressText);
-      } else {
-        // A morada automática era do pin anterior: já não serve.
-        if (_addressAutoFilled) {
-          _addressController.clear();
-          _addressAutoFilled = false;
-        }
-        _addressLookupFailed = true;
-      }
-    });
-  }
-
-  Future<void> _getLocation() async {
-    setState(() {
-      _loadingLocation = true;
-      _locationError = null;
-    });
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) throw Exception('Serviço de localização desativado.');
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Permissão de localização negada.');
-        }
-      }
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception(
-            'Permissão negada permanentemente. Ativa nas definições.');
-      }
-      final position = await Geolocator.getCurrentPosition();
-      if (!mounted) return;
-      final latlng = LatLng(position.latitude, position.longitude);
-      setState(() => _pinPosition = latlng);
-      _mapController.move(latlng, 14);
-      // Aguardado de propósito — antes disto era "fire and forget": o
-      // spinner do botão desaparecia assim que o GPS respondia, antes de a
-      // morada estar preenchida, e nada impedia "Continuar" com o campo
-      // ainda vazio (só o pin é validado em `_canContinue`). Mantendo o
-      // loading aceso até a morada estar mesmo resolvida (sucesso ou
-      // fallback acima) elimina essa janela.
-      await _reverseGeocodePin(position.latitude, position.longitude);
-    } catch (e) {
-      if (!mounted) return;
-      setState(
-          () => _locationError = e.toString().replaceAll('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _loadingLocation = false);
-    }
-  }
+  void _onAvailabilityChanged() => setState(() {});
 
   Future<void> _pickDate() async {
     final picked = await showAppDatePicker(
@@ -271,12 +119,19 @@ class _ClientCreateJobScheduleScreenState
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  bool get _requiresDate => _urgency != ClientJobUrgency.flexible;
+  bool get _requiresDate =>
+      _urgency == ClientJobUrgency.normal || _urgency == ClientJobUrgency.urgent;
+
+  bool get _requiresAvailability => _urgency == ClientJobUrgency.availability;
 
   bool get _canContinue {
     if (_selectedSizeOptionId == null) return false;
-    if (_pinPosition == null) return false;
+    if (!_location.hasPin) return false;
     if (_requiresDate && _selectedDate == null) return false;
+    if (_requiresAvailability &&
+        availabilityTextError(_availabilityController.text) != null) {
+      return false;
+    }
     return true;
   }
 
@@ -286,22 +141,28 @@ class _ClientCreateJobScheduleScreenState
     final urgency = _urgency == ClientJobUrgency.urgent
         ? Urgency.urgent
         : Urgency.normal;
-    final dateMode =
-        _urgency == ClientJobUrgency.flexible ? DateMode.flexible : DateMode.fixed;
+    final dateMode = switch (_urgency) {
+      ClientJobUrgency.flexible => DateMode.flexible,
+      ClientJobUrgency.availability => DateMode.availability,
+      ClientJobUrgency.normal || ClientJobUrgency.urgent => DateMode.fixed,
+    };
 
     final notifier = ref.read(clientCreateJobWizardProvider.notifier);
     notifier.setSchedule(
       dateMode: dateMode,
       preferredDate: dateMode == DateMode.fixed ? _selectedDate : null,
+      availabilityText: dateMode == DateMode.availability
+          ? _availabilityController.text.trim()
+          : '',
       urgency: urgency,
       sizeEstimate: SizeEstimate.fromValue(_selectedSizeOptionId!),
     );
     notifier.setLocation(
-      addressText: _addressController.text.trim(),
-      addressAutoFilled: _addressAutoFilled,
-      locationArea: _locationArea,
-      locationLat: _pinPosition!.latitude,
-      locationLng: _pinPosition!.longitude,
+      addressText: _location.addressText,
+      addressAutoFilled: _location.addressAutoFilled,
+      locationArea: _location.locationArea,
+      locationLat: _location.lat!,
+      locationLng: _location.lng!,
     );
 
     if (widget.fromReview) {
@@ -309,6 +170,26 @@ class _ClientCreateJobScheduleScreenState
     } else {
       context.push('/client/create-job/description');
     }
+  }
+
+  Widget _urgencyOption(
+    int index,
+    ClientJobUrgency value,
+    String title,
+    String subtitle,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: AppStaggeredEntrance(
+        index: index,
+        child: JobOptionCard(
+          title: title,
+          subtitle: subtitle,
+          selected: _urgency == value,
+          onPressed: () => setState(() => _urgency = value),
+        ),
+      ),
+    );
   }
 
   @override
@@ -353,58 +234,34 @@ class _ClientCreateJobScheduleScreenState
                   AppStaggeredEntrance(
                     index: 0,
                     child: Text(
-                      'Urgência',
+                      'Prazo',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStaggeredEntrance(
-                    index: 1,
-                    child: _UrgencyOptionCard(
-                      title: 'Flexível',
-                      subtitle: 'Posso agendar mais tarde',
-                      selected: _urgency == ClientJobUrgency.flexible,
-                      onPressed: () {
-                        setState(() => _urgency = ClientJobUrgency.flexible);
-                      },
-                    ),
+                  _urgencyOption(1, ClientJobUrgency.flexible, 'Flexível',
+                      'Posso agendar mais tarde'),
+                  _urgencyOption(2, ClientJobUrgency.normal, 'Normal',
+                      'Dentro de alguns dias'),
+                  _urgencyOption(3, ClientJobUrgency.urgent, 'Urgente',
+                      'O quanto antes'),
+                  _urgencyOption(
+                    4,
+                    ClientJobUrgency.availability,
+                    'Indicar disponibilidade',
+                    'Diz por palavras tuas quando dá jeito',
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStaggeredEntrance(
-                    index: 2,
-                    child: _UrgencyOptionCard(
-                      title: 'Normal',
-                      subtitle: 'Dentro de alguns dias',
-                      selected: _urgency == ClientJobUrgency.normal,
-                      onPressed: () {
-                        setState(() => _urgency = ClientJobUrgency.normal);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStaggeredEntrance(
-                    index: 3,
-                    child: _UrgencyOptionCard(
-                      title: 'Urgente',
-                      subtitle: 'O quanto antes',
-                      selected: _urgency == ClientJobUrgency.urgent,
-                      onPressed: () {
-                        setState(() => _urgency = ClientJobUrgency.urgent);
-                      },
-                    ),
-                  ),
-                  // Chaves nos dois itens deste bloco condicional de
-                  // propósito — ver nota em `_getLocation`/`_geocode` sobre
-                  // porque isto deixou de ser opcional.
+                  // Chaves nos itens destes blocos condicionais: sem elas,
+                  // aparecer/desaparecer desloca os irmãos e o Flutter
+                  // recria widgets com estado (ver JobLocationPicker).
                   if (_requiresDate) ...[
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       key: const ValueKey('schedule_date_label'),
-                      index: 4,
+                      index: 5,
                       child: Text(
-                        'Quando precisa do serviço?',
+                        'Quando precisas do serviço?',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -414,9 +271,21 @@ class _ClientCreateJobScheduleScreenState
                     AppStaggeredEntrance(
                       key: const ValueKey('schedule_date_field'),
                       index: 5,
-                      child: _DateField(
+                      child: JobDateField(
                         date: _selectedDate,
                         onPressed: _pickDate,
+                      ),
+                    ),
+                  ],
+                  if (_requiresAvailability) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      key: const ValueKey('schedule_availability_field'),
+                      index: 5,
+                      child: AvailabilityTextField(
+                        controller: _availabilityController,
+                        maxLength: availabilityTextMaxLength,
+                        hintText: availabilityTextHint,
                       ),
                     ),
                   ],
@@ -442,141 +311,12 @@ class _ClientCreateJobScheduleScreenState
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  AppStaggeredEntrance(
-                    index: 8,
-                    child: Text(
-                      'Localização',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
+                  JobLocationPicker(
+                    key: const ValueKey('schedule_location'),
+                    initial: _initialLocation,
+                    staggerStartIndex: 8,
+                    onChanged: (value) => setState(() => _location = value),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStaggeredEntrance(
-                    // Chave estável de propósito — sem ela, alternar
-                    // urgência (revela/esconde o bloco "Quando precisa do
-                    // serviço?" acima) desloca este item na lista de filhos
-                    // da Column e o Flutter trata-o como um widget novo:
-                    // destrói e recria o FlutterMap. Se `_getLocation`ou
-                    // `_geocode` estiverem com um `_mapController.move(...)`
-                    // pendente nesse instante (GPS/geocoding ainda a
-                    // resolver — comum mesmo a seguir a instalar a app, com
-                    // o diálogo de permissão ainda por decidir), o
-                    // controller fica sem mapa montado para se agarrar e
-                    // `flutter_map` lança "You need to have the FlutterMap
-                    // widget rendered at least once before using the
-                    // MapController." A chave elimina o destroy/recreate em
-                    // vez de só apanhar a exceção depois de ela acontecer.
-                    key: const ValueKey('schedule_map'),
-                    index: 9,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      child: SizedBox(
-                        height: 200,
-                        child: FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter:
-                                _pinPosition ?? const LatLng(38.7169, -9.1399),
-                            initialZoom: 14,
-                            onTap: _onMapTap,
-                          ),
-                          children: [
-                            // TODO(mapa-estilizado): revertido de propósito
-                            // (2026-09) — a tentativa anterior trocou este
-                            // tile por um basemap CARTO mais claro/discreto;
-                            // foi lido como precisando da API key paga do
-                            // Google Maps Platform e revertida antes de essa
-                            // dependência ficar configurada/paga. Um mapa
-                            // NATIVO com estilo de marca a sério (JSON de
-                            // estilo, POIs filtrados) exige mesmo o SDK do
-                            // Google Maps (`google_maps_flutter` + projeto
-                            // no Google Cloud + faturação ativa + API key
-                            // Maps SDK for Android/iOS) — decisão de produto
-                            // e orçamento para mais tarde, não implementação
-                            // a meio. Até lá, tile "standard" da OSM.
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.example.servicesapp',
-                            ),
-                            if (_pinPosition != null)
-                              MarkerLayer(
-                                markers: [
-                                  Marker(
-                                    point: _pinPosition!,
-                                    child: Icon(
-                                      Icons.location_on,
-                                      color: AppStatusColor.cancelled.foreground,
-                                      size: 36,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  if (_locationError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: Text(
-                        _locationError!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  AppStaggeredEntrance(
-                    index: 10,
-                    child: OutlinedButton.icon(
-                      onPressed: _loadingLocation ? null : _getLocation,
-                      icon: _loadingLocation
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location),
-                      label: const Text('Usar a minha localização'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppStaggeredEntrance(
-                    index: 11,
-                    child: AppTextField(
-                      controller: _addressController,
-                      label: 'Morada / referência',
-                      hintText: 'Ex: Rua das Flores 23, portão azul',
-                      suffixIcon: _geocoding
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.search),
-                              onPressed: _geocode,
-                            ),
-                    ),
-                  ),
-                  if (_addressLookupFailed && _addressController.text.isEmpty) ...[
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      'Não foi possível identificar a rua, mas a '
-                      'localização foi guardada. Podes escrever a morada '
-                      'à mão acima.',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -594,147 +334,6 @@ class _ClientCreateJobScheduleScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DateField extends StatelessWidget {
-  const _DateField({required this.date, required this.onPressed});
-
-  final DateTime? date;
-  final VoidCallback onPressed;
-
-  String _formatDate(DateTime value) {
-    final day = value.day.toString().padLeft(2, '0');
-    final month = value.month.toString().padLeft(2, '0');
-    return '$day/$month/${value.year}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.input),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  date == null ? 'Escolher data' : _formatDate(date!),
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: date == null
-                        ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.calendar_month_outlined,
-                color: AppColors.primary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _UrgencyOptionCard extends StatelessWidget {
-  const _UrgencyOptionCard({
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: selected ? AppColors.primaryContainer : AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.input),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.divider,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected ? AppColors.primary : AppColors.surface,
-                  border: Border.all(
-                    color: selected ? AppColors.primary : AppColors.divider,
-                  ),
-                ),
-                child: selected
-                    ? Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.surface,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      subtitle,
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

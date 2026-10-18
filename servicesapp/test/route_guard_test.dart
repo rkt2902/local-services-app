@@ -24,8 +24,17 @@ const _noRole = SessionStatus(
   workerProfileComplete: false,
 );
 
-String? _go(String loc, SessionStatus? session, {bool? seen = true}) =>
-    resolveRedirect(location: loc, session: session, hasSeenOnboarding: seen);
+String? _go(String loc, SessionStatus? session, {bool? seen = true}) {
+  final uri = Uri.parse(loc);
+  return resolveRedirect(
+    location: uri.path,
+    session: session,
+    hasSeenOnboarding: seen,
+    uri: uri,
+  );
+}
+
+String _from(String target) => '/?from=${Uri.encodeComponent(target)}';
 
 void main() {
   group('sessão a carregar', () {
@@ -60,11 +69,86 @@ void main() {
       expect(_go('/w/abc', anon), isNull);
     });
 
-    test('rotas privadas mandam para o início', () {
-      expect(_go('/client/home', anon), '/');
-      expect(_go('/worker/setup', anon), '/');
+    test('rotas privadas mandam para o início, guardando o destino', () {
+      expect(_go('/client/home', anon), _from('/client/home'));
+      expect(_go('/worker/setup', anon), _from('/worker/setup'));
+      expect(_go('/notifications', anon), _from('/notifications'));
+      expect(
+        _go('/client/job/abc/confirmed?workerId=w1', anon),
+        _from('/client/job/abc/confirmed?workerId=w1'),
+      );
+    });
+
+    test('rotas de passagem não guardam destino', () {
       expect(_go('/choose-role', anon), '/');
-      expect(_go('/notifications', anon), '/');
+      expect(_go('/loading', anon), '/');
+      expect(_go('/session-error', anon), '/');
+    });
+
+    test('o início com destino guardado fica (sem ciclo)', () {
+      expect(_go(_from('/client/home'), anon), isNull);
+      expect(_go('/login?from=%2Fclient%2Fhome', anon), isNull);
+    });
+  });
+
+  group('voltar ao destino depois de entrar', () {
+    test('cliente vai para o destino guardado', () {
+      expect(_go(_from('/client/job/abc'), _client), '/client/job/abc');
+      expect(
+        _go('/login?from=${Uri.encodeComponent('/client/job/abc')}', _client),
+        '/client/job/abc',
+      );
+      expect(_go(_from('/notifications'), _client), '/notifications');
+    });
+
+    test('jardineiro vai para o destino guardado', () {
+      expect(_go(_from('/worker/jobs'), _worker), '/worker/jobs');
+    });
+
+    test('destino de outro papel é ignorado', () {
+      expect(_go(_from('/worker/jobs'), _client), '/client/home');
+      expect(_go(_from('/client/job/abc'), _worker), '/worker/home');
+    });
+
+    test('jardineiro com perfil incompleto vai primeiro ao setup', () {
+      expect(_go(_from('/worker/jobs'), _workerIncomplete), '/worker/setup');
+    });
+
+    test('destinos de entrada, externos ou estranhos são ignorados', () {
+      for (final from in [
+        '/login',
+        '/signup',
+        '/',
+        '/loading',
+        '/choose-role',
+        '/verify-email?email=a',
+        '//evil.com/x',
+        'https://evil.com/client/home',
+        'client/home',
+        '',
+      ]) {
+        expect(_go(_from(from), _client), '/client/home', reason: from);
+      }
+    });
+
+    test('sem papel ainda: escolhe o papel primeiro', () {
+      expect(_go(_from('/client/home'), _noRole), '/choose-role');
+    });
+  });
+
+  group('safeReturnTarget', () {
+    test('mantém a query do destino', () {
+      expect(
+        safeReturnTarget('/client/job/abc/confirmed?workerId=w1', _client),
+        '/client/job/abc/confirmed?workerId=w1',
+      );
+    });
+
+    test('sem sessão nunca devolve destino', () {
+      expect(
+        safeReturnTarget('/client/home', SessionStatus.unauthenticated),
+        isNull,
+      );
     });
   });
 

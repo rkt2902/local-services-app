@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
@@ -14,6 +16,7 @@ import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
+import '../application/helper_job_state.dart';
 import '../data/help_request_model.dart';
 import 'widgets/worker_help_requests_lobby_view.dart';
 
@@ -63,16 +66,17 @@ class _WorkerHelpRequestsLobbyScreenState
     final max = proposal?.estimatedHoursMax;
     final minTotal = rate * min;
     if (max == null) {
-      return '≈ ${_hours(min)}h estimadas · total aproximado a partir de '
-          '€${minTotal.toStringAsFixed(2)}';
+      return '≈ ${_hours(min)} h estimadas · total aproximado a partir de '
+          '${moneyLabel(minTotal)}';
     }
     final maxTotal = rate * max;
-    return '≈ ${_hours(min)}–${_hours(max)}h estimadas · total aproximado '
-        '€${minTotal.toStringAsFixed(2)}–€${maxTotal.toStringAsFixed(2)}';
+    return '≈ ${_hours(min)} a ${_hours(max)} h estimadas · total aproximado '
+        '${decimalLabel(minTotal, 2)} a ${moneyLabel(maxTotal)}';
   }
 
-  String _hours(double value) =>
-      value == value.roundToDouble() ? value.toInt().toString() : value.toString();
+  String _hours(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : decimalLabel(value, 1);
 
   Future<bool> _acceptCandidate(String helpAcceptanceId, String rateInput) async {
     final parsed = double.tryParse(rateInput.replaceAll(',', '.'));
@@ -110,12 +114,55 @@ class _WorkerHelpRequestsLobbyScreenState
   }
 
   void _invalidateAfterAction() {
-    ref.invalidate(helpRequestsForJobProvider(widget.jobId));
     final helpRequests = ref.read(helpRequestsForJobProvider(widget.jobId)).value ?? [];
+    ref.invalidate(helpRequestsForJobProvider(widget.jobId));
     for (final hr in helpRequests) {
       ref.invalidate(candidatesForHelpRequestProvider(hr.id));
     }
   }
+
+  /// Ações de gestão da equipa (0049). Sem navegação: o feedback de
+  /// sucesso é da view; aqui só o erro (SnackBar) e a invalidação (T4).
+  Future<bool> _runTeamAction(Future<void> Function() action) async {
+    try {
+      await action();
+      if (!mounted) return true;
+      _invalidateAfterAction();
+      // A vaga reaberta/fechada muda a descoberta de pedidos de ajuda.
+      ref.invalidate(helpRequestSummariesInRadiusProvider);
+      ref.invalidate(acceptedHelpersForJobProvider(widget.jobId));
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(helpActionErrorMessage(e)),
+            backgroundColor: AppStatusColor.cancelled.foreground,
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _changeSlots(String helpRequestId, int slots) => _runTeamAction(
+        () => ref.read(helpRequestRepositoryProvider).updateHelpRequestSlots(
+              helpRequestId: helpRequestId,
+              slots: slots,
+            ),
+      );
+
+  Future<bool> _closeHelpRequest(String helpRequestId) => _runTeamAction(
+        () => ref
+            .read(helpRequestRepositoryProvider)
+            .cancelHelpRequest(helpRequestId),
+      );
+
+  Future<bool> _removeHelper(String helpAcceptanceId) => _runTeamAction(
+        () => ref
+            .read(helpRequestRepositoryProvider)
+            .removeHelpHelper(helpAcceptanceId),
+      );
 
   String? _rateValidator(String? value) {
     final parsed = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
@@ -190,6 +237,10 @@ class _WorkerHelpRequestsLobbyScreenState
       dataAsync = AsyncValue.error(anyError, anyStack ?? StackTrace.current);
     } else {
       final workerProfile = workerAsync.asData?.value;
+      final jobStatus = ref.watch(jobByIdProvider(widget.jobId)).asData?.value?.status;
+      // Só se mexe na equipa enquanto o trabalho está por fazer.
+      final jobAllowsTeamChanges =
+          jobStatus == JobStatus.open || jobStatus == JobStatus.confirmed;
 
       final sections = <HelpRequestSectionViewData>[];
       for (final hr in helpRequests) {
@@ -207,6 +258,9 @@ class _WorkerHelpRequestsLobbyScreenState
 
         sections.add(HelpRequestSectionViewData(
           helpRequestId: hr.id,
+          slotsNeeded: hr.slotsNeeded,
+          canManage: jobAllowsTeamChanges &&
+              hr.status != HelpRequestStatus.cancelled,
           displayMode: isAwaitingApproval
               ? WorkerHelpSectionDisplayMode.awaitingClientApproval
               : (isFilled
@@ -219,15 +273,15 @@ class _WorkerHelpRequestsLobbyScreenState
           filledProgress: hr.slotsNeeded == 0 ? 0 : accepted.length / hr.slotsNeeded,
           acceptedHelpers: accepted
               .map((c) => WorkerAcceptedHelperViewData(
+                    applicationId: c.id,
                     workerId: c.workerId,
                     name: c.fullName ?? 'Sem nome',
                     avatarUrl: c.avatarUrl,
                     ratingLabel: _ratingLabelFor(c.workerId),
                     equipmentLabel:
                         c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
-                    rateLabel: c.agreedRate > 0
-                        ? '€${c.agreedRate.toStringAsFixed(2)}/hora'
-                        : null,
+                    rateLabel:
+                        c.agreedRate > 0 ? hourlyRateLabel(c.agreedRate) : null,
                     statusPresentation: c.status.presentation,
                     phone: c.workerPhone,
                   ))
@@ -248,8 +302,8 @@ class _WorkerHelpRequestsLobbyScreenState
                   ? 'Vagas já preenchidas.'
                   : (isAwaitingApproval ? 'Aguarda aprovação do cliente.' : null),
               acceptance: AcceptHelperViewData(
-                initialRateInput: suggested.toStringAsFixed(2),
-                suggestedRateLabel: 'Sugerido: €${suggested.toStringAsFixed(2)}/hora',
+                initialRateInput: decimalLabel(suggested, 2),
+                suggestedRateLabel: 'Sugerido: ${hourlyRateLabel(suggested)}',
                 estimateLabel: _estimateLabel(proposal, suggested),
               ),
             );
@@ -273,6 +327,9 @@ class _WorkerHelpRequestsLobbyScreenState
       onRejectCandidate: _rejectCandidate,
       onViewRatings: _viewRatings,
       rateValidator: _rateValidator,
+      onChangeSlots: _changeSlots,
+      onCloseHelpRequest: _closeHelpRequest,
+      onRemoveHelper: _removeHelper,
       onRetry: () {
         ref.invalidate(helpRequestsForJobProvider(widget.jobId));
         for (final hr in helpRequests) {
@@ -285,6 +342,6 @@ class _WorkerHelpRequestsLobbyScreenState
   String? _ratingLabelFor(String workerId) {
     final summary = ref.watch(ratingSummaryProvider(workerId)).asData?.value;
     if (summary == null || summary.ratingCount == 0) return null;
-    return summary.avgRating.toStringAsFixed(1);
+    return decimalLabel(summary.avgRating, 1);
   }
 }

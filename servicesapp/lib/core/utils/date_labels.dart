@@ -11,7 +11,14 @@ import '../constants/enums.dart';
 /// de um ecrã (ver architecture.md: "core/ só para o que é partilhado por
 /// 2+ features"). Recebe os dois campos em bruto (não um `JobRequest`)
 /// para não obrigar `core/` a depender do model da feature `jobs`.
-String jobDeadlineLabel(DateMode dateMode, DateTime? preferredDate) {
+///
+/// Com [availabilityText] (o texto livre de `availability_text`), o modo
+/// "disponibilidade" mostra esse texto em vez de "Ver disponibilidade".
+String jobDeadlineLabel(
+  DateMode dateMode,
+  DateTime? preferredDate, {
+  String? availabilityText,
+}) {
   switch (dateMode) {
     case DateMode.fixed:
       final date = preferredDate;
@@ -26,6 +33,7 @@ String jobDeadlineLabel(DateMode dateMode, DateTime? preferredDate) {
     case DateMode.flexible:
       return 'Flexível';
     case DateMode.availability:
-      return 'Ver disponibilidade';
+      final text = availabilityText?.trim() ?? '';
+      return text.isEmpty ? 'Ver disponibilidade' : text;
   }
 }

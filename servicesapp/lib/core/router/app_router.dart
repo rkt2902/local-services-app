@@ -32,6 +32,7 @@ import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/presentation/client_proposals_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
 import '../../features/jobs/presentation/client_rate_worker_screen.dart';
+import '../../features/jobs/presentation/client_edit_job_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_edit_profile_screen.dart';
 import '../../features/worker/presentation/worker_public_profile_screen.dart';
@@ -43,6 +44,7 @@ import '../../features/fleet_card/presentation/fleet_card_confirm_data_screen.da
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
+import '../../features/help_requests/presentation/worker_helper_job_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
@@ -258,6 +260,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               : buildContainerTransformPage(context, state, child);
         },
       ),
+      // "Editar pedido": só a partir do botão no detalhe de um pedido
+      // `open` (client_job_detail_screen). Passo de um fluxo: shared-axis.
+      GoRoute(
+        path: '/client/job/:id/edit',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          ClientEditJobScreen(jobId: state.pathParameters['id']!),
+        ),
+      ),
       // Só alcançado a partir de client_job_detail_screen (botão "Ver
       // propostas" no fundo do ecrã, ramo `open`) — sem card de lista nem
       // notificação envolvidos.
@@ -391,6 +403,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      // Detalhe de uma candidatura vista pelo ajudante. Origem ambígua:
+      // cartão (board, "As minhas candidaturas") OU notificação.
+      GoRoute(
+        path: '/worker/help/:acceptanceId',
+        pageBuilder: (context, state) {
+          final child = WorkerHelperJobScreen(
+            acceptanceId: state.pathParameters['acceptanceId']!,
+          );
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildContainerTransformPage(context, state, child);
+        },
+      ),
       // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
       // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
       // Cadeia sequencial de fluxo único: shared-axis.
@@ -426,10 +451,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
           GoRoute(path: '/client/jobs', builder: (_, _) => const ClientJobsScreen()),
           GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
-          GoRoute(
-            path: '/client/messages',
-            builder: (_, _) => const _PlaceholderScreen('Mensagens'),
-          ),
+          // Sem /client/messages: não há mensagens dentro da app, o
+          // contacto é só por WhatsApp.
         ],
       ),
       ShellRoute(
@@ -451,10 +474,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          GoRoute(
-            path: '/worker/messages',
-            builder: (_, _) => const _PlaceholderScreen('Mensagens'),
-          ),
+          // Sem /worker/messages: contacto só por WhatsApp.
         ],
       ),
     ],
@@ -483,6 +503,7 @@ class RouterNotifier extends ChangeNotifier {
       location: state.matchedLocation,
       session: session,
       hasSeenOnboarding: hasSeenOnboarding,
+      uri: state.uri,
     );
   }
 }
@@ -504,16 +525,4 @@ String? _entryTransitionHint(GoRouterState state) {
   final extra = state.extra;
   if (extra is Map) return extra['entryTransition'] as String?;
   return null;
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Em breve.')),
-      );
 }

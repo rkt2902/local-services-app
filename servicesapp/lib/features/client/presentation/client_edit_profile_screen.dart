@@ -5,6 +5,7 @@ import '../../../core/router/app_back_navigation.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
@@ -75,7 +76,12 @@ class _ClientEditProfileScreenState
       }
       await repo.updateProfile(
         user.id,
-        profile.copyWith(fullName: fullName, phone: phone, avatarUrl: avatarUrl),
+        profile.copyWith(
+          fullName: fullName,
+          // Formato único na BD: +351912345678 (ver phoneForStorage).
+          phone: phoneForStorage(phone),
+          avatarUrl: avatarUrl,
+        ),
       );
       ref.invalidate(clientProfileProvider);
       return true;

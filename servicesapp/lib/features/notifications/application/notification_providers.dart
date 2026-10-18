@@ -161,6 +161,35 @@ final notificationSyncProvider = Provider<void>((ref) {
           // A helper withdrew from the principal's team. Lobby data changes:
           // the help_request may have reverted from 'filled' to 'open'.
           ref.invalidate(helpRequestsForJobProvider);
+          ref.invalidate(candidatesForHelpRequestProvider);
+        case NotificationType.helpCandidateApplied:
+          // 0048: novo candidato na equipa do responsável.
+          ref.invalidate(helpRequestsForJobProvider);
+          ref.invalidate(candidatesForHelpRequestProvider);
+        case NotificationType.helpRequestPendingApproval:
+          // 0048: só o cliente recebe; o detalhe do pedido mostra o pedido
+          // de ajudantes por aprovar.
+          ref.invalidate(clientJobsProvider);
+          ref.invalidate(helpRequestsForJobProvider);
+          if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
+        case NotificationType.jobUpdated:
+          // 0049: o cliente alterou um pedido a que este jardineiro propôs.
+          ref.invalidate(jobsInRadiusProvider);
+          ref.invalidate(pendingWorkerProposalsProvider);
+          ref.invalidate(workerProposalForJobProvider);
+          _invalidateWorkerJobBoard(ref);
+          if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
+        case NotificationType.helpRemoved:
+        case NotificationType.helpJobRescheduled:
+        case NotificationType.helpJobDone:
+          // 0049: avisos ao ajudante sobre o trabalho em que ajuda.
+          ref.invalidate(myHelpAcceptancesProvider);
+          ref.invalidate(helpRequestSummariesInRadiusProvider);
+          _invalidateWorkerJobBoard(ref);
+        case NotificationType.helpJobCompleted:
+          ref.invalidate(myHelpAcceptancesProvider);
+          _invalidateWorkerJobBoard(ref);
+          if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!));
       }
     }
     ref.invalidate(allNotificationsProvider);

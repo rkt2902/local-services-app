@@ -59,6 +59,23 @@ void main() {
     test('modos sem data', () {
       expect(jobDeadlineLabel(DateMode.flexible, null), 'Flexível');
       expect(jobDeadlineLabel(DateMode.availability, null), 'Ver disponibilidade');
+      expect(
+        jobDeadlineLabel(DateMode.availability, null, availabilityText: '  '),
+        'Ver disponibilidade',
+      );
+      expect(
+        jobDeadlineLabel(
+          DateMode.availability,
+          null,
+          availabilityText: 'Sábados de manhã',
+        ),
+        'Sábados de manhã',
+      );
+      // O texto só conta no modo disponibilidade.
+      expect(
+        jobDeadlineLabel(DateMode.flexible, null, availabilityText: 'x'),
+        'Flexível',
+      );
       expect(jobDeadlineLabel(DateMode.fixed, null), 'Data a combinar');
     });
 
@@ -171,6 +188,38 @@ void main() {
 
     test('valor desconhecido falha alto', () {
       expect(() => JobStatus.fromValue('xyz'), throwsArgumentError);
+    });
+  });
+
+  group('rpcErrorMessage', () {
+    const unavailable = 'Ainda não disponível.';
+
+    test('função em falta (migration por aplicar)', () {
+      const e = PostgrestException(message: 'Could not find', code: 'PGRST202');
+      expect(isMissingRpcError(e), isTrue);
+      expect(rpcErrorMessage(e, unavailableMessage: unavailable), unavailable);
+    });
+
+    test('recusa da própria função mostra a mensagem dela', () {
+      const e = PostgrestException(
+        message: 'Tens trabalhos em curso.',
+        code: 'P0001',
+      );
+      expect(isMissingRpcError(e), isFalse);
+      expect(
+        rpcErrorMessage(e, unavailableMessage: unavailable),
+        'Tens trabalhos em curso.',
+      );
+    });
+
+    test('o resto passa por friendlyError', () {
+      expect(
+        rpcErrorMessage(
+          Exception('SocketException: Failed host lookup'),
+          unavailableMessage: unavailable,
+        ),
+        startsWith('Sem ligação'),
+      );
     });
   });
 }

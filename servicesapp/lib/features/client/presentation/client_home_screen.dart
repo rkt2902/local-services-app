@@ -11,6 +11,7 @@ import '../../../core/widgets/service_icon.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import '../../jobs/application/client_job_next_step.dart';
+import '../../jobs/application/client_jobs_refresh.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -45,8 +46,11 @@ class ClientHomeScreen extends ConsumerWidget {
     final unreadCount = ref.watch(unreadCountProvider);
 
     final serviceTypes = serviceTypesAsync.asData?.value ?? const [];
+    // Só o primeiro carregamento mostra o esqueleto: num pull-to-refresh a
+    // lista atual fica à vista até chegar a nova.
     final loadingActiveJobs =
-        jobsAsync.isLoading || serviceTypesAsync.isLoading;
+        (jobsAsync.isLoading && !jobsAsync.hasValue) ||
+            (serviceTypesAsync.isLoading && !serviceTypesAsync.hasValue);
 
     var activeJobs = <view.ClientHomeActiveJobViewData>[];
     var activeTotal = 0;
@@ -90,6 +94,7 @@ class ClientHomeScreen extends ConsumerWidget {
       onNotificationsPressed: () => context.push('/notifications'),
       onViewAllJobsPressed: () => context.go('/client/jobs'),
       onActiveJobPressed: (jobId) => context.push('/client/job/$jobId'),
+      onRefresh: () => refreshClientJobs(ref),
     );
   }
 }
@@ -97,7 +102,11 @@ class ClientHomeScreen extends ConsumerWidget {
 const _homeMaxJobs = 5;
 
 String _metadataLabel(JobRequest job) {
-  final dateLabel = jobDeadlineLabel(job.dateMode, job.preferredDate);
+  final dateLabel = jobDeadlineLabel(
+    job.dateMode,
+    job.preferredDate,
+    availabilityText: job.availabilityText,
+  );
   final address =
       job.addressText.isEmpty ? 'Localização por definir' : job.addressText;
   return '$dateLabel · $address';

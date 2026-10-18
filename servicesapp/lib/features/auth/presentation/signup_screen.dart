@@ -50,14 +50,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
+      phone: phoneForStorage(_phoneController.text),
     );
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
     ref.read(pendingSignupProvider.notifier).set(
       _nameController.text.trim(),
-      _phoneController.text.trim(),
+      phoneForStorage(_phoneController.text),
     );
     if (currentState.needsEmailConfirmation) {
       final email = Uri.encodeComponent(_emailController.text.trim());

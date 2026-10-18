@@ -10,6 +10,7 @@ import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/worker_job_board_providers.dart';
 import '../data/worker_job_board_entry_model.dart';
@@ -37,14 +38,7 @@ String _formatDate(DateTime? date) {
 
 String _formatEstimate(double rate, double? min, double? max) {
   if (rate <= 0) return 'Preço a definir';
-  if (min != null && max != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
-  } else if (min != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)}';
-  } else if (max != null) {
-    return '≈ €${(rate * max).toStringAsFixed(0)}';
-  }
-  return '';
+  return estimatedTotalLabel(rate, min, max);
 }
 
 /// Data/hora do card. Fallback para a data preferida do pedido original só
@@ -80,7 +74,7 @@ String _secondaryLabelFor(WorkerJobBoardEntry e, view.WorkerJobsTab tab) {
 String _priceLabelFor(WorkerJobBoardEntry e) {
   if (e.role == WorkerJobBoardRole.helper) {
     final rate = e.agreedRate ?? 0;
-    return rate > 0 ? '€${rate.toStringAsFixed(2)}/h' : 'A combinar';
+    return rate > 0 ? hourlyRateLabel(rate) : 'A combinar';
   }
   return _formatEstimate(
       e.hourlyRate ?? 0, e.estimatedHoursMin, e.estimatedHoursMax);
@@ -316,10 +310,8 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
         final entry = entries.where((e) => e.entryId == id).firstOrNull;
         if (entry == null) return;
         if (entry.role == WorkerJobBoardRole.helper) {
-          // Ainda não existe um ecrã de detalhe próprio para o papel de
-          // ajudante — reaproveita a tab "As minhas candidaturas", onde já
-          // vivem as ações (Desistir, WhatsApp, avaliação).
-          context.push('/worker/help-requests', extra: {'initialTabIndex': 1});
+          // `entry_id` de uma linha de ajudante é o id da candidatura.
+          context.push('/worker/help/${entry.entryId}');
           return;
         }
         context.push('/worker/my-job/$id?jobId=${entry.jobId}');

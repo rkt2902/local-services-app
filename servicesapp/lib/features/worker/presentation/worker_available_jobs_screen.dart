@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/price_labels.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
@@ -162,7 +163,7 @@ class _WorkerAvailableJobsScreenState
       );
       locationLabel = distanceMeters < 1000
           ? '${distanceMeters.round()} m'
-          : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+          : '${decimalLabel(distanceMeters / 1000, 1)} km';
     }
 
     final scheduleLabel = job.preferredDate == null

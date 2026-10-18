@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/router/app_back_navigation.dart';
@@ -120,7 +121,7 @@ class _WorkerSubmitProposalScreenState
     final defaultRate = workerProfile?.defaultHourlyRate;
 
     final suggestedLabel = (defaultRate != null && defaultRate > 0)
-        ? '€${defaultRate.toStringAsFixed(0)}/h'
+        ? hourlyRateLabel(defaultRate)
         : null;
 
     return view.WorkerSubmitProposalScreen(

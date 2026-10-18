@@ -494,9 +494,7 @@ class _WorkerMyJobDetailScreenState
       sizeLabel: job.sizeEstimate?.label,
       description: job.description,
       photoUrls: photos,
-      hourlyRateLabel: proposal.hourlyRate > 0
-          ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
-          : 'Preço a definir',
+      hourlyRateLabel: hourlyRateLabel(proposal.hourlyRate),
       estimatedHoursLabel: (proposal.estimatedHoursMin != null ||
               proposal.estimatedHoursMax != null)
           ? _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax)
@@ -598,24 +596,7 @@ String _formatDate(DateTime? date) {
   return DateFormat('dd/MM/yyyy').format(date);
 }
 
-String _formatEstimate(double rate, double? min, double? max) {
-  if (min != null && max != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
-  } else if (min != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)}';
-  } else if (max != null) {
-    return '≈ €${(rate * max).toStringAsFixed(0)}';
-  }
-  return '';
-}
+String _formatEstimate(double rate, double? min, double? max) =>
+    estimatedTotalLabel(rate, min, max);
 
-String _hoursLabel(double? min, double? max) {
-  if (min != null && max != null) {
-    return '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)} h';
-  } else if (min != null) {
-    return '${min.toStringAsFixed(1)} h';
-  } else if (max != null) {
-    return '${max.toStringAsFixed(1)} h';
-  }
-  return '';
-}
+String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);

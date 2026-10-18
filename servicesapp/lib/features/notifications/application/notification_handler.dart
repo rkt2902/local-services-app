@@ -4,11 +4,42 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../auth/application/session_provider.dart';
 import '../../help_requests/application/help_request_providers.dart';
+import '../../help_requests/application/helper_job_state.dart';
+import '../../help_requests/data/help_request_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
 
 class NotificationHandler {
+  static Future<void> _openHelperJob(
+    BuildContext context,
+    WidgetRef ref,
+    String? relatedId,
+  ) async {
+    HelpAcceptanceSummary? acceptance;
+    if (relatedId != null) {
+      try {
+        // A notificação nova já invalidou a lista (notificationSyncProvider).
+        final acceptances = await ref.read(myHelpAcceptancesProvider.future);
+        acceptance = findHelperAcceptanceFor(acceptances, relatedId);
+      } catch (_) {
+        acceptance = null;
+      }
+    }
+    if (!context.mounted) return;
+    if (acceptance != null) {
+      context.go(
+        '/worker/help/${acceptance.id}',
+        extra: {'entryTransition': 'sharedAxis'},
+      );
+      return;
+    }
+    context.go(
+      '/worker/help-requests',
+      extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
+    );
+  }
+
   static Future<void> handle(
     BuildContext context,
     WidgetRef ref,
@@ -202,24 +233,24 @@ class NotificationHandler {
         }
 
       case NotificationType.helpAccepted:
-        // relatedId = help_request_id. Helper sees their candidatures.
-        context.go(
-          '/worker/help-requests',
-          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
-        );
-
       case NotificationType.helpRejected:
-        // Helper was rejected — navigate to candidatures tab to see the update.
-        context.go(
-          '/worker/help-requests',
-          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
-        );
-
       case NotificationType.helpJobCancelled:
-        // Helper's accepted job was cancelled — navigate to candidatures.
+      case NotificationType.helpRemoved:
+      case NotificationType.helpJobRescheduled:
+      case NotificationType.helpJobDone:
+      case NotificationType.helpJobCompleted:
+        // Para o ajudante. relatedId = id do pedido (0049) ou do pedido de
+        // ajuda (tipos antigos): abre o ecrã da candidatura quando a
+        // encontra, senão a tab "As minhas candidaturas".
+        await _openHelperJob(context, ref, notification.relatedId);
+
+      case NotificationType.jobUpdated:
+        // O cliente alterou um pedido a que o jardineiro propôs (0049).
+        // relatedId = job_id. `/worker/job/:id` já trata a proposta dele.
+        if (notification.relatedId == null) break;
         context.go(
-          '/worker/help-requests',
-          extra: {'initialTabIndex': 1, 'entryTransition': 'sharedAxis'},
+          '/worker/job/${notification.relatedId}',
+          extra: {'entryTransition': 'sharedAxis'},
         );
 
       case NotificationType.helpRequestReopened:

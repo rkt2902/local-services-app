@@ -87,3 +87,13 @@ Future<void> openWhatsAppOrWarn(BuildContext context, String phone) async {
     const SnackBar(content: Text(whatsAppUnavailableMessage)),
   );
 }
+
+/// Telefone no formato em que se grava em `profiles.phone`: `+351912345678`
+/// (ou `+<indicativo><número>` para estrangeiros). Todos os ecrãs que
+/// gravam o telefone (registo, perfil do cliente, perfil do jardineiro)
+/// passam por aqui, para a base de dados ter um só formato. Se o número
+/// não for válido (os formulários já o impedem), fica como foi escrito.
+String phoneForStorage(String phone) {
+  final number = whatsAppNumber(phone);
+  return number == null ? phone.trim() : '+$number';
+}

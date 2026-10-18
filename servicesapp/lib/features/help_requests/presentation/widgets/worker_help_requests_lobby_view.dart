@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
@@ -45,9 +46,19 @@ class HelpRequestSectionViewData {
     required this.filledProgress,
     required this.acceptedHelpers,
     required this.pendingCandidates,
+    this.slotsNeeded = 0,
+    this.canManage = false,
   });
 
   final String helpRequestId;
+
+  /// Vagas pedidas. O mínimo ao alterar é o número de aceites.
+  final int slotsNeeded;
+
+  /// `true` quando o responsável ainda pode mexer na equipa: alterar vagas,
+  /// fechar o pedido e retirar ajudantes (pedido de ajuda ativo e trabalho
+  /// ainda por fazer).
+  final bool canManage;
   final WorkerHelpSectionDisplayMode displayMode;
 
   /// Presenter real de `HelpRequestStatus` (app_status_presenters.dart).
@@ -65,6 +76,7 @@ class HelpRequestSectionViewData {
 
 class WorkerAcceptedHelperViewData {
   const WorkerAcceptedHelperViewData({
+    this.applicationId,
     required this.workerId,
     required this.name,
     required this.equipmentLabel,
@@ -75,6 +87,8 @@ class WorkerAcceptedHelperViewData {
     this.phone,
   });
 
+  /// Id da candidatura (`help_acceptances.id`), para "Retirar da equipa".
+  final String? applicationId;
   final String workerId;
   final String name;
   final String? avatarUrl;
@@ -162,6 +176,9 @@ class WorkerHelpRequestsLobbyView extends StatefulWidget {
     required this.onViewRatings,
     this.rateValidator,
     this.onRetry,
+    this.onChangeSlots,
+    this.onCloseHelpRequest,
+    this.onRemoveHelper,
   });
 
   final AsyncValue<WorkerHelpLobbyViewData> dataAsync;
@@ -182,6 +199,12 @@ class WorkerHelpRequestsLobbyView extends StatefulWidget {
   final Future<bool> Function(String applicationId) onRejectCandidate;
 
   final String? Function(String?)? rateValidator;
+
+  /// Gestão da equipa (0049). Cada um devolve `true` só depois de a RPC
+  /// confirmar; `null` esconde a ação.
+  final Future<bool> Function(String helpRequestId, int slots)? onChangeSlots;
+  final Future<bool> Function(String helpRequestId)? onCloseHelpRequest;
+  final Future<bool> Function(String applicationId)? onRemoveHelper;
 
   @override
   State<WorkerHelpRequestsLobbyView> createState() =>
@@ -246,6 +269,111 @@ class _WorkerHelpRequestsLobbyViewState
     }
   }
 
+  /// Corre uma ação de gestão com o id em "a processar" e mostra o
+  /// feedback de sucesso quando a RPC confirma.
+  Future<void> _runTeamAction(
+    String key,
+    Future<bool> Function() action,
+    String successMessage,
+  ) async {
+    if (_processingApplications.contains(key)) return;
+    setState(() {
+      _processingApplications.add(key);
+      _successVisible = false;
+    });
+    var ok = false;
+    try {
+      ok = await action();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingApplications.remove(key);
+          if (ok) {
+            _successMessage = successMessage;
+            _successVisible = true;
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _changeSlots(HelpRequestSectionViewData section) async {
+    final callback = widget.onChangeSlots;
+    if (callback == null) return;
+    final slots = await showDialog<int>(
+      context: context,
+      builder: (_) => _SlotsDialog(
+        initialSlots: section.slotsNeeded,
+        minimumSlots: section.acceptedHelpers.length,
+      ),
+    );
+    if (!mounted || slots == null || slots == section.slotsNeeded) return;
+    await _runTeamAction(
+      section.helpRequestId,
+      () => callback(section.helpRequestId, slots),
+      'Vagas atualizadas.',
+    );
+  }
+
+  Future<void> _closeHelpRequest(HelpRequestSectionViewData section) async {
+    final callback = widget.onCloseHelpRequest;
+    if (callback == null) return;
+    final confirmed = await _confirm(
+      title: 'Fechar pedido de ajuda',
+      message: section.acceptedHelpers.isEmpty
+          ? 'O pedido deixa de aparecer aos outros jardineiros e as '
+              'candidaturas por decidir são recusadas.'
+          : 'O pedido deixa de aparecer aos outros jardineiros. Os ajudantes '
+              'aceites e os candidatos são avisados de que já não são precisos.',
+      confirmLabel: 'Fechar pedido',
+    );
+    if (!confirmed) return;
+    await _runTeamAction(
+      section.helpRequestId,
+      () => callback(section.helpRequestId),
+      'Pedido de ajuda fechado.',
+    );
+  }
+
+  Future<void> _removeHelper(WorkerAcceptedHelperViewData helper) async {
+    final callback = widget.onRemoveHelper;
+    final id = helper.applicationId;
+    if (callback == null || id == null) return;
+    final confirmed = await _confirm(
+      title: 'Retirar da equipa',
+      message: '${helper.name} deixa de fazer parte da equipa e é avisado. '
+          'A vaga volta a ficar aberta.',
+      confirmLabel: 'Retirar',
+    );
+    if (!confirmed) return;
+    await _runTeamAction(id, () => callback(id), 'Ajudante retirado da equipa.');
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    return mounted && confirmed == true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -265,6 +393,12 @@ class _WorkerHelpRequestsLobbyViewState
                 onViewRatings: widget.onViewRatings,
                 onAccept: _openAcceptSheet,
                 onReject: _reject,
+                onChangeSlots:
+                    widget.onChangeSlots == null ? null : _changeSlots,
+                onCloseHelpRequest:
+                    widget.onCloseHelpRequest == null ? null : _closeHelpRequest,
+                onRemoveHelper:
+                    widget.onRemoveHelper == null ? null : _removeHelper,
               ),
             ),
             Positioned.fill(
@@ -289,6 +423,9 @@ class _LobbyContent extends StatelessWidget {
     required this.onViewRatings,
     required this.onAccept,
     required this.onReject,
+    this.onChangeSlots,
+    this.onCloseHelpRequest,
+    this.onRemoveHelper,
   });
 
   final WorkerHelpLobbyViewData data;
@@ -300,6 +437,9 @@ class _LobbyContent extends StatelessWidget {
 
   final ValueChanged<WorkerHelpCandidateViewData> onAccept;
   final ValueChanged<WorkerHelpCandidateViewData> onReject;
+  final ValueChanged<HelpRequestSectionViewData>? onChangeSlots;
+  final ValueChanged<HelpRequestSectionViewData>? onCloseHelpRequest;
+  final ValueChanged<WorkerAcceptedHelperViewData>? onRemoveHelper;
 
   @override
   Widget build(BuildContext context) {
@@ -350,6 +490,20 @@ class _LobbyContent extends StatelessWidget {
                         statusPresentation: section.statusPresentation,
                       ),
                     ),
+                  if (section.canManage &&
+                      (onChangeSlots != null || onCloseHelpRequest != null)) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    _TeamManagementActions(
+                      busy: processingApplications
+                          .contains(section.helpRequestId),
+                      onChangeSlots: onChangeSlots == null
+                          ? null
+                          : () => onChangeSlots!(section),
+                      onClose: onCloseHelpRequest == null
+                          ? null
+                          : () => onCloseHelpRequest!(section),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (section.acceptedHelpers.isNotEmpty) ...[
                     const _SectionLabel(label: 'Aceites'),
@@ -361,6 +515,14 @@ class _LobbyContent extends StatelessWidget {
                           index: nextIndex(),
                           child: _AcceptedHelperCard(
                             helper: helper,
+                            removing: helper.applicationId != null &&
+                                processingApplications
+                                    .contains(helper.applicationId),
+                            onRemove: section.canManage &&
+                                    helper.applicationId != null &&
+                                    onRemoveHelper != null
+                                ? () => onRemoveHelper!(helper)
+                                : null,
                             onViewRatings: helper.ratingLabel == null
                                 ? null
                                 : () => onViewRatings(
@@ -651,10 +813,16 @@ class _AcceptedHelperCard extends StatelessWidget {
   const _AcceptedHelperCard({
     required this.helper,
     required this.onViewRatings,
+    this.onRemove,
+    this.removing = false,
   });
 
   final WorkerAcceptedHelperViewData helper;
   final VoidCallback? onViewRatings;
+
+  /// "Retirar da equipa"; `null` esconde o botão.
+  final VoidCallback? onRemove;
+  final bool removing;
 
   @override
   Widget build(BuildContext context) {
@@ -710,6 +878,20 @@ class _AcceptedHelperCard extends StatelessWidget {
                 onPressed: () => openWhatsAppOrWarn(context, helper.phone!),
                 icon: const Icon(Icons.chat_outlined),
                 label: const Text('Falar por WhatsApp'),
+              ),
+            ),
+          ],
+          if (onRemove != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: removing ? null : onRemove,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppStatusColor.cancelled.foreground,
+                ),
+                icon: const Icon(Icons.person_remove_outlined),
+                label: Text(removing ? 'A retirar...' : 'Retirar da equipa'),
               ),
             ),
           ],
@@ -817,6 +999,131 @@ class _CandidateCard extends StatelessWidget {
     );
   }
 }
+
+/// "Alterar vagas" e "Fechar pedido de ajuda" de uma secção.
+class _TeamManagementActions extends StatelessWidget {
+  const _TeamManagementActions({
+    required this.busy,
+    required this.onChangeSlots,
+    required this.onClose,
+  });
+
+  final bool busy;
+  final VoidCallback? onChangeSlots;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xxs,
+      children: [
+        if (onChangeSlots != null)
+          TextButton.icon(
+            onPressed: busy ? null : onChangeSlots,
+            icon: const Icon(Icons.tune_rounded),
+            label: const Text('Alterar vagas'),
+          ),
+        if (onClose != null)
+          TextButton.icon(
+            onPressed: busy ? null : onClose,
+            style: TextButton.styleFrom(
+              foregroundColor: AppStatusColor.cancelled.foreground,
+            ),
+            icon: const Icon(Icons.block_rounded),
+            label: const Text('Fechar pedido de ajuda'),
+          ),
+      ],
+    );
+  }
+}
+
+/// Escolher o número de vagas (1 a 10, nunca abaixo dos aceites).
+class _SlotsDialog extends StatefulWidget {
+  const _SlotsDialog({required this.initialSlots, required this.minimumSlots});
+
+  final int initialSlots;
+  final int minimumSlots;
+
+  @override
+  State<_SlotsDialog> createState() => _SlotsDialogState();
+}
+
+class _SlotsDialogState extends State<_SlotsDialog> {
+  late final int _min = lobbySlotsMinimum(widget.minimumSlots);
+  late int _slots = widget.initialSlots.clamp(_min, lobbyMaxSlots);
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return AlertDialog(
+      title: const Text('Alterar vagas'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.outlined(
+                onPressed: _slots > _min ? () => setState(() => _slots--) : null,
+                tooltip: 'Menos uma vaga',
+                icon: const Icon(Icons.remove_rounded),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: AnimatedSwitcher(
+                  duration: MediaQuery.of(context).disableAnimations
+                      ? Duration.zero
+                      : AppMotionDuration.fast,
+                  child: Text(
+                    '$_slots',
+                    key: ValueKey(_slots),
+                    style: textTheme.displaySmall
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+              ),
+              IconButton.outlined(
+                onPressed: _slots < lobbyMaxSlots
+                    ? () => setState(() => _slots++)
+                    : null,
+                tooltip: 'Mais uma vaga',
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            widget.minimumSlots > 0
+                ? 'Já tens ${widget.minimumSlots} '
+                    '${widget.minimumSlots == 1 ? 'ajudante aceite' : 'ajudantes aceites'}, '
+                    'por isso não podes ter menos vagas do que isso.'
+                : 'Entre 1 e $lobbyMaxSlots vagas.',
+            textAlign: TextAlign.center,
+            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _slots),
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Máximo de vagas num pedido de ajuda (`update_help_request_slots`, 0049).
+const lobbyMaxSlots = 10;
+
+/// Mínimo de vagas ao alterar: os aceites, e nunca menos de 1.
+int lobbySlotsMinimum(int acceptedCount) =>
+    acceptedCount < 1 ? 1 : (acceptedCount > lobbyMaxSlots ? lobbyMaxSlots : acceptedCount);
 
 /// Mensagem do candidato (`help_acceptances.message`), em bloco citado.
 class _CandidateMessage extends StatelessWidget {

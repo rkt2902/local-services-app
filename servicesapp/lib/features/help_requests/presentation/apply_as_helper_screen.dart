@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/price_labels.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
@@ -313,7 +314,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                       index: 1,
                       child: _PaymentCard(
                         paymentLabel: _displayedRate(data) > 0
-                            ? '€${_displayedRate(data).toStringAsFixed(2)}/hora'
+                            ? hourlyRateLabel(_displayedRate(data))
                             : 'A combinar',
                         scheduleLabel: data.scheduleLabel,
                       ),
@@ -334,10 +335,10 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                             required: data.equipmentRequired,
                             bringOwnEquipment: _bringOwnEquipment,
                             fullRateLabel: data.paymentPerHelper > 0
-                                ? '€${(data.paymentPerHelper / 0.7).toStringAsFixed(2)}/hora'
+                                ? hourlyRateLabel(data.paymentPerHelper / 0.7)
                                 : null,
                             reducedRateLabel: data.paymentPerHelper > 0
-                                ? '€${data.paymentPerHelper.toStringAsFixed(2)}/hora'
+                                ? hourlyRateLabel(data.paymentPerHelper)
                                 : null,
                             onChanged: (value) =>
                                 setState(() => _bringOwnEquipment = value),

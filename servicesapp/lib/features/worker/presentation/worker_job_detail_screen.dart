@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/utils/price_labels.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
@@ -107,7 +108,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
       );
       distanceLabel = meters < 1000
           ? '${meters.round()} m'
-          : '${(meters / 1000).toStringAsFixed(1)} km';
+          : '${decimalLabel(meters / 1000, 1)} km';
     }
 
     AppStatusPresentation? badge;

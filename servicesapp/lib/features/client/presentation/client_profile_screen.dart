@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/config/app_links.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/delete_account_flow.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -29,56 +29,6 @@ String _memberSinceLabel(DateTime? createdAt) {
 
 class ClientProfileScreen extends ConsumerWidget {
   const ClientProfileScreen({super.key});
-
-  void _showSupportSheet(BuildContext context) {
-    final messenger = ScaffoldMessenger.of(context);
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Contacto & suporte',
-                style: Theme.of(sheetCtx).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                'Precisas de ajuda? Escreve-nos para este email e '
-                'respondemos o mais depressa possível.',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // Selecionável e com botão de copiar (sem mailto: o contacto
-              // na app é só WhatsApp; o email abre-se fora, à mão).
-              SelectableText(
-                AppLinks.supportEmail,
-                style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await Clipboard.setData(
-                    const ClipboardData(text: AppLinks.supportEmail),
-                  );
-                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Email copiado.')),
-                  );
-                },
-                icon: const Icon(Icons.copy_rounded),
-                label: const Text('Copiar email'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   /// Erro ou perfil em falta, com "Tentar novamente" e saída da conta.
   Widget _errorState(BuildContext context, WidgetRef ref, String message) {
@@ -175,8 +125,9 @@ class ClientProfileScreen extends ConsumerWidget {
       onDefinitionsPressed: () => context.push('/client/profile/edit'),
       onJobsPressed: () => context.go('/client/jobs'),
       onReviewsPressed: () => context.push('/client/ratings'),
-      onSupportPressed: () => _showSupportSheet(context),
+      onSupportPressed: () => showSupportContactSheet(context),
       onSignOutPressed: () => confirmAndSignOut(context, ref),
+      onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAboutDialog(
         context: context,
         applicationName: 'ProJardim',

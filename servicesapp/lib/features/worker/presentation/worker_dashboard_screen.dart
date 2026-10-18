@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/price_labels.dart';
+import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -13,13 +15,18 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
+import '../../help_requests/application/help_request_providers.dart';
+import '../../help_requests/data/help_request_model.dart';
+import '../../ratings/application/rating_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_providers.dart';
+import '../application/worker_todo.dart';
 import '../data/worker_profile_model.dart';
 
 /// Dados de apresentação do dashboard.
@@ -112,22 +119,25 @@ class WorkerDashboardScreen extends ConsumerWidget {
         body: SafeArea(bottom: false, child: _DashboardSkeleton()),
       ),
       error: (e, _) => Scaffold(body: Center(child: Text(friendlyError(e)))),
-      data: (workerProfile) =>
-          _buildDashboard(context, ref, workerProfile),
+      data: (workerProfile) => _buildDashboard(context, ref, workerProfile),
     );
   }
 
   Widget _buildDashboard(
-      BuildContext context, WidgetRef ref, WorkerProfile? workerProfile) {
+    BuildContext context,
+    WidgetRef ref,
+    WorkerProfile? workerProfile,
+  ) {
     final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? [];
     final pendingCount =
         ref.watch(pendingWorkerProposalsProvider).asData?.value.length ?? 0;
     final scheduledRaw =
         ref.watch(scheduledWorkerProposalsProvider).asData?.value ??
-            const <Map<String, dynamic>>[];
+        const <Map<String, dynamic>>[];
     final opportunitiesRaw =
         ref.watch(jobsInRadiusProvider).asData?.value ?? const <JobRequest>[];
     final unreadCount = ref.watch(unreadCountProvider);
+    final todoItems = _buildTodo(ref, scheduledRaw);
 
     // Primeiro item de scheduledWorkerProposalsProvider — a lista já vem
     // ordenada por confirmed_date ascendente (ver proposal_repository.dart),
@@ -152,8 +162,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
     if (nextEntry != null) {
       final (proposal, job) = nextEntry;
       nextJobProposalId = proposal.id;
-      final serviceType =
-          serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
+      final serviceType = serviceTypes
+          .where((s) => s.id == job.serviceTypeId)
+          .firstOrNull;
       final current = job.status.presentation();
       nextJob = WorkerDashboardJobSummary(
         id: job.id,
@@ -170,7 +181,8 @@ class WorkerDashboardScreen extends ConsumerWidget {
       for (final job in opportunitiesRaw.take(_maxOpportunities))
         WorkerDashboardOpportunitySummary(
           id: job.id,
-          title: (serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull)
+          title:
+              (serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull)
                   ?.name ??
               '—',
           locationLabel: _distanceLabel(workerProfile, job),
@@ -201,18 +213,21 @@ class WorkerDashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.xl,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate(
-                  [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () => _refresh(ref),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.xl,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                     AppStaggeredEntrance(
                       index: 0,
                       child: _DashboardHeader(
@@ -232,9 +247,20 @@ class WorkerDashboardScreen extends ConsumerWidget {
                         scheduledCount: data.scheduledCount,
                       ),
                     ),
+                    if (todoItems.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      AppStaggeredEntrance(
+                        index: 2,
+                        child: _TodoCard(
+                          items: todoItems,
+                          onPressed: (target) =>
+                              _openTodoTarget(context, target),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
-                      index: 2,
+                      index: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -255,14 +281,15 @@ class WorkerDashboardScreen extends ConsumerWidget {
                             onPressed: nextJobProposalId == null
                                 ? null
                                 : (jobId) => context.push(
-                                    '/worker/my-job/$nextJobProposalId?jobId=$jobId'),
+                                    '/worker/my-job/$nextJobProposalId?jobId=$jobId',
+                                  ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
-                      index: 3,
+                      index: 4,
                       child: const _SectionHeader(
                         title: 'Oportunidades perto de ti',
                       ),
@@ -273,14 +300,127 @@ class WorkerDashboardScreen extends ConsumerWidget {
                       onOpportunityPressed: (id) =>
                           context.push('/worker/job/$id'),
                     ),
-                  ],
+                  ]),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Pull-to-refresh: tudo o que o dashboard mostra.
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(workerProfileProvider);
+    ref.invalidate(pendingWorkerProposalsProvider);
+    ref.invalidate(scheduledWorkerProposalsProvider);
+    ref.invalidate(completedWorkerProposalsProvider(0));
+    ref.invalidate(jobsInRadiusProvider);
+    ref.invalidate(myHelpAcceptancesProvider);
+    ref.invalidate(myRatingsGivenProvider);
+    ref.invalidate(helpRequestsForJobProvider);
+    ref.invalidate(candidatesForHelpRequestProvider);
+    try {
+      await ref.read(scheduledWorkerProposalsProvider.future);
+    } catch (_) {
+      // O erro aparece nas próprias secções; o indicador só tem de fechar.
+    }
+  }
+
+  /// "O que falta fazer": só dados de providers que o dashboard já usa,
+  /// mais os candidatos dos primeiros [todoCandidatesJobCap] trabalhos.
+  List<WorkerTodoItem> _buildTodo(
+    WidgetRef ref,
+    List<Map<String, dynamic>> scheduledRaw,
+  ) {
+    final myUserId = ref.watch(currentUserIdProvider) ?? '';
+    final scheduledJobs = <WorkerTodoScheduledJob>[];
+    for (final row in scheduledRaw) {
+      final jobJson = row['job_requests'];
+      if (jobJson is! Map) continue;
+      final job = JobRequest.fromJson(Map<String, dynamic>.from(jobJson));
+      scheduledJobs.add(
+        WorkerTodoScheduledJob(
+          proposalId: row['id'] as String,
+          jobId: job.id,
+          status: job.status,
+          confirmedDate: job.confirmedDate,
+          rescheduleStatus: job.rescheduleStatus,
+          rescheduleProposedBy: job.rescheduleProposedBy,
+        ),
+      );
+    }
+
+    final helpAcceptances =
+        ref.watch(myHelpAcceptancesProvider).asData?.value ??
+        const <HelpAcceptanceSummary>[];
+
+    final completedRaw = ref
+        .watch(completedWorkerProposalsProvider(0))
+        .asData
+        ?.value;
+    final completedJobs = completedRaw == null
+        ? null
+        : [
+            for (final row in completedRaw)
+              if (row['job_requests'] case final Map jobJson)
+                _completedJob(row['id'] as String, jobJson),
+          ];
+    final given = ref.watch(myRatingsGivenProvider).asData?.value;
+    final ratingsGiven = given == null
+        ? null
+        : {for (final r in given) (r.jobId, r.partyId)};
+
+    final pendingCandidatesByJob = <String, int>{};
+    final confirmedJobIds = scheduledJobs
+        .where((j) => j.status == JobStatus.confirmed)
+        .map((j) => j.jobId)
+        .take(todoCandidatesJobCap);
+    for (final jobId in confirmedJobIds) {
+      final helpRequests =
+          ref.watch(helpRequestsForJobProvider(jobId)).asData?.value ??
+          const <HelpRequest>[];
+      var count = 0;
+      for (final hr in helpRequests) {
+        if (hr.status != HelpRequestStatus.open) continue;
+        final candidates =
+            ref.watch(candidatesForHelpRequestProvider(hr.id)).asData?.value ??
+            const <HelpAcceptance>[];
+        count += candidates
+            .where((c) => c.status == HelpAcceptanceStatus.pending)
+            .length;
+      }
+      if (count > 0) pendingCandidatesByJob[jobId] = count;
+    }
+
+    return buildWorkerTodo(
+      myUserId: myUserId,
+      today: DateTime.now(),
+      scheduledJobs: scheduledJobs,
+      helpAcceptances: helpAcceptances,
+      completedJobs: completedJobs,
+      ratingsGiven: ratingsGiven,
+      pendingCandidatesByJob: pendingCandidatesByJob,
+    );
+  }
+
+  static WorkerTodoCompletedJob _completedJob(String proposalId, Map jobJson) {
+    final job = JobRequest.fromJson(Map<String, dynamic>.from(jobJson));
+    return WorkerTodoCompletedJob(
+      proposalId: proposalId,
+      jobId: job.id,
+      clientId: job.clientId,
+      confirmedDate: job.confirmedDate,
+    );
+  }
+
+  void _openTodoTarget(BuildContext context, WorkerTodoTarget target) {
+    if (target.push) {
+      context.push(target.location, extra: target.extra);
+    } else {
+      context.go(target.location, extra: target.extra);
+    }
   }
 }
 
@@ -302,7 +442,7 @@ String _distanceLabel(WorkerProfile? workerProfile, JobRequest job) {
   );
   return distanceMeters < 1000
       ? '${distanceMeters.round()} m'
-      : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+      : '${decimalLabel(distanceMeters / 1000, 1)} km';
 }
 
 class _DashboardHeader extends StatelessWidget {
@@ -469,7 +609,9 @@ class _MetricCard extends StatelessWidget {
 
     final backgroundColor = highlighted ? AppColors.primary : AppColors.surface;
     final valueColor = highlighted ? AppColors.surface : AppColors.primary;
-    final labelColor = highlighted ? AppColors.surface : AppColors.textSecondary;
+    final labelColor = highlighted
+        ? AppColors.surface
+        : AppColors.textSecondary;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 96),
@@ -528,7 +670,9 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+            style: textTheme.titleMedium?.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         if (actionLabel != null)
@@ -551,11 +695,127 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+/// Cartão "O que falta fazer": uma linha por tipo de pendência, cada uma
+/// leva ao sítio certo. Só aparece quando há alguma coisa.
+class _TodoCard extends StatelessWidget {
+  const _TodoCard({required this.items, required this.onPressed});
+
+  final List<WorkerTodoItem> items;
+  final ValueChanged<WorkerTodoTarget> onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.md,
+              AppSpacing.xxs,
+            ),
+            child: Text(
+              'O que falta fazer',
+              style: textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          for (final item in items)
+            _TodoRow(item: item, onPressed: () => onPressed(item.target)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodoRow extends StatelessWidget {
+  const _TodoRow({required this.item, required this.onPressed});
+
+  final WorkerTodoItem item;
+  final VoidCallback onPressed;
+
+  static (IconData, AppStatusColor) _style(WorkerTodoKind kind) =>
+      switch (kind) {
+        WorkerTodoKind.rescheduleToAnswer => (
+          Icons.event_repeat_rounded,
+          AppStatusColor.waiting,
+        ),
+        WorkerTodoKind.workToday => (
+          Icons.today_rounded,
+          AppStatusColor.success,
+        ),
+        WorkerTodoKind.toMarkDone => (
+          Icons.task_alt_rounded,
+          AppStatusColor.cancelled,
+        ),
+        WorkerTodoKind.ratingsToGive => (
+          Icons.star_outline_rounded,
+          AppStatusColor.info,
+        ),
+        WorkerTodoKind.candidatesToDecide => (
+          Icons.person_search_outlined,
+          AppStatusColor.waiting,
+        ),
+        WorkerTodoKind.pendingApplications => (
+          Icons.hourglass_top_rounded,
+          AppStatusColor.neutral,
+        ),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final (icon, color) = _style(item.kind);
+    return InkWell(
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              decoration: BoxDecoration(
+                color: color.background,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+              child: Icon(icon, color: color.foreground),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                item.label,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NextJobSection extends StatelessWidget {
-  const _NextJobSection({
-    required this.job,
-    required this.onPressed,
-  });
+  const _NextJobSection({required this.job, required this.onPressed});
 
   final WorkerDashboardJobSummary? job;
   final ValueChanged<String>? onPressed;
@@ -623,7 +883,9 @@ class _NextJobContent extends StatelessWidget {
           '${job.dateTimeLabel} · ${job.clientName}',
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+          style: textTheme.labelMedium?.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -670,10 +932,7 @@ class _NearbyOpportunitiesSection extends StatelessWidget {
 }
 
 class _OpportunityCard extends StatelessWidget {
-  const _OpportunityCard({
-    required this.opportunity,
-    required this.onPressed,
-  });
+  const _OpportunityCard({required this.opportunity, required this.onPressed});
 
   final WorkerDashboardOpportunitySummary opportunity;
   final VoidCallback onPressed;
@@ -704,22 +963,27 @@ class _OpportunityCard extends StatelessWidget {
                 opportunity.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(color: AppColors.textPrimary),
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 opportunity.locationLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 opportunity.priceLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: textTheme.titleMedium?.copyWith(color: AppColors.primary),
+                style: textTheme.titleMedium?.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
             ],
           ),
@@ -778,7 +1042,9 @@ class _DashboardEmptyCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -800,7 +1066,10 @@ class _DashboardSkeleton extends StatelessWidget {
           children: [
             Row(
               children: [
-                const CircleAvatar(radius: 22, backgroundColor: AppColors.divider),
+                const CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.divider,
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
@@ -817,9 +1086,13 @@ class _DashboardSkeleton extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             const Row(
               children: [
-                Expanded(child: _SkeletonBlock(width: double.infinity, height: 96)),
+                Expanded(
+                  child: _SkeletonBlock(width: double.infinity, height: 96),
+                ),
                 SizedBox(width: AppSpacing.sm),
-                Expanded(child: _SkeletonBlock(width: double.infinity, height: 96)),
+                Expanded(
+                  child: _SkeletonBlock(width: double.infinity, height: 96),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -831,9 +1104,13 @@ class _DashboardSkeleton extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: const [
-                Expanded(child: _SkeletonBlock(width: double.infinity, height: 142)),
+                Expanded(
+                  child: _SkeletonBlock(width: double.infinity, height: 142),
+                ),
                 SizedBox(width: AppSpacing.sm),
-                Expanded(child: _SkeletonBlock(width: double.infinity, height: 142)),
+                Expanded(
+                  child: _SkeletonBlock(width: double.infinity, height: 142),
+                ),
               ],
             ),
           ],

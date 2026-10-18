@@ -1432,5 +1432,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
     ref.invalidate(
       myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
     );
+    // "O que falta fazer" do dashboard conta as avaliações dadas.
+    ref.invalidate(myRatingsGivenProvider);
   }
 }

@@ -59,3 +59,13 @@ int compareByEstimatedPrice(
   if (bHours == null) return -1;
   return (a.hourlyRate * aHours).compareTo(b.hourlyRate * bHours);
 }
+
+/// Valor em euros com vírgula decimal. Ex.: `moneyLabel(12.5)` → "12,50 €",
+/// `moneyLabel(80, fractionDigits: 0)` → "80 €".
+String moneyLabel(double value, {int fractionDigits = 2}) =>
+    '${decimalLabel(value, fractionDigits)} €';
+
+/// Distância curta para cartões. Ex.: "850 m", "4,2 km".
+String distanceLabel(double meters) => meters < 1000
+    ? '${meters.round()} m'
+    : '${decimalLabel(meters / 1000, 1)} km';

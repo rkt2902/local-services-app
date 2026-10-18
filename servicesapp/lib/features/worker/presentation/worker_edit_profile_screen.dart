@@ -289,7 +289,8 @@ class _WorkerEditProfileScreenState
   /// noutro sítio se perder (ver doc comment da classe).
   WorkerProfile _currentDraft(WorkerProfile loaded) => loaded.copyWith(
         fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        // Formato único na BD: +351912345678 (ver phoneForStorage).
+        phone: phoneForStorage(_phoneController.text),
         bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
         defaultHourlyRate: double.tryParse(_hourlyRateController.text.trim()),
         baseLat: _baseLat,

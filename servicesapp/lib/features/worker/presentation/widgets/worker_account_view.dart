@@ -42,6 +42,8 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
+    required this.onSignOutPressed,
+    required this.onDeleteAccountPressed,
     super.key,
   });
 
@@ -58,6 +60,8 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
+  final VoidCallback onSignOutPressed;
+  final VoidCallback onDeleteAccountPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +242,35 @@ class WorkerAccountScreen extends StatelessWidget {
                       onSupportPressed();
                     case 'about':
                       onAboutPressed();
+                  }
+                },
+              ),
+            ),
+            const SizedBox(
+              height: AppSpacing.md,
+            ),
+            AppStaggeredEntrance(
+              index: 5,
+              child: AppAccountMenuGroup(
+                items: const [
+                  AppAccountMenuItem(
+                    id: 'sign_out',
+                    label: 'Terminar sessão',
+                    icon: Icons.logout_rounded,
+                  ),
+                  AppAccountMenuItem(
+                    id: 'delete_account',
+                    label: 'Eliminar conta',
+                    icon: Icons.delete_forever_outlined,
+                    destructive: true,
+                  ),
+                ],
+                onItemPressed: (id) {
+                  switch (id) {
+                    case 'sign_out':
+                      onSignOutPressed();
+                    case 'delete_account':
+                      onDeleteAccountPressed();
                   }
                 },
               ),

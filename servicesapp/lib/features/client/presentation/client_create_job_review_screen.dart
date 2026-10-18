@@ -87,10 +87,10 @@ class _ClientCreateJobReviewScreenState
     if (wizard.serviceTypeId == null ||
         wizard.locationLat == null ||
         wizard.locationLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text(
             'Falta informação dos passos anteriores. Volta atrás e confirma.'),
-        backgroundColor: Colors.red,
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
       return;
     }
@@ -121,6 +121,9 @@ class _ClientCreateJobReviewScreenState
         dateMode: wizard.dateMode,
         preferredDate: wizard.dateMode == DateMode.fixed
             ? wizard.preferredDate
+            : null,
+        availabilityText: wizard.dateMode == DateMode.availability
+            ? wizard.availabilityText.trim()
             : null,
         urgency: wizard.urgency,
         sizeEstimate: wizard.sizeEstimate,
@@ -215,7 +218,11 @@ class _ClientCreateJobReviewScreenState
         .firstOrNull;
     final serviceLabel = selectedServiceType?.name ?? 'Serviço selecionado';
 
-    final baseWhenLabel = jobDeadlineLabel(wizard.dateMode, wizard.preferredDate);
+    final baseWhenLabel = jobDeadlineLabel(
+      wizard.dateMode,
+      wizard.preferredDate,
+      availabilityText: wizard.availabilityText,
+    );
     final whenLabel = wizard.urgency == Urgency.urgent
         ? 'Urgente · $baseWhenLabel'
         : baseWhenLabel;
@@ -494,7 +501,7 @@ class _SchedulingCard extends StatelessWidget {
       onEdit: onEdit,
       child: Column(
         children: [
-          _SummaryRow(label: 'Quando', value: whenLabel),
+          _SummaryRow(label: 'Quando', value: whenLabel, valueMaxLines: 3),
           const SizedBox(height: AppSpacing.sm),
           _SummaryRow(label: 'Dimensão', value: sizeLabel, valueMaxLines: 2),
           const SizedBox(height: AppSpacing.sm),
