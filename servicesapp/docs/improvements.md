@@ -10,6 +10,32 @@
 
 ---
 
+## ✅ Revisão de 2026-10-18 — itens que já estavam resolvidos
+
+Confirmado por leitura do código e das migrations (não de memória):
+
+| Item | Onde foi resolvido |
+|---|---|
+| **SA3** upload para qualquer path | Baseline `0001`: INSERT em `avatars` exige nome do ficheiro = `auth.uid()`; em `job-photos` exige a 1.ª pasta = `auth.uid()` |
+| **SA2** avaliações por REST direto | `0042` (S4): policy de INSERT direto em `ratings` apagada (só as RPCs `submit_*_rating`, que validam a participação) e pedidos só nascem `open` |
+| **SA1** `auto_confirm`/`auto_expire` chamáveis | `0042` e `0046`/`0049`: `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` |
+| **M4** CHECKs `people_needed`/`slots_needed` | Já na baseline `0001` (`check_people_needed`, `check_slots_needed`) |
+| **Contacto do principal para ajudantes** | `principalPhone` no ecrã do ajudante e na lista de candidaturas (0048/0049) |
+| **P-8-8** cancelados em `open` no histórico | Decidido e feito a 2026-10-18: aparecem em Histórico |
+| **P1/A1** labels de `JobStatus` duplicados | `JobStatus.presentation(...)` em `app_status_presenters.dart`, os `_statusChip` antigos já não existem |
+| **P3** `Colors.orange`/`Colors.red` soltos | 2026-10-18: erros com `AppStatusColor.cancelled.foreground`, notificações com `AppStatusColor`, estrelas com `AppColors.logoAccent` |
+| **P4** wildcard `_statusLabel` | O código já não existe |
+| **P7** `architecture.md` obsoleto | Substituído pelo `ARCHITECTURE.md` de 2026-10-16 (extraído do código) |
+| **M4 radius** constantes no AppTheme | `AppRadius` (input 12, card 16, pill 999) |
+
+Ainda abertos de verdade: FCM (só falta configurar, ver `SETUP.md`), OAuth, WEB-1, e os
+itens pós-lançamento. Os 4 `Color(0xFF...)` do logótipo da Google no `login_screen.dart`
+ficam de propósito (são as cores da marca Google, o botão está desativado). Os botões de
+remover foto (26 px) e de contar ajudantes (36 px) estão abaixo dos 48 px recomendados
+para toque; fica para quando houver revisão visual desses ecrãs.
+
+---
+
 ## 🗺️ Roadmap limpo — 2026-07-09
 
 > Para o roadmap completo e análise de segurança, ver `docs/STATUS.md`.
