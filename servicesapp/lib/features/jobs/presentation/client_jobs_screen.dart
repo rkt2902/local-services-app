@@ -8,6 +8,7 @@ import '../../../core/utils/date_labels.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../application/client_job_next_step.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 import 'widgets/client_jobs_view.dart' as view;
@@ -49,12 +50,8 @@ class ClientJobsScreen extends ConsumerWidget {
         // Condições exatas de sempre — P-8-8 (jobs cancelados sem proposta
         // aceite ficam invisíveis nas duas tabs) é uma decisão de produto
         // pendente, não corrigida aqui.
-        final activeJobs = jobs
-            .where((j) =>
-                j.status == JobStatus.open ||
-                j.status == JobStatus.confirmed ||
-                j.status == JobStatus.awaitingConfirmation)
-            .toList();
+        // Mesma ordem do Início: o que precisa do cliente primeiro.
+        final activeJobs = clientHomeActiveJobs(jobs);
         final historyJobs = jobs
             .where((j) =>
                 j.status == JobStatus.completed ||
@@ -67,6 +64,11 @@ class ClientJobsScreen extends ConsumerWidget {
         // Mesmo par de providers já usado (e já correto) em
         // client_job_detail_screen.dart/client_scheduled_job_detail_screen.dart;
         // esta lista simplesmente nunca os tinha chamado.
+        const activeStatuses = {
+          JobStatus.open,
+          JobStatus.confirmed,
+          JobStatus.awaitingConfirmation,
+        };
         const statusesWithWorker = {
           JobStatus.confirmed,
           JobStatus.awaitingConfirmation,
@@ -118,6 +120,10 @@ class ClientJobsScreen extends ConsumerWidget {
                 : null,
             workerName: workerName,
             workerAvatarUrl: workerAvatarUrl,
+            nextStepLabel: activeStatuses.contains(job.status)
+                ? clientJobNextStepLabel(job)
+                : null,
+            needsAction: clientJobNeedsAction(job),
           );
         }
 

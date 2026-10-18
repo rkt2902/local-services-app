@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/enums.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
+import '../../jobs/application/client_job_next_step.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -48,13 +49,12 @@ class ClientHomeScreen extends ConsumerWidget {
         jobsAsync.isLoading || serviceTypesAsync.isLoading;
 
     var activeJobs = <view.ClientHomeActiveJobViewData>[];
+    var activeTotal = 0;
     if (jobsAsync.hasValue) {
-      final activeRaw = jobsAsync.value!
-          .where((j) =>
-              j.status == JobStatus.open || j.status == JobStatus.confirmed)
-          .take(3);
+      final activeRaw = clientHomeActiveJobs(jobsAsync.value!);
+      activeTotal = activeRaw.length;
       activeJobs = [
-        for (final job in activeRaw)
+        for (final job in activeRaw.take(_homeMaxJobs))
           view.ClientHomeActiveJobViewData(
             id: job.id,
             serviceLabel: serviceTypes
@@ -62,11 +62,13 @@ class ClientHomeScreen extends ConsumerWidget {
                     .map((t) => t.name)
                     .firstOrNull ??
                 'Desconhecido',
+            nextStepLabel: clientJobNextStepLabel(job),
             metadataLabel: _metadataLabel(job),
             status: job.status.presentation(
               proposalCount: job.proposalCount,
             ),
             icon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
+            needsAction: clientJobNeedsAction(job),
           ),
       ];
     }
@@ -78,6 +80,7 @@ class ClientHomeScreen extends ConsumerWidget {
           profile?.avatarUrl != null ? NetworkImage(profile!.avatarUrl!) : null,
       hasUnreadNotifications: unreadCount > 0,
       activeJobs: activeJobs,
+      activeJobsTotal: activeTotal,
       loadingActiveJobs: loadingActiveJobs,
     );
 
@@ -85,16 +88,16 @@ class ClientHomeScreen extends ConsumerWidget {
       data: data,
       onCreateJobPressed: () => context.push('/client/create-job'),
       onNotificationsPressed: () => context.push('/notifications'),
-      onViewAllJobsPressed: () => context.push('/client/jobs'),
+      onViewAllJobsPressed: () => context.go('/client/jobs'),
       onActiveJobPressed: (jobId) => context.push('/client/job/$jobId'),
     );
   }
 }
 
+const _homeMaxJobs = 5;
+
 String _metadataLabel(JobRequest job) {
-  final dateLabel = job.preferredDate == null
-      ? 'Flexível'
-      : DateFormat('dd/MM/yyyy').format(job.preferredDate!);
+  final dateLabel = jobDeadlineLabel(job.dateMode, job.preferredDate);
   final address =
       job.addressText.isEmpty ? 'Localização por definir' : job.addressText;
   return '$dateLabel · $address';

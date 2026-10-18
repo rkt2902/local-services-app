@@ -48,6 +48,8 @@ class ClientJobListItemViewData {
     this.secondaryStatusPresentation,
     this.workerName,
     this.workerAvatarUrl,
+    this.nextStepLabel,
+    this.needsAction = false,
   });
 
   final String jobId;
@@ -80,6 +82,13 @@ class ClientJobListItemViewData {
   /// `cancelled`, onde não há ninguém para mostrar.
   final String? workerName;
   final String? workerAvatarUrl;
+
+  /// O que acontece a seguir (só pedidos em curso). Ex.: "Tens 2 propostas
+  /// para ver." Igual ao que o Início mostra.
+  final String? nextStepLabel;
+
+  /// Realça [nextStepLabel] quando o pedido espera por uma ação do cliente.
+  final bool needsAction;
 }
 
 class ClientJobsScreen extends StatefulWidget {
@@ -394,6 +403,18 @@ class _JobCard extends StatelessWidget {
                   AppStatusBadge.fromPresentation(presentation: job.statusPresentation),
                 ],
               ),
+              if (job.nextStepLabel != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  job.nextStepLabel!,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: job.needsAction
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    fontWeight: job.needsAction ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+              ],
               if (job.workerName != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 UserAvatarWithName(
