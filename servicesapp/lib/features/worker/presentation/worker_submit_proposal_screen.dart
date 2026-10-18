@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_date_picker.dart';
@@ -108,7 +109,7 @@ class _WorkerSubmitProposalScreenState
     } catch (e) {
       if (!mounted) return;
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

@@ -91,7 +91,7 @@ class _WorkerHelpRequestsLobbyScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;
@@ -106,7 +106,7 @@ class _WorkerHelpRequestsLobbyScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;

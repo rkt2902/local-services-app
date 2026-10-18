@@ -829,7 +829,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.star_rounded,
-                            size: 12, color: Colors.amber),
+                            size: 12, color: AppColors.logoAccent),
                         const SizedBox(width: 2),
                         Text(
                           decimalLabel(principalRatingSummary.avgRating, 1),
@@ -914,7 +914,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                                 ? Icons.star_rounded
                                 : Icons.star_outline_rounded,
                             size: 16,
-                            color: Colors.amber,
+                            color: AppColors.logoAccent,
                           ),
                         ),
                       ),

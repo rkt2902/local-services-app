@@ -194,7 +194,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
       setState(() => _submitting = false);
       messenger.showSnackBar(SnackBar(
         content: Text(friendlyError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
     }
   }

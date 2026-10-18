@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
@@ -76,7 +77,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
     });

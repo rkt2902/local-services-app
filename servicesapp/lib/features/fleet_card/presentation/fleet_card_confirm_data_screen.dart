@@ -133,7 +133,7 @@ class _FleetCardConfirmDataScreenState
       setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(
         content: Text(friendlyError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
     }
   }

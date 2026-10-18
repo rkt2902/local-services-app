@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/constants/enums.dart';
@@ -84,7 +85,7 @@ class _WorkerMyJobDetailScreenState
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _cancellingJob = false);
@@ -111,7 +112,7 @@ class _WorkerMyJobDetailScreenState
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
@@ -128,7 +129,7 @@ class _WorkerMyJobDetailScreenState
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _acceptingReschedule = false);
@@ -145,7 +146,7 @@ class _WorkerMyJobDetailScreenState
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _rejectingReschedule = false);
@@ -166,7 +167,7 @@ class _WorkerMyJobDetailScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppStatusColor.cancelled.foreground),
             child: const Text('Retirar'),
           ),
         ],
@@ -189,7 +190,7 @@ class _WorkerMyJobDetailScreenState
       invalidateWorkerLists(ref, jobId: jobId);
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
       if (mounted) setState(() => _withdrawing = false);
     }
@@ -287,7 +288,7 @@ class _WorkerMyJobDetailScreenState
                           } catch (e) {
                             scaffold.showSnackBar(SnackBar(
                               content: Text(friendlyError(e)),
-                              backgroundColor: Colors.red,
+                              backgroundColor: AppStatusColor.cancelled.foreground,
                             ));
                             setSheetState(() => loading = false);
                           }
@@ -334,7 +335,7 @@ class _WorkerMyJobDetailScreenState
     } catch (e) {
       if (mounted) {
         scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;

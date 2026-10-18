@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
+import '../theme/app_status_color.dart';
 
 class AppTextField extends StatelessWidget {
   const AppTextField({
@@ -91,12 +92,12 @@ class AppTextField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.input),
-          borderSide: const BorderSide(color: Colors.redAccent),
+          borderSide: BorderSide(color: AppStatusColor.cancelled.foreground),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.input),
           borderSide:
-              const BorderSide(color: Colors.redAccent, width: 1.4),
+              BorderSide(color: AppStatusColor.cancelled.foreground, width: 1.4),
         ),
       ),
     );

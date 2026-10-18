@@ -7,6 +7,7 @@ import '../../../core/services/geocoding_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/app_motion.dart';
@@ -218,7 +219,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       debugPrint('[WorkerSetup] ${e.runtimeType}: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -365,7 +366,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                       error: (e, _) => Text(
                         'Erro ao carregar serviços: ${friendlyError(e)}',
                         style:
-                            textTheme.bodyMedium?.copyWith(color: Colors.red),
+                            textTheme.bodyMedium?.copyWith(color: AppStatusColor.cancelled.foreground),
                       ),
                       data: (types) => Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -522,7 +523,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                       Text(
                         _locationError!,
                         style:
-                            textTheme.bodySmall?.copyWith(color: Colors.red),
+                            textTheme.bodySmall?.copyWith(color: AppStatusColor.cancelled.foreground),
                       ),
                     ],
 

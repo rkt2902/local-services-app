@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_brand_badge.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -61,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
     });

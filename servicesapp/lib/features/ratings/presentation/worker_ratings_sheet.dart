@@ -189,7 +189,7 @@ class _RatingHeader extends StatelessWidget {
                         return Icon(
                           filled ? Icons.star_rounded : Icons.star_outline_rounded,
                           size: 20,
-                          color: Colors.amber,
+                          color: AppColors.logoAccent,
                         );
                       }),
                     ),
@@ -242,7 +242,7 @@ class _RatingRow extends StatelessWidget {
                   return Icon(
                     filled ? Icons.star_rounded : Icons.star_outline_rounded,
                     size: 14,
-                    color: Colors.amber,
+                    color: AppColors.logoAccent,
                   );
                 }),
               ),

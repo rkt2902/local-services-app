@@ -87,7 +87,7 @@ class _VerifyResetCodeScreenState extends ConsumerState<VerifyResetCodeScreen> {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text(describePasswordResetError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
     }
     if (!mounted) return;
