@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Revisão de todos os fluxos (cliente, jardineiro, ajudantes)
+
+- Pedida pelo Henrique ("para o worker e ajudantes depois não fica muito claro").
+  Duas auditorias de leitura, depois correções só na app e a migration 0048.
+- Início do cliente: uma só lista de pedidos em curso, o que precisa do cliente
+  primeiro, com uma linha de próximo passo (igual na aba Pedidos).
+- Jardineiro: cartão "Equipa" no trabalho (o lobby não tinha entrada na app), sem
+  `pop` depois de ações abertas por notificação, listas invalidadas num só sítio
+  (`invalidateWorkerLists`), pedidos já tomados só de leitura, regras de
+  cancelar/remarcar por dias como na BD, aba "Concluídos" passa a "Histórico".
+- Cliente: avaliação do jardineiro só por `submit_client_rating` (o botão antigo
+  chamava a RPC do responsável e falhava sempre), falha de rede no arranque vai para
+  `/session-error` em vez de `/choose-role`, voltar seguro na web, rascunho do pedido
+  preservado e limpo ao trocar de conta, terminar sessão com confirmação.
+- 0048 (por aplicar): candidatura por RPC (`apply_to_help_request`, permite voltar a
+  candidatar-se), retirar candidatura pendente, triggers de avisos (proposta de pedido
+  cancelado/expirado, candidaturas fechadas quando o trabalho é feito, novo candidato,
+  pedido de ajudantes ao cliente), um pedido de ajuda ativo por trabalho, telefone dos
+  ajudantes aceites, `job_status` no board.
+
 ## 2026-10-17 — Mais testes automáticos e redirect do router testável
 
 - A decisão de redirect saiu de `RouterNotifier.redirect` para a função pura

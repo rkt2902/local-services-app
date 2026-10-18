@@ -3,7 +3,7 @@
 Guia único, por ordem. Cada passo tem o que fazer, como confirmar que ficou bem e a frase
 para dizeres ao Claude quando acabares. Marca as caixas à medida que avanças.
 
-Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047 por aplicar (passo 0.1); código da versão web,
+Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047 e 0048 por aplicar (passos 0.1 e 0.2); código da versão web,
 do push FCM e do domínio por `--dart-define` já está no `main`. Nada daqui mexe em código.
 
 Ordem recomendada e porquê:
@@ -38,7 +38,22 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
       mensagem ao candidatar-se tem um bloco "Mensagem" no cartão do lobby. Quem não
       escreveu nada aparece como antes.
 
-**Diz ao Claude:** "0047 aplicada".
+### 0.2 Migration por aplicar: 0048 (depois da 0047)
+
+- [ ] SQL Editor: colar `supabase/migrations/0048_worker_helper_flow_fixes.sql` e
+      correr. Também pode correr-se mais do que uma vez.
+- [ ] Testar com dois jardineiros (A responsável, B ajudante):
+  - B candidata-se a um pedido de ajuda de A: A recebe "Novo candidato a ajudante" e,
+    ao tocar, abre a equipa.
+  - A recusa B; B pode voltar a candidatar-se se a vaga reabrir. B também consegue
+    retirar uma candidatura pendente.
+  - A aceita B: no cartão de B na equipa aparece "Falar por WhatsApp".
+  - A pede ajudantes: o cliente recebe "Pedido de ajudantes" e não dá para pedir
+    outra vez enquanto esse estiver à espera.
+  - O cliente cancela um pedido com propostas pendentes: cada jardineiro recebe
+    "Pedido cancelado". Na aba Trabalhos, "Histórico" mostra-o como "Cancelado".
+
+**Diz ao Claude:** "0047 e 0048 aplicadas".
 
 ---
 

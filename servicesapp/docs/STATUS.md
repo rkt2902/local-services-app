@@ -261,6 +261,8 @@ Relatório completo: `/mnt/project-files/projardim/review/2026-10-16-review-codi
 
 **Catálogo de serviços (0045, aplicada):** Jardinagem, Agricultura e Floresta, 33 tipos com ícone. Aplicar antes da app nova.
 
+**Revisão dos fluxos (18/10, 0048 NÃO aplicada):** ver `decisions_log.md` e `/mnt/project-files/projardim/revisao-fluxos.md`. Sem a 0048 a app funciona como antes nas partes que dependem dela.
+
 **Mensagem do candidato a ajudante (0047, NÃO aplicada):** o jardineiro principal vê no lobby o que o candidato escreveu ao candidatar-se. Sem a 0047 aplicada o cartão aparece como antes, sem a mensagem.
 
 **Regras do dia do trabalho (0046, aplicada):** concluir só a partir do dia, com foto opcional; pedidos com data passada deixam de aparecer e expiram; trabalho confirmado sem conclusão expira 3 dias depois da data; lembretes de manhã no dia e de confirmação. Ver `decisions_log.md`.

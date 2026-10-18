@@ -124,6 +124,10 @@ o ficheiro, e depois correr de novo só essas 4 policies.
 **Note:** `snapshot_a.csv` and `snapshot_b.csv` do not exist in this repo.
 All snapshot data came from a single `snapshot_tables.csv` file.
 
+**`0048_worker_helper_flow_fixes.sql`: criada, NÃO aplicada** (aplicar depois da
+0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
+Ver o cabeçalho do ficheiro. **Próxima migration: `0049`.**
+
 **`0047_candidate_message.sql`: criada, NÃO aplicada.** Aplicar no SQL Editor (pode
 ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viva
 (2026-10-17). **Próxima migration: `0048`.**

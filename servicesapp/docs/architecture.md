@@ -232,6 +232,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
+| `/session-error` | `SessionErrorScreen` (perfil não carregou: tentar de novo ou sair) | fora | shared-axis |
 | `/worker/setup` | `WorkerSetupScreen` | fora | default |
 | `/worker/profile/edit` | `WorkerEditProfileScreen` | fora | default |
 | `/notifications` | `NotificationsScreen` | fora | fade-through |
@@ -456,8 +457,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0045_service_catalog.sql` | aplicada (confirmado a 2026-10-17) |
 | `0046_job_day_rules.sql` | aplicada (confirmado a 2026-10-17) |
 | `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
+| `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
 
-Próxima migration: `0048`.
+Próxima migration: `0049`.
 
 ---
 
