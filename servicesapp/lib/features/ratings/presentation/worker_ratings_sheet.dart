@@ -46,7 +46,7 @@ Future<void> showWorkerRatingsSheet(
                       SliverToBoxAdapter(
                         child: summaryAsync.when(
                           loading: () => Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.s20),
                             child: AppSkeletonShimmer(
                               child: SizedBox(
                                 width: 180,
@@ -91,8 +91,8 @@ Future<void> showWorkerRatingsSheet(
                       ratingsAsync.when(
                         loading: () => SliverPadding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
                           ),
                           sliver: SliverList.list(
                             children: [
@@ -107,7 +107,7 @@ Future<void> showWorkerRatingsSheet(
                                     ),
                                   ),
                                 ),
-                                if (i < 2) const SizedBox(height: 12),
+                                if (i < 2) const SizedBox(height: AppSpacing.sm),
                               ],
                             ],
                           ),
@@ -124,7 +124,7 @@ Future<void> showWorkerRatingsSheet(
                               hasScrollBody: false,
                               child: Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(32),
+                                  padding: const EdgeInsets.all(AppSpacing.xl),
                                   child: Text(ratings.isEmpty
                                       ? 'Ainda sem avaliações.'
                                       : 'Ainda sem comentários.'),
@@ -141,7 +141,7 @@ Future<void> showWorkerRatingsSheet(
                           );
                         },
                       ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
                     ],
                   ),
                 ),
@@ -158,7 +158,7 @@ class _SheetHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Container(
         width: 40,
         height: 4,
@@ -183,12 +183,12 @@ class _RatingHeader extends StatelessWidget {
     final hasRatings = summary.ratingCount > 0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.s20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(workerName, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           if (!hasRatings)
             Text(
               'Ainda sem avaliações.',
@@ -207,7 +207,7 @@ class _RatingHeader extends StatelessWidget {
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.sm),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -248,7 +248,7 @@ class _RatingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -277,7 +277,7 @@ class _RatingRow extends StatelessWidget {
             ],
           ),
           if (rating.comment != null && rating.comment!.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xxs),
             Text(
               rating.comment!,
               style: theme.textTheme.bodySmall?.copyWith(

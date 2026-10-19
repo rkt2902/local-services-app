@@ -59,6 +59,14 @@ todas as tabelas.
 - **Cartão público do worker** (`/w/:workerId`, migration 0033, view `worker_public_card`) —
   perfil mínimo pensado para acesso sem sessão. **Nota:** a rota existe e funciona se
   visitada, mas nada na app gera um link/QR que resolva para ela de facto — ver "Rotas órfãs".
+- **Iniciar trabalho, temporizador e 48h** (2026-10-19, migration 0052 por aplicar), a
+  seguir o design de 19/10 (ecrãs 6, 6b, 7, 7b). O jardineiro inicia a partir de 1h antes
+  da hora, com fotos de antes opcionais; o ecrã mostra o tempo em curso e "Reportar
+  problema"; concluir pede fotos de depois e mostra o tempo registado. O cliente vê "Em
+  curso", o tempo e as fotos. Confirmação automática em 48h com lembrete às 24h. Antes da
+  0052 aplicada, "Iniciar trabalho" dá erro (a RPC não existe). Falta: a lista "Os meus
+  trabalhos" ainda não distingue "Em curso" de "Agendado" (`get_worker_job_board` não
+  devolve `started_at`).
 - **Destaques e redes sociais do jardineiro** (2026-10-18, migration 0051 por aplicar) —
   em Editar perfil > "Destaques e redes sociais": até 5 destaques curtos e links para
   Instagram, Facebook, site e um outro (TikTok, YouTube, Google Maps), validados e sempre

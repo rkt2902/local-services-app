@@ -125,7 +125,7 @@ class _WorkerHelpRequestsScreenState
           onRefresh: _onDiscoverRefresh,
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: summaries.length,
             itemBuilder: (context, index) {
               final s = summaries[index];
@@ -146,7 +146,7 @@ class _WorkerHelpRequestsScreenState
               }
 
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: _HelpRequestCard(
                   summary: s,
                   serviceTypeName: serviceTypeName,
@@ -298,13 +298,13 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
           onRefresh: _onRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               if (pending.isNotEmpty) ...[
                 const _SectionHeader('Pendentes'),
                 ...pending.map(
                   (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: _PendingCard(
                       acceptance: a,
                       onOpen: () => _openDetail(a),
@@ -315,11 +315,11 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
                 ),
               ],
               if (accepted.isNotEmpty) ...[
-                if (pending.isNotEmpty) const SizedBox(height: 8),
+                if (pending.isNotEmpty) const SizedBox(height: AppSpacing.xs),
                 const _SectionHeader('Aceites'),
                 ...accepted.map(
                   (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: _AcceptedCard(
                       acceptance: a,
                       onOpen: () => _openDetail(a),
@@ -331,11 +331,11 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
               ],
               if (history.isNotEmpty) ...[
                 if (pending.isNotEmpty || accepted.isNotEmpty)
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.xs),
                 const _SectionHeader('Histórico'),
                 ...history.map(
                   (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: _HistoryCard(
                       acceptance: a,
                       onOpen: () => _openDetail(a),
@@ -609,7 +609,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      padding: const EdgeInsets.only(top: AppSpacing.xxs, bottom: AppSpacing.xs),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -720,7 +720,7 @@ class _PendingCard extends StatelessWidget {
                   ),
                 ],
                 if (acceptance.broughtEquipment) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xxs),
                   _Meta(
                     icon: Icons.build_outlined,
                     label: 'Levo equipamento',
@@ -804,11 +804,11 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 _jobStatusBadgeFromRaw(widget.acceptance.jobStatus),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             AppStatusBadge.fromPresentation(
               presentation: HelpAcceptanceStatus.accepted.presentation,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             Row(
               children: [
                 Expanded(
@@ -843,14 +843,14 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
               ],
             ),
             if (widget.acceptance.agreedRate > 0) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               _Meta(
                 icon: Icons.euro_outlined,
                 label: '${hourlyRateLabel(widget.acceptance.agreedRate)} acordado',
               ),
             ],
             if (widget.acceptance.confirmedDate != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               _Meta(
                 icon: Icons.event_available_outlined,
                 label: _scheduleLabel(
@@ -860,7 +860,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
               ),
             ],
             if (widget.acceptance.locationLat != 0 || widget.acceptance.locationLng != 0) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               AddressMapLink(
                 address: widget.acceptance.addressText,
                 lat: widget.acceptance.locationLat,
@@ -868,7 +868,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
               ),
             ],
             if (widget.acceptance.principalPhone.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               OutlinedButton.icon(
                 onPressed: () =>
                     _openWhatsApp(widget.acceptance.principalPhone),
@@ -876,12 +876,12 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 label: const Text('Falar por WhatsApp'),
                 style: OutlinedButton.styleFrom(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.s6),
                   textStyle: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             if (isCompleted && jobId.isNotEmpty)
               ratingAsync.when(
                 // Loading de "já avaliei este job?", não progresso de uma
@@ -902,7 +902,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                     return Row(children: [
                       Icon(Icons.check_circle,
                           color: theme.colorScheme.primary, size: 18),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.xs),
                       Text('Responsável avaliado',
                           style: theme.textTheme.bodySmall),
                       const Spacer(),
@@ -1137,13 +1137,13 @@ class _HelpRequestCard extends StatelessWidget {
               },
               borderRadius: BorderRadius.circular(6),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs, horizontal: 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.map_outlined,
                         size: 16, color: AppColors.primary),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.s6),
                     Text(
                       'Ver no mapa',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -1161,7 +1161,7 @@ class _HelpRequestCard extends StatelessWidget {
           if (summary.equipmentRequired)
             Row(children: [
               const Icon(Icons.build, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.s6),
               Text(
                 'Equipamento obrigatório',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -1174,7 +1174,7 @@ class _HelpRequestCard extends StatelessWidget {
             Row(children: [
               const Icon(Icons.check_circle_outline,
                   size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.s6),
               Text('Sem equipamento necessário',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: AppColors.textSecondary)),
@@ -1269,7 +1269,7 @@ class _Meta extends StatelessWidget {
         Icon(icon,
             size: 14,
             color: Theme.of(context).colorScheme.onSurfaceVariant),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xxs),
         Flexible(
           child: Text(label, style: Theme.of(context).textTheme.bodySmall),
         ),

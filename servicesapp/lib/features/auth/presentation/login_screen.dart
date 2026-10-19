@@ -10,6 +10,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import 'widgets/social_sign_in_buttons.dart';
+import '../../../core/theme/app_spacing.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -86,14 +87,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 26, 22, 18),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.s22, AppSpacing.s26, AppSpacing.s22, AppSpacing.s18),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.s20),
                       const AppBrandBadge(size: 62, iconSize: 30),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: AppSpacing.s18),
                       Text(
                         'Bem-vindo de volta',
                         textAlign: TextAlign.center,
@@ -102,14 +103,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Entra na tua conta ProJardim',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.lg),
                       AppTextField(
                         controller: _emailController,
                         label: 'Email',
@@ -122,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _passwordController,
                         label: 'Password',
@@ -151,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.xs),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -171,13 +172,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.s6),
                       PrimaryActionButton(
                         label: 'Entrar',
                         isLoading: isLoading,
                         onPressed: _submit,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: AppSpacing.s18),
                       Row(
                         children: [
                           const Expanded(
@@ -186,7 +187,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           Padding(
                             padding:
-                                const EdgeInsets.symmetric(horizontal: 12),
+                                const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                             child: Text(
                               'ou',
                               style: textTheme.labelLarge
@@ -199,7 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: AppSpacing.s18),
                       SocialSignInButtons(
                         enabled: !isLoading,
                         onPressed: _signInWithSocial,
@@ -210,7 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s22, 0, AppSpacing.s22, AppSpacing.md),
               child: Center(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,

@@ -37,7 +37,7 @@ Future<bool?> showSubmitRatingSheet({
           final inset = MediaQuery.viewInsetsOf(ctx).bottom;
           return SafeArea(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(24, 24, 24, inset + 24),
+              padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, inset + 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -45,7 +45,7 @@ Future<bool?> showSubmitRatingSheet({
                   Text(title,
                       style: Theme.of(ctx).textTheme.titleLarge),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle,
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
@@ -55,7 +55,7 @@ Future<bool?> showSubmitRatingSheet({
                           ),
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.s20),
                   RatingStarsInput(
                     rating: selectedStars,
                     onChanged: (value) =>
@@ -80,7 +80,7 @@ Future<bool?> showSubmitRatingSheet({
                           )
                         : const SizedBox(height: 16, key: ValueKey(0)),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
                   TextField(
                     controller: commentController,
                     maxLines: 3,
@@ -98,7 +98,7 @@ Future<bool?> showSubmitRatingSheet({
                           ),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   FilledButton(
                     onPressed: (submitting || selectedStars == 0)
                         ? null

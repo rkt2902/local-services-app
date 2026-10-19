@@ -7,6 +7,7 @@ import '../../../core/theme/app_radius.dart';
 import '../application/onboarding_providers.dart';
 import 'widgets/onboarding_illustration.dart';
 import 'widgets/onboarding_page_indicator.dart';
+import '../../../core/theme/app_spacing.dart';
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -160,7 +161,7 @@ class _SkipRow extends StatelessWidget {
           duration: disableAnimations ? Duration.zero : AppMotionDuration.fast,
           curve: AppMotionCurve.standard,
           child: Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
             child: TextButton(
               onPressed: isLastPage ? null : onSkip,
               child: Text(
@@ -194,7 +195,7 @@ class _OnboardingPage extends StatelessWidget {
     final illustrationSize = isCompact ? 160.0 : 220.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Column(
         children: [
           SizedBox(height: isCompact ? 8 : 24),
@@ -262,7 +263,7 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, isCompact ? 16 : 24),
+      padding: EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, isCompact ? 16 : 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -277,7 +278,7 @@ class _BottomBar extends StatelessWidget {
               onPressed: onAdvance,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.input),
                 ),

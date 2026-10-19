@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_status_color.dart';
+import '../theme/app_spacing.dart';
 
 class AppTextField extends StatelessWidget {
   const AppTextField({
@@ -77,7 +78,7 @@ class AppTextField extends StatelessWidget {
         filled: true,
         fillColor: AppColors.surface,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s18),
         labelStyle:
             textTheme.labelLarge?.copyWith(color: AppColors.textSecondary),
         hintStyle:

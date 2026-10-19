@@ -103,7 +103,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.s20, AppSpacing.s18, AppSpacing.s20, AppSpacing.s22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -112,7 +112,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Como queres usar\na ProJardim?',
                         style: textTheme.headlineSmall?.copyWith(
@@ -130,7 +130,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: AppSpacing.s18),
                       _RoleSelectionCard(
                         title: 'Preciso de jardinagem',
                         description:
@@ -140,11 +140,11 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                         onTap: () =>
                             setState(() => _selectedRole = UserRole.client),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       _RoleSelectionCard(
                         title: 'Sou jardineiro',
                         description:
-                            'Recebo pedidos, envio propostas e faço trabalhos — sozinho ou como ajudante.',
+                            'Recebo pedidos, envio propostas e faço trabalhos, sozinho ou como ajudante.',
                         icon: Icons.grass_rounded,
                         selected: _selectedRole == UserRole.worker,
                         onTap: () =>
@@ -316,7 +316,7 @@ class _RoleSelectionCard extends StatelessWidget {
         duration: transitionDuration,
         curve: AppMotionCurve.standard,
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.s20),
         decoration: BoxDecoration(
           color: selected ? AppColors.primaryContainer : AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.card),
@@ -365,7 +365,7 @@ class _RoleSelectionCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.s18),
             Text(
               title,
               style: textTheme.titleLarge?.copyWith(
@@ -374,7 +374,7 @@ class _RoleSelectionCard extends StatelessWidget {
                 height: 1.2,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             Text(
               description,
               style: textTheme.bodyMedium?.copyWith(

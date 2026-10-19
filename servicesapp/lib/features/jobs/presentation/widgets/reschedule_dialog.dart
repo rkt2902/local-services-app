@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/app_date_picker.dart';
+import '../../../../core/theme/app_spacing.dart';
 
 class RescheduleDialog extends StatefulWidget {
   const RescheduleDialog._();
@@ -68,13 +69,13 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today_outlined),
               label: Text(dateText),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             SwitchListTile(
               title: const Text('Horário flexível neste dia'),
               value: _flexible,
@@ -85,7 +86,7 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
               contentPadding: EdgeInsets.zero,
             ),
             if (!_flexible) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xxs),
               OutlinedButton.icon(
                 onPressed: _pickTime,
                 icon: const Icon(Icons.access_time_outlined),

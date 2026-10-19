@@ -294,7 +294,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
           children: [
             // ── Header ───────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 24, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s10, AppSpacing.xs, AppSpacing.lg, 0),
               child: SizedBox(
                 height: 48,
                 child: Row(
@@ -402,7 +402,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                             label: const Text('Inserir morada'),
                             style: OutlinedButton.styleFrom(
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                               side:
                                   const BorderSide(color: AppColors.primary),
                               foregroundColor: AppColors.primary,
@@ -430,7 +430,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                             label: const Text('Usar GPS'),
                             style: OutlinedButton.styleFrom(
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                               side:
                                   const BorderSide(color: AppColors.primary),
                               foregroundColor: AppColors.primary,
@@ -454,7 +454,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                         onFieldSubmitted: (_) => _geocodeAddress(),
                         suffixIcon: _geocoding
                             ? const Padding(
-                                padding: EdgeInsets.all(12),
+                                padding: EdgeInsets.all(AppSpacing.sm),
                                 child: SizedBox(
                                   width: 20,
                                   height: 20,
@@ -627,7 +627,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.s6),
             Text(
               hasPhoto ? 'Alterar foto' : 'Adicionar foto',
               style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
@@ -697,7 +697,7 @@ class _WorkAreaResultCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 58),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.input),
@@ -717,7 +717,7 @@ class _WorkAreaResultCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.sm),
           const Icon(Icons.location_on_outlined,
               color: AppColors.primary, size: 22),
         ],
@@ -735,7 +735,7 @@ class _IdentityVerificationNotice extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.primaryContainer,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -748,7 +748,7 @@ class _IdentityVerificationNotice extends StatelessWidget {
             child: Icon(Icons.shield_outlined,
                 size: 20, color: AppColors.primary),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'A verificação de identidade aumenta a '

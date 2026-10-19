@@ -147,7 +147,7 @@ void main() {
     test('remarcação pendente', () {
       expect(
         friendlyError(Exception('Já existe uma remarcação pendente')),
-        'Já existe uma remarcação pendente. Aguarda a resposta.',
+        'Já existe uma remarcação pendente. Espera pela resposta.',
       );
       expect(
         friendlyError(Exception('Sem remarcação pendente')),

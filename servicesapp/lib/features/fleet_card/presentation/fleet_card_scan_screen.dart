@@ -164,8 +164,8 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
-                            'A foto é usada só para ler o cartão neste momento — '
-                            'não é guardada nem enviada para lado nenhum.',
+                            'A foto é usada só para ler o cartão neste momento. '
+                            'Não é guardada nem enviada para lado nenhum.',
                             textAlign: TextAlign.center,
                             style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
                           ),

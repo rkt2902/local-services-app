@@ -106,7 +106,7 @@ String friendlyError(Object e) {
       msg.contains('not authorized') ||
       msg.contains('invalid state') ||
       msg.contains('estado inválido')) {
-    return 'Esta ação já não é válida — o estado do pedido pode ter mudado. Atualiza e tenta novamente.';
+    return 'Esta ação já não é válida. O estado do pedido pode ter mudado. Atualiza e tenta novamente.';
   }
 
   return 'Ocorreu um erro inesperado. Tenta novamente.';

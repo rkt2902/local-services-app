@@ -226,7 +226,7 @@ class _WorkerMyJobDetailScreenState
                   'Adicionar ajudante',
                   style: Theme.of(sheetCtx).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.s20),
                 Row(
                   children: [
                     Expanded(
@@ -262,7 +262,7 @@ class _WorkerMyJobDetailScreenState
                       : (v) =>
                           setSheetState(() => equipmentRequired = v ?? false),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 FilledButton(
                   onPressed: loading
                       ? null
@@ -306,7 +306,7 @@ class _WorkerMyJobDetailScreenState
                         )
                       : const Text('Enviar pedido'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.xs),
               ],
             ),
           );

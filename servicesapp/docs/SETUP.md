@@ -87,6 +87,22 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0051 aplicada".
 
+### 0.5 Migration por aplicar: 0052 (depois da 0049 e da 0051)
+
+- [ ] SQL Editor: colar `supabase/migrations/0052_job_start_flow.sql` e correr. Pode
+      correr-se mais do que uma vez. As consultas de verificação estão no fim do ficheiro.
+- [ ] Testar:
+  - Jardineiro, trabalho marcado para hoje: "Iniciar trabalho" só fica ativo 1h antes da
+    hora. Iniciar com 1 foto de antes: aparece o temporizador e o cliente recebe "O
+    trabalho começou".
+  - "Marcar como concluído" com fotos de depois: o cliente vê o tempo registado e as
+    fotos de antes e depois, e o aviso diz que fica confirmado em 48 horas.
+  - `SELECT auto_confirm_completed_jobs();` corre sem erro e
+    `SELECT schedule FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';` dá
+    `15 * * * *`.
+
+**Diz ao Claude:** "0052 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

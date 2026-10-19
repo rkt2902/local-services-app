@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — O código passa a seguir o design: iniciar trabalho e 48h (0052)
+
+- **Sem estado novo:** "Em curso" é `confirmed` com `started_at`. Evita mexer em todas as
+  RPCs, listas e políticas que filtram por `status`.
+- **Janela de início:** 1h antes da hora combinada, na hora de Lisboa; sem hora, a partir do
+  dia; sem data, sempre. A app calcula o mesmo para o botão e a BD volta a verificar.
+- **Fotos:** até 3 de antes (opcionais) e 3 de depois (recomendadas), caminhos validados na
+  BD (têm de ser do próprio jardineiro, deste trabalho, e existir no Storage).
+  `completion_photo_path` continua com a 1.ª de depois para compatibilidade.
+- **48h:** o lembrete das 24h e a confirmação passam para `auto_confirm_completed_jobs`, de
+  hora a hora; o `send_job_reminders` diário deixava o lembrete até 24h atrasado.
+- **Contacto:** o design mostra telefone e chat; mantém-se só WhatsApp (regra do projeto).
+- **"Valor a receber":** a app mostra "Valor acordado" (o preço da proposta); não há regra
+  de comissão para calcular outro valor.
+- **Textos e espaçamento:** "Falar por WhatsApp", "Tentar novamente", "À espera de…",
+  "jardineiro", sem travessões na UI. A escala 4 a 32 do design entrou em `AppSpacing` e os
+  valores soltos dos ecrãs passaram a usar os tokens, sem mudar medidas.
+
 ## 2026-10-18 — Destaques e redes sociais no perfil do jardineiro (0051)
 
 - **Onde:** nova secção "Destaques e redes sociais" em Editar perfil (a apresentação/bio já

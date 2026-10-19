@@ -518,7 +518,7 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                       index: 4,
                       child: AppTextField(
                         controller: widget.hourlyRateController,
-                        label: 'Preço/hora (€) — opcional',
+                        label: 'Preço/hora (€), opcional',
                         keyboardType:
                             const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
@@ -1039,7 +1039,7 @@ class _AddressSearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.place_outlined, color: AppColors.textSecondary),
         suffixIcon: isResolving
             ? const Padding(
-                padding: EdgeInsets.all(14),
+                padding: EdgeInsets.all(AppSpacing.s14),
                 child: SizedBox(
                   width: 20,
                   height: 20,
@@ -1054,7 +1054,7 @@ class _AddressSearchField extends StatelessWidget {
         filled: true,
         fillColor: AppColors.surface,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.input),
           borderSide: const BorderSide(color: AppColors.divider),

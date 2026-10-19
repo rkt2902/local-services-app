@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/cancel_reasons.dart';
+import '../../../../core/theme/app_spacing.dart';
 
 class CancelJobDialog extends StatefulWidget {
   const CancelJobDialog._({required this.isClient});
@@ -53,7 +54,7 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             RadioGroup<String>(
               groupValue: _selectedReason,
               onChanged: (v) => setState(() => _selectedReason = v),
@@ -71,7 +72,7 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
               ),
             ),
             if (_selectedReason == CancelReason.other) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: _detailController,
                 maxLength: 200,
@@ -82,7 +83,7 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Esta ação não pode ser desfeita.',
               style: theme.textTheme.bodySmall

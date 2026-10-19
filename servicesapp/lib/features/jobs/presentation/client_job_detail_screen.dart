@@ -59,7 +59,7 @@ class _ClientJobDetailScreenState
   static const _commonProblems = [
     (id: 'no_show', label: 'Não apareceu', prefill: 'O jardineiro responsável não apareceu. '),
     (id: 'late', label: 'Atraso', prefill: 'O jardineiro responsável chegou com atraso. '),
-    (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto — '),
+    (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto. '),
   ];
 
   Future<void> _cancelJob() async {
@@ -300,13 +300,13 @@ class _ClientJobDetailScreenState
                 children: [
                   Text('Reportar problema',
                       style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Descreve o que aconteceu. O teu relato fica registado para referência futura.',
                     style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: descController,
                     maxLines: 4,
@@ -329,7 +329,7 @@ class _ClientJobDetailScreenState
                           color: AppStatusColor.cancelled.foreground),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   FilledButton(
                     onPressed: submitting
                         ? null

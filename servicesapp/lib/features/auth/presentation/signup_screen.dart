@@ -90,7 +90,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s10, AppSpacing.s6, AppSpacing.s10, 0),
               child: Row(
                 children: [
                   IconButton(
@@ -111,7 +111,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 20),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.s22, AppSpacing.xs, AppSpacing.s22, AppSpacing.s20),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -124,7 +124,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ? 'Introduz o nome completo.'
                             : null,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _emailController,
                         label: 'Email',
@@ -137,7 +137,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _phoneController,
                         label: 'Telemóvel',
@@ -149,7 +149,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           emptyMessage: 'Introduz o telemóvel.',
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _passwordController,
                         label: 'Password',
@@ -177,10 +177,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         validator: passwordPolicyValidator,
                       ),
                       if (_passwordController.text.isNotEmpty) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.sm),
                         AppPasswordStrengthMeter(password: _passwordController.text),
                       ],
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -266,7 +266,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s22, 0, AppSpacing.s22, AppSpacing.s20),
               child: PrimaryActionButton(
                 label: 'Criar conta',
                 isLoading: isLoading,

@@ -393,7 +393,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `accept_help_candidate` | `p_help_acceptance_id, p_agreed_rate` | `void` | `HelpRequestRepository` |
 | `accept_reschedule` | `p_job_id` | `void` | `JobRepository.acceptReschedule` |
 | `approve_help_request` | `p_help_request_id` | `void` | `HelpRequestRepository.approveHelpRequest` |
-| `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
+| `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`; `15 * * * *` desde a 0052: lembrete às 24h e confirmação às 48h), sem caller Dart |
 | `auto_expire_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
 | `cancel_job` | `p_job_id, p_reason, p_reason_detail?, p_client_wants_reopen?` | `uuid` (novo job se reaberto) | `JobRepository.cancelJob` |
 | `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name)` | `RatingRepository` |
@@ -401,7 +401,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
-| `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho) | `void` | `ProposalRepository.markJobCompleted` |
+| `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho). Desde a 0052: `p_job_id, p_photo_paths text[]` (até 3 fotos de depois) e exige `started_at` | `void` | `ProposalRepository.markJobCompleted` |
+| `start_job` (0052) | `p_job_id, p_photo_paths text[]` (até 3 fotos de antes; a partir de 1h antes da hora) | `void` | `JobRepository.startJob` |
 | `propose_reschedule` | `p_job_id, p_new_date, p_new_time?, p_new_flexible?` | `void` | `JobRepository.proposeReschedule` |
 | `reject_help_candidate` | `p_help_acceptance_id` | `void` | `HelpRequestRepository.rejectHelpCandidate` |
 | `reject_reschedule` | `p_job_id` | `void` | `JobRepository.rejectReschedule` |
@@ -468,6 +469,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
 | `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
+| `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
 
 Próxima migration: `0050` se ainda estiver livre, senão `0052`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
@@ -484,9 +486,10 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 |---|---|---|
 | criar pedido | INSERT direto | `new_job_in_radius` (trigger) |
 | aceitar proposta → `confirmed` | `accept_proposal` | `proposal_accepted` / `proposal_rejected` (outras) |
+| worker inicia (continua `confirmed`, "Em curso" = `started_at` preenchido, 0052) | `start_job` | `job_started` |
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |
 | cliente confirma → `completed` | `confirm_job_completion` | `job_completed` |
-| 3 dias sem confirmação → `completed` | `auto_confirm_completed_jobs` (cron) | `job_completed` |
+| 3 dias (48h desde a 0052) sem confirmação nem problema reportado → `completed` | `auto_confirm_completed_jobs` (cron) | `job_completed` |
 | 48h sem proposta → `no_response` | `auto_expire_jobs` (cron) | `job_no_response` |
 | cancelar | `cancel_job` | `job_cancelled` (+ `job_reopened` se reaberto) |
 
@@ -530,6 +533,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `proposal_rejected` | `accept_proposal` (outras propostas) | `/worker/job/:id` | go |
 | `job_cancelled` | `cancel_job` | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_reopened` | `cancel_job` | `/worker/job/:id` | go |
+| `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_no_response` | `auto_expire_jobs` (cron) | `/client/job/:id` | go |
@@ -545,7 +549,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 ## 10. Design system e motion
 
 **Tokens** (`core/theme/`): `AppColors` (paleta fixa — primary `#2E7D32`, background
-`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSpacing` (xxs4/xs8/sm12/md16/lg24/xl32),
+`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSpacing` (escala do design 19/10: 4·6·8·10·12·14·16·18·20·22·24·26·28·32; xxs4/s6/xs8/s10/sm12/s14/md16/s18/s20/s22/lg24/s26/s28/xl32),
 `AppRadius` (input12/card16/pill999), `AppTypography` (Plus Jakarta Sans, display/title/subtitle/body/caption),
 `AppStatusColor` (waiting/info/success/cancelled/neutral, cada um com `background`+`foreground`),
 `AppMotionDuration`/`AppMotionCurve` (ver abaixo), `AppTheme.light()` (Material 3,

@@ -79,7 +79,7 @@ class _SocialButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           icon,
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.s10),
           Flexible(
             child: Text(
               label,
