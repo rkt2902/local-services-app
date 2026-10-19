@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Inícios dos dois papéis e "+" do jardineiro (U2)
+
+- **Cabeçalho igual nos dois:** "Bom dia/Boa tarde/Boa noite" (`dayGreeting`), "Olá, Nome" e o
+  sino `HomeNotificationButton` com ponto vermelho. Saíram o avatar, a data e o emoji.
+- **Cliente:** pedido à espera de confirmação diz quanto falta para a confirmação automática
+  ("Confirma em 46h."), contado de `marked_done_at` + 48h.
+- **Jardineiro:** Pendentes/Agendados em cartões brancos que abrem a aba certa de "Os meus
+  trabalhos"; "O que falta fazer" com o título fora do cartão; "Trabalho hoje às 9:00" com
+  "Iniciar disponível a partir das 8:00" (ou "Em curso"); "trabalhos por concluir".
+  Oportunidades em lista (até 3) com serviço e dimensão, zona, distância e quando, e "Urgente";
+  "Ver todas" abre a aba Pedidos.
+- **"Próximo trabalho" mantido** no Início do jardineiro, apesar de não estar no U2, para não
+  tirar uma funcionalidade sem decisão do Henrique.
+- **"+" do jardineiro:** folha "O que queres fazer?" com Encontrar trabalho e Pedidos de ajuda,
+  e Cartão frota só quando o cartão está ativo (pedido do Henrique). O estado do cartão é lido
+  no `WorkerShell` para já estar carregado quando a folha abre.
+- **Não aplicado:** "À espera de ti" como estado curto do cliente, porque o mesmo label curto
+  aparece também do lado do jardineiro.
+
 ## 2026-10-19 — Componentes base em falta (U1)
 
 - **Novos em `core/widgets/`:** `AppConfirmDialog`, `AppEmptyState`, `AppSheet`, `NextStepRow`,

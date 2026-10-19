@@ -6,6 +6,7 @@ import 'package:servicesapp/core/widgets/app_confirm_dialog.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/next_step_row.dart';
 import 'package:servicesapp/core/widgets/todo_row.dart';
+import 'package:servicesapp/features/worker/presentation/widgets/worker_quick_actions_sheet.dart';
 
 Widget _app(Widget child) => MaterialApp(home: Scaffold(body: child));
 
@@ -117,5 +118,24 @@ void main() {
     )));
     await tester.tap(find.text('2 trabalhos por concluir'));
     expect(pressed, isTrue);
+  });
+
+  testWidgets('folha do "+" só mostra o Cartão frota quando está ativo',
+      (tester) async {
+    Widget sheet({required bool fleet}) => _app(WorkerQuickActionsSheet(
+          showFleetCard: fleet,
+          onFindWork: () {},
+          onOpenHelpRequests: () {},
+          onOpenFleetCard: () {},
+        ));
+    await tester.pumpWidget(sheet(fleet: false));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Encontrar trabalho'), findsOneWidget);
+    expect(find.text('Pedidos de ajuda'), findsOneWidget);
+    expect(find.text('Cartão frota'), findsNothing);
+
+    await tester.pumpWidget(sheet(fleet: true));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Cartão frota'), findsOneWidget);
   });
 }

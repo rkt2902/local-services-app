@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
+import 'package:servicesapp/core/widgets/home_notification_button.dart';
 import 'package:servicesapp/core/widgets/next_step_row.dart';
 
 /// Dados de apresentação da Home do cliente.
@@ -15,18 +17,17 @@ import 'package:servicesapp/core/widgets/next_step_row.dart';
 class ClientHomeViewData {
   const ClientHomeViewData({
     required this.firstName,
-    required this.greetingSubtitle,
+    required this.greeting,
     required this.activeJobs,
     this.activeJobsTotal = 0,
-    this.avatarImage,
     this.hasUnreadNotifications = false,
     this.loadingActiveJobs = false,
   });
 
   final String firstName;
-  final String greetingSubtitle;
 
-  final ImageProvider? avatarImage;
+  /// "Bom dia" / "Boa tarde" / "Boa noite" (`dayGreeting`).
+  final String greeting;
   final bool hasUnreadNotifications;
 
   /// Pedidos em curso (`open`/`confirmed`/`awaitingConfirmation`), já
@@ -100,9 +101,9 @@ class ClientHomeScreen extends StatelessWidget {
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
+                AppSpacing.s18,
                 AppSpacing.md,
-                AppSpacing.lg,
+                AppSpacing.s18,
                 AppSpacing.xl,
               ),
               sliver: SliverList(
@@ -112,12 +113,9 @@ class ClientHomeScreen extends StatelessWidget {
                       index: 0,
                       child: _ClientHeader(
                         firstName: data.firstName,
-                        subtitle: data.greetingSubtitle,
-                        avatarImage: data.avatarImage,
-                        hasUnreadNotifications:
-                            data.hasUnreadNotifications,
-                        onNotificationsPressed:
-                            onNotificationsPressed,
+                        greeting: data.greeting,
+                        hasUnreadNotifications: data.hasUnreadNotifications,
+                        onNotificationsPressed: onNotificationsPressed,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -199,15 +197,13 @@ class ClientHomeScreen extends StatelessWidget {
 class _ClientHeader extends StatelessWidget {
   const _ClientHeader({
     required this.firstName,
-    required this.subtitle,
-    required this.avatarImage,
+    required this.greeting,
     required this.hasUnreadNotifications,
     required this.onNotificationsPressed,
   });
 
   final String firstName;
-  final String subtitle;
-  final ImageProvider? avatarImage;
+  final String greeting;
   final bool hasUnreadNotifications;
   final VoidCallback onNotificationsPressed;
 
@@ -217,85 +213,32 @@ class _ClientHeader extends StatelessWidget {
 
     return Row(
       children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: AppColors.primaryContainer,
-          backgroundImage: avatarImage,
-          child: avatarImage == null
-              ? const Icon(
-                  Icons.person_outline_rounded,
-                  color: AppColors.primary,
-                )
-              : null,
-        ),
-        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                firstName.isEmpty ? 'Olá 👋' : 'Olá, $firstName 👋',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
+                greeting,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
               Text(
-                subtitle,
+                firstName.isEmpty ? 'Olá' : 'Olá, $firstName',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                style: textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
         ),
-        _NotificationsButton(
+        const SizedBox(width: AppSpacing.sm),
+        HomeNotificationButton(
           hasUnread: hasUnreadNotifications,
           onPressed: onNotificationsPressed,
         ),
-      ],
-    );
-  }
-}
-
-class _NotificationsButton extends StatelessWidget {
-  const _NotificationsButton({
-    required this.hasUnread,
-    required this.onPressed,
-  });
-
-  final bool hasUnread;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        IconButton(
-          onPressed: onPressed,
-          tooltip: 'Alertas',
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        if (hasUnread)
-          Positioned(
-            top: AppSpacing.xs,
-            right: AppSpacing.xs,
-            child: Container(
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -314,7 +257,7 @@ class _CreateJobButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: AppSizes.buttonHeight,
       child: FilledButton.icon(
         onPressed: onPressed,
         style: ButtonStyle(
@@ -464,7 +407,8 @@ class _EmptyJobsCard extends StatelessWidget {
       child: AppEmptyState(
         icon: Icons.yard_outlined,
         title: 'Ainda sem pedidos ativos',
-        message: 'Cria um pedido e recebe propostas de jardineiros perto de ti.',
+        message:
+            'Cria um pedido e recebe propostas de jardineiros perto de ti.',
         actionLabel: 'Criar primeiro pedido',
         onAction: onPressed,
       ),

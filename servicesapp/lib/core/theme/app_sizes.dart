@@ -31,6 +31,13 @@ abstract final class AppSizes {
   static const double rowIconBox = 40.0;
   static const double rowIcon = 22.0;
 
+  /// Caixa do ícone nos cartões de atalho (folha do "+" do jardineiro).
+  static const double actionIconBox = 44.0;
+
+  /// Botão redondo das notificações no cabeçalho do Início.
+  static const double headerIconButton = 44.0;
+  static const double unreadDot = 9.0;
+
   /// Pega das folhas ([AppSheet]).
   static const double sheetHandleWidth = 40.0;
   static const double sheetHandleHeight = 4.0;

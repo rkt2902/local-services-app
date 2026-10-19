@@ -16,11 +16,15 @@ class TodoRow extends StatelessWidget {
     required this.tone,
     required this.title,
     required this.onPressed,
+    this.subtitle,
   });
 
   final IconData icon;
   final AppStatusColor tone;
   final String title;
+
+  /// Segunda linha opcional, mais pequena e a cinza.
+  final String? subtitle;
   final VoidCallback onPressed;
 
   @override
@@ -47,12 +51,25 @@ class TodoRow extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                title,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.xs),

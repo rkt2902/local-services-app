@@ -1,6 +1,7 @@
 import '../../../core/constants/enums.dart';
 import '../../help_requests/application/helper_job_state.dart';
 import '../../help_requests/data/help_request_model.dart';
+import 'worker_job_rules.dart';
 
 /// Cartão "O que falta fazer" do dashboard do jardineiro: agrega, a partir
 /// de dados que o dashboard já carrega, o que espera por uma ação dele.
@@ -14,6 +15,9 @@ class WorkerTodoScheduledJob {
     required this.jobId,
     required this.status,
     this.confirmedDate,
+    this.confirmedTime,
+    this.confirmedFlexible = false,
+    this.startedAt,
     this.rescheduleStatus,
     this.rescheduleProposedBy,
   });
@@ -22,6 +26,11 @@ class WorkerTodoScheduledJob {
   final String jobId;
   final JobStatus status;
   final DateTime? confirmedDate;
+
+  /// "HH:MM" ou "HH:MM:SS", como vem da BD.
+  final String? confirmedTime;
+  final bool confirmedFlexible;
+  final DateTime? startedAt;
   final RescheduleStatus? rescheduleStatus;
   final String? rescheduleProposedBy;
 }
@@ -73,11 +82,15 @@ class WorkerTodoItem {
     required this.count,
     required this.label,
     required this.target,
+    this.subtitle,
   });
 
   final WorkerTodoKind kind;
   final int count;
   final String label;
+
+  /// Segunda linha opcional (ex.: "Iniciar disponível a partir das 8:00").
+  final String? subtitle;
   final WorkerTodoTarget target;
 }
 
@@ -92,6 +105,14 @@ const todoCandidatesJobCap = 5;
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
 String _plural(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
+
+/// "09:00:00" → "9:00"; `null` sem hora ou com horário flexível.
+String? _clock(String? time, {bool flexible = false}) {
+  if (flexible || time == null || time.length < 5) return null;
+  final hour = int.tryParse(time.substring(0, 2));
+  if (hour == null) return null;
+  return '$hour:${time.substring(3, 5)}';
+}
 
 WorkerTodoTarget _myJob(String proposalId, String jobId) =>
     WorkerTodoTarget.push('/worker/my-job/$proposalId?jobId=$jobId');
@@ -162,10 +183,38 @@ List<WorkerTodoItem> buildWorkerTodo({
     } else {
       target = _helperJob(todayAsHelper.first.id);
     }
+    // Um só trabalho com hora: "Trabalho hoje às 9:00" e, se for dele e
+    // ainda não começou, a partir de quando pode iniciar (1h antes).
+    var label = _plural(todayCount, 'trabalho hoje', 'trabalhos hoje');
+    String? subtitle;
+    if (todayCount == 1) {
+      final principal = todayAsPrincipal.firstOrNull;
+      final at = principal != null
+          ? _clock(principal.confirmedTime,
+              flexible: principal.confirmedFlexible)
+          : _clock(todayAsHelper.first.confirmedTime);
+      if (at != null) label = 'Trabalho hoje às $at';
+      if (principal != null) {
+        if (principal.startedAt != null) {
+          subtitle = 'Em curso';
+        } else {
+          final opens = WorkerJobDayRules.startOpensAt(
+            confirmedDate: principal.confirmedDate,
+            confirmedTime: principal.confirmedTime,
+            confirmedFlexible: principal.confirmedFlexible,
+          );
+          if (opens != null && at != null) {
+            subtitle = 'Iniciar disponível a partir das '
+                '${opens.hour}:${opens.minute.toString().padLeft(2, '0')}';
+          }
+        }
+      }
+    }
     items.add(WorkerTodoItem(
       kind: WorkerTodoKind.workToday,
       count: todayCount,
-      label: _plural(todayCount, 'trabalho hoje', 'trabalhos hoje'),
+      label: label,
+      subtitle: subtitle,
       target: target,
     ));
   }
@@ -182,8 +231,8 @@ List<WorkerTodoItem> buildWorkerTodo({
     items.add(WorkerTodoItem(
       kind: WorkerTodoKind.toMarkDone,
       count: overdue.length,
-      label: _plural(overdue.length, 'trabalho por marcar como concluído',
-          'trabalhos por marcar como concluídos'),
+      label: _plural(overdue.length, 'trabalho por concluir',
+          'trabalhos por concluir'),
       target: overdue.length == 1
           ? _myJob(overdue.first.proposalId, overdue.first.jobId)
           : _jobsTab('scheduled'),

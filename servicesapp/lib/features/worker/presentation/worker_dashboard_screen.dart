@@ -8,12 +8,16 @@ import '../../../core/utils/price_labels.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/utils/date_labels.dart';
+import '../../../core/utils/day_greeting.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/home_notification_button.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../../core/widgets/todo_row.dart';
 import '../../auth/application/auth_providers.dart';
@@ -37,22 +41,22 @@ import '../data/worker_profile_model.dart';
 class WorkerDashboardViewData {
   const WorkerDashboardViewData({
     required this.workerFirstName,
-    required this.dateLabel,
+    required this.greeting,
     required this.pendingCount,
     required this.scheduledCount,
     required this.opportunities,
-    this.avatarImage,
     this.hasUnreadNotifications = false,
     this.nextJob,
   });
 
   final String workerFirstName;
-  final String dateLabel;
+
+  /// "Bom dia" / "Boa tarde" / "Boa noite" (`dayGreeting`).
+  final String greeting;
 
   final int pendingCount;
   final int scheduledCount;
 
-  final ImageProvider? avatarImage;
   final bool hasUnreadNotifications;
 
   final WorkerDashboardJobSummary? nextJob;
@@ -92,20 +96,25 @@ class WorkerDashboardOpportunitySummary {
   const WorkerDashboardOpportunitySummary({
     required this.id,
     required this.title,
-    required this.locationLabel,
-    required this.priceLabel,
+    required this.contextLabel,
     required this.icon,
+    this.urgent = false,
   });
 
   final String id;
+
+  /// Serviço e, se houver, a dimensão: "Corte de relva · 120 m²".
   final String title;
-  final String locationLabel;
-  final String priceLabel;
+
+  /// Zona, distância e quando: "Cascais · 3,2 km · Esta semana".
+  final String contextLabel;
   final IconData icon;
+  final bool urgent;
 }
 
-/// Máximo de oportunidades mostradas no carrossel horizontal.
-const int _maxOpportunities = 6;
+/// Máximo de oportunidades mostradas no Início (a lista toda está em
+/// "Ver todas", na aba Pedidos).
+const int _maxOpportunities = 3;
 
 class WorkerDashboardScreen extends ConsumerWidget {
   const WorkerDashboardScreen({super.key});
@@ -182,16 +191,23 @@ class WorkerDashboardScreen extends ConsumerWidget {
       for (final job in opportunitiesRaw.take(_maxOpportunities))
         WorkerDashboardOpportunitySummary(
           id: job.id,
-          title:
-              (serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull)
-                  ?.name ??
-              '—',
-          locationLabel: _distanceLabel(workerProfile, job),
-          // O MVP não tem preço no pedido — o valor só existe depois de uma
-          // proposta. Ver docs/project_overview.md ("Valor exibido é SEMPRE
-          // estimado").
-          priceLabel: 'Preço a combinar',
+          title: [
+            (serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull)
+                    ?.name ??
+                '—',
+            ?job.sizeEstimate?.label,
+          ].join(' · '),
+          contextLabel: [
+            ?job.locationArea,
+            _distanceLabel(workerProfile, job),
+            jobDeadlineLabel(
+              job.dateMode,
+              job.preferredDate,
+              availabilityText: job.availabilityText,
+            ),
+          ].where((part) => part.isNotEmpty).join(' · '),
           icon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
+          urgent: job.urgency == Urgency.urgent,
         ),
     ];
 
@@ -199,13 +215,10 @@ class WorkerDashboardScreen extends ConsumerWidget {
 
     final data = WorkerDashboardViewData(
       workerFirstName: fullName.isEmpty ? '' : fullName.split(' ').first,
-      dateLabel: DateFormat('dd/MM/yyyy').format(DateTime.now()),
+      greeting: dayGreeting(DateTime.now()),
       pendingCount: pendingCount,
       scheduledCount: scheduledRaw.length,
       opportunities: opportunities,
-      avatarImage: workerProfile?.avatarUrl != null
-          ? NetworkImage(workerProfile!.avatarUrl!)
-          : null,
       hasUnreadNotifications: unreadCount > 0,
       nextJob: nextJob,
     );
@@ -222,9 +235,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
             slivers: [
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s18,
                   AppSpacing.md,
-                  AppSpacing.md,
-                  AppSpacing.md,
+                  AppSpacing.s18,
                   AppSpacing.xl,
                 ),
                 sliver: SliverList(
@@ -233,8 +246,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                       index: 0,
                       child: _DashboardHeader(
                         workerFirstName: data.workerFirstName,
-                        dateLabel: data.dateLabel,
-                        avatarImage: data.avatarImage,
+                        greeting: data.greeting,
                         hasUnreadNotifications: data.hasUnreadNotifications,
                         onNotificationsPressed: () =>
                             context.push('/notifications'),
@@ -246,10 +258,18 @@ class WorkerDashboardScreen extends ConsumerWidget {
                       child: _DashboardMetrics(
                         pendingCount: data.pendingCount,
                         scheduledCount: data.scheduledCount,
+                        onPendingPressed: () => context.go(
+                          '/worker/jobs',
+                          extra: {'initialTab': 'pending'},
+                        ),
+                        onScheduledPressed: () => context.go(
+                          '/worker/jobs',
+                          extra: {'initialTab': 'scheduled'},
+                        ),
                       ),
                     ),
                     if (todoItems.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.lg),
                       AppStaggeredEntrance(
                         index: 2,
                         child: _TodoCard(
@@ -291,8 +311,11 @@ class WorkerDashboardScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 4,
-                      child: const _SectionHeader(
+                      child: _SectionHeader(
                         title: 'Oportunidades perto de ti',
+                        actionLabel: 'Ver todas',
+                        onActionPressed: () =>
+                            context.go('/worker/available-jobs'),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -347,6 +370,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
           jobId: job.id,
           status: job.status,
           confirmedDate: job.confirmedDate,
+          confirmedTime: job.confirmedTime,
+          confirmedFlexible: job.confirmedFlexible,
+          startedAt: job.startedAt,
           rescheduleStatus: job.rescheduleStatus,
           rescheduleProposedBy: job.rescheduleProposedBy,
         ),
@@ -449,15 +475,13 @@ String _distanceLabel(WorkerProfile? workerProfile, JobRequest job) {
 class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader({
     required this.workerFirstName,
-    required this.dateLabel,
-    required this.avatarImage,
+    required this.greeting,
     required this.hasUnreadNotifications,
     required this.onNotificationsPressed,
   });
 
   final String workerFirstName;
-  final String dateLabel;
-  final ImageProvider? avatarImage;
+  final String greeting;
   final bool hasUnreadNotifications;
   final VoidCallback onNotificationsPressed;
 
@@ -467,45 +491,30 @@ class _DashboardHeader extends StatelessWidget {
 
     return Row(
       children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: AppColors.primaryContainer,
-          backgroundImage: avatarImage,
-          child: avatarImage == null
-              ? const Icon(
-                  Icons.person_outline_rounded,
-                  color: AppColors.primary,
-                )
-              : null,
-        ),
-        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Olá, $workerFirstName 👋',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
+                greeting,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
               Text(
-                dateLabel,
+                workerFirstName.isEmpty ? 'Olá' : 'Olá, $workerFirstName',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                style: textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        _NotificationButton(
-          hasUnreadNotifications: hasUnreadNotifications,
+        HomeNotificationButton(
+          hasUnread: hasUnreadNotifications,
           onPressed: onNotificationsPressed,
         ),
       ],
@@ -513,62 +522,22 @@ class _DashboardHeader extends StatelessWidget {
   }
 }
 
-class _NotificationButton extends StatelessWidget {
-  const _NotificationButton({
-    required this.hasUnreadNotifications,
-    required this.onPressed,
-  });
-
-  final bool hasUnreadNotifications;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: hasUnreadNotifications ? 'Notificações não lidas' : 'Notificações',
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: onPressed,
-            tooltip: 'Notificações',
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (hasUnreadNotifications)
-            Positioned(
-              top: AppSpacing.xs,
-              right: AppSpacing.xs,
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppStatusColor.cancelled.foreground,
-                  border: Border.all(color: AppColors.background),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Só 2 cartões (Pendentes / Agendados) — sem dados agregados de propostas
-/// enviadas nem de receita mensal (nenhum dos dois existe hoje no backend;
-/// ver docs/improvements.md, "Dashboard do jardineiro").
+/// Só 2 cartões (Pendentes / Agendados), cada um abre a sua aba em "Os
+/// meus trabalhos". Sem dados agregados de propostas enviadas nem de receita
+/// mensal (nenhum dos dois existe hoje no backend; ver
+/// docs/improvements.md, "Dashboard do jardineiro").
 class _DashboardMetrics extends StatelessWidget {
   const _DashboardMetrics({
     required this.pendingCount,
     required this.scheduledCount,
+    required this.onPendingPressed,
+    required this.onScheduledPressed,
   });
 
   final int pendingCount;
   final int scheduledCount;
+  final VoidCallback onPendingPressed;
+  final VoidCallback onScheduledPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -578,14 +547,15 @@ class _DashboardMetrics extends StatelessWidget {
           child: _MetricCard(
             value: pendingCount.toString(),
             label: 'Pendentes',
+            onPressed: onPendingPressed,
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.s10),
         Expanded(
           child: _MetricCard(
             value: scheduledCount.toString(),
             label: 'Agendados',
-            highlighted: true,
+            onPressed: onScheduledPressed,
           ),
         ),
       ],
@@ -597,55 +567,50 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.value,
     required this.label,
-    this.highlighted = false,
+    required this.onPressed,
   });
 
   final String value;
   final String label;
-  final bool highlighted;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    final backgroundColor = highlighted ? AppColors.primary : AppColors.surface;
-    final valueColor = highlighted ? AppColors.surface : AppColors.primary;
-    final labelColor = highlighted
-        ? AppColors.surface
-        : AppColors.textSecondary;
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: 96),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: backgroundColor,
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: highlighted ? null : Border.all(color: AppColors.divider),
+        side: const BorderSide(color: AppColors.divider),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: textTheme.displaySmall?.copyWith(color: valueColor),
-            ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: textTheme.labelMedium?.copyWith(color: labelColor),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                maxLines: 1,
+                style:
+                    textTheme.headlineMedium?.copyWith(color: AppColors.textPrimary),
+              ),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -710,48 +675,35 @@ class _TodoCard extends StatelessWidget {
       icon: icon,
       tone: tone,
       title: item.label,
+      subtitle: item.subtitle,
       onPressed: () => onPressed(item.target),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.xs,
-                AppSpacing.md,
-                AppSpacing.xxs,
-              ),
-              child: Text(
-                'O que falta fazer',
-                style: textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) const Divider(height: 1, color: AppColors.divider),
-              _todoRow(items[i]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(title: 'O que falta fazer'),
+        const SizedBox(height: AppSpacing.s10),
+        Material(
+          color: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            side: const BorderSide(color: AppColors.divider),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: AppColors.divider),
+                _todoRow(items[i]),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -880,23 +832,19 @@ class _NearbyOpportunitiesSection extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: 142,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: opportunities.length,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
-        itemBuilder: (context, index) {
-          final opportunity = opportunities[index];
-          return AppStaggeredEntrance(
+    return Column(
+      children: [
+        for (var index = 0; index < opportunities.length; index++) ...[
+          if (index > 0) const SizedBox(height: AppSpacing.s10),
+          AppStaggeredEntrance(
             index: index,
             child: _OpportunityCard(
-              opportunity: opportunity,
-              onPressed: () => onOpportunityPressed(opportunity.id),
+              opportunity: opportunities[index],
+              onPressed: () => onOpportunityPressed(opportunities[index].id),
             ),
-          );
-        },
-      ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -913,48 +861,50 @@ class _OpportunityCard extends StatelessWidget {
 
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          width: 150,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
             children: [
-              _ServiceIcon(icon: opportunity.icon, compact: true),
-              const Spacer(),
-              Text(
-                opportunity.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.textPrimary,
+              _ServiceIcon(icon: opportunity.icon),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      opportunity.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (opportunity.contextLabel.isNotEmpty)
+                      Text(
+                        opportunity.contextLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                opportunity.locationLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
+              if (opportunity.urgent) ...[
+                const SizedBox(width: AppSpacing.xs),
+                AppStatusBadge.fromPresentation(
+                  presentation: urgentStatusPresentation,
+                  dense: true,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                opportunity.priceLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleMedium?.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
+              ],
             ],
           ),
         ),
@@ -964,25 +914,21 @@ class _OpportunityCard extends StatelessWidget {
 }
 
 class _ServiceIcon extends StatelessWidget {
-  const _ServiceIcon({required this.icon, this.compact = false});
+  const _ServiceIcon({required this.icon});
 
   final IconData icon;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 32.0 : 42.0;
-    final iconSize = compact ? 18.0 : 22.0;
-
     return Container(
-      width: size,
-      height: size,
+      width: AppSizes.rowIconBox,
+      height: AppSizes.rowIconBox,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.primaryContainer,
         borderRadius: BorderRadius.circular(AppRadius.input),
       ),
-      child: Icon(icon, size: iconSize, color: AppColors.primary),
+      child: Icon(icon, size: AppSizes.rowIcon, color: AppColors.primary),
     );
   }
 }

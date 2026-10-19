@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/constants/enums.dart';
+import 'package:servicesapp/core/utils/day_greeting.dart';
 import 'package:servicesapp/features/jobs/application/client_job_next_step.dart';
 import 'package:servicesapp/features/jobs/application/job_timeline.dart';
 import 'package:servicesapp/features/jobs/data/job_model.dart';
@@ -108,5 +109,36 @@ void main() {
     final steps = buildJobTimeline(job, now: DateTime(2026, 10, 20, 15));
     expect(steps.map((s) => s.label),
         ['Aceite', 'Agendado', 'Em curso', 'Concluído']);
+  });
+
+  test('cliente vê quanto falta para a confirmação automática', () {
+    final job = JobRequest(
+      id: 'j',
+      clientId: 'client',
+      serviceTypeId: 's',
+      addressText: '',
+      locationLat: 0,
+      locationLng: 0,
+      description: '',
+      status: JobStatus.awaitingConfirmation,
+      markedDoneAt: DateTime(2026, 10, 20, 10),
+      expiresAt: DateTime(2026, 12, 1),
+      createdAt: DateTime(2026, 10, 1),
+    );
+    expect(
+      clientJobNextStepLabel(job, now: DateTime(2026, 10, 20, 12)),
+      'O jardineiro deu o trabalho por concluído. Confirma em 46h.',
+    );
+    expect(
+      clientJobNextStepLabel(job),
+      'O jardineiro deu o trabalho por concluído. Confirma.',
+    );
+  });
+
+  test('saudação pela hora do dia', () {
+    expect(dayGreeting(DateTime(2026, 10, 20, 9)), 'Bom dia');
+    expect(dayGreeting(DateTime(2026, 10, 20, 15)), 'Boa tarde');
+    expect(dayGreeting(DateTime(2026, 10, 20, 22)), 'Boa noite');
+    expect(dayGreeting(DateTime(2026, 10, 20, 3)), 'Boa noite');
   });
 }
