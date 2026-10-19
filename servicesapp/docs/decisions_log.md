@@ -3,6 +3,27 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Propostas recebidas do cliente (A3)
+
+- **Ecrã separado em vista e integração:** `widgets/client_proposals_view.dart` só desenha
+  (lista, estados e a folha); `client_proposals_screen.dart` lê os providers, ordena e
+  formata com as funções puras de `application/client_proposal_labels.dart`.
+- **Valor grande = total estimado com a equipa incluída** ("24 a 48 €", ou "48 €" com uma só
+  estimativa de horas); por baixo as horas e o preço por hora ("2 a 4h · 12,00 €/h"), que é o
+  compromisso real do jardineiro. Sem horas mostra só o preço por hora. A lista ordena por
+  esse mesmo total mínimo (antes ignorava a equipa); `compareByEstimatedPrice` saiu.
+- **Data:** dia da semana e hora exata ("Qui, 23/10 · 9:00"), não manhã/tarde como no
+  design, porque a proposta guarda a hora; sem data, "Data a combinar com o jardineiro".
+- **"Recomendada"** continua a ser só destaque (borda e chip verde, botão "Escolher" cheio),
+  pela mesma regra: melhor média com pelo menos 3 avaliações.
+- **Folha:** `AppSheet` com resumo, três linhas fixas e "Aceitar proposta · valor". Fecha só
+  depois de o servidor aceitar; erro fica dentro da folha; proposta indisponível troca a
+  folha pelo aviso "Esta proposta já não está disponível" com "Ver propostas".
+  `AppSheet.show` ganhou `enableDrag` para não se fechar a meio do pedido.
+- **Texto do pagamento adaptado:** "Pagas diretamente ao jardineiro, depois de confirmares que
+  o trabalho está feito", porque a app não trata pagamentos.
+- **Mantido fora do design:** a nota que o jardineiro escreve na proposta (até 2 linhas).
+
 ## 2026-10-19 — Os meus trabalhos do jardineiro (A2)
 
 - **Três tabs montadas ao mesmo tempo** (`IndexedStack`, uma `PageStorageKey` por tab) em

@@ -36,20 +36,6 @@ void main() {
       expect(estimatedHoursLabel(null, null), '');
       expect(decimalLabel(4.25, 1), '4,3');
     });
-
-    test('ordenação por preço põe as propostas sem horas no fim', () {
-      final proposals = [
-        (hourlyRate: 10.0, hoursMin: null, hoursMax: null),
-        (hourlyRate: 20.0, hoursMin: 4.0, hoursMax: 6.0), // 80
-        (hourlyRate: 5.0, hoursMin: null, hoursMax: null),
-        (hourlyRate: 15.0, hoursMin: 2.0, hoursMax: null), // 30
-        (hourlyRate: 12.0, hoursMin: null, hoursMax: 5.0), // 60
-      ]..sort(compareByEstimatedPrice);
-      expect(
-        proposals.map((p) => p.hourlyRate).toList(),
-        [15.0, 12.0, 20.0, 5.0, 10.0],
-      );
-    });
   });
 
   group('jobDeadlineLabel', () {

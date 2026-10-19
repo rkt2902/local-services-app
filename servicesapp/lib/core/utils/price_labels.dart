@@ -42,24 +42,6 @@ String estimatedHoursLabel(double? hoursMin, double? hoursMax) {
   return '${decimalLabel(hours, 1)} h';
 }
 
-/// Ordenação "Por preço" das propostas: total mínimo estimado
-/// (preço/hora × horas mínimas) a subir. Propostas sem horas ficam depois
-/// de todas as que têm horas (o total delas é desconhecido), ordenadas
-/// entre si pelo preço por hora.
-int compareByEstimatedPrice(
-  ({double hourlyRate, double? hoursMin, double? hoursMax}) a,
-  ({double hourlyRate, double? hoursMin, double? hoursMax}) b,
-) {
-  final aHours = a.hoursMin ?? a.hoursMax;
-  final bHours = b.hoursMin ?? b.hoursMax;
-  if (aHours == null && bHours == null) {
-    return a.hourlyRate.compareTo(b.hourlyRate);
-  }
-  if (aHours == null) return 1;
-  if (bHours == null) return -1;
-  return (a.hourlyRate * aHours).compareTo(b.hourlyRate * bHours);
-}
-
 /// Valor em euros com vírgula decimal. Ex.: `moneyLabel(12.5)` → "12,50 €",
 /// `moneyLabel(80, fractionDigits: 0)` → "80 €".
 String moneyLabel(double value, {int fractionDigits = 2}) =>

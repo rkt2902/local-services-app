@@ -1,1041 +1,172 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radius.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/utils/price_labels.dart';
-import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/primary_action_button.dart';
-import '../../ratings/application/rating_providers.dart';
-import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
+import '../../ratings/application/rating_providers.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
+import '../application/client_proposal_labels.dart';
 import '../application/job_providers.dart';
+import 'widgets/client_proposals_view.dart';
 
-/// Ecrã dedicado à lista de propostas de um pedido — antes vivia como aba
-/// "Propostas" dentro de `client_job_detail_screen.dart` (removida quando o
-/// ecrã de detalhe deixou de ter TabBar). Continua a ser SÓ a lista de
-/// propostas recebidas, nunca uma vista de comparação lado-a-lado nova.
-class ClientProposalsScreen extends ConsumerStatefulWidget {
+/// "Propostas recebidas" de um pedido (design A3): lista única, já
+/// ordenada por preço estimado, e a folha "Aceitar esta proposta?".
+/// Liga os providers ao [ClientProposalsView], que só desenha.
+class ClientProposalsScreen extends ConsumerWidget {
   const ClientProposalsScreen({super.key, required this.jobId});
 
   final String jobId;
 
-  @override
-  ConsumerState<ClientProposalsScreen> createState() =>
-      _ClientProposalsScreenState();
-}
+  /// Textos fixos da folha de aceitação (regras atuais do produto). A app
+  /// não trata pagamentos: o cliente paga diretamente ao jardineiro.
+  static const _infoLines = [
+    ClientProposalInfoLine(
+      icon: Icons.notifications_active_outlined,
+      label: 'O jardineiro recebe a confirmação e as outras propostas são '
+          'fechadas.',
+    ),
+    ClientProposalInfoLine(
+      icon: Icons.event_repeat_outlined,
+      label: 'Podes remarcar ou cancelar até à véspera do trabalho.',
+    ),
+    ClientProposalInfoLine(
+      icon: Icons.payments_outlined,
+      label: 'Pagas diretamente ao jardineiro, depois de confirmares que o '
+          'trabalho está feito.',
+    ),
+  ];
 
-class _ClientProposalsScreenState
-    extends ConsumerState<ClientProposalsScreen> {
-  final Map<String, bool> _accepting = {};
-
-  Future<void> _acceptProposal(JobProposal proposal, String serviceLabel) async {
-    final accepted = await _showAcceptProposalSheet(proposal, serviceLabel);
-    if (accepted == true && mounted) {
-      // `go` (não `pushReplacement`) de propósito: este ecrã foi alcançado
-      // por um `push` a partir de `ClientJobDetailScreen` (aberto), que
-      // continua na stack por baixo. Um `pushReplacement` aqui trocaria só
-      // este ecrã, deixando o detalhe antigo (ainda "aberto") preso por
-      // baixo do ecrã de confirmação — visível ao premir "voltar" a partir
-      // dele. `go` substitui a stack toda pela rota de destino.
-      GoRouter.of(context).go(
-        '/client/job/${widget.jobId}/confirmed?workerId=${proposal.workerId}',
-      );
-      // T4: invalidar só depois de navegar. Antes era feito dentro de
-      // _submitAccept, com este ecrã (que observa estes providers) ainda
-      // montado por baixo da sheet a fechar.
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
-      ref.invalidate(jobByIdProvider(widget.jobId));
-    }
-  }
-
-  Future<bool?> _showAcceptProposalSheet(
-    JobProposal proposal,
-    String serviceLabel,
-  ) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
-      ),
-      builder: (_) => _AcceptProposalSheet(
-        proposal: proposal,
-        serviceLabel: serviceLabel,
-        onAccept: () => _submitAccept(proposal),
-      ),
-    );
-  }
-
-  Future<_AcceptOutcome> _submitAccept(JobProposal proposal) async {
-    setState(() => _accepting[proposal.id] = true);
+  Future<ClientProposalAcceptResult> _accept(
+    WidgetRef ref,
+    String proposalId,
+  ) async {
     try {
       await ref
           .read(proposalRepositoryProvider)
-          .acceptProposal(proposal.id, widget.jobId);
-      return const _AcceptOutcome.accepted();
+          .acceptProposal(proposalId, jobId);
+      return const ClientProposalAcceptResult.accepted();
     } catch (e) {
       // A RPC `accept_proposal` não devolve um ERRCODE dedicado para
-      // "proposta já processada" — só uma mensagem de texto (ver
+      // "proposta já processada", só uma mensagem de texto (ver
       // migrations/0001_consolidated_baseline.sql). Mesma convenção de
-      // classificação por texto já usada em
-      // `proposal_repository.dart createProposal()`.
+      // classificação por texto de `proposal_repository.dart createProposal()`.
       final msg = e.toString();
       if (msg.contains('já não está disponível') ||
           msg.contains('já processada') ||
           msg.contains('não encontrada')) {
-        if (mounted) ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
-        return const _AcceptOutcome.unavailable();
+        ref.invalidate(pendingProposalsForJobProvider(jobId));
+        return const ClientProposalAcceptResult.unavailable();
       }
-      return _AcceptOutcome.failed(friendlyError(e));
-    } finally {
-      if (mounted) setState(() => _accepting.remove(proposal.id));
+      return ClientProposalAcceptResult.failed(friendlyError(e));
     }
   }
 
+  void _onAccepted(
+    BuildContext context,
+    WidgetRef ref,
+    ClientProposalCardViewData proposal,
+  ) {
+    // `go` (não `pushReplacement`): este ecrã chega por `push` a partir do
+    // detalhe do pedido, que ficaria preso por baixo da confirmação.
+    GoRouter.of(context).go(
+      '/client/job/$jobId/confirmed?workerId=${proposal.workerId}',
+    );
+    // T4: invalidar só depois de navegar.
+    ref.invalidate(clientJobsProvider);
+    ref.invalidate(pendingProposalsForJobProvider(jobId));
+    ref.invalidate(jobByIdProvider(jobId));
+  }
+
+  /// Voltar com fallback para o detalhe do pedido: num refresh da web ou
+  /// link direto não há stack e `pop()` rebentava.
+  void _back(BuildContext context) => goBackOr(context, '/client/job/$jobId');
+
   @override
-  Widget build(BuildContext context) {
-    final proposalsAsync = ref.watch(pendingProposalsForJobProvider(widget.jobId));
-    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
-    final serviceTypes = ref.watch(serviceTypesProvider).asData?.value ?? const [];
-    final job = jobAsync.asData?.value;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final proposalsAsync = ref.watch(pendingProposalsForJobProvider(jobId));
+    final job = ref.watch(jobByIdProvider(jobId)).asData?.value;
+    final serviceTypes =
+        ref.watch(serviceTypesProvider).asData?.value ?? const [];
     final serviceLabel = job == null
-        ? '—'
+        ? null
         : serviceTypes
-                .where((s) => s.id == job.serviceTypeId)
-                .map((s) => s.name)
-                .firstOrNull ??
-            '—';
+            .where((s) => s.id == job.serviceTypeId)
+            .map((s) => s.name)
+            .firstOrNull;
+
+    final dataAsync = proposalsAsync.whenData((proposals) {
+      final sorted = [...proposals]..sort(compareProposalsByEstimate);
+      final summaries = {
+        for (final p in sorted)
+          p.workerId:
+              ref.watch(ratingSummaryProvider(p.workerId)).asData?.value,
+      };
+      final recommendedId =
+          recommendedProposalId(sorted, (id) => summaries[id]);
+      return ClientProposalsViewData(
+        headerSubtitle: proposalsHeaderSubtitle(serviceLabel, sorted.length),
+        orderingLabel:
+            'Ordenadas por preço estimado, da mais barata para a mais cara.',
+        proposals: [
+          for (final p in sorted)
+            _cardData(p, summaries[p.workerId], p.id == recommendedId),
+        ],
+      );
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: proposalsAsync.when(
-          loading: () => _ProposalsLoading(onBack: () => _back(context)),
-          error: (e, _) => _ProposalsError(
-            onBack: () => _back(context),
-            onRetry: () => ref.invalidate(pendingProposalsForJobProvider(widget.jobId)),
+        child: ClientProposalsView(
+          dataAsync: dataAsync,
+          onBack: () => _back(context),
+          onRetry: () => ref.invalidate(pendingProposalsForJobProvider(jobId)),
+          onOpenWorkerProfile: (p) => showWorkerRatingsSheet(
+            context,
+            workerId: p.workerId,
+            workerName: p.workerName,
           ),
-          data: (proposals) {
-            final subtitle = proposals.isEmpty
-                ? 'Ainda sem propostas'
-                : '${proposals.length} '
-                    '${proposals.length == 1 ? 'proposta' : 'propostas'}';
-
-            final sorted = [...proposals]..sort(
-                (a, b) => compareByEstimatedPrice(
-                  (
-                    hourlyRate: a.hourlyRate,
-                    hoursMin: a.estimatedHoursMin,
-                    hoursMax: a.estimatedHoursMax,
-                  ),
-                  (
-                    hourlyRate: b.hourlyRate,
-                    hoursMin: b.estimatedHoursMin,
-                    hoursMax: b.estimatedHoursMax,
-                  ),
-                ),
-              );
-            final anyAccepting = _accepting.values.any((v) => v);
-
-            // "Recomendada" é só um marcador de ranking da app — não é
-            // ProposalStatus/JobStatus. Critério: rating mais alto entre
-            // workers com >= 3 avaliações (mesma lógica de sempre).
-            String? recommendedWorkerId;
-            double bestRating = 0;
-            for (final p in sorted) {
-              final summary = ref.watch(ratingSummaryProvider(p.workerId)).asData?.value;
-              if (summary != null &&
-                  summary.ratingCount >= 3 &&
-                  summary.avgRating > bestRating) {
-                bestRating = summary.avgRating;
-                recommendedWorkerId = p.workerId;
-              }
-            }
-
-            return Column(
-              children: [
-                _ProposalsHeader(subtitle: subtitle, onBack: () => _back(context)),
-                Expanded(
-                  child: proposals.isEmpty
-                      ? const _ProposalsEmpty()
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md,
-                            AppSpacing.xs,
-                            AppSpacing.md,
-                            AppSpacing.lg,
-                          ),
-                          children: [
-                            // Só há uma ordenação: o antigo "Por avaliação"
-                            // estava sempre desativado e foi removido.
-                            Text(
-                              'Ordenadas por preço estimado, da mais barata '
-                              'para a mais cara.',
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            for (var i = 0; i < sorted.length; i++)
-                              AppStaggeredEntrance(
-                                key: ValueKey(sorted[i].id),
-                                index: i,
-                                child: _ProposalCard(
-                                  proposal: sorted[i],
-                                  recommended: sorted[i].workerId == recommendedWorkerId,
-                                  accepting: _accepting[sorted[i].id] == true,
-                                  onAccept: anyAccepting
-                                      ? null
-                                      : () => _acceptProposal(sorted[i], serviceLabel),
-                                ),
-                              ),
-                          ],
-                        ),
-                ),
-              ],
-            );
-          },
+          onAcceptProposal: (id) => _accept(ref, id),
+          onProposalAccepted: (p) => _onAccepted(context, ref, p),
         ),
       ),
     );
   }
-}
 
-/// Voltar com fallback para o detalhe do pedido: num refresh da web ou link
-/// direto não há stack e `pop()` rebentava.
-void _back(BuildContext context) {
-  final jobId = GoRouterState.of(context).pathParameters['id'];
-  goBackOr(context, jobId == null ? '/client/home' : '/client/job/$jobId');
-}
-
-class _ProposalsHeader extends StatelessWidget {
-  const _ProposalsHeader({required this.subtitle, required this.onBack});
-
-  final String subtitle;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            tooltip: 'Voltar',
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Propostas recebidas',
-                  style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-                ),
-                Text(
-                  subtitle,
-                  style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
+  ClientProposalCardViewData _cardData(
+    JobProposal p,
+    RatingSummary? summary,
+    bool recommended,
+  ) {
+    final name =
+        p.workerName?.isNotEmpty == true ? p.workerName! : 'Jardineiro';
+    final schedule = proposalScheduleLabel(p);
+    final hours = proposalHoursLabel(p);
+    final rateOrPrice = proposalPriceLabel(p);
+    return ClientProposalCardViewData(
+      proposalId: p.id,
+      workerId: p.workerId,
+      workerName: name,
+      workerAvatarUrl: p.workerAvatarUrl,
+      ratingLabel: proposalRatingLabel(summary),
+      priceLabel: rateOrPrice,
+      priceDetailLabel: proposalPriceDetailLabel(p),
+      scheduleLabel: schedule,
+      teamLabel: proposalTeamLabel(p),
+      notes: p.notes,
+      recommended: recommended,
+      confirmation: ClientProposalConfirmationViewData(
+        summaryMetaLabel: [
+          if (p.scheduledDate != null) schedule,
+          if (hours.isNotEmpty) hours,
+        ].join(' · '),
+        infoLines: _infoLines,
+        confirmActionLabel: 'Aceitar proposta · $rateOrPrice',
       ),
     );
   }
-}
-
-class _ProposalsEmpty extends StatelessWidget {
-  const _ProposalsEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: AppStatusColor.neutral.background,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.description_outlined,
-                color: AppStatusColor.neutral.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Ainda sem propostas',
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'As propostas dos jardineiros aparecem aqui.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProposalsLoading extends StatelessWidget {
-  const _ProposalsLoading({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _ProposalsHeader(subtitle: '', onBack: onBack),
-        Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: 3,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (_, _) => AppSkeletonShimmer(
-              child: Container(
-                height: 140,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProposalsError extends StatelessWidget {
-  const _ProposalsError({required this.onBack, required this.onRetry});
-
-  final VoidCallback onBack;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      children: [
-        _ProposalsHeader(subtitle: '', onBack: onBack),
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Não foi possível carregar as propostas.',
-                    textAlign: TextAlign.center,
-                    style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-                  ),
-                  if (onRetry != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    OutlinedButton(
-                      onPressed: onRetry,
-                      child: const Text('Tentar novamente'),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Card de proposta (portado de client_job_detail_screen.dart) ────────────
-
-class _ProposalCard extends ConsumerWidget {
-  const _ProposalCard({
-    required this.proposal,
-    required this.accepting,
-    required this.onAccept,
-    this.recommended = false,
-  });
-
-  final JobProposal proposal;
-  final bool accepting;
-  final VoidCallback? onAccept;
-  final bool recommended;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final textTheme = Theme.of(context).textTheme;
-    final workerName =
-        proposal.workerName?.isNotEmpty == true ? proposal.workerName! : '—';
-    final workerAvatarUrl = proposal.workerAvatarUrl ?? '';
-    final ratingSummary =
-        ref.watch(ratingSummaryProvider(proposal.workerId)).asData?.value;
-
-    final hoursStr =
-        estimatedHoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax);
-    final scheduleStr = _formatProposedSchedule(proposal);
-    final teamEstimateStr = _teamTotalEstimate(proposal);
-    final priceLabel = hourlyRateLabel(proposal.hourlyRate);
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(
-              color: recommended ? AppColors.primary : AppColors.divider,
-            ),
-          ),
-          child: Column(
-            children: [
-              InkWell(
-                // Abre sempre: mesmo sem avaliações há a apresentação, os
-                // destaques e as redes sociais do jardineiro.
-                onTap: () => showWorkerRatingsSheet(
-                  context,
-                  workerId: proposal.workerId,
-                  workerName: workerName,
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.input),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.primaryContainer,
-                      backgroundImage:
-                          workerAvatarUrl.isNotEmpty ? NetworkImage(workerAvatarUrl) : null,
-                      child: workerAvatarUrl.isEmpty
-                          ? const Icon(Icons.person_outline_rounded, color: AppColors.primary)
-                          : null,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            workerName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            ratingSummary != null && ratingSummary.ratingCount > 0
-                                ? '★ ${decimalLabel(ratingSummary.avgRating, 1)} '
-                                    '(${ratingSummary.ratingCount})'
-                                : 'Sem avaliações ainda',
-                            style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            'Enviada ${_relativeTimeLabel(proposal.createdAt)}',
-                            style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            'Ver perfil e avaliações',
-                            style: textTheme.labelMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          priceLabel,
-                          style: textTheme.titleLarge?.copyWith(color: AppColors.primary),
-                        ),
-                        if (hoursStr.isNotEmpty)
-                          Text(
-                            hoursStr,
-                            style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (scheduleStr.isNotEmpty ||
-                  proposal.peopleNeeded > 1 ||
-                  teamEstimateStr.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xxs,
-                  children: [
-                    if (scheduleStr.isNotEmpty)
-                      _MetaChip(icon: Icons.event_outlined, label: scheduleStr),
-                    if (proposal.peopleNeeded > 1)
-                      _MetaChip(
-                        icon: Icons.group_outlined,
-                        label: 'Equipa: ${proposal.peopleNeeded} pessoas',
-                      ),
-                    if (teamEstimateStr.isNotEmpty)
-                      _MetaChip(icon: Icons.calculate_outlined, label: teamEstimateStr),
-                  ],
-                ),
-              ],
-              if (proposal.notes?.isNotEmpty == true) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    proposal.notes!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              PrimaryActionButton(
-                label: 'Escolher',
-                isLoading: accepting,
-                onPressed: accepting ? null : onAccept,
-              ),
-            ],
-          ),
-        ),
-        if (recommended)
-          Positioned(
-            top: -8,
-            left: AppSpacing.sm,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                'Recomendada',
-                style: textTheme.labelMedium?.copyWith(color: AppColors.surface),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(label, style: textTheme.labelMedium?.copyWith(color: AppColors.primary)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Sheet de confirmação de aceitação ───────────────────────────────────────
-
-class _AcceptOutcome {
-  const _AcceptOutcome.accepted()
-      : isAccepted = true,
-        isUnavailable = false,
-        errorMessage = null;
-  const _AcceptOutcome.unavailable()
-      : isAccepted = false,
-        isUnavailable = true,
-        errorMessage = null;
-  const _AcceptOutcome.failed(this.errorMessage)
-      : isAccepted = false,
-        isUnavailable = false;
-
-  final bool isAccepted;
-  final bool isUnavailable;
-  final String? errorMessage;
-}
-
-enum _SheetState { confirmation, unavailable }
-
-class _AcceptProposalSheet extends StatefulWidget {
-  const _AcceptProposalSheet({
-    required this.proposal,
-    required this.serviceLabel,
-    required this.onAccept,
-  });
-
-  final JobProposal proposal;
-  final String serviceLabel;
-  final Future<_AcceptOutcome> Function() onAccept;
-
-  @override
-  State<_AcceptProposalSheet> createState() => _AcceptProposalSheetState();
-}
-
-class _AcceptProposalSheetState extends State<_AcceptProposalSheet> {
-  bool _submitting = false;
-  String? _errorMessage;
-  _SheetState _sheetState = _SheetState.confirmation;
-
-  Future<void> _accept() async {
-    if (_submitting) return;
-    setState(() {
-      _submitting = true;
-      _errorMessage = null;
-    });
-
-    final result = await widget.onAccept();
-    if (!mounted) return;
-
-    if (result.isAccepted) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-
-    if (result.isUnavailable) {
-      setState(() {
-        _submitting = false;
-        _sheetState = _SheetState.unavailable;
-      });
-      return;
-    }
-
-    // Erro dentro da sheet: um SnackBar ficava escondido por trás dela.
-    // O botão "Aceitar" serve de "Repetir".
-    setState(() {
-      _submitting = false;
-      _errorMessage =
-          result.errorMessage ?? 'Não foi possível aceitar. Tenta novamente.';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-
-    return PopScope(
-      canPop: !_submitting,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.md + keyboardInset,
-        ),
-        child: AppFadeThroughSwitcher(
-          switchKey: _sheetState,
-          duration: const Duration(milliseconds: 220),
-          child: _sheetState == _SheetState.unavailable
-              ? _UnavailableProposal(
-                  key: const ValueKey('proposal_unavailable'),
-                  onBackToProposals: () => Navigator.of(context).pop(false),
-                )
-              : _ProposalConfirmation(
-                  key: const ValueKey('proposal_confirmation'),
-                  proposal: widget.proposal,
-                  serviceLabel: widget.serviceLabel,
-                  submitting: _submitting,
-                  errorMessage: _errorMessage,
-                  onConfirm: _accept,
-                  onBack: _submitting ? null : () => Navigator.of(context).pop(false),
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProposalConfirmation extends StatelessWidget {
-  const _ProposalConfirmation({
-    super.key,
-    required this.proposal,
-    required this.serviceLabel,
-    required this.submitting,
-    required this.onConfirm,
-    required this.onBack,
-    this.errorMessage,
-  });
-
-  final JobProposal proposal;
-  final String serviceLabel;
-  final bool submitting;
-  final String? errorMessage;
-  final VoidCallback onConfirm;
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final priceLabel = proposal.hourlyRate > 0
-        ? hourlyRateLabel(proposal.hourlyRate)
-        : 'preço a definir';
-    final proposalDateLabel = _formatProposedSchedule(proposal);
-
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.divider,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AppStaggeredEntrance(
-            index: 0,
-            child: Text(
-              'Aceitar esta proposta?',
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          AppStaggeredEntrance(
-            index: 1,
-            child: Text(
-              'O jardineiro recebe a confirmação e o trabalho fica agendado. '
-              'As outras propostas são recusadas automaticamente.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppStaggeredEntrance(
-            index: 2,
-            child: _ProposalSummaryCard(proposal: proposal),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppStaggeredEntrance(
-            index: 3,
-            child: _AcceptanceDetails(
-              serviceLabel: serviceLabel,
-              proposalDateLabel: proposalDateLabel.isEmpty ? 'A combinar' : proposalDateLabel,
-              // Sem processamento de pagamento na app — o valor é sempre
-              // combinado diretamente entre cliente e prestador.
-              paymentTimingLabel: 'Combinado diretamente com o jardineiro',
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppStaggeredEntrance(
-            index: 4,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.textSecondary),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    'Depois de aceitares, podes cancelar até à véspera da data combinada.',
-                    style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (errorMessage != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppStatusColor.cancelled.background,
-                borderRadius: BorderRadius.circular(AppRadius.input),
-              ),
-              child: Text(
-                errorMessage!,
-                style: textTheme.bodySmall
-                    ?.copyWith(color: AppStatusColor.cancelled.foreground),
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          PrimaryActionButton(
-            label: submitting ? 'A confirmar...' : 'Aceitar proposta · $priceLabel',
-            onPressed: submitting ? null : onConfirm,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          TextButton(
-            onPressed: onBack,
-            child: Text(
-              'Voltar às propostas',
-              style: textTheme.bodyMedium?.copyWith(
-                color: onBack == null ? AppStatusColor.neutral.foreground : AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProposalSummaryCard extends StatelessWidget {
-  const _ProposalSummaryCard({required this.proposal});
-
-  final JobProposal proposal;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final workerName =
-        proposal.workerName?.isNotEmpty == true ? proposal.workerName! : '—';
-    final workerAvatarUrl = proposal.workerAvatarUrl ?? '';
-    final priceLabel = hourlyRateLabel(proposal.hourlyRate);
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primaryContainer,
-            backgroundImage: workerAvatarUrl.isNotEmpty ? NetworkImage(workerAvatarUrl) : null,
-            child: workerAvatarUrl.isEmpty
-                ? const Icon(Icons.person_outline_rounded, color: AppColors.primary)
-                : null,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  workerName,
-                  style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-          ),
-          Text(priceLabel, style: textTheme.titleLarge?.copyWith(color: AppColors.primary)),
-        ],
-      ),
-    );
-  }
-}
-
-class _AcceptanceDetails extends StatelessWidget {
-  const _AcceptanceDetails({
-    required this.serviceLabel,
-    required this.proposalDateLabel,
-    required this.paymentTimingLabel,
-  });
-
-  final String serviceLabel;
-  final String proposalDateLabel;
-  final String paymentTimingLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Column(
-        children: [
-          _DetailRow(label: 'Serviço', value: serviceLabel),
-          const SizedBox(height: AppSpacing.sm),
-          _DetailRow(label: 'Data proposta', value: proposalDateLabel),
-          const SizedBox(height: AppSpacing.sm),
-          _DetailRow(label: 'Pagamento', value: paymentTimingLabel),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(label, style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: textTheme.bodyMedium
-                ?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _UnavailableProposal extends StatelessWidget {
-  const _UnavailableProposal({super.key, required this.onBackToProposals});
-
-  final VoidCallback onBackToProposals;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppStatusColor.cancelled.background,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.error_outline_rounded, color: AppStatusColor.cancelled.foreground),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(children: [
-                    TextSpan(
-                      text: 'Esta proposta já não está disponível. ',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: AppStatusColor.cancelled.foreground,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    TextSpan(
-                      text: 'O jardineiro retirou-a ou o prazo terminou.',
-                      style: textTheme.bodyMedium
-                          ?.copyWith(color: AppStatusColor.cancelled.foreground),
-                    ),
-                  ]),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: onBackToProposals,
-            child: Text(
-              'Ver outras propostas',
-              style: textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── helpers ──────────────────────────────────────────────────────────────
-
-String _formatProposedSchedule(JobProposal proposal) {
-  if (proposal.scheduledDate == null) return '';
-  final date = DateFormat('dd/MM/yyyy').format(proposal.scheduledDate!);
-  if (proposal.scheduledFlexible) return '$date (horário flexível)';
-  if (proposal.scheduledTime != null) return '$date às ${proposal.scheduledTime}';
-  return date;
-}
-
-String _teamTotalEstimate(JobProposal p) {
-  if (p.peopleNeeded <= 1 || p.hourlyRate <= 0) return '';
-  final factor = p.helpersEquipmentRequired ? 1.0 : 0.75;
-  final multiplier = 1 + (p.peopleNeeded - 1) * factor;
-  final min = p.estimatedHoursMin;
-  final max = p.estimatedHoursMax;
-  if (min != null && max != null) {
-    final lo = (p.hourlyRate * min * multiplier).round();
-    final hi = (p.hourlyRate * max * multiplier).round();
-    return '≈ $lo a $hi € (equipa incluída)';
-  } else if (min != null) {
-    return '≈ ${(p.hourlyRate * min * multiplier).round()} € (equipa incluída)';
-  } else if (max != null) {
-    return '≈ ${(p.hourlyRate * max * multiplier).round()} € (equipa incluída)';
-  }
-  return '';
-}
-
-/// Substitui `expiryLabel` do mock original (doc.txt) — não há prazo por
-/// proposta no schema (`job_proposals` não tem coluna de expiração própria,
-/// só `job_requests.expires_at` para o pedido inteiro). Mostra há quanto
-/// tempo a proposta foi enviada, um dado real, em vez de inventar um prazo.
-String _relativeTimeLabel(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inMinutes < 1) return 'agora';
-  if (diff.inMinutes < 60) return 'há ${diff.inMinutes} min';
-  if (diff.inHours < 24) return 'há ${diff.inHours}h';
-  final days = diff.inDays;
-  return 'há $days ${days == 1 ? 'dia' : 'dias'}';
 }

@@ -43,12 +43,14 @@ class AppSheet extends StatelessWidget {
     BuildContext context, {
     required WidgetBuilder builder,
     bool isDismissible = true,
+    bool enableDrag = true,
   }) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       isDismissible: isDismissible,
+      enableDrag: enableDrag,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius:

@@ -82,4 +82,7 @@ abstract final class AppSizes {
   static const double teamSlot = 32.0;
   static const double heroIcon = 28.0;
   static const double infoRowIcon = 20.0;
+
+  // Propostas recebidas (A3).
+  static const double proposalCardSkeleton = 164.0;
 }
