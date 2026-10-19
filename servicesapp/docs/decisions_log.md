@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Os meus trabalhos do jardineiro (A2)
+
+- **Três tabs montadas ao mesmo tempo** (`IndexedStack`, uma `PageStorageKey` por tab) em
+  vez do fade: cada tab guarda o scroll e pagina por si. Os rótulos chegam formatados
+  ("Pendentes 3", "Agendados 4", "Histórico" sem número) e as contagens vêm do
+  `total_count` da RPC.
+- **Badge = estado do trabalho**, com "Não selecionada" (e afins) só quando não houve
+  trabalho para este jardineiro. "Agendado", "Em curso", "À espera do cliente" (âmbar),
+  "Concluído", "Cancelado" (vermelho quando o trabalho era dele, cinzento quando não) e
+  "Expirado" (cinzento, tanto `no_response` como expirado depois da data). "Ajudante" é um
+  chip de papel ao lado, não um estado.
+- **Cartões:** ícone do serviço, título, uma linha de detalhe por tab e papel ("Hoje · 9:00 ·
+  Cascais", "com João Pires", "Feito a 18/10 · confirma automaticamente em 31h",
+  "cancelado pelo cliente", "o cliente escolheu outra proposta") e o valor estimado a verde
+  só nos do responsável. Histórico agrupado por mês, fechados a cinzento; páginas seguintes
+  entram sem animação.
+- **Migration 0053:** `get_worker_job_board` passa a devolver `service_type_id`,
+  `location_area`, `marked_done_at`, `started_at`, `cancel_reason`, `cancelled_by_client`/
+  `cancelled_by_me` (booleanos, sem ids) e `job_updated_at`. Sem ela a app funciona: ícone
+  pelo nome do serviço, localidade tirada da morada, data pela marcada ou de criação, e
+  "cancelado" sem dizer por quem.
+
 ## 2026-10-19 — Detalhe do meu trabalho do jardineiro (A1)
 
 - **Mesmo ecrã, três composições:** `worker_my_job_detail_view.dart` escolhe pelo estado real

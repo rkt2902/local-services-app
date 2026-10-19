@@ -25,4 +25,17 @@ void main() {
     expect(label('rejected', 'confirmed'), isNull);
     expect(label('pending', 'open'), isNull);
   });
+
+  test('expirado depois da data fica cinzento como "Expirado"', () {
+    final p = workerBoardJobPresentation('accepted', 'cancelled',
+        cancelReason: 'expired');
+    expect(p?.label, 'Expirado');
+  });
+
+  test('confirmado e já iniciado mostra "Em curso"', () {
+    expect(
+      workerBoardJobPresentation('accepted', 'confirmed', started: true)?.label,
+      'Em curso',
+    );
+  });
 }

@@ -64,9 +64,9 @@ todas as tabelas.
   da hora, com fotos de antes opcionais; o ecrã mostra o tempo em curso e "Reportar
   problema"; concluir pede fotos de depois e mostra o tempo registado. O cliente vê "Em
   curso", o tempo e as fotos. Confirmação automática em 48h com lembrete às 24h. Antes da
-  0052 aplicada, "Iniciar trabalho" dá erro (a RPC não existe). Falta: a lista "Os meus
-  trabalhos" ainda não distingue "Em curso" de "Agendado" (`get_worker_job_board` não
-  devolve `started_at`).
+  0052 aplicada, "Iniciar trabalho" dá erro (a RPC não existe). A lista "Os meus
+  trabalhos" mostra "Em curso" depois da 0053 (`get_worker_job_board` passa a devolver
+  `started_at`).
 - **Destaques e redes sociais do jardineiro** (2026-10-18, migration 0051 por aplicar) —
   em Editar perfil > "Destaques e redes sociais": até 5 destaques curtos e links para
   Instagram, Facebook, site e um outro (TikTok, YouTube, Google Maps), validados e sempre

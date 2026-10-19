@@ -103,6 +103,19 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0052 aplicada".
 
+### 0.6 Migration por aplicar: 0053 (depois da 0048 e da 0052)
+
+- [ ] SQL Editor: colar `supabase/migrations/0053_worker_jobs_board_cards.sql` e correr.
+      Pode correr-se mais do que uma vez.
+- [ ] Testar, como jardineiro, em Trabalhos:
+  - Cada cartão tem o ícone do serviço e só a localidade ("Cascais").
+  - Um trabalho iniciado aparece como "Em curso"; um marcado como concluído diz "Feito a
+    dd/MM · confirma automaticamente em Nh".
+  - No Histórico, os cartões ficam agrupados por mês e um cancelado diz "cancelado pelo
+    cliente" ou "cancelaste".
+
+**Diz ao Claude:** "0053 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

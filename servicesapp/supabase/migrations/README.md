@@ -134,6 +134,11 @@ Ver o cabeçalho do ficheiro.
 `p_photo_paths text[]` e a exigir início, confirmação automática em 48h com lembrete às
 24h (cron de hora a hora), aviso novo `job_started`.
 
+**`0053_worker_jobs_board_cards.sql`: criada, NÃO aplicada** (aplicar depois da 0048 e
+da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quando foi
+iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
+alteração, para os cartões de "Os meus trabalhos" (design A2).
+
 **`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
 Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
 `worker_profiles`, com CHECK na BD (só `https://`), e as duas colunas no fim de
