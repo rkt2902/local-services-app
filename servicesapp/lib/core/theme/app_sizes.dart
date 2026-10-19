@@ -53,4 +53,11 @@ abstract final class AppSizes {
   static const double mapPin = 36.0;
   static const double inlineIcon = 18.0;
   static const double inlineSpinner = 16.0;
+
+  // Fluxo do ajudante e equipa (U4).
+  static const double progressBarHeight = 8.0;
+  static const double slotsValueWidth = 72.0;
+  static const double ratingStar = 14.0;
+  static const double metaIcon = 15.0;
+  static const double avatarSmall = 38.0;
 }

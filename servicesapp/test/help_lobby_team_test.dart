@@ -59,7 +59,7 @@ void main() {
     await tester.pumpWidget(_lobby(canManage: false));
     await tester.pumpAndSettle();
     expect(find.text('Alterar vagas'), findsNothing);
-    expect(find.text('Retirar da equipa'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Retirar'), findsNothing);
   });
 
   testWidgets('retirar da equipa pede confirmação e chama a ação', (tester) async {
@@ -69,11 +69,21 @@ void main() {
     expect(find.text('Alterar vagas'), findsOneWidget);
     expect(find.text('Fechar pedido de ajuda'), findsOneWidget);
 
-    await tester.tap(find.text('Retirar da equipa'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Retirar'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Retirar'));
     await tester.pumpAndSettle();
     expect(calls, ['remove:acc1']);
+  });
+
+  test('fechar pedido diz quem é avisado', () {
+    expect(closeHelpRequestMessage(pendingCount: 2, acceptedCount: 0),
+        'Os 2 candidatos por decidir são avisados.');
+    expect(closeHelpRequestMessage(pendingCount: 1, acceptedCount: 1),
+        'O candidato por decidir é avisado. '
+        'Quem já está na equipa também sai e é avisado.');
+    expect(closeHelpRequestMessage(pendingCount: 0, acceptedCount: 0),
+        'O pedido deixa de aparecer aos outros jardineiros.');
   });
 
   testWidgets('alterar vagas não desce abaixo dos aceites', (tester) async {

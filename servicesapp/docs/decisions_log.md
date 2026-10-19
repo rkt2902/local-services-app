@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Fluxo do ajudante e lobby da equipa (U4)
+
+- **As minhas candidaturas:** pílulas "Pendentes N / Aceites N / Histórico" em vez das três
+  secções seguidas; abre na primeira com candidaturas. Cartão pendente com inicial do
+  responsável, "À espera", data/zona/equipamento, caixa "Sugestão do responsável" e
+  "À espera da decisão de X" com "Retirar". Datas como "Sábado, 25/10 · 8:30".
+- **Trabalho como ajudante:** cabeçalho "Ajudas X" sem cartão, timeline num cartão branco
+  com a frase do passo numa caixa verde, detalhes em linhas rótulo/valor com "Mapa", cartão
+  "RESPONSÁVEL" com ★ e WhatsApp, "Desistir" em texto vermelho.
+- **Lobby:** saiu o cartão "Responsável" (é o próprio); o serviço e a data passam para o
+  subtítulo de "Equipa". Cartão "Vagas preenchidas 1 de 2" com "Alterar vagas" e "Fechar
+  pedido de ajuda" lá dentro; secções "Aceites · N" e "Por decidir · N"; ajudante com
+  "Na equipa", WhatsApp e "Retirar"; candidato sem badge, com "Aceitar" e o X de recusar
+  (mantido, o design não o mostra mas tirá-lo era perder a ação).
+- **Diálogos:** "Alterar vagas" e "Fechar pedido de ajuda?" passam a `AppConfirmDialog`
+  (`message` ficou opcional). O máximo de vagas continua 10 (limite da RPC), não 5.
+- **Texto de fechar diferente do design:** o design diz "Quem já está na equipa continua",
+  mas `cancel_help_request` (0049) também tira os aceites. O texto diz o que a RPC faz até
+  o Henrique decidir se o comportamento muda.
+
 ## 2026-10-19 — Criar pedido passo 2 e Editar pedido (U3)
 
 - **`JobScheduleFields` partilhado:** três botões (Data fixa, Flexível, Disponibilidade) e por

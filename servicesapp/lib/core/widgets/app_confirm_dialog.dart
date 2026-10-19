@@ -23,7 +23,7 @@ class AppConfirmDialog extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.message,
+    this.message,
     required this.confirmLabel,
     required this.onConfirm,
     required this.onCancel,
@@ -36,7 +36,10 @@ class AppConfirmDialog extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String message;
+
+  /// Texto por baixo do título; `null` quando o [details] chega (ex.: o
+  /// seletor de "Alterar vagas").
+  final String? message;
   final String confirmLabel;
   final String cancelLabel;
   final VoidCallback onConfirm;
@@ -128,15 +131,17 @@ class AppConfirmDialog extends StatelessWidget {
                         ?.copyWith(color: AppColors.textPrimary),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                AppStaggeredEntrance(
-                  index: 2,
-                  child: Text(
-                    message,
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.textSecondary),
+                if (message != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  AppStaggeredEntrance(
+                    index: 2,
+                    child: Text(
+                      message!,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
                   ),
-                ),
+                ],
                 if (details != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   AppStaggeredEntrance(index: 3, child: details!),

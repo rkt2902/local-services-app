@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -212,8 +214,14 @@ class _MyApplicationsTab extends ConsumerStatefulWidget {
   ConsumerState<_MyApplicationsTab> createState() => _MyApplicationsTabState();
 }
 
+/// Subsecções de "As minhas candidaturas" (design U4).
+enum _ApplicationsFilter { pending, accepted, history }
+
 class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
   final Set<String> _withdrawing = {};
+
+  /// `null` até haver dados: abre na primeira subsecção com candidaturas.
+  _ApplicationsFilter? _filter;
 
   Future<void> _onRefresh() async => ref.invalidate(myHelpAcceptancesProvider);
 
@@ -294,59 +302,188 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
             .where((a) => kindOf(a) == HelperCardKind.history)
             .toList();
 
-        return RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              if (pending.isNotEmpty) ...[
-                const _SectionHeader('Pendentes'),
-                ...pending.map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: _PendingCard(
-                      acceptance: a,
-                      onOpen: () => _openDetail(a),
-                      isWithdrawing: _withdrawing.contains(a.id),
-                      onWithdraw: () => _withdraw(a),
-                    ),
-                  ),
+        final filter = _filter ??
+            (pending.isNotEmpty
+                ? _ApplicationsFilter.pending
+                : accepted.isNotEmpty
+                    ? _ApplicationsFilter.accepted
+                    : _ApplicationsFilter.history);
+        final List<Widget> cards = switch (filter) {
+          _ApplicationsFilter.pending => [
+              for (final a in pending)
+                _PendingCard(
+                  acceptance: a,
+                  onOpen: () => _openDetail(a),
+                  isWithdrawing: _withdrawing.contains(a.id),
+                  onWithdraw: () => _withdraw(a),
                 ),
-              ],
-              if (accepted.isNotEmpty) ...[
-                if (pending.isNotEmpty) const SizedBox(height: AppSpacing.xs),
-                const _SectionHeader('Aceites'),
-                ...accepted.map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: _AcceptedCard(
-                      acceptance: a,
-                      onOpen: () => _openDetail(a),
-                      isWithdrawing: _withdrawing.contains(a.id),
-                      onWithdraw: () => _withdraw(a),
-                    ),
-                  ),
-                ),
-              ],
-              if (history.isNotEmpty) ...[
-                if (pending.isNotEmpty || accepted.isNotEmpty)
-                  const SizedBox(height: AppSpacing.xs),
-                const _SectionHeader('Histórico'),
-                ...history.map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: _HistoryCard(
-                      acceptance: a,
-                      onOpen: () => _openDetail(a),
-                    ),
-                  ),
-                ),
-              ],
             ],
-          ),
+          _ApplicationsFilter.accepted => [
+              for (final a in accepted)
+                _AcceptedCard(
+                  acceptance: a,
+                  onOpen: () => _openDetail(a),
+                  isWithdrawing: _withdrawing.contains(a.id),
+                  onWithdraw: () => _withdraw(a),
+                ),
+            ],
+          _ApplicationsFilter.history => [
+              for (final a in history)
+                _HistoryCard(acceptance: a, onOpen: () => _openDetail(a)),
+            ],
+        };
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  _FilterPill(
+                    label: 'Pendentes ${pending.length}',
+                    selected: filter == _ApplicationsFilter.pending,
+                    onPressed: () =>
+                        setState(() => _filter = _ApplicationsFilter.pending),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  _FilterPill(
+                    label: 'Aceites ${accepted.length}',
+                    selected: filter == _ApplicationsFilter.accepted,
+                    onPressed: () =>
+                        setState(() => _filter = _ApplicationsFilter.accepted),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  _FilterPill(
+                    label: 'Histórico',
+                    selected: filter == _ApplicationsFilter.history,
+                    onPressed: () =>
+                        setState(() => _filter = _ApplicationsFilter.history),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: AppFadeThroughSwitcher(
+                switchKey: filter,
+                duration: AppMotionDuration.fast,
+                child: RefreshIndicator(
+                  key: ValueKey(filter),
+                  color: AppColors.primary,
+                  onRefresh: _onRefresh,
+                  child: cards.isEmpty
+                      ? LayoutBuilder(
+                          builder: (context, constraints) =>
+                              SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SizedBox(
+                              height: constraints.maxHeight,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.lg),
+                                  child: _filterEmptyState(filter),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.xs,
+                            AppSpacing.md,
+                            AppSpacing.lg,
+                          ),
+                          itemCount: cards.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (_, i) => AppStaggeredEntrance(
+                            index: i,
+                            child: cards[i],
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _filterEmptyState(_ApplicationsFilter filter) => switch (filter) {
+        _ApplicationsFilter.pending => const AppEmptyState(
+            icon: Icons.hourglass_empty_rounded,
+            tone: AppStatusColor.neutral,
+            title: 'Sem candidaturas pendentes',
+            message: 'As candidaturas à espera de decisão aparecem aqui.',
+          ),
+        _ApplicationsFilter.accepted => const AppEmptyState(
+            icon: Icons.groups_outlined,
+            tone: AppStatusColor.neutral,
+            title: 'Ainda não estás numa equipa',
+            message: 'Quando fores aceite como ajudante, o trabalho aparece '
+                'aqui.',
+          ),
+        _ApplicationsFilter.history => const AppEmptyState(
+            icon: Icons.history_rounded,
+            tone: AppStatusColor.neutral,
+            title: 'Sem histórico',
+            message: 'As candidaturas que já fecharam aparecem aqui.',
+          ),
+      };
+}
+
+/// Pílula de filtro "Pendentes 2 / Aceites 1 / Histórico".
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.divider,
+              ),
+            ),
+            child: Text(
+              label,
+              style: textTheme.labelMedium?.copyWith(
+                color: selected ? AppColors.surface : AppColors.textPrimary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -355,7 +492,7 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
 //
 // Só isto foi tocado nesta sessão — os 4 cards (_HelpRequestCard,
 // _PendingCard, _AcceptedCard, _HistoryCard) e os helpers que eles usam
-// (_SectionHeader, _jobStatusBadgeFromRaw, _Meta, _scheduleLabel) ficam
+// (_jobStatusBadgeFromRaw, _Meta, _scheduleLabel) ficam
 // exatamente como estavam, mais abaixo neste ficheiro.
 
 class _HelpRequestsHeader extends StatelessWidget {
@@ -581,25 +718,6 @@ class _HelpRequestsError extends StatelessWidget {
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xxs, bottom: AppSpacing.xs),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
 /// Usa o mapeamento único de JobStatus (app_status_presenters.dart) — sem
 /// wildcard: `JobStatus.fromValue` lança para qualquer string fora dos 6
 /// estados conhecidos, em vez de silenciar num caso genérico "Em aberto".
@@ -623,8 +741,14 @@ class _PendingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final offered = acceptance.paymentPerHelper;
+    final principal = acceptance.principalName.trim().isEmpty
+        ? 'o responsável'
+        : acceptance.principalName;
+    final secondary =
+        textTheme.labelMedium?.copyWith(color: AppColors.textSecondary);
+
     return _TappableCard(
       onTap: onOpen,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -633,90 +757,112 @@ class _PendingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppStatusColor.waiting.background,
-              borderRadius: BorderRadius.circular(AppRadius.input),
-            ),
-            alignment: Alignment.center,
-            child: Icon(Icons.hourglass_top_outlined,
-                color: AppStatusColor.waiting.foreground),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: AppSizes.avatarSmall / 2,
+                backgroundColor: AppColors.primaryContainer,
+                child: Text(
+                  principal[0].toUpperCase(),
+                  style:
+                      textTheme.titleMedium?.copyWith(color: AppColors.primary),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        acceptance.serviceTypeName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      acceptance.serviceTypeName,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    AppStatusBadge.fromPresentation(
-                      presentation: HelpAcceptanceStatus.pending.presentation,
-                    ),
+                    Text('Responsável: $principal', style: secondary),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              AppStatusBadge(
+                label: 'À espera',
+                statusColor: AppStatusColor.waiting,
+                dense: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _Meta(
+                icon: Icons.calendar_today_outlined,
+                label: acceptance.confirmedDate != null
+                    ? _scheduleLabel(
+                        acceptance.confirmedDate!,
+                        acceptance.confirmedTime,
+                      )
+                    : 'Horário a combinar',
+              ),
+              if (acceptance.addressText.isNotEmpty)
                 _Meta(
-                  icon: Icons.person_outline,
-                  label: 'À espera da decisão de ${acceptance.principalName}',
+                  icon: Icons.place_outlined,
+                  label: acceptance.addressText,
                 ),
-                if (acceptance.confirmedDate != null) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  _Meta(
-                    icon: Icons.event_outlined,
-                    label: _scheduleLabel(
-                      acceptance.confirmedDate!,
-                      acceptance.confirmedTime,
-                    ),
-                  ),
-                ],
-                if (acceptance.addressText.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  _Meta(
-                    icon: Icons.place_outlined,
-                    label: acceptance.addressText,
-                  ),
-                ],
-                if (offered != null && offered > 0) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  _Meta(
-                    icon: Icons.euro_outlined,
-                    label: 'Sugestão do responsável: ${hourlyRateLabel(offered)}',
-                  ),
-                ],
-                if (acceptance.broughtEquipment) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  _Meta(
-                    icon: Icons.build_outlined,
-                    label: 'Levo equipamento',
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: isWithdrawing ? null : onWithdraw,
-                    child: Text(
-                      isWithdrawing ? 'A retirar...' : 'Retirar candidatura',
-                    ),
-                  ),
+              if (acceptance.broughtEquipment)
+                const _Meta(
+                  icon: Icons.handyman_outlined,
+                  label: 'Levo equipamento',
                 ),
-              ],
+            ],
+          ),
+          if (offered != null && offered > 0) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Sugestão do responsável: ',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(text: hourlyRateLabel(offered)),
+                  ],
+                ),
+                style: textTheme.labelMedium
+                    ?.copyWith(color: AppColors.textPrimary),
+              ),
             ),
+          ],
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: Text('À espera da decisão de $principal',
+                    style: secondary),
+              ),
+              TextButton(
+                onPressed: isWithdrawing ? null : onWithdraw,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppStatusColor.cancelled.foreground,
+                  textStyle: textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                child: Text(isWithdrawing ? 'A retirar...' : 'Retirar'),
+              ),
+            ],
           ),
         ],
       ),
@@ -762,9 +908,9 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
       onTap: widget.onOpen,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppStatusColor.success.background,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppStatusColor.success.foreground),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1245,21 +1391,27 @@ class _Meta extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon,
-            size: 14,
-            color: Theme.of(context).colorScheme.onSurfaceVariant),
+        Icon(icon, size: AppSizes.metaIcon, color: AppColors.textSecondary),
         const SizedBox(width: AppSpacing.xxs),
         Flexible(
-          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+          child: Text(
+            label,
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
         ),
       ],
     );
   }
 }
 
+/// "Sábado, 25/10 · 8:30" (sem hora: só o dia).
 String _scheduleLabel(DateTime date, String? time) {
-  final dateStr = DateFormat('dd/MM/yyyy').format(date);
-  if (time == null) return dateStr;
-  final timeStr = time.length >= 5 ? time.substring(0, 5) : time;
-  return '$dateStr às $timeStr';
+  final day = weekdayDateLabel(date);
+  if (time == null || time.length < 5) return day;
+  final hour = int.tryParse(time.substring(0, 2));
+  final clock = hour == null ? time.substring(0, 5) : '$hour${time.substring(2, 5)}';
+  return '$day · $clock';
 }

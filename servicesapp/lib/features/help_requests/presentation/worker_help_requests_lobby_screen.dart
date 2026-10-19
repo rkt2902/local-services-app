@@ -270,6 +270,7 @@ class _WorkerHelpRequestsLobbyScreenState
           filledPlacesLabel:
               '${accepted.length} de ${hr.slotsNeeded} vaga${hr.slotsNeeded == 1 ? '' : 's'} '
               'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
+          filledCountLabel: '${accepted.length} de ${hr.slotsNeeded}',
           filledProgress: hr.slotsNeeded == 0 ? 0 : accepted.length / hr.slotsNeeded,
           acceptedHelpers: accepted
               .map((c) => WorkerAcceptedHelperViewData(
