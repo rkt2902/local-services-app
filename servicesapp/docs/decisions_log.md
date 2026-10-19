@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Autenticação: login, código do email e escolha de papel (U5)
+
+- **Adaptado, não copiado:** o código de referência separava cada ecrã em vista + wrapper
+  com callbacks. Os três ecrãs já funcionavam com Riverpod e o router decide os destinos,
+  por isso só mudou a apresentação; a lógica (signIn, OAuth, `verifySignupCode`,
+  `createProfile`, contagem de 60 s do reenvio) ficou igual.
+- **Login:** fundo branco, alinhado à esquerda, marca 52, "Senha" em vez de "Password",
+  "Esqueceste-te da senha?", "Criar conta" no rodapé. "Termos" e "Política de
+  Privacidade" a verde na frase dos botões sociais, mas sem toque: ainda não há páginas.
+- **Código do email:** sem barra de título (só a seta), título grande, email a negrito na
+  frase, "Confirmar" logo por baixo das caixas, "Reenviar em 0:42" e caixa cinzenta no fundo
+  com "Entra" (vai para /login) e "recupera a senha" (vai para o pedido de código de
+  recuperação com o email preenchido). Mantém-se o `AppOtpInput` de 6 caixas.
+- **Escolha de papel:** aviso a âmbar, cartões compactos em linha com ✓, "Os teus dados" com
+  "+351" fixo antes do telemóvel (só ajuda visual, outros indicativos continuam aceites). O
+  texto por baixo diz quem contacta conforme o papel (`phoneUsageHint`). "Os teus dados" só
+  aparece quando ainda falta o telefone (conta Google/Facebook), como antes: no registo por
+  email o nome e o telefone já foram pedidos.
+
 ## 2026-10-19 — Fluxo do ajudante e lobby da equipa (U4)
 
 - **As minhas candidaturas:** pílulas "Pendentes N / Aceites N / Histórico" em vez das três

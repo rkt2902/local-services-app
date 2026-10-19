@@ -22,6 +22,7 @@ class AppTextField extends StatelessWidget {
     this.minLines,
     this.onFieldSubmitted,
     this.maxLength,
+    this.prefixText,
   });
 
   final TextEditingController controller;
@@ -49,6 +50,9 @@ class AppTextField extends StatelessWidget {
   /// constroem o próprio contador (ex. client_create_job_description_screen).
   final int? maxLength;
 
+  /// Texto fixo antes do valor (ex.: o indicativo "+351" no telemóvel).
+  final String? prefixText;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -73,6 +77,9 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
+        prefixText: prefixText,
+        prefixStyle:
+            textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         counterText: maxLength == null ? null : '',
         suffixIcon: suffixIcon,
         filled: true,

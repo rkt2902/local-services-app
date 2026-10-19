@@ -4,13 +4,15 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_sizes.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_brand_badge.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import 'widgets/social_sign_in_buttons.dart';
-import '../../../core/theme/app_spacing.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -33,14 +35,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (ref.read(authControllerProvider) is AuthLoading) return;
     if (!_formKey.currentState!.validate()) return;
     // Destino original (rota privada aberta sem sessão), se houver.
     final returnTo =
         GoRouterState.of(context).uri.queryParameters[returnToParam];
     await ref.read(authControllerProvider.notifier).signIn(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
@@ -75,96 +78,127 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
+          SnackBar(
+              content: Text(next.message),
+              backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.s22, AppSpacing.s26, AppSpacing.s22, AppSpacing.s18),
+              child: AutofillGroup(
                 child: Form(
                   key: _formKey,
-                  child: Column(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                    ),
                     children: [
-                      const SizedBox(height: AppSpacing.s20),
-                      const AppBrandBadge(size: 62, iconSize: 30),
-                      const SizedBox(height: AppSpacing.s18),
-                      Text(
-                        'Bem-vindo de volta',
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Entra na tua conta ProJardim',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      AppTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        validator: (value) {
-                          final text = value?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduz o email.';
-                          if (!text.contains('@')) return 'Email inválido.';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppSpacing.s14),
-                      AppTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.password],
-                        suffixIcon: IconButton(
-                          tooltip: _obscurePassword
-                              ? 'Mostrar palavra-passe'
-                              : 'Esconder palavra-passe',
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: AppColors.textSecondary,
+                      const AppStaggeredEntrance(
+                        index: 0,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: AppBrandBadge(
+                            size: AppSizes.authBrandBadge,
+                            iconSize: AppSizes.authBrandIcon,
                           ),
                         ),
-                        validator: (value) {
-                          if ((value ?? '').isEmpty) {
-                            return 'Introduz a password.';
-                          }
-                          if ((value ?? '').length < 6) {
-                            return 'Mínimo 6 caracteres.';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppStaggeredEntrance(
+                        index: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bem-vindo de volta',
+                              style: textTheme.displaySmall?.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              'Entra na tua conta ProJardim',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppStaggeredEntrance(
+                        index: 2,
+                        child: AppTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          validator: (value) {
+                            final text = value?.trim() ?? '';
+                            if (text.isEmpty) return 'Introduz o email.';
+                            if (!text.contains('@')) return 'Email inválido.';
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s14),
+                      AppStaggeredEntrance(
+                        index: 3,
+                        child: AppTextField(
+                          controller: _passwordController,
+                          label: 'Senha',
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.password],
+                          onFieldSubmitted: (_) => _submit(),
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Mostrar senha'
+                                : 'Esconder senha',
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          validator: (value) {
+                            if ((value ?? '').isEmpty) {
+                              return 'Introduz a senha.';
+                            }
+                            if ((value ?? '').length < 6) {
+                              return 'Mínimo 6 caracteres.';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {
-                            final email = _emailController.text.trim();
-                            context.push(
-                              '/forgot-password/request'
-                              '${email.isNotEmpty ? '?email=${Uri.encodeComponent(email)}' : ''}',
-                            );
-                          },
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  final email = _emailController.text.trim();
+                                  context.push(
+                                    '/forgot-password/request'
+                                    '${email.isNotEmpty ? '?email=${Uri.encodeComponent(email)}' : ''}',
+                                  );
+                                },
                           child: Text(
-                            'Esqueci-me da senha',
+                            'Esqueceste-te da senha?',
                             style: textTheme.labelLarge?.copyWith(
                               color: AppColors.primaryPressed,
                               fontWeight: FontWeight.w700,
@@ -172,38 +206,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.s6),
-                      PrimaryActionButton(
-                        label: 'Entrar',
-                        isLoading: isLoading,
-                        onPressed: _submit,
+                      const SizedBox(height: AppSpacing.xxs),
+                      AppStaggeredEntrance(
+                        index: 4,
+                        child: PrimaryActionButton(
+                          label: 'Entrar',
+                          isLoading: isLoading,
+                          onPressed: _submit,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.s18),
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Divider(
-                                color: AppColors.divider, thickness: 1),
-                          ),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                            child: Text(
-                              'ou',
-                              style: textTheme.labelLarge
-                                  ?.copyWith(color: AppColors.textSecondary),
+                      AppStaggeredEntrance(
+                        index: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Divider(color: AppColors.divider),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                  ),
+                                  child: Text(
+                                    'ou',
+                                    style: textTheme.labelLarge?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                                const Expanded(
+                                  child: Divider(color: AppColors.divider),
+                                ),
+                              ],
                             ),
-                          ),
-                          const Expanded(
-                            child: Divider(
-                                color: AppColors.divider, thickness: 1),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.s18),
-                      SocialSignInButtons(
-                        enabled: !isLoading,
-                        onPressed: _signInWithSocial,
+                            const SizedBox(height: AppSpacing.s18),
+                            SocialSignInButtons(
+                              enabled: !isLoading,
+                              onPressed: _signInWithSocial,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -211,28 +256,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.s22, 0, AppSpacing.s22, AppSpacing.md),
-              child: Center(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      'Não tens conta? ',
-                      style: textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.textSecondary),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Não tens conta?',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
-                    InkWell(
-                      onTap: () => context.go('/signup'),
-                      child: Text(
-                        'Registar',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: AppColors.primaryPressed,
-                          fontWeight: FontWeight.w800,
-                        ),
+                  ),
+                  TextButton(
+                    onPressed: isLoading ? null : () => context.go('/signup'),
+                    child: Text(
+                      'Criar conta',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.primaryPressed,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -60,4 +60,10 @@ abstract final class AppSizes {
   static const double ratingStar = 14.0;
   static const double metaIcon = 15.0;
   static const double avatarSmall = 38.0;
+
+  // Autenticação: login, código do email e escolha de papel (U5).
+  static const double authBrandBadge = 52.0;
+  static const double authBrandIcon = 26.0;
+  static const double authHeaderIcon = 56.0;
+  static const double authHeaderGlyph = 28.0;
 }

@@ -42,15 +42,37 @@ class SocialSignInButtons extends StatelessWidget {
           onPressed: enabled ? () => onPressed(OAuthProvider.facebook) : null,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Ao continuar com Google ou Facebook aceitas os Termos e a '
-          'Política de Privacidade.',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
+        const _LegalNotice(),
       ],
+    );
+  }
+}
+
+/// "Ao continuar com Google ou Facebook aceitas os Termos e a Política de
+/// Privacidade.", com os dois nomes a verde (design U5).
+class _LegalNotice extends StatelessWidget {
+  const _LegalNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final small = Theme.of(context).textTheme.bodySmall;
+    final link = small?.copyWith(
+      color: AppColors.primaryPressed,
+      fontWeight: FontWeight.w700,
+    );
+    return Text.rich(
+      TextSpan(
+        style: small?.copyWith(color: AppColors.textSecondary),
+        children: [
+          const TextSpan(
+              text: 'Ao continuar com Google ou Facebook aceitas os '),
+          TextSpan(text: 'Termos', style: link),
+          const TextSpan(text: ' e a '),
+          TextSpan(text: 'Política de Privacidade', style: link),
+          const TextSpan(text: '.'),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }
