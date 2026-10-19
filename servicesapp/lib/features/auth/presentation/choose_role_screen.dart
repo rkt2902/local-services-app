@@ -7,6 +7,8 @@ import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/phone_utils.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
@@ -23,23 +25,53 @@ class ChooseRoleScreen extends ConsumerStatefulWidget {
 class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
   UserRole? _selectedRole;
   bool _submitting = false;
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  /// Nome, telefone e foto já conhecidos: do registo por email (ou dos
+  /// metadados do signUp, se a app fechou a meio da confirmação), ou da
+  /// conta Google/Facebook. Conta social não traz telefone, e o contacto
+  /// é por WhatsApp, por isso aí pede-se aqui.
+  late final RegistrationIdentity _identity;
+
+  @override
+  void initState() {
+    super.initState();
+    _identity = RegistrationIdentity.from(
+      pending: ref.read(pendingSignupProvider),
+      metadata: ref.read(currentUserProvider)?.userMetadata,
+    );
+    _nameController.text = _identity.fullName;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (_submitting || _selectedRole == null) return;
+    if (_identity.needsContact && !_formKey.currentState!.validate()) return;
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    final pending = ref.read(pendingSignupProvider);
-    // Com confirmação de email a app pode ter sido fechada entre o registo
-    // e o código: aí o nome e o telefone vêm dos metadados do signUp.
-    final metadata = user.userMetadata ?? const <String, dynamic>{};
     setState(() => _submitting = true);
     try {
-      await ref.read(authControllerProvider.notifier).createProfile(
-        userId: user.id,
-        fullName: pending.fullName ?? metadata['full_name'] as String? ?? '',
-        phone: pending.phone ?? metadata['phone'] as String? ?? '',
-        role: _selectedRole!,
-      );
+      await ref
+          .read(authControllerProvider.notifier)
+          .createProfile(
+            userId: user.id,
+            fullName: _identity.needsContact
+                ? _nameController.text.trim()
+                : _identity.fullName,
+            phone: _identity.needsContact
+                ? phoneForStorage(_phoneController.text)
+                : _identity.phone,
+            role: _selectedRole!,
+            socialAvatarUrl: _identity.socialAvatarUrl,
+          );
       if (!mounted) return;
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
@@ -75,42 +107,62 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
-              Text(
-                'Como quer usar\na ProJardim?',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Text(
+                        'Como queres usar\na ProJardim?',
+                        style: textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      // Sem "podes mudar mais tarde": o papel não se muda depois de
+                      // escolhido (trigger prevent_profile_role_change).
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Escolhe com cuidado: não é possível mudar depois.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _RoleSelectionCard(
+                        title: 'Preciso de jardinagem',
+                        description:
+                            'Crio pedidos e escolho o melhor jardineiro para o meu jardim.',
+                        icon: Icons.person_outline_rounded,
+                        selected: _selectedRole == UserRole.client,
+                        onTap: () =>
+                            setState(() => _selectedRole = UserRole.client),
+                      ),
+                      const SizedBox(height: 14),
+                      _RoleSelectionCard(
+                        title: 'Sou jardineiro',
+                        description:
+                            'Recebo pedidos, envio propostas e faço trabalhos — sozinho ou como ajudante.',
+                        icon: Icons.grass_rounded,
+                        selected: _selectedRole == UserRole.worker,
+                        onTap: () =>
+                            setState(() => _selectedRole = UserRole.worker),
+                      ),
+                      if (_identity.needsContact) ...[
+                        const SizedBox(height: AppSpacing.lg),
+                        _ContactFields(
+                          formKey: _formKey,
+                          nameController: _nameController,
+                          phoneController: _phoneController,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-              // Sem "podes mudar mais tarde": o papel não se muda depois de
-              // escolhido (trigger prevent_profile_role_change).
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Escolhe com cuidado: não é possível mudar depois.',
-                style: textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 18),
-              _RoleSelectionCard(
-                title: 'Preciso de jardinagem',
-                description:
-                    'Crio pedidos e escolho o melhor jardineiro para o meu jardim.',
-                icon: Icons.person_outline_rounded,
-                selected: _selectedRole == UserRole.client,
-                onTap: () => setState(() => _selectedRole = UserRole.client),
-              ),
-              const SizedBox(height: 14),
-              _RoleSelectionCard(
-                title: 'Sou jardineiro',
-                description:
-                    'Recebo pedidos, envio propostas e faço trabalhos — sozinho ou como ajudante.',
-                icon: Icons.grass_rounded,
-                selected: _selectedRole == UserRole.worker,
-                onTap: () => setState(() => _selectedRole = UserRole.worker),
-              ),
-              const Spacer(),
+              const SizedBox(height: AppSpacing.md),
               PrimaryActionButton(
                 label: 'Continuar',
                 isLoading: _submitting || isLoading,
@@ -130,6 +182,104 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Nome, telefone e foto conhecidos quando se chega a /choose-role.
+@visibleForTesting
+class RegistrationIdentity {
+  const RegistrationIdentity({
+    required this.fullName,
+    required this.phone,
+    this.socialAvatarUrl,
+  });
+
+  /// Ordem: o que foi escrito no registo nesta execução, depois os
+  /// metadados do utilizador (`full_name`/`phone` do signUp por email;
+  /// `full_name`/`name` e `avatar_url`/`picture` do Google e do Facebook).
+  factory RegistrationIdentity.from({
+    required PendingSignupState pending,
+    required Map<String, dynamic>? metadata,
+  }) {
+    final meta = metadata ?? const <String, dynamic>{};
+    String? text(String key) {
+      final value = meta[key];
+      return value is String && value.trim().isNotEmpty ? value.trim() : null;
+    }
+
+    return RegistrationIdentity(
+      fullName: pending.fullName ?? text('full_name') ?? text('name') ?? '',
+      phone: pending.phone ?? text('phone') ?? '',
+      socialAvatarUrl: text('avatar_url') ?? text('picture'),
+    );
+  }
+
+  final String fullName;
+  final String phone;
+
+  /// Foto da conta Google/Facebook (URL externo), para copiar para o
+  /// Storage ao criar o perfil. `null` no registo por email.
+  final String? socialAvatarUrl;
+
+  /// Sem telefone (conta Google/Facebook): o ecrã pede nome e telefone.
+  bool get needsContact => phone.isEmpty;
+}
+
+class _ContactFields extends StatelessWidget {
+  const _ContactFields({
+    required this.formKey,
+    required this.nameController,
+    required this.phoneController,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController nameController;
+  final TextEditingController phoneController;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Os teus dados',
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'O telemóvel é usado para o contacto por WhatsApp depois de um '
+            'trabalho confirmado.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: nameController,
+            label: 'Nome',
+            autofillHints: const [AutofillHints.name],
+            validator: (v) =>
+                (v ?? '').trim().isEmpty ? 'Introduz o teu nome.' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: phoneController,
+            label: 'Telemóvel',
+            hintText: '912 345 678',
+            keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            validator: (v) =>
+                phoneValidator(v, emptyMessage: 'Introduz o telemóvel.'),
+          ),
+        ],
       ),
     );
   }

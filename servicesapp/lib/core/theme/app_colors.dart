@@ -18,4 +18,12 @@ abstract final class AppColors {
 
   // Detalhe dourado usado na ilustração de onboarding
   static const Color logoAccent = Color(0xFFC8A13B);
+
+  // Marcas externas, só nos botões "Continuar com Google/Facebook"
+  // (as regras de marca de cada um pedem as cores oficiais).
+  static const Color googleBlue = Color(0xFF4285F4);
+  static const Color googleGreen = Color(0xFF34A853);
+  static const Color googleYellow = Color(0xFFFBBC05);
+  static const Color googleRed = Color(0xFFEA4335);
+  static const Color facebookBlue = Color(0xFF1877F2);
 }
