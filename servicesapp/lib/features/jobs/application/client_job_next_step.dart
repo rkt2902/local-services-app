@@ -58,6 +58,7 @@ String clientJobNextStepLabel(JobRequest job) {
     if (n <= 0) return 'À espera de propostas dos jardineiros.';
     return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
   }
+  if (job.isInProgress) return 'O jardineiro já começou o trabalho.';
   return 'Trabalho marcado. Fala com o jardineiro por WhatsApp.';
 }
 

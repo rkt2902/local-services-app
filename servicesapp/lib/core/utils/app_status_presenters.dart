@@ -25,7 +25,7 @@ extension JobStatusPresentationExtension on JobStatus {
 
       case JobStatus.awaitingConfirmation:
         return const AppStatusPresentation(
-          label: 'A aguardar confirmação',
+          label: 'À espera de confirmação',
           color: AppStatusColor.info,
         );
 
@@ -61,7 +61,7 @@ extension ProposalStatusPresentationExtension on ProposalStatus {
     switch (this) {
       case ProposalStatus.pending:
         return const AppStatusPresentation(
-          label: 'Aguarda resposta',
+          label: 'À espera de resposta',
           color: AppStatusColor.waiting,
         );
 
@@ -122,7 +122,7 @@ extension HelpRequestStatusPresentationExtension on HelpRequestStatus {
     switch (this) {
       case HelpRequestStatus.pendingApproval:
         return const AppStatusPresentation(
-          label: 'A aguardar aprovação',
+          label: 'À espera de aprovação',
           color: AppStatusColor.waiting,
         );
 

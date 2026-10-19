@@ -121,6 +121,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(completedWorkerProposalsProvider(0));
           _invalidateWorkerJobBoard(ref);
           ref.invalidate(jobByIdProvider);
+        case NotificationType.jobStarted:
         case NotificationType.jobMarkedDone:
           ref.invalidate(clientJobsProvider);
           ref.invalidate(jobByIdProvider);

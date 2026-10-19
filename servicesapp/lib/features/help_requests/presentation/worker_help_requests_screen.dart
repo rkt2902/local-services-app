@@ -873,7 +873,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                 onPressed: () =>
                     _openWhatsApp(widget.acceptance.principalPhone),
                 icon: const Icon(Icons.chat_outlined, size: 18),
-                label: const Text('Contactar responsável via WhatsApp'),
+                label: const Text('Falar por WhatsApp'),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

@@ -97,7 +97,7 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
           AsyncValue(:final error?) => _HelperJobMessage(
               icon: Icons.cloud_off_outlined,
               message: friendlyError(error),
-              actionLabel: 'Tentar de novo',
+              actionLabel: 'Tentar novamente',
               onAction: () => ref.invalidate(myHelpAcceptancesProvider),
             ),
           _ => const _HelperJobLoading(),

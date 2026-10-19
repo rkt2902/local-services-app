@@ -60,6 +60,10 @@ class WorkerMyJobDetailViewData {
     required this.agreedPriceLabel,
     required this.canMarkCompleted,
     this.markCompletedHint,
+    this.clientSubtitle,
+    this.startedAt,
+    this.canStart = false,
+    this.startHint,
     this.rescheduleBlocked = false,
     this.overdueMessage,
     this.cancelledMessage,
@@ -144,6 +148,19 @@ class WorkerMyJobDetailViewData {
   /// Texto por baixo do botão quando ainda não pode concluir.
   final String? markCompletedHint;
 
+  /// "Corte de relva · 200 m²" por baixo do nome do cliente.
+  final String? clientSubtitle;
+
+  /// Início do trabalho (migration 0052). Preenchido = "Em curso": o botão
+  /// do fundo passa a "Marcar como concluído" e aparece o temporizador.
+  final DateTime? startedAt;
+
+  /// "Iniciar trabalho" disponível (a partir de 1h antes da hora).
+  final bool canStart;
+
+  /// Texto por baixo de "Iniciar trabalho".
+  final String? startHint;
+
   /// Zona e data por baixo do título, para distinguir pedidos iguais.
   final String? titleSubtitle;
 
@@ -162,6 +179,8 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
     required this.onRequestHelpersPressed,
     required this.onViewTeamPressed,
     required this.onMarkCompleted,
+    required this.onStartJob,
+    required this.onReportProblem,
     required this.onProposeReschedule,
     required this.onAcceptReschedule,
     required this.onRejectReschedule,
@@ -184,6 +203,12 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
   /// no wrapper (ver worker_my_job_detail_screen.dart _markCompleted).
   final Future<bool> Function() onMarkCompleted;
 
+  /// Abre a folha "Iniciar o trabalho agora?" e chama `start_job`. A view
+  /// só mostra o estado de carregamento; o ecrã atualiza pelo provider.
+  final Future<void> Function() onStartJob;
+
+  final VoidCallback onReportProblem;
+
   final VoidCallback onProposeReschedule;
   final VoidCallback onAcceptReschedule;
   final VoidCallback onRejectReschedule;
@@ -202,6 +227,7 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
 
 class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   bool _completing = false;
+  bool _starting = false;
   bool _showSuccessFeedback = false;
   Timer? _successTimer;
 
@@ -233,6 +259,16 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         widget.onCompletionFeedbackFinished?.call();
       },
     );
+  }
+
+  Future<void> _handleStart() async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      await widget.onStartJob();
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
   }
 
   @override
@@ -320,6 +356,16 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
+                if (data.startedAt != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppStaggeredEntrance(
+                    index: 1,
+                    child: _WorkTimerCard(
+                      startedAt: data.startedAt!,
+                      estimatedHoursLabel: data.estimatedHoursLabel,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 AppStaggeredEntrance(
                   index: 1,
@@ -331,6 +377,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                           avatarUrl: data.clientAvatarUrl,
                           radius: 22,
                           fallbackLabel: 'Cliente',
+                          subtitle: data.clientSubtitle,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -345,8 +392,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                 AppStaggeredEntrance(
                   index: 2,
                   child: _JobInformationCard(
-                    serviceLabel: data.serviceLabel,
-                    areaLabel: data.sizeLabel ?? 'Não especificado',
                     dateTimeLabel: data.confirmedScheduleLabel,
                     locationLabel: data.addressLabel,
                     priceLabel: data.agreedPriceLabel,
@@ -428,20 +473,50 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PrimaryActionButton(
-                label: 'Marcar como concluído',
-                isLoading: _completing,
-                onPressed: (_completing || !data.canMarkCompleted)
-                    ? null
-                    : _handleMarkCompleted,
-              ),
-              if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  data.markCompletedHint!,
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
+              if (data.startedAt == null) ...[
+                PrimaryActionButton(
+                  label: 'Iniciar trabalho',
+                  icon: Icons.play_arrow_rounded,
+                  isLoading: _starting,
+                  onPressed:
+                      (_starting || !data.canStart) ? null : _handleStart,
+                ),
+                if (data.startHint != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    data.startHint!,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ] else ...[
+                PrimaryActionButton(
+                  label: 'Marcar como concluído',
+                  icon: Icons.check_circle_outline_rounded,
+                  isLoading: _completing,
+                  onPressed: (_completing || !data.canMarkCompleted)
+                      ? null
+                      : _handleMarkCompleted,
+                ),
+                if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    data.markCompletedHint!,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+                TextButton(
+                  onPressed: widget.onReportProblem,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppStatusColor.cancelled.foreground,
+                  ),
+                  child: const Text(
+                    'Reportar problema',
+                    style: TextStyle(decoration: TextDecoration.underline),
+                  ),
                 ),
               ],
             ],
@@ -613,7 +688,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         const _InfoBanner(
           icon: Icons.schedule_outlined,
           color: AppStatusColor.waiting,
-          message: 'A tua proposta está a aguardar resposta do cliente.',
+          message: 'A tua proposta está à espera de resposta do cliente.',
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
@@ -647,7 +722,7 @@ class _CallButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: enabled ? onPressed : null,
-      tooltip: 'Contactar via WhatsApp',
+      tooltip: 'Falar por WhatsApp',
       style: IconButton.styleFrom(
         minimumSize: const Size(48, 48),
         backgroundColor: AppColors.primaryContainer,
@@ -665,16 +740,12 @@ class _CallButton extends StatelessWidget {
 
 class _JobInformationCard extends StatelessWidget {
   const _JobInformationCard({
-    required this.serviceLabel,
-    required this.areaLabel,
     required this.dateTimeLabel,
     required this.locationLabel,
     required this.priceLabel,
     this.onOpenMap,
   });
 
-  final String serviceLabel;
-  final String areaLabel;
   final String dateTimeLabel;
   final String locationLabel;
   final String priceLabel;
@@ -694,13 +765,9 @@ class _JobInformationCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _InformationRow(label: 'Serviço', value: '$serviceLabel · $areaLabel'),
-          const SizedBox(height: AppSpacing.sm),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: AppSpacing.sm),
           _InformationRow(label: 'Data e hora', value: dateTimeLabel),
           const SizedBox(height: AppSpacing.sm),
-          _InformationRow(label: 'Local', value: locationLabel),
+          _InformationRow(label: 'Morada', value: locationLabel),
           const SizedBox(height: AppSpacing.sm),
           _InformationRow(label: 'Valor', value: priceLabel, highlighted: true),
           if (onOpenMap != null) ...[
@@ -973,7 +1040,7 @@ class _RescheduleBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   proposedByMe
-                      ? 'Aguarda resposta à remarcação que propuseste para $label'
+                      ? 'À espera de resposta à remarcação que propuseste para $label'
                           .trim()
                       : 'O cliente propôs remarcar para $label'.trim(),
                   style: textTheme.bodyMedium?.copyWith(color: color.foreground),
@@ -1089,7 +1156,7 @@ class _ClientContactCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: phone.isEmpty ? null : onCallPressed,
             icon: const Icon(Icons.chat_outlined),
-            label: const Text('Contactar via WhatsApp'),
+            label: const Text('Falar por WhatsApp'),
           ),
         ],
       ),
@@ -1434,5 +1501,110 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
     );
     // "O que falta fazer" do dashboard conta as avaliações dadas.
     ref.invalidate(myRatingsGivenProvider);
+  }
+}
+
+
+/// "Tempo em curso" (design 7): relógio a contar desde o início, com a hora
+/// de início e a estimativa da proposta. Atualiza de segundo a segundo.
+class _WorkTimerCard extends StatefulWidget {
+  const _WorkTimerCard({required this.startedAt, this.estimatedHoursLabel});
+
+  final DateTime startedAt;
+  final String? estimatedHoursLabel;
+
+  @override
+  State<_WorkTimerCard> createState() => _WorkTimerCardState();
+}
+
+class _WorkTimerCardState extends State<_WorkTimerCard> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  static String _clock(Duration d) {
+    final seconds = d.isNegative ? 0 : d.inSeconds;
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '$h:${two(m)}:${two(s)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    const color = AppStatusColor.info;
+    final started = widget.startedAt.toLocal();
+    final startedLabel =
+        'Iniciado às ${started.hour.toString().padLeft(2, '0')}:${started.minute.toString().padLeft(2, '0')}';
+    final elapsed = DateTime.now().difference(widget.startedAt);
+
+    return Semantics(
+      label: 'Tempo em curso',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: color.background,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tempo em curso',
+                    style: textTheme.labelMedium
+                        ?.copyWith(color: color.foreground),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  ExcludeSemantics(
+                    child: Text(
+                      _clock(elapsed),
+                      style: textTheme.displaySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  startedLabel,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                if (widget.estimatedHoursLabel != null)
+                  Text(
+                    'Estimado ${widget.estimatedHoursLabel}',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -229,7 +229,7 @@ class AuthRepository {
     }
     if (code == 'over_request_rate_limit' || code == 'over_email_send_rate_limit') {
       throw AuthException(
-        'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.',
+        'Demasiadas tentativas. Espera alguns minutos e tenta novamente.',
         code: PasswordResetErrorCode.unexpected,
       );
     }

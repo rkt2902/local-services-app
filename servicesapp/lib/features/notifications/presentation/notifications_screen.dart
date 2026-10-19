@@ -438,6 +438,8 @@ class _NotificationsEmptyState extends StatelessWidget {
         (Icons.person_remove_alt_1, AppStatusColor.waiting.foreground),
       NotificationType.jobReminder =>
         (Icons.alarm_rounded, AppColors.primary),
+      NotificationType.jobStarted =>
+        (Icons.play_circle_outline_rounded, AppStatusColor.info.foreground),
       NotificationType.jobUpdated =>
         (Icons.edit_note_rounded, AppStatusColor.info.foreground),
       NotificationType.helpRemoved =>

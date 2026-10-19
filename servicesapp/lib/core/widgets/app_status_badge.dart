@@ -122,7 +122,7 @@ class AppBarStatusBadge extends StatelessWidget {
 /// labels completos, ao lado do leading + ação de fechar).
 String _shortAppBarLabel(String label) => switch (label) {
       'À espera de proposta' => 'Em aberto',
-      'Aguarda resposta' => 'Pendente',
+      'À espera de resposta' => 'Pendente',
       'Não selecionada' => 'Recusada',
       _ => label,
     };

@@ -83,21 +83,34 @@ class JobRepository {
   /// `job-photos/<worker_id>/<job_id>/`, a única pasta que a policy de
   /// upload e a validação de `mark_job_done` aceitam. Devolve o caminho no
   /// bucket, que se passa a `ProposalRepository.markJobCompleted`.
-  Future<String> uploadCompletionPhoto({
+  /// Foto de "antes" ([before] = true, ao iniciar) ou de "depois" (ao
+  /// concluir). O caminho tem de começar por `<worker>/<job>/` para as RPCs
+  /// `start_job`/`mark_job_done` a aceitarem (migration 0052).
+  Future<String> uploadWorkPhoto({
     required String jobId,
     required XFile file,
+    required bool before,
   }) async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('Não autenticado');
     final photo = await photoBytesForUpload(file);
+    final prefix = before ? 'before' : 'done';
     final storagePath =
-        '$userId/$jobId/done_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        '$userId/$jobId/${prefix}_${DateTime.now().microsecondsSinceEpoch}.jpg';
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,
           photo.bytes,
           fileOptions: FileOptions(contentType: photo.contentType),
         );
     return storagePath;
+  }
+
+  /// "Iniciar trabalho" (migration 0052): a partir de 1h antes da hora.
+  Future<void> startJob(String jobId, {List<String> photoPaths = const []}) async {
+    await _client.rpc('start_job', params: {
+      'p_job_id': jobId,
+      'p_photo_paths': photoPaths,
+    });
   }
 
   String jobPhotoPublicUrl(String storagePath) =>

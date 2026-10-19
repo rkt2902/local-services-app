@@ -402,7 +402,7 @@ class _SummaryUnavailable extends StatelessWidget {
         ),
         if (onRetry != null)
           IconButton(
-            tooltip: 'Tentar outra vez',
+            tooltip: 'Tentar novamente',
             onPressed: onRetry,
             icon: const Icon(
               Icons.refresh_rounded,

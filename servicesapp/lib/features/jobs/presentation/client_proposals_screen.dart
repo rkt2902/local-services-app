@@ -754,7 +754,7 @@ class _ProposalConfirmation extends StatelessWidget {
           AppStaggeredEntrance(
             index: 1,
             child: Text(
-              'O profissional recebe a confirmação e o trabalho fica agendado. '
+              'O jardineiro recebe a confirmação e o trabalho fica agendado. '
               'As outras propostas são recusadas automaticamente.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
@@ -773,7 +773,7 @@ class _ProposalConfirmation extends StatelessWidget {
               proposalDateLabel: proposalDateLabel.isEmpty ? 'A combinar' : proposalDateLabel,
               // Sem processamento de pagamento na app — o valor é sempre
               // combinado diretamente entre cliente e prestador.
-              paymentTimingLabel: 'Combinado diretamente com o profissional',
+              paymentTimingLabel: 'Combinado diretamente com o jardineiro',
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -972,7 +972,7 @@ class _UnavailableProposal extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      text: 'O profissional retirou-a ou o prazo terminou.',
+                      text: 'O jardineiro retirou-a ou o prazo terminou.',
                       style: textTheme.bodyMedium
                           ?.copyWith(color: AppStatusColor.cancelled.foreground),
                     ),

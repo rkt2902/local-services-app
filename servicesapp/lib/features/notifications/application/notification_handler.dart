@@ -170,7 +170,9 @@ class NotificationHandler {
           }
         }
 
+      case NotificationType.jobStarted:
       case NotificationType.jobMarkedDone:
+        // jobStarted (0052): o jardineiro começou o trabalho.
         // Sent to client only — worker marked the job done, awaiting confirmation.
         // relatedId = job_id — client goes directly to confirm or report a problem.
         if (notification.relatedId == null) break;

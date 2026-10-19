@@ -11,14 +11,19 @@ import '../../jobs/data/cancel_reasons.dart';
 /// - `auto_expire_jobs` (0046) expira o trabalho confirmado quando
 ///   `confirmed_date < today_pt() - 3`: o último dia para marcar como
 ///   concluído é a data + 3 dias.
-/// - `auto_confirm_completed_jobs` (0046) confirma sozinho 3 dias depois de
-///   o worker marcar como concluído.
+/// - `auto_confirm_completed_jobs` (0052) confirma sozinho 48 horas depois
+///   de o worker marcar como concluído, sem problema reportado.
+/// - `start_job` (0052) só deixa iniciar a partir de 1h antes da hora
+///   combinada; sem hora, a partir do dia; sem data, sempre.
 abstract final class WorkerJobDayRules {
   /// Dias depois da data combinada em que ainda dá para marcar concluído.
   static const overdueGraceDays = 3;
 
-  /// Dias até o trabalho marcado como concluído ser confirmado sozinho.
-  static const autoConfirmDays = 3;
+  /// Horas até o trabalho marcado como concluído ser confirmado sozinho.
+  static const autoConfirmHours = 48;
+
+  /// Quanto tempo antes da hora combinada se pode iniciar o trabalho.
+  static const startLeadTime = Duration(hours: 1);
 
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -46,15 +51,49 @@ abstract final class WorkerJobDayRules {
   static DateTime lastDayToComplete(DateTime confirmedDate) =>
       _day(confirmedDate).add(const Duration(days: overdueGraceDays));
 
+  /// Momento a partir do qual "Iniciar trabalho" fica disponível; `null`
+  /// quando não há data combinada (sempre disponível). Hora do dispositivo,
+  /// que em Portugal coincide com a da BD (Europe/Lisbon).
+  static DateTime? startOpensAt({
+    required DateTime? confirmedDate,
+    required String? confirmedTime,
+    required bool confirmedFlexible,
+  }) {
+    if (confirmedDate == null) return null;
+    final day = _day(confirmedDate);
+    final time = confirmedTime;
+    if (confirmedFlexible || time == null || time.length < 5) return day;
+    final parts = time.substring(0, 5).split(':');
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return day;
+    return DateTime(day.year, day.month, day.day, hour, minute)
+        .subtract(startLeadTime);
+  }
+
+  static bool canStart({
+    required DateTime? confirmedDate,
+    required String? confirmedTime,
+    required bool confirmedFlexible,
+    required DateTime now,
+  }) {
+    final opens = startOpensAt(
+      confirmedDate: confirmedDate,
+      confirmedTime: confirmedTime,
+      confirmedFlexible: confirmedFlexible,
+    );
+    return opens == null || !now.isBefore(opens);
+  }
+
   static String overdueMessage(DateTime confirmedDate) {
     final deadline = DateFormat('dd/MM').format(lastDayToComplete(confirmedDate));
     return 'A data já passou. Marca como concluído até $deadline ou o pedido expira.';
   }
 
   static const awaitingConfirmationMessage =
-      'Aguarda confirmação do cliente. Já marcaste este trabalho como '
+      'À espera da confirmação do cliente. Já marcaste este trabalho como '
       'concluído. Se o cliente não responder, fica confirmado '
-      'automaticamente $autoConfirmDays dias depois.';
+      'automaticamente $autoConfirmHours horas depois.';
 }
 
 /// Porque é que um pedido que o worker abriu já não está disponível para

@@ -343,7 +343,7 @@ class _ClientScheduledJobDetailScreenState
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'Aguarda resposta à remarcação que propuseste.',
+                    'À espera de resposta à remarcação que propuseste.',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: AppStatusColor.waiting.foreground),
                   ),
@@ -409,7 +409,10 @@ class _ClientScheduledJobDetailScreenState
                           .firstOrNull ??
                       '—',
                   subtitle: jobDistinguisherLabel(job),
-                  presentation: job.status.presentation(),
+                  presentation: job.isInProgress
+                      ? const AppStatusPresentation(
+                          label: 'Em curso', color: AppStatusColor.info)
+                      : job.status.presentation(),
                   onBack: () => goBackOrToRoleHome(context),
                 ),
                 Expanded(
@@ -579,7 +582,7 @@ String _scheduleLabel(JobRequest job) {
 /// lá só existe para `open`). Deriva de `confirmedDate`, dado real, em vez
 /// de inventar uma frase estática.
 String _timelineSupportingLabel(JobRequest job) {
-  if (job.confirmedDate == null) return 'Data a combinar com o profissional.';
+  if (job.confirmedDate == null) return 'Data a combinar com o jardineiro.';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return 'Serviço agendado para $date (horário flexível).';
   if (job.confirmedTime != null) return 'Serviço agendado para $date às ${job.confirmedTime}.';
@@ -689,7 +692,7 @@ class _WorkerContactCard extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             IconButton(
               onPressed: phone.isEmpty ? null : onOpenWhatsApp,
-              tooltip: 'WhatsApp',
+              tooltip: 'Falar por WhatsApp',
               icon: const Icon(Icons.chat_outlined, color: AppColors.primary),
             ),
           ],

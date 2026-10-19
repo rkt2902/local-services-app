@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/constants/enums.dart';
@@ -30,6 +31,7 @@ import '../application/worker_list_invalidation.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
+import 'widgets/start_job_sheet.dart';
 import 'widgets/worker_my_job_detail_view.dart' as view;
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
@@ -313,34 +315,133 @@ class _WorkerMyJobDetailScreenState
     );
   }
 
-  /// AlertDialog de confirmação → RPC mark_job_done. Devolve true só depois
-  /// da RPC confirmar sucesso — a view (AppSuccessFeedback) só aparece
-  /// depois disso, e a navegação/invalidação fica em
-  /// [_onCompletionFeedbackFinished], chamado pela view depois do feedback.
-  Future<bool> _markCompleted() async {
+  /// Folha "Iniciar o trabalho agora?" → upload das fotos de antes →
+  /// `start_job` (migration 0052). Fica no ecrã: o provider do pedido é
+  /// invalidado e o ecrã passa a "Em curso".
+  Future<void> _startJob(String clientName) async {
     final scaffold = ScaffoldMessenger.of(context);
-    final result = await MarkCompletedSheet.show(context);
-    if (result == null || !mounted) return false;
+    final started = await StartJobSheet.show(
+      context,
+      clientName: clientName,
+      onStart: (photos) async {
+        try {
+          final repo = ref.read(jobRepositoryProvider);
+          final paths = <String>[];
+          for (final photo in photos) {
+            paths.add(await repo.uploadWorkPhoto(
+                jobId: _jobId, file: photo, before: true));
+          }
+          await repo.startJob(_jobId, photoPaths: paths);
+          return true;
+        } catch (e) {
+          scaffold.showSnackBar(SnackBar(
+            content: Text(friendlyError(e)),
+            backgroundColor: AppStatusColor.cancelled.foreground,
+          ));
+          return false;
+        }
+      },
+    );
+    if (!started || !mounted) return;
+    // Regra T4: sem navegação aqui (fica no ecrã); SnackBar → invalidar.
+    scaffold.showSnackBar(
+        const SnackBar(content: Text('Trabalho iniciado. O cliente foi avisado.')));
+    invalidateWorkerLists(ref, jobId: _jobId);
+  }
 
+  /// Folha "Terminou o trabalho?" → upload das fotos de depois → RPC
+  /// mark_job_done. Devolve true só depois da RPC confirmar sucesso: a view
+  /// mostra o AppSuccessFeedback e a navegação/invalidação fica em
+  /// [_onCompletionFeedbackFinished].
+  Future<bool> _markCompleted({
+    required String clientName,
+    required DateTime? startedAt,
+    required String priceLabel,
+  }) async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final worked = startedAt == null
+        ? 'Sem registo'
+        : durationLabel(DateTime.now().difference(startedAt));
+    return MarkCompletedSheet.show(
+      context,
+      clientName: clientName,
+      workedTimeLabel: worked,
+      priceLabel: priceLabel,
+      onSend: (photos) async {
+        try {
+          final paths = <String>[];
+          for (final photo in photos) {
+            paths.add(await ref.read(jobRepositoryProvider).uploadWorkPhoto(
+                jobId: _jobId, file: photo, before: false));
+          }
+          await ref
+              .read(proposalRepositoryProvider)
+              .markJobCompleted(_jobId, photoPaths: paths);
+          return true;
+        } catch (e) {
+          scaffold.showSnackBar(SnackBar(
+            content: Text(friendlyError(e)),
+            backgroundColor: AppStatusColor.cancelled.foreground,
+          ));
+          return false;
+        }
+      },
+    );
+  }
+
+  /// "Reportar problema" do jardineiro durante o trabalho (job_reports, a
+  /// policy já deixa o jardineiro aceite reportar).
+  Future<void> _reportProblem() async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final description = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Reportar problema'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Descreve o que aconteceu',
+            ),
+            validator: (v) => (v == null || v.trim().length < 10)
+                ? 'Descreve o problema (mínimo 10 caracteres).'
+                : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(dialogCtx, controller.text.trim());
+              }
+            },
+            child: const Text('Enviar relato'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (description == null || !mounted) return;
+    final scaffold = ScaffoldMessenger.of(context);
     try {
-      String? photoPath;
-      final photo = result.photo;
-      if (photo != null) {
-        photoPath = await ref
-            .read(jobRepositoryProvider)
-            .uploadCompletionPhoto(jobId: _jobId, file: photo);
-      }
       await ref
           .read(proposalRepositoryProvider)
-          .markJobCompleted(_jobId, photoPath: photoPath);
-      return true;
+          .reportJobProblem(jobId: _jobId, description: description);
+      scaffold.showSnackBar(const SnackBar(
+          content: Text('Relato enviado. A nossa equipa vai analisar.')));
     } catch (e) {
-      if (mounted) {
-        scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
-      }
-      return false;
+      scaffold.showSnackBar(SnackBar(
+        content: Text(friendlyError(e)),
+        backgroundColor: AppStatusColor.cancelled.foreground,
+      ));
     }
   }
 
@@ -475,6 +576,38 @@ class _WorkerMyJobDetailScreenState
       today: today,
     );
 
+    final now = DateTime.now();
+    final canStart = WorkerJobDayRules.canStart(
+      confirmedDate: job.confirmedDate,
+      confirmedTime: job.confirmedTime,
+      confirmedFlexible: job.confirmedFlexible,
+      now: now,
+    );
+    final startOpensAt = WorkerJobDayRules.startOpensAt(
+      confirmedDate: job.confirmedDate,
+      confirmedTime: job.confirmedTime,
+      confirmedFlexible: job.confirmedFlexible,
+    );
+    final String startHint;
+    if (canStart) {
+      startHint = 'O cliente recebe um aviso quando começares.';
+    } else if (startOpensAt != null &&
+        DateUtils.isSameDay(startOpensAt, now)) {
+      startHint =
+          'Disponível a partir das ${DateFormat('HH:mm').format(startOpensAt)}, 1h antes da hora marcada.';
+    } else {
+      startHint = 'Disponível a partir de 1h antes da hora marcada.';
+    }
+
+    // Badge do design: "Agendado" e, depois de iniciado, "Em curso".
+    final statusPresentation = isConfirmed
+        ? (job.startedAt != null
+            ? const AppStatusPresentation(
+                label: 'Em curso', color: AppStatusColor.info)
+            : const AppStatusPresentation(
+                label: 'Agendado', color: AppStatusColor.success))
+        : proposal.status.presentation;
+
     final isCancelled = job.status == JobStatus.cancelled ||
         job.status == JobStatus.noResponse;
 
@@ -482,7 +615,7 @@ class _WorkerMyJobDetailScreenState
       jobId: job.id,
       proposalStatus: proposal.status,
       jobStatus: job.status,
-      statusPresentation: proposal.status.presentation,
+      statusPresentation: statusPresentation,
       serviceLabel: serviceType?.name ?? '—',
       dateLabel: _formatDate(job.preferredDate),
       confirmedScheduleLabel: _confirmedScheduleLabel(job),
@@ -505,7 +638,7 @@ class _WorkerMyJobDetailScreenState
       estimatedTotalLabel: estimate,
       peopleNeeded: proposal.peopleNeeded,
       notes: proposal.notes,
-      timelineSteps: buildJobTimeline(job),
+      timelineSteps: buildJobTimeline(job, now: now),
       clientId: job.clientId,
       clientName: clientInfo?['full_name'] ?? '',
       clientAvatarUrl:
@@ -523,6 +656,13 @@ class _WorkerMyJobDetailScreenState
         proposal.estimatedHoursMax,
       ),
       canMarkCompleted: canMarkCompleted,
+      clientSubtitle: [
+        serviceType?.name,
+        job.sizeEstimate?.label,
+      ].whereType<String>().join(' · '),
+      startedAt: job.startedAt,
+      canStart: canStart,
+      startHint: startHint,
       markCompletedHint: confirmedDay == null
           ? null
           : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
@@ -555,7 +695,13 @@ class _WorkerMyJobDetailScreenState
       onCallClientPressed: () => _openWhatsApp(data.clientPhone),
       onRequestHelpersPressed: _showAddHelperSheet,
       onViewTeamPressed: _openTeam,
-      onMarkCompleted: _markCompleted,
+      onMarkCompleted: () => _markCompleted(
+        clientName: data.clientName,
+        startedAt: job.startedAt,
+        priceLabel: data.agreedPriceLabel,
+      ),
+      onStartJob: () => _startJob(data.clientName),
+      onReportProblem: _reportProblem,
       onCompletionFeedbackFinished: _onCompletionFeedbackFinished,
       onProposeReschedule: _proposeReschedule,
       onAcceptReschedule: _acceptReschedule,

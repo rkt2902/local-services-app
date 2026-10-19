@@ -300,7 +300,7 @@ class _WorkerHelpRequestsLobbyScreenState
               actionsBlocked: isFilled || isAwaitingApproval,
               blockedReasonLabel: isFilled
                   ? 'Vagas já preenchidas.'
-                  : (isAwaitingApproval ? 'Aguarda aprovação do cliente.' : null),
+                  : (isAwaitingApproval ? 'À espera de aprovação do cliente.' : null),
               acceptance: AcceptHelperViewData(
                 initialRateInput: decimalLabel(suggested, 2),
                 suggestedRateLabel: 'Sugerido: ${hourlyRateLabel(suggested)}',

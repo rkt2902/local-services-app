@@ -96,7 +96,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
               _RoleSelectionCard(
                 title: 'Preciso de jardinagem',
                 description:
-                    'Crio pedidos e escolho o melhor profissional para o meu jardim.',
+                    'Crio pedidos e escolho o melhor jardineiro para o meu jardim.',
                 icon: Icons.person_outline_rounded,
                 selected: _selectedRole == UserRole.client,
                 onTap: () => setState(() => _selectedRole = UserRole.client),

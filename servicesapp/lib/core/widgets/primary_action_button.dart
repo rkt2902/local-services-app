@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion_tokens.dart';
 import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
 
 class PrimaryActionButton extends StatefulWidget {
   const PrimaryActionButton({
@@ -10,9 +11,13 @@ class PrimaryActionButton extends StatefulWidget {
     super.key,
     this.isLoading = false,
     this.height = 52,
+    this.icon,
   });
 
   final String label;
+
+  /// Ícone opcional à esquerda do texto (ex.: "Iniciar trabalho").
+  final IconData? icon;
   final VoidCallback? onPressed;
   final bool isLoading;
   final double height;
@@ -80,7 +85,16 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : Text(widget.label),
+                : widget.icon == null
+                    ? Text(widget.label)
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(widget.icon, size: 20),
+                          const SizedBox(width: AppSpacing.xs),
+                          Flexible(child: Text(widget.label)),
+                        ],
+                      ),
           ),
         ),
       ),
