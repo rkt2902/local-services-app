@@ -16,7 +16,7 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   final confirmed = await AppConfirmDialog.show(
     context,
-    icon: Icons.logout_rounded,
+    icon: null,
     title: 'Terminar sessão?',
     message: 'Vais precisar do teu email e senha para voltar a entrar.',
     confirmLabel: 'Terminar sessão',

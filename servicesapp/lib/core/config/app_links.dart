@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// - `APP_PUBLIC_URL`: endereço público da app, sem `/` no fim (por exemplo
 ///   `https://projardim.pt` ou `https://projardim.netlify.app`).
-/// - `SUPPORT_EMAIL`: email de suporte mostrado em "Contacto & suporte".
+/// - `SUPPORT_EMAIL`: email de suporte mostrado em "Contacto e suporte".
 abstract final class AppLinks {
   const AppLinks._();
 
@@ -20,6 +20,9 @@ abstract final class AppLinks {
     'SUPPORT_EMAIL',
     defaultValue: 'suporte@projardim.pt',
   );
+
+  /// Prazo de resposta prometido em "Contacto e suporte".
+  static const String supportResponseTime = 'Respondemos em 1 dia útil';
 
   /// `true` quando há um domínio real definido no build.
   static bool get hasConfiguredDomain => _configuredDomain.isNotEmpty;

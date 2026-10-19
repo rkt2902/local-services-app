@@ -133,7 +133,7 @@ Detalhe extra em `docs/web.md`, secção 2.
   - [ ] `SUPABASE_URL`
   - [ ] `SUPABASE_ANON_KEY`
 - [ ] Opcional, no mesmo sítio mas no separador **Variables** (não são secretas):
-  - `SUPPORT_EMAIL`: o email que aparece em "Contacto & suporte". Sem ela fica
+  - `SUPPORT_EMAIL`: o email que aparece em "Contacto e suporte". Sem ela fica
     `suporte@projardim.pt`. Só a cries quando esse email existir de verdade (passo 5).
   - `APP_PUBLIC_URL`: deixa vazia por agora. Na web a app já usa o próprio endereço.
     Só se define no passo 5.
@@ -370,7 +370,7 @@ Até aqui tudo funciona com `projardim.netlify.app`. Faz isto só quando tiveres
 - [ ] `https://<domínio>` abre a app com cadeado.
 - [ ] Cartão do jardineiro (web e Android): o link começa por `https://<domínio>/w/` e
       abre numa janela anónima.
-- [ ] Conta > Contacto & suporte mostra o email novo.
+- [ ] Conta > Contacto e suporte mostra o email novo.
 - [ ] Reset de senha: o email chega do domínio novo e não vai para spam.
 
 **Diz ao Claude:** "Domínio `<domínio>` ligado ao Netlify, variáveis criadas. Agora

@@ -24,6 +24,8 @@ class AppConfirmDialog extends StatelessWidget {
     required this.icon,
     required this.title,
     this.message,
+    this.stepLabel,
+    this.outlinedConfirm = false,
     required this.confirmLabel,
     required this.onConfirm,
     required this.onCancel,
@@ -34,8 +36,17 @@ class AppConfirmDialog extends StatelessWidget {
     this.errorText,
   });
 
-  final IconData icon;
+  /// Caixa com o ícone por cima do título; `null` para o diálogo só com
+  /// texto (ex.: terminar sessão e eliminar conta, design U7).
+  final IconData? icon;
   final String title;
+
+  /// Passo à direita do título (ex.: "1/2" ao eliminar a conta).
+  final String? stepLabel;
+
+  /// Ação principal só com rebordo (ex.: "Continuar" no 1.º de dois passos
+  /// perigosos: ainda não faz nada, por isso não leva o vermelho cheio).
+  final bool outlinedConfirm;
 
   /// Texto por baixo do título; `null` quando o [details] chega (ex.: o
   /// seletor de "Alterar vagas").
@@ -57,7 +68,7 @@ class AppConfirmDialog extends StatelessWidget {
 
   static Future<bool?> show(
     BuildContext context, {
-    required IconData icon,
+    required IconData? icon,
     required String title,
     required String message,
     required String confirmLabel,
@@ -105,30 +116,49 @@ class AppConfirmDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppStaggeredEntrance(
-                  index: 0,
-                  child: Container(
-                    width: AppSizes.dialogIconBox,
-                    height: AppSizes.dialogIconBox,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: tone.background,
-                      borderRadius: BorderRadius.circular(AppRadius.input),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: tone.foreground,
-                      size: AppSizes.dialogIcon,
+                if (icon case final icon?) ...[
+                  AppStaggeredEntrance(
+                    index: 0,
+                    child: Container(
+                      width: AppSizes.dialogIconBox,
+                      height: AppSizes.dialogIconBox,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: tone.background,
+                        borderRadius: BorderRadius.circular(AppRadius.input),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: tone.foreground,
+                        size: AppSizes.dialogIcon,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.md),
+                ],
                 AppStaggeredEntrance(
                   index: 1,
-                  child: Text(
-                    title,
-                    style: textTheme.titleLarge
-                        ?.copyWith(color: AppColors.textPrimary),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: textTheme.titleLarge
+                              ?.copyWith(color: AppColors.textPrimary),
+                        ),
+                      ),
+                      if (stepLabel case final step?) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          step,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (message != null) ...[
@@ -185,6 +215,7 @@ class AppConfirmDialog extends StatelessWidget {
                             ? _DestructiveButton(
                                 label: confirmLabel,
                                 isSubmitting: isSubmitting,
+                                outlined: outlinedConfirm,
                                 onPressed: onConfirm,
                               )
                             : PrimaryActionButton(
@@ -211,15 +242,36 @@ class _DestructiveButton extends StatelessWidget {
     required this.label,
     required this.isSubmitting,
     required this.onPressed,
+    this.outlined = false,
   });
 
   final String label;
   final bool isSubmitting;
   final VoidCallback onPressed;
+  final bool outlined;
 
   @override
   Widget build(BuildContext context) {
     final danger = AppStatusColor.cancelled.foreground;
+    if (outlined) {
+      return OutlinedButton(
+        onPressed: isSubmitting ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: danger,
+          minimumSize: const Size.fromHeight(AppSizes.compactButtonHeight),
+          side: BorderSide(
+              color: AppStatusColor.cancelled.background, width: 1.4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.input),
+          ),
+          textStyle: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
+    }
     return FilledButton(
       onPressed: isSubmitting ? null : onPressed,
       style: FilledButton.styleFrom(

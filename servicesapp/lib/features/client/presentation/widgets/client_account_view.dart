@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/widgets/app_account_menu_group.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
@@ -9,22 +10,16 @@ import 'package:servicesapp/core/widgets/app_motion.dart';
 class ClientAccountViewData {
   const ClientAccountViewData({
     required this.name,
-    required this.memberSinceLabel,
     required this.totalJobs,
-    required this.activeJobs,
-    required this.completedJobs,
     required this.ratingLabel,
     required this.reviewsLabel,
     this.avatarImage,
   });
 
   final String name;
-  final String memberSinceLabel;
   final ImageProvider? avatarImage;
 
   final int totalJobs;
-  final int activeJobs;
-  final int completedJobs;
 
   /// Avaliações que o cliente RECEBEU (dos workers), mesmo par de campos
   /// já usado em `WorkerAccountViewData` (`ratingSummaryProvider` serve os
@@ -68,25 +63,13 @@ class ClientAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',
-          style: textTheme.titleLarge?.copyWith(
+          style: textTheme.displaySmall?.copyWith(
             color: AppColors.textPrimary,
           ),
         ),
-        actions: [
-          IconButton(
-            onPressed: onSettingsPressed,
-            tooltip: 'Definições',
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(
-            width: AppSpacing.xs,
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
@@ -101,6 +84,7 @@ class ClientAccountScreen extends StatelessWidget {
               index: 0,
               child: _ClientIdentityCard(
                 data: data,
+                onPressed: onSettingsPressed,
               ),
             ),
             const SizedBox(
@@ -121,35 +105,17 @@ class ClientAccountScreen extends StatelessWidget {
                     icon: Icons.star_border_rounded,
                     trailingLabel: '${data.ratingLabel} · ${data.reviewsLabel}',
                   ),
-                ],
-                onItemPressed: (id) {
-                  switch (id) {
-                    case 'jobs':
-                      onJobsPressed();
-                    case 'reviews':
-                      onReviewsPressed();
-                  }
-                },
-              ),
-            ),
-            const SizedBox(
-              height: AppSpacing.md,
-            ),
-            AppStaggeredEntrance(
-              index: 2,
-              child: AppAccountMenuGroup(
-                items: const [
-                  AppAccountMenuItem(
+                  const AppAccountMenuItem(
                     id: 'settings',
                     label: 'Definições',
                     icon: Icons.settings_outlined,
                   ),
-                  AppAccountMenuItem(
+                  const AppAccountMenuItem(
                     id: 'support',
-                    label: 'Contacto & suporte',
+                    label: 'Contacto e suporte',
                     icon: Icons.support_agent_outlined,
                   ),
-                  AppAccountMenuItem(
+                  const AppAccountMenuItem(
                     id: 'about',
                     label: 'Sobre a ProJardim',
                     icon: Icons.info_outline_rounded,
@@ -157,6 +123,10 @@ class ClientAccountScreen extends StatelessWidget {
                 ],
                 onItemPressed: (id) {
                   switch (id) {
+                    case 'jobs':
+                      onJobsPressed();
+                    case 'reviews':
+                      onReviewsPressed();
                     case 'settings':
                       onDefinitionsPressed();
                     case 'support':
@@ -171,18 +141,19 @@ class ClientAccountScreen extends StatelessWidget {
               height: AppSpacing.md,
             ),
             AppStaggeredEntrance(
-              index: 3,
+              index: 2,
               child: AppAccountMenuGroup(
                 items: const [
                   AppAccountMenuItem(
                     id: 'sign_out',
                     label: 'Terminar sessão',
                     icon: Icons.logout_rounded,
+                    destructive: true,
                   ),
                   AppAccountMenuItem(
                     id: 'delete_account',
                     label: 'Eliminar conta',
-                    icon: Icons.delete_forever_outlined,
+                    icon: Icons.delete_outline_rounded,
                     destructive: true,
                   ),
                 ],
@@ -206,35 +177,34 @@ class ClientAccountScreen extends StatelessWidget {
 class _ClientIdentityCard extends StatelessWidget {
   const _ClientIdentityCard({
     required this.data,
+    required this.onPressed,
   });
 
   final ClientAccountViewData data;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final jobs = data.totalJobs;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(
-        AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(
-          AppRadius.card,
-        ),
-        border: Border.all(
-          color: AppColors.divider,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
             children: [
               CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.surface,
+                radius: AppSizes.headerIconButton / 2,
+                backgroundColor: AppColors.primaryContainer,
                 backgroundImage: data.avatarImage,
                 child: data.avatarImage == null
                     ? const Icon(
@@ -243,9 +213,7 @@ class _ClientIdentityCard extends StatelessWidget {
                       )
                     : null,
               ),
-              const SizedBox(
-                width: AppSpacing.sm,
-              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,12 +222,13 @@ class _ClientIdentityCard extends StatelessWidget {
                       data.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleLarge?.copyWith(
+                      style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      data.memberSinceLabel,
+                      'Cliente · $jobs ${jobs == 1 ? 'pedido' : 'pedidos'}',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -267,94 +236,14 @@ class _ClientIdentityCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(
-            height: AppSpacing.md,
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _AccountMetric(
-                  value: data.totalJobs.toString(),
-                  label: 'Pedidos',
-                  foreground: AppColors.primary,
-                ),
-              ),
-              const SizedBox(
-                width: AppSpacing.xs,
-              ),
-              Expanded(
-                child: _AccountMetric(
-                  value: data.activeJobs.toString(),
-                  label: 'Em curso',
-                  foreground: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(
-                width: AppSpacing.xs,
-              ),
-              Expanded(
-                child: _AccountMetric(
-                  value: data.completedJobs.toString(),
-                  label: 'Concluídos',
-                  foreground: AppColors.textPrimary,
-                ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AccountMetric extends StatelessWidget {
-  const _AccountMetric({
-    required this.value,
-    required this.label,
-    required this.foreground,
-  });
-
-  final String value;
-  final String label;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
         ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: textTheme.titleMedium?.copyWith(
-              color: foreground,
-            ),
-          ),
-          const SizedBox(
-            height: AppSpacing.xxs,
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
       ),
     );
   }

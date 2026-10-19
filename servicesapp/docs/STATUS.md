@@ -55,7 +55,7 @@ todas as tabelas.
   a auth, onboarding, dashboards, contas e vários sub-fluxos — cobertura detalhada na secção
   seguinte, porque é desigual.
 - **Ecrãs de conta** (`WorkerAccountScreen`/`ClientAccountScreen`) — resumo, cartão partilhável
-  (QR via `qr_flutter`), menu de definições, "Contacto & suporte", "Sobre a app".
+  (QR via `qr_flutter`), menu de definições, "Contacto e suporte", "Sobre a app".
 - **Cartão público do worker** (`/w/:workerId`, migration 0033, view `worker_public_card`) —
   perfil mínimo pensado para acesso sem sessão. **Nota:** a rota existe e funciona se
   visitada, mas nada na app gera um link/QR que resolva para ela de facto — ver "Rotas órfãs".

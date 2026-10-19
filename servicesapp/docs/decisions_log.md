@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Conta, suporte, terminar sessão e eliminar conta (U7)
+
+- **Sem widgets novos onde já havia:** o bloco perigoso continua a ser um `AppAccountMenuGroup`
+  (as linhas `destructive` ficam a vermelho e sem seta) e os diálogos continuam a ser
+  `AppConfirmDialog`, que ganhou `stepLabel` ("1/2"), ícone opcional e `outlinedConfirm`.
+- **A minha conta (cliente):** título grande, cartão branco com "Cliente · N pedidos" e seta
+  (abre o perfil, em vez da roda dentada), um só grupo com pedidos, avaliações, definições,
+  suporte e "Sobre". Saíram os três números (pedidos, em curso, concluídos). O jardineiro
+  mantém o cartão digital e os grupos; só mudam o título e o bloco perigoso.
+- **Contacto e suporte:** folha com ícone, "Respondemos em 1 dia útil" (`AppLinks.
+  supportResponseTime`), o email e "Copiar email" / "Escrever". "Escrever" passa a abrir a app
+  de email (`mailto:` com assunto): é suporte da ProJardim, fora da app; o contacto entre
+  cliente e jardineiro continua só por WhatsApp. Sem app de email, avisa para copiar.
+- **Terminar sessão e eliminar conta:** diálogos só com texto, como no design. Eliminar: passo
+  1/2 com as três consequências reais da 0049 (dados apagados, avaliações como "Conta
+  eliminada", trabalhos em curso fechados antes) e "Continuar" só com rebordo; passo 2/2
+  "Não dá para desfazer." com "Eliminar conta" a vermelho. O erro do servidor continua dentro
+  do diálogo.
+
 ## 2026-10-19 — Destaques e redes, cartão público e avaliações (U6)
 
 - **Adaptado ao que já existia (0051):** o editor continua a ser a secção "Destaques e redes"
