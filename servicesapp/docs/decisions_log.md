@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Notificações (A4)
+
+- **Uma vista para os dois papéis:** `core/widgets/app_notifications_view.dart` só desenha;
+  `notifications_screen.dart` liga `allNotificationsProvider` e a apresentação vem de
+  `notifications/application/notification_presentation.dart` (funções puras).
+- **Ícone e tom por tipo** pela legenda do design, só com os cinco tons: success (proposta,
+  aceite, lembrete do dia, concluído), waiting (candidato, nova data), info (editado,
+  trabalho feito, pedido de ajudantes, iniciado, pedido novo na zona), cancelled (cancelado,
+  retirado da equipa), neutral (expirado, não escolhido, retirado). Não lida é o fundo verde
+  claro e o ponto, não um tom.
+- **"(Serviço, dd/mm)" no título:** a 0049 já grava esse contexto no fim do corpo; a app
+  muda-o para o título, nas notificações antigas e novas, sem migration. As de hoje levam
+  "Há 10 min" no fim do corpo; as outras ficam pela secção (Hoje, Ontem, Mais antigas).
+- **Filtro "Trabalhos"** deixa de fora as oportunidades novas (pedido novo na zona, vaga de
+  ajudante reaberta). As contagens são das 50 mais recentes que a app carrega.
+- **Secções como um cartão com linhas**, como no design. "Marcar todas como lidas" deixou de
+  ser otimista: espera pelo servidor e pela lista nova.
+- **"Confirmar conclusão"** aparece no aviso de trabalho feito enquanto não foi lido e abre o
+  pedido (onde se veem as fotos antes de confirmar), o mesmo destino do toque.
+- **Mantido fora do design:** o ecrã continua fora do ShellRoute (sub-fluxo com voltar),
+  como antes; "Alertas" na barra do cliente continua a abri-lo por cima.
+
 ## 2026-10-19 — Propostas recebidas do cliente (A3)
 
 - **Ecrã separado em vista e integração:** `widgets/client_proposals_view.dart` só desenha

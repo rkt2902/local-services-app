@@ -85,4 +85,8 @@ abstract final class AppSizes {
 
   // Propostas recebidas (A3).
   static const double proposalCardSkeleton = 164.0;
+
+  // Notificações (A4).
+  static const double notificationSkeletonLabel = 72.0;
+  static const double notificationSkeletonSection = 168.0;
 }
