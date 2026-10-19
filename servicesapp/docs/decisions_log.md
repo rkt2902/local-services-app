@@ -3,6 +3,27 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Detalhe do meu trabalho do jardineiro (A1)
+
+- **Mesmo ecrã, três composições:** `worker_my_job_detail_view.dart` escolhe pelo estado real
+  (proposta aceite + `confirmed`, `cancelled`/`no_response` ou `completed`); não há enum novo de
+  estado. Pendente, não selecionada, retirada e à espera de confirmação continuam como estavam.
+- **Agendado:** linha de estado sem cartão, cartão com ícones (data abreviada "Qui, 22/10 ·
+  9:00", local com "Abrir localização no mapa", valor), cliente com "Falar por WhatsApp", cartão
+  "Equipa" com um círculo por vaga (iniciais dos ajudantes aceites) e candidatos por decidir, a
+  regra do dia anterior sempre visível por cima de Remarcar/Cancelar, e "Iniciar trabalho" com
+  cadeado e "Disponível a partir das 8:00 de qui, 22/10". A descrição do pedido fica (o design
+  não a mostra, mas o jardineiro precisa dela).
+- **Cancelado ou expirado:** cartão vermelho (ou cinzento com ampulheta quando expirou), dados
+  a cinzento só com a localidade, cliente sem WhatsApp e "Ver pedidos disponíveis" no fundo. A
+  data do cancelamento vem de `updated_at` (não há `cancelled_at`; num pedido cancelado é a
+  última alteração).
+- **Concluído:** "Concluído a dd/MM" (de `updated_at`) e o tempo registado, em vez de "A Sofia
+  confirmou": o pedido também fica concluído sozinho 48h depois (0052) e a app não distingue os
+  dois casos. Fotos de antes/depois, lista "Avaliações" (cliente e ajudantes, com seta até
+  avaliar, estrelas depois) e a avaliação que o cliente deixou neste trabalho
+  (`get_my_ratings_received`, filtrada pelo pedido e pelo cliente).
+
 ## 2026-10-19 — Navegação lateral em tablet deitado e PC (U8)
 
 - **Já existia (`AppAdaptiveShell`, PR #15):** não se criou outra shell. Mudaram só os valores

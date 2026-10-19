@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../help_requests/data/help_request_model.dart';
 import '../../jobs/data/cancel_reasons.dart';
 
@@ -115,26 +116,119 @@ String? jobUnavailableReason(JobStatus status, {String? cancelReason}) {
   }
 }
 
-/// Texto do banner de um trabalho cancelado no ecrã "O meu trabalho".
-String cancelledJobBannerMessage({
+/// "Qui, 23/10 · 9:00" (design A1). Sem data: "Data a combinar"; sem hora
+/// fixa: "Qui, 23/10 · horário flexível".
+String workerScheduleLabel({
+  required DateTime? date,
+  required String? time,
+  required bool flexible,
+  DateTime? now,
+}) {
+  if (date == null) return 'Data a combinar';
+  final day = shortWeekdayDateLabel(date, now: now);
+  if (flexible) return '$day · horário flexível';
+  final hhmm = _clockLabel(time);
+  return hhmm == null ? day : '$day · $hhmm';
+}
+
+/// "09:00:00" → "9:00". `null` quando não há hora válida.
+String? _clockLabel(String? time) {
+  if (time == null || time.length < 5) return null;
+  final parts = time.substring(0, 5).split(':');
+  final hour = int.tryParse(parts[0]);
+  if (hour == null) return null;
+  return '$hour:${parts[1]}';
+}
+
+/// Texto por baixo de "Iniciar trabalho" (design A1): quando abre, ou o
+/// aviso de que o cliente é notificado quando já se pode iniciar.
+String startJobHint({
+  required bool canStart,
+  required DateTime? opensAt,
+  required DateTime now,
+}) {
+  if (canStart || opensAt == null) {
+    return 'O cliente recebe um aviso quando começares.';
+  }
+  final dayOnly = opensAt.hour == 0 && opensAt.minute == 0;
+  final sameDay = _isSameDay(opensAt, now);
+  final day = sameDay
+      ? 'hoje'
+      : shortWeekdayDateLabel(opensAt, now: now).toLowerCase();
+  if (dayOnly) {
+    return sameDay ? 'Disponível a partir de hoje' : 'Disponível a partir de $day';
+  }
+  return 'Disponível a partir das ${DateFormat('H:mm').format(opensAt)} de $day';
+}
+
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Cartão de um trabalho que já não vai acontecer, no ecrã "O meu
+/// trabalho" (design A1): título, texto e se é o caso "expirou" (ícone de
+/// ampulheta a cinzento em vez do calendário a vermelho).
+typedef InactiveJobMessage = ({String title, String body, bool expired});
+
+/// [noResponse]: o pedido expirou antes de ser confirmado. [endedAt]: quando
+/// o pedido mudou de estado pela última vez (`updated_at`); `null` omite a
+/// data.
+InactiveJobMessage inactiveJobMessage({
   required String? cancelReason,
   required bool cancelledByMe,
+  bool noResponse = false,
+  DateTime? endedAt,
 }) {
-  if (cancelReason == CancelReason.expired) {
-    return 'Trabalho expirado: passaram ${WorkerJobDayRules.overdueGraceDays} '
-        'dias da data sem ser marcado como concluído.';
+  if (noResponse) {
+    return (
+      title: 'Este pedido expirou',
+      body: 'Não precisas de fazer nada.',
+      expired: true,
+    );
   }
-  final who = cancelledByMe ? 'Cancelaste este trabalho' : 'O cliente cancelou este trabalho';
-  if (cancelReason == null || cancelReason.isEmpty) return '$who.';
-  return '$who. Motivo: ${CancelReason.label(cancelReason)}.';
+  if (cancelReason == CancelReason.expired) {
+    return (
+      title: 'Este trabalho expirou',
+      body: 'Passaram ${WorkerJobDayRules.overdueGraceDays} dias da data sem '
+          'ser marcado como concluído.',
+      expired: true,
+    );
+  }
+  final parts = <String>[
+    if (endedAt != null)
+      'Cancelado a ${DateFormat('dd/MM').format(endedAt.toLocal())}.',
+    if (cancelReason != null && cancelReason.isNotEmpty)
+      'Motivo: ${CancelReason.label(cancelReason)}.',
+    if (!cancelledByMe) 'Não precisas de fazer nada.',
+  ];
+  return (
+    title: cancelledByMe
+        ? 'Cancelaste este trabalho'
+        : 'O cliente cancelou este trabalho',
+    body: parts.join(' '),
+    expired: false,
+  );
 }
 
 /// Resumo da equipa de ajudantes de um trabalho, para o cartão "Equipa".
 class HelpTeamSummary {
-  const HelpTeamSummary({required this.label, required this.awaitingApproval});
+  const HelpTeamSummary({
+    required this.label,
+    required this.awaitingApproval,
+    this.slots = 0,
+    this.filled,
+    this.undecided,
+  });
 
   final String label;
   final bool awaitingApproval;
+
+  /// Vagas aprovadas (soma dos pedidos de ajuda já aprovados).
+  final int slots;
+
+  /// Ajudantes aceites e candidatos por decidir; `null` enquanto os
+  /// candidatos carregam.
+  final int? filled;
+  final int? undecided;
 }
 
 /// `null` quando não há nenhum pedido de ajudantes ativo (pendente de
@@ -182,7 +276,11 @@ HelpTeamSummary? helpTeamSummary(
 
   final vagas = slots == 1 ? 'vaga' : 'vagas';
   if (!countsKnown) {
-    return HelpTeamSummary(label: 'Ajudantes: $slots $vagas', awaitingApproval: false);
+    return HelpTeamSummary(
+      label: 'Ajudantes: $slots $vagas',
+      awaitingApproval: false,
+      slots: slots,
+    );
   }
   final preenchidas = slots == 1 ? 'preenchida' : 'preenchidas';
   final buffer = StringBuffer('Ajudantes: $filled de $slots $vagas $preenchidas');
@@ -190,7 +288,13 @@ HelpTeamSummary? helpTeamSummary(
     buffer.write(
         ' · $undecided ${undecided == 1 ? 'candidato' : 'candidatos'} por decidir');
   }
-  return HelpTeamSummary(label: buffer.toString(), awaitingApproval: false);
+  return HelpTeamSummary(
+    label: buffer.toString(),
+    awaitingApproval: false,
+    slots: slots,
+    filled: filled,
+    undecided: undecided,
+  );
 }
 
 /// Estado com que um ajudante vê uma candidatura.

@@ -22,6 +22,7 @@ import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/job_timeline.dart';
 import '../../client/application/client_providers.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../jobs/data/cancel_reasons.dart';
 import '../../jobs/data/job_model.dart';
 import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
@@ -442,6 +443,44 @@ class _WorkerMyJobDetailScreenState
     invalidateWorkerLists(ref, jobId: jobId);
   }
 
+  /// Fotos, tempo registado e a avaliação que o cliente deixou (design A1).
+  view.WorkerCompletedJobViewData _completedViewData(
+    JobRequest job,
+    String clientName,
+  ) {
+    final repo = ref.read(jobRepositoryProvider);
+    final after = job.afterPhotoPaths.isNotEmpty
+        ? job.afterPhotoPaths
+        : [?job.completionPhotoPath];
+    final worked = job.workedDuration;
+    final meta = [
+      if (job.updatedAt != null)
+        'Concluído a ${DateFormat('dd/MM').format(job.updatedAt!.toLocal())}.',
+      if (worked != null) 'Tempo registado: ${durationLabel(worked)}.',
+    ].join(' ');
+
+    final received = ref
+        .watch(myRatingsReceivedProvider)
+        .asData
+        ?.value
+        .where((r) => r.jobId == job.id && r.partyId == job.clientId)
+        .firstOrNull;
+    final firstName = clientName.trim().split(RegExp(r'\s+')).first;
+
+    return view.WorkerCompletedJobViewData(
+      metaLabel: meta,
+      beforePhotoUrls: job.beforePhotoPaths.map(repo.jobPhotoPublicUrl).toList(),
+      afterPhotoUrls: after.map(repo.jobPhotoPublicUrl).toList(),
+      receivedReview: received == null
+          ? null
+          : view.WorkerReceivedReviewViewData(
+              authorFirstName: firstName.isNotEmpty ? firstName : 'O cliente',
+              stars: received.stars,
+              comment: received.comment,
+            ),
+    );
+  }
+
   void _openTeam() {
     context.push(
       '/worker/job/$_jobId/help-requests',
@@ -578,28 +617,58 @@ class _WorkerMyJobDetailScreenState
       confirmedTime: job.confirmedTime,
       confirmedFlexible: job.confirmedFlexible,
     );
-    final String startHint;
-    if (canStart) {
-      startHint = 'O cliente recebe um aviso quando começares.';
-    } else if (startOpensAt != null &&
-        DateUtils.isSameDay(startOpensAt, now)) {
-      startHint =
-          'Disponível a partir das ${DateFormat('HH:mm').format(startOpensAt)}, 1h antes da hora marcada.';
-    } else {
-      startHint = 'Disponível a partir de 1h antes da hora marcada.';
-    }
+    final startHint =
+        startJobHint(canStart: canStart, opensAt: startOpensAt, now: now);
 
-    // Badge do design: "Agendado" e, depois de iniciado, "Em curso".
-    final statusPresentation = isConfirmed
-        ? (job.startedAt != null
-            ? const AppStatusPresentation(
-                label: 'Em curso', color: AppStatusColor.info)
-            : const AppStatusPresentation(
-                label: 'Agendado', color: AppStatusColor.success))
-        : proposal.status.presentation;
-
+    final accepted = proposal.status == ProposalStatus.accepted;
     final isCancelled = job.status == JobStatus.cancelled ||
         job.status == JobStatus.noResponse;
+    final isExpired = job.status == JobStatus.noResponse ||
+        job.cancelReason == CancelReason.expired;
+
+    // Badge do design A1: "Agendado" e, depois de iniciado, "Em curso";
+    // aceite e fora de `confirmed`, o estado do trabalho ("Cancelado",
+    // "Concluído", "Expirado").
+    final AppStatusPresentation statusPresentation;
+    if (isConfirmed) {
+      statusPresentation = job.startedAt != null
+          ? const AppStatusPresentation(
+              label: 'Em curso', color: AppStatusColor.info)
+          : const AppStatusPresentation(
+              label: 'Agendado', color: AppStatusColor.success);
+    } else if (accepted && isCancelled && isExpired) {
+      statusPresentation = const AppStatusPresentation(
+          label: 'Expirado', color: AppStatusColor.neutral);
+    } else if (accepted) {
+      statusPresentation = job.status.presentation();
+    } else {
+      statusPresentation = proposal.status.presentation;
+    }
+
+    final clientName = clientInfo?['full_name'] ?? '';
+    final area = jobAreaLabel(job);
+
+    final inactive = accepted && isCancelled
+        ? () {
+            final message = inactiveJobMessage(
+              cancelReason: job.cancelReason,
+              cancelledByMe:
+                  job.cancelledBy != null && job.cancelledBy == currentUserId,
+              noResponse: job.status == JobStatus.noResponse,
+              endedAt: job.updatedAt,
+            );
+            return view.WorkerInactiveJobViewData(
+              title: message.title,
+              body: message.body,
+              expired: message.expired,
+              areaLabel: area,
+            );
+          }()
+        : null;
+
+    final completed = accepted && job.status == JobStatus.completed
+        ? _completedViewData(job, clientName)
+        : null;
 
     final data = view.WorkerMyJobDetailViewData(
       jobId: job.id,
@@ -608,7 +677,12 @@ class _WorkerMyJobDetailScreenState
       statusPresentation: statusPresentation,
       serviceLabel: serviceType?.name ?? '—',
       dateLabel: _formatDate(job.preferredDate),
-      confirmedScheduleLabel: _confirmedScheduleLabel(job),
+      confirmedScheduleLabel: workerScheduleLabel(
+        date: job.confirmedDate,
+        time: job.confirmedTime,
+        flexible: job.confirmedFlexible,
+        now: now,
+      ),
       // Com a proposta ainda pendente o servidor só manda a localidade
       // (migration 0043).
       addressLabel: proposal.status == ProposalStatus.accepted
@@ -630,7 +704,7 @@ class _WorkerMyJobDetailScreenState
       notes: proposal.notes,
       timelineSteps: buildJobTimeline(job, now: now),
       clientId: job.clientId,
-      clientName: clientInfo?['full_name'] ?? '',
+      clientName: clientName,
       clientAvatarUrl:
           (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
       clientPhone: clientInfo?['phone'] ?? '',
@@ -646,10 +720,6 @@ class _WorkerMyJobDetailScreenState
         proposal.estimatedHoursMax,
       ),
       canMarkCompleted: canMarkCompleted,
-      clientSubtitle: [
-        serviceType?.name,
-        job.sizeEstimate?.label,
-      ].whereType<String>().join(' · '),
       startedAt: job.startedAt,
       canStart: canStart,
       startHint: startHint,
@@ -659,19 +729,18 @@ class _WorkerMyJobDetailScreenState
       overdueMessage: (overdue && job.confirmedDate != null)
           ? WorkerJobDayRules.overdueMessage(job.confirmedDate!)
           : null,
-      cancelledMessage: isCancelled && proposal.status == ProposalStatus.accepted
-          ? (job.status == JobStatus.noResponse
-              ? 'Este pedido expirou.'
-              : cancelledJobBannerMessage(
-                  cancelReason: job.cancelReason,
-                  cancelledByMe: job.cancelledBy != null &&
-                      job.cancelledBy == currentUserId,
-                ))
-          : null,
+      inactive: inactive,
+      completed: completed,
       helpTeamLoaded: team.loaded,
-      helpTeamLabel: team.summary?.label,
-      helpTeamAwaitingApproval: team.summary?.awaitingApproval ?? false,
-      titleSubtitle: jobDistinguisherLabel(job),
+      helpTeam: _teamViewData(
+        team.summary,
+        helpersForRatingAsync.asData?.value ?? const [],
+      ),
+      // Aceite: "Sofia Marques · Cascais" (design A1); antes disso o nome
+      // do cliente pode não estar acessível (RLS), fica zona e data.
+      titleSubtitle: accepted
+          ? '${clientName.isNotEmpty ? clientName : 'Cliente'} · $area'
+          : jobDistinguisherLabel(job),
       proposingReschedule: _proposingReschedule,
       acceptingReschedule: _acceptingReschedule,
       rejectingReschedule: _rejectingReschedule,
@@ -698,6 +767,15 @@ class _WorkerMyJobDetailScreenState
       onRejectReschedule: _rejectReschedule,
       onCancelJob: _cancelJob,
       onWithdrawProposal: _withdrawProposal,
+      onWorkPhotoTap: (urls, index) => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PhotoViewerScreen(
+            photoUrls: urls,
+            initialIndex: index,
+          ),
+        ),
+      ),
+      onBrowseAvailableJobs: () => context.go('/worker/available-jobs'),
       onPhotoTap: (index) => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => PhotoViewerScreen(
@@ -722,14 +800,6 @@ String _proposedRescheduleLabel(JobRequest job) {
   return date;
 }
 
-String _confirmedScheduleLabel(JobRequest job) {
-  if (job.confirmedDate == null) return 'Data a combinar';
-  final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
-  if (job.confirmedFlexible) return '$date (horário flexível)';
-  if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
-  return date;
-}
-
 String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
@@ -739,3 +809,37 @@ String _formatEstimate(double rate, double? min, double? max) =>
     estimatedTotalLabel(rate, min, max);
 
 String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);
+
+/// Cartão "Equipa" a partir do resumo dos pedidos de ajuda e dos ajudantes
+/// aceites (que dão as iniciais). `null` = sem pedido de ajudantes ativo.
+view.WorkerJobTeamViewData? _teamViewData(
+  HelpTeamSummary? summary,
+  List<AcceptedHelper> helpers,
+) {
+  if (summary == null) return null;
+  if (summary.awaitingApproval) {
+    return const view.WorkerJobTeamViewData(
+      memberNames: [],
+      emptySlots: 0,
+      pendingLabel: 'À espera de aprovação do cliente',
+      awaitingApproval: true,
+    );
+  }
+  final filled = summary.filled;
+  final names = helpers.map((h) => h.fullName).take(summary.slots).toList();
+  // Nomes ainda a carregar: círculos com "?" em vez de vagas vazias.
+  while (filled != null && names.length < filled) {
+    names.add('');
+  }
+  final undecided = summary.undecided ?? 0;
+  return view.WorkerJobTeamViewData(
+    memberNames: names,
+    emptySlots: (summary.slots - (filled ?? names.length)).clamp(0, summary.slots),
+    filledLabel: filled == null
+        ? null
+        : '$filled de ${summary.slots} ${summary.slots == 1 ? 'vaga' : 'vagas'}',
+    pendingLabel: undecided > 0
+        ? '$undecided ${undecided == 1 ? 'candidato' : 'candidatos'} por decidir'
+        : null,
+  );
+}

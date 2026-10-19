@@ -56,3 +56,15 @@ String weekdayDateLabel(DateTime date, {DateTime? now}) {
   final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
   return '$weekday, ${DateFormat(pattern).format(date)}';
 }
+
+const _weekdayShortNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+/// "Qui, 23/10" (dia da semana abreviado + dia/mês), como no detalhe do
+/// trabalho do jardineiro (design A1). Junta o ano só quando não é o ano
+/// de [now].
+String shortWeekdayDateLabel(DateTime date, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final weekday = _weekdayShortNames[date.weekday - 1];
+  final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
+  return '$weekday, ${DateFormat(pattern).format(date)}';
+}

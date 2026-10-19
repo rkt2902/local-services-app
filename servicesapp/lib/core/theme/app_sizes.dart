@@ -77,4 +77,9 @@ abstract final class AppSizes {
   static const double railWidth = 92.0;
   static const double railAction = 52.0;
   static const double railBrand = 40.0;
+
+  // Detalhe do trabalho do jardineiro (A1).
+  static const double teamSlot = 32.0;
+  static const double heroIcon = 28.0;
+  static const double infoRowIcon = 20.0;
 }

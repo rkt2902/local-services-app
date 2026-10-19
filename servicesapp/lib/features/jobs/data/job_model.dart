@@ -56,6 +56,10 @@ class JobRequest {
   /// Quando o jardineiro marcou como concluído (migration 0046).
   final DateTime? markedDoneAt;
 
+  /// Última alteração da linha. Num pedido cancelado ou concluído é,
+  /// na prática, quando isso aconteceu (não há `cancelled_at`).
+  final DateTime? updatedAt;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -94,6 +98,7 @@ class JobRequest {
     this.completionPhotoPath,
     this.startedAt,
     this.beforePhotoPaths = const [],
+    this.updatedAt,
     this.afterPhotoPaths = const [],
     this.markedDoneAt,
   });
@@ -166,6 +171,9 @@ class JobRequest {
         markedDoneAt: json['marked_done_at'] != null
             ? DateTime.parse(json['marked_done_at'] as String)
             : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'] as String)
+            : null,
       );
 
   JobRequest copyWith({
@@ -208,6 +216,7 @@ class JobRequest {
     List<String>? beforePhotoPaths,
     List<String>? afterPhotoPaths,
     DateTime? markedDoneAt,
+    DateTime? updatedAt,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -252,5 +261,6 @@ class JobRequest {
         beforePhotoPaths: beforePhotoPaths ?? this.beforePhotoPaths,
         afterPhotoPaths: afterPhotoPaths ?? this.afterPhotoPaths,
         markedDoneAt: markedDoneAt ?? this.markedDoneAt,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 }
