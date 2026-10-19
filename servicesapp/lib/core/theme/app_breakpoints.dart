@@ -9,9 +9,10 @@ abstract final class AppBreakpoints {
   static const double expanded = 840.0;
 
   /// Lado menor mínimo para a navegação lateral: abaixo disto é um
-  /// telemóvel (mesmo deitado) e fica a bottom nav.
-  static const double compactShortestSide = 600.0;
+  /// telemóvel (mesmo deitado) e fica a bottom nav (design U8).
+  static const double compactShortestSide = 480.0;
 
-  /// Largura máxima de qualquer ecrã.
-  static const double contentMaxWidth = 640.0;
+  /// Largura máxima de qualquer ecrã (design U8). Detalhes e sub-ecrãs
+  /// abrem nesta mesma coluna, nunca num segundo painel.
+  static const double contentMaxWidth = 720.0;
 }

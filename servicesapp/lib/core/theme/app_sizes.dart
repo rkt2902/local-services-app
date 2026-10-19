@@ -72,4 +72,9 @@ abstract final class AppSizes {
   static const double publicAvatar = 76.0;
   static const double reviewAvatar = 36.0;
   static const double socialFieldLabelWidth = 76.0;
+
+  // Navegação lateral em tablet deitado e PC (U8).
+  static const double railWidth = 92.0;
+  static const double railAction = 52.0;
+  static const double railBrand = 40.0;
 }

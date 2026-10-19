@@ -107,7 +107,7 @@ opção "Instalar app".
 ## 6. Tablet e PC
 
 Os designs são mobile. Em ecrãs largos o conteúdo fica centrado com largura
-máxima (`AppBreakpoints.contentMaxWidth`, 640) e a partir de 840 de largura a
-bottom nav dá lugar a uma navegação lateral (`AppAdaptiveShell`). Tudo é
+máxima (`AppBreakpoints.contentMaxWidth`, 720) e a partir de 840 de largura (com o
+lado menor de pelo menos 480, para o telemóvel deitado não contar) a bottom nav dá lugar a uma navegação lateral (`AppAdaptiveShell`). Tudo é
 aplicado num só sítio (router e shells), ecrãs novos não precisam de fazer
 nada. Ver `core/widgets/app_content_width.dart`.

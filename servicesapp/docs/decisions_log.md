@@ -3,6 +3,17 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Navegação lateral em tablet deitado e PC (U8)
+
+- **Já existia (`AppAdaptiveShell`, PR #15):** não se criou outra shell. Mudaram só os valores
+  e o topo da lateral.
+- **Valores do design:** coluna de conteúdo de 640 para 720 (`AppBreakpoints.contentMaxWidth`,
+  vale para todos os ecrãs, detalhes incluídos, sem segundo painel). Lado menor mínimo para a
+  lateral de 600 para 480 (`compactShortestSide`): telemóvel deitado continua com bottom nav,
+  tablets e janelas baixas de PC passam a lateral mais cedo. O corte nos 840 fica igual.
+- **Topo da lateral:** marca (`AppBrandBadge`) e "+" quadrado de cantos redondos com sombra,
+  com entrada escalonada, em vez do botão redondo. Lateral com 92 de largura.
+
 ## 2026-10-19 — Conta, suporte, terminar sessão e eliminar conta (U7)
 
 - **Sem widgets novos onde já havia:** o bloco perigoso continua a ser um `AppAccountMenuGroup`
