@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../ratings/application/rating_providers.dart';
 import '../../../ratings/presentation/submit_rating_sheet.dart';
 import '../../data/help_request_model.dart';
+import '../../../../core/widgets/app_confirm_dialog.dart';
 
 /// Diálogo de confirmação partilhado por "Retirar candidatura" (pendente) e
 /// "Desistir" (aceite), usado na tab "As minhas candidaturas" e no ecrã do
@@ -12,27 +13,15 @@ Future<bool> confirmHelperWithdraw(
   BuildContext context, {
   required bool isPending,
 }) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(isPending ? 'Retirar candidatura' : 'Confirmar desistência'),
-      content: Text(
-        isPending
-            ? 'A tua candidatura deixa de aparecer ao jardineiro responsável.'
-            : 'Tens a certeza que queres desistir desta ajuda? '
-                'O jardineiro responsável vai ser notificado.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: Text(isPending ? 'Retirar' : 'Desistir'),
-        ),
-      ],
-    ),
+  final confirmed = await AppConfirmDialog.show(
+    context,
+    icon: isPending ? Icons.undo_rounded : Icons.person_remove_outlined,
+    title: isPending ? 'Retirar candidatura?' : 'Desistir desta ajuda?',
+    message: isPending
+        ? 'A tua candidatura deixa de aparecer ao jardineiro responsável.'
+        : 'O jardineiro responsável vai ser avisado.',
+    confirmLabel: isPending ? 'Retirar' : 'Desistir',
+    destructive: true,
   );
   return confirmed == true;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
@@ -10,16 +11,22 @@ class AppStatusBadge extends StatelessWidget {
     required this.label,
     required this.statusColor,
     super.key,
+    this.dense = false,
   });
 
   AppStatusBadge.fromPresentation({
     required AppStatusPresentation presentation,
     super.key,
+    this.dense = false,
   })  : label = presentation.label,
         statusColor = presentation.color;
 
   final String label;
   final AppStatusColor statusColor;
+
+  /// Versão pequena para linhas de lista (ex.: [NextStepRow]), ao lado de
+  /// um título: sem altura mínima, menos padding, `labelSmall`.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +45,12 @@ class AppStatusBadge extends StatelessWidget {
         // Container, por ter `alignment`, escolhia o máximo em vez do
         // tamanho do conteúdo. Sem `alignment`, o Container volta a
         // respeitar `minHeight` como mínimo, não como tamanho forçado.
-        constraints: const BoxConstraints(
-          minHeight: 28,
+        constraints: BoxConstraints(
+          minHeight: dense ? 0 : AppSizes.badgeMinHeight,
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xxs,
+        padding: EdgeInsets.symmetric(
+          horizontal: dense ? AppSpacing.xs : AppSpacing.sm,
+          vertical: dense ? AppSpacing.xxs / 2 : AppSpacing.xxs,
         ),
         decoration: BoxDecoration(
           color: statusColor.background,
@@ -55,9 +62,8 @@ class AppStatusBadge extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: textTheme.labelMedium?.copyWith(
-            color: statusColor.foreground,
-          ),
+          style: (dense ? textTheme.labelSmall : textTheme.labelMedium)
+              ?.copyWith(color: statusColor.foreground),
         ),
       ),
     );
@@ -105,7 +111,7 @@ class AppBarStatusBadge extends StatelessWidget {
       padding: EdgeInsets.only(right: trailingMargin),
       child: Center(
         child: AppStatusBadge(
-          label: _shortAppBarLabel(label),
+          label: shortStatusLabel(label),
           statusColor: statusColor,
         ),
       ),
@@ -113,14 +119,15 @@ class AppBarStatusBadge extends StatelessWidget {
   }
 }
 
-/// Mapeamento fechado, só para a AppBar — ligado aos textos produzidos por
+/// Mapeamento fechado, para a AppBar e para badges ao lado de um título
+/// (ex.: [NextStepRow]), — ligado aos textos produzidos por
 /// `JobStatusPresentationExtension`/`ProposalStatusPresentationExtension`
 /// (core/utils/app_status_presenters.dart). Se um desses labels for
 /// reescrito, confirmar se a versão nova ainda precisa de uma entrada
 /// aqui (medido com widget test a 360–412dp: títulos como "Pedido
 /// #50f4d012"/"Trabalho" ficavam espremidos a 0–100px de largura com os
 /// labels completos, ao lado do leading + ação de fechar).
-String _shortAppBarLabel(String label) => switch (label) {
+String shortStatusLabel(String label) => switch (label) {
       'À espera de proposta' => 'Em aberto',
       'À espera de resposta' => 'Pendente',
       'Não selecionada' => 'Recusada',

@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Componentes base em falta (U1)
+
+- **Novos em `core/widgets/`:** `AppConfirmDialog`, `AppEmptyState`, `AppSheet`, `NextStepRow`,
+  `TodoRow`, a partir do código de referência do Claude Design, adaptados ao que já existia.
+- **Não recriados:** `AppBarTitle`, `AppBarStatusBadge` e `SocialSignInButtons` já existiam e
+  são usados em muitos ecrãs; a referência trocava-lhes a API. Ficaram, com o
+  `AppStatusBadge` a ganhar `dense` e o mapa de labels curtos a ficar público
+  (`shortStatusLabel`) para o `NextStepRow`.
+- **Diálogos:** os 10 `AlertDialog` de confirmação passaram a `AppConfirmDialog` (perigo a
+  vermelho para cancelar, retirar, desistir, sair e eliminar conta). Os 4 com formulário
+  ficaram como estavam.
+- **Tamanhos:** os valores fixos da referência (48, 68, 40, 420…) entraram como tokens em
+  `AppSizes`; o fundo verde claro das linhas com ação é `AppColors.primaryTint`.
+- **Texto do design não usado:** "O jardineiro recebe o pagamento" no diálogo de confirmar
+  conclusão, porque a app não trata pagamentos.
+- **Google e Facebook:** "G" desenhado com as 4 cores oficiais (sem asset nem pacote novo) e
+  botão do Facebook azul da marca com texto branco, como no design.
+
 ## 2026-10-19 — O código passa a seguir o design: iniciar trabalho e 48h (0052)
 
 - **Sem estado novo:** "Em curso" é `confirmed` com `started_at`. Evita mexer em todas as

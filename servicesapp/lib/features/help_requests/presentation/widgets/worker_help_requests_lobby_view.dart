@@ -7,6 +7,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
+import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -319,7 +320,8 @@ class _WorkerHelpRequestsLobbyViewState
     final callback = widget.onCloseHelpRequest;
     if (callback == null) return;
     final confirmed = await _confirm(
-      title: 'Fechar pedido de ajuda',
+      icon: Icons.lock_outline_rounded,
+      title: 'Fechar pedido de ajuda?',
       message: section.acceptedHelpers.isEmpty
           ? 'O pedido deixa de aparecer aos outros jardineiros e as '
               'candidaturas por decidir são recusadas.'
@@ -340,9 +342,9 @@ class _WorkerHelpRequestsLobbyViewState
     final id = helper.applicationId;
     if (callback == null || id == null) return;
     final confirmed = await _confirm(
-      title: 'Retirar da equipa',
-      message: '${helper.name} deixa de fazer parte da equipa e é avisado. '
-          'A vaga volta a ficar aberta.',
+      icon: Icons.person_remove_outlined,
+      title: 'Retirar ${helper.name} da equipa?',
+      message: '${helper.name} é avisado e a vaga volta a ficar aberta.',
       confirmLabel: 'Retirar',
     );
     if (!confirmed) return;
@@ -350,26 +352,18 @@ class _WorkerHelpRequestsLobbyViewState
   }
 
   Future<bool> _confirm({
+    required IconData icon,
     required String title,
     required String message,
     required String confirmLabel,
   }) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: icon,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      destructive: true,
     );
     return mounted && confirmed == true;
   }

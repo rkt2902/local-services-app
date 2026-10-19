@@ -15,6 +15,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../../core/widgets/todo_row.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../client/application/client_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
@@ -703,6 +704,16 @@ class _TodoCard extends StatelessWidget {
   final List<WorkerTodoItem> items;
   final ValueChanged<WorkerTodoTarget> onPressed;
 
+  Widget _todoRow(WorkerTodoItem item) {
+    final (icon, tone) = _todoStyle(item.kind);
+    return TodoRow(
+      icon: icon,
+      tone: tone,
+      title: item.label,
+      onPressed: () => onPressed(item.target),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -714,105 +725,64 @@ class _TodoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.xs,
-              AppSpacing.md,
-              AppSpacing.xxs,
-            ),
-            child: Text(
-              'O que falta fazer',
-              style: textTheme.titleMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          for (final item in items)
-            _TodoRow(item: item, onPressed: () => onPressed(item.target)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodoRow extends StatelessWidget {
-  const _TodoRow({required this.item, required this.onPressed});
-
-  final WorkerTodoItem item;
-  final VoidCallback onPressed;
-
-  static (IconData, AppStatusColor) _style(WorkerTodoKind kind) =>
-      switch (kind) {
-        WorkerTodoKind.rescheduleToAnswer => (
-          Icons.event_repeat_rounded,
-          AppStatusColor.waiting,
-        ),
-        WorkerTodoKind.workToday => (
-          Icons.today_rounded,
-          AppStatusColor.success,
-        ),
-        WorkerTodoKind.toMarkDone => (
-          Icons.task_alt_rounded,
-          AppStatusColor.cancelled,
-        ),
-        WorkerTodoKind.ratingsToGive => (
-          Icons.star_outline_rounded,
-          AppStatusColor.info,
-        ),
-        WorkerTodoKind.candidatesToDecide => (
-          Icons.person_search_outlined,
-          AppStatusColor.waiting,
-        ),
-        WorkerTodoKind.pendingApplications => (
-          Icons.hourglass_top_rounded,
-          AppStatusColor.neutral,
-        ),
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final (icon, color) = _style(item.kind);
-    return InkWell(
-      onTap: onPressed,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xs),
-              decoration: BoxDecoration(
-                color: color.background,
-                borderRadius: BorderRadius.circular(AppRadius.input),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.md,
+                AppSpacing.xxs,
               ),
-              child: Icon(icon, color: color.foreground),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
               child: Text(
-                item.label,
-                style: textTheme.bodyMedium?.copyWith(
+                'O que falta fazer',
+                style: textTheme.titleMedium?.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
-            ),
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const Divider(height: 1, color: AppColors.divider),
+              _todoRow(items[i]),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+/// Ícone e cor de cada tipo de pendência (design U1, `TodoRow`).
+(IconData, AppStatusColor) _todoStyle(WorkerTodoKind kind) => switch (kind) {
+      WorkerTodoKind.rescheduleToAnswer => (
+        Icons.edit_calendar_outlined,
+        AppStatusColor.waiting,
+      ),
+      WorkerTodoKind.workToday => (
+        Icons.today_outlined,
+        AppStatusColor.success,
+      ),
+      WorkerTodoKind.toMarkDone => (
+        Icons.task_alt_rounded,
+        AppStatusColor.cancelled,
+      ),
+      WorkerTodoKind.ratingsToGive => (
+        Icons.star_outline_rounded,
+        AppStatusColor.info,
+      ),
+      WorkerTodoKind.candidatesToDecide => (
+        Icons.person_search_outlined,
+        AppStatusColor.waiting,
+      ),
+      WorkerTodoKind.pendingApplications => (
+        Icons.hourglass_top_rounded,
+        AppStatusColor.neutral,
+      ),
+    };
 
 class _NextJobSection extends StatelessWidget {
   const _NextJobSection({required this.job, required this.onPressed});

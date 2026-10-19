@@ -549,7 +549,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 ## 10. Design system e motion
 
 **Tokens** (`core/theme/`): `AppColors` (paleta fixa — primary `#2E7D32`, background
-`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSpacing` (escala do design 19/10: 4·6·8·10·12·14·16·18·20·22·24·26·28·32; xxs4/s6/xs8/s10/sm12/s14/md16/s18/s20/s22/lg24/s26/s28/xl32),
+`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSizes` (caixas de ícone, alturas de botão e larguras dos componentes base, U1), `AppSpacing` (escala do design 19/10: 4·6·8·10·12·14·16·18·20·22·24·26·28·32; xxs4/s6/xs8/s10/sm12/s14/md16/s18/s20/s22/lg24/s26/s28/xl32),
 `AppRadius` (input12/card16/pill999), `AppTypography` (Plus Jakarta Sans, display/title/subtitle/body/caption),
 `AppStatusColor` (waiting/info/success/cancelled/neutral, cada um com `background`+`foreground`),
 `AppMotionDuration`/`AppMotionCurve` (ver abaixo), `AppTheme.light()` (Material 3,
@@ -573,7 +573,12 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `PrimaryActionButton` | `label`, `onPressed`; `isLoading=false`, `height=52` |
 | `BottomActionsBar` | `children` |
 | `AppFilterChip` | `label`, `onPressed`; `selected`, `leadingIcon`, `trailingIcon`, `showCheckmark` |
-| `AppStatusBadge` | `label`, `statusColor` (ou `.fromPresentation(presentation:)`) |
+| `AppStatusBadge` | `label`, `statusColor` (ou `.fromPresentation(presentation:)`); `dense` para linhas de lista |
+| `AppConfirmDialog` (U1) | `icon`, `title`, `message`, `confirmLabel`, `destructive`; `AppConfirmDialog.show` devolve `true`/`false`/`null`; `isSubmitting`/`errorText` quando a ação corre dentro do diálogo. Substitui os `AlertDialog` de confirmação; os 4 que têm formulário (cancelar, remarcar, reportar, alterar vagas) continuam `AlertDialog` |
+| `AppEmptyState` (U1) | `icon`, `title`, `message`, botão opcional (`actionLabel`+`onAction` ou `action`), `tone` (`null` = verde da marca) |
+| `AppSheet` (U1) | pega, título com fechar, conteúdo, ação principal e secundária opcionais; abrir com `AppSheet.show` |
+| `NextStepRow` (U1) | linha de pedido no Início do cliente: estado curto ao lado do título; com ação, fundo `primaryTint`, ponto verde e próximo passo |
+| `TodoRow` (U1) | linha de "O que falta fazer": `icon`, `tone` (`AppStatusColor`), `title` |
 | `AppBarStatusBadge` | igual ao `AppStatusBadge` + `trailingMargin=AppSpacing.md` — versão para `AppBar.actions`, com labels curtos próprios (ver `decisions_log.md` 2026-10-16) |
 | `AppBackButton` | `color=AppColors.textPrimary`, `tooltip='Voltar'` — chama `goBackOrToRoleHome` |
 | `AppBottomNavigation` | `items` (exatamente 4), `selectedIndex`, `onItemSelected`, `onCentralActionPressed` |

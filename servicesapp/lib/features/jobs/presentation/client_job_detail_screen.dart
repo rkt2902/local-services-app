@@ -12,6 +12,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -68,24 +69,14 @@ class _ClientJobDetailScreenState
 
     // Open jobs have no confirmed worker — simple confirmation, no reason picker
     if (job.status == JobStatus.open) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogCtx) => AlertDialog(
-          title: const Text('Cancelar pedido?'),
-          content:
-              const Text('Tens a certeza que queres cancelar este pedido?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, false),
-              child: const Text('Voltar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, true),
-              style: TextButton.styleFrom(foregroundColor: AppStatusColor.cancelled.foreground),
-              child: const Text('Cancelar pedido'),
-            ),
-          ],
-        ),
+      final confirmed = await AppConfirmDialog.show(
+        context,
+        icon: Icons.event_busy_outlined,
+        title: 'Cancelar pedido?',
+        message: 'O pedido deixa de aparecer aos jardineiros. Não dá para '
+            'desfazer.',
+        confirmLabel: 'Cancelar pedido',
+        destructive: true,
       );
       if (confirmed != true || !mounted) return;
       setState(() => _saving = true);
@@ -135,23 +126,13 @@ class _ClientJobDetailScreenState
   /// ficam em [_handleConfirmCompleted], que mostra o AppSuccessFeedback
   /// antes de sair do ecrã.
   Future<bool> _confirmJobCompletion() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Confirmar conclusão'),
-        content: const Text(
-            'Confirmas que o trabalho foi concluído conforme esperado?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.task_alt_rounded,
+      title: 'Confirmar conclusão?',
+      message: 'Confirmas que o trabalho ficou feito como combinado. '
+          'Depois podes avaliar o jardineiro.',
+      confirmLabel: 'Confirmar',
     );
     if (confirmed != true || !mounted) return false;
 
@@ -383,23 +364,13 @@ class _ClientJobDetailScreenState
     );
 
     if (!mounted) return;
-    final confirmAnyway = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Confirmar conclusão?'),
-        content: const Text(
-            'Queres confirmar a conclusão do trabalho mesmo assim?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Ainda não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Sim, confirmar'),
-          ),
-        ],
-      ),
+    final confirmAnyway = await AppConfirmDialog.show(
+      context,
+      icon: Icons.task_alt_rounded,
+      title: 'Confirmar conclusão?',
+      message: 'Queres confirmar a conclusão do trabalho mesmo assim?',
+      confirmLabel: 'Sim, confirmar',
+      cancelLabel: 'Ainda não',
     );
     if (confirmAnyway == true && mounted) {
       await _handleConfirmCompleted();

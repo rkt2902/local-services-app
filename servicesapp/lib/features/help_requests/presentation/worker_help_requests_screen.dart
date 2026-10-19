@@ -16,6 +16,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -268,11 +269,10 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
                   child: _HelpRequestsEmptyState(
                     icon: Icons.assignment_outlined,
                     title: 'Ainda sem candidaturas',
-                    message: 'Ainda não te candidataste a nenhum pedido de ajuda.',
-                    action: PrimaryActionButton(
-                      label: 'Descobrir pedidos',
-                      onPressed: widget.onGoToDiscover,
-                    ),
+                    message: 'Candidata-te a um pedido de ajuda para trabalhar '
+                        'com outros jardineiros.',
+                    actionLabel: 'Descobrir pedidos',
+                    onAction: widget.onGoToDiscover,
                   ),
                 ),
               ),
@@ -505,54 +505,33 @@ class _HelpRequestsEmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.message,
+    this.actionLabel,
+    this.onAction,
     this.action,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.xl,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: AppStatusColor.neutral.background,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 34, color: AppStatusColor.neutral.foreground),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            if (action != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              action!,
-            ],
-          ],
+        child: AppEmptyState(
+          icon: icon,
+          title: title,
+          message: message,
+          actionLabel: actionLabel,
+          onAction: onAction,
+          action: action,
         ),
       ),
     );

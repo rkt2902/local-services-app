@@ -9,6 +9,10 @@ abstract final class AppColors {
   static const Color primaryContainer = Color(0xFFEBF5E9);
   static const Color primaryPressed = Color(0xFF256428);
 
+  /// Fundo de uma linha de lista que precisa de ação (design U1,
+  /// [NextStepRow]); mais claro que [primaryContainer].
+  static const Color primaryTint = Color(0xFFF5FAF4);
+
   // Neutros
   static const Color background = Color(0xFFF6F8F6);
   static const Color surface = Color(0xFFFFFFFF);

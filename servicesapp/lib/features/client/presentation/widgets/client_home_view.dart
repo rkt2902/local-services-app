@@ -4,8 +4,9 @@ import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
+import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
-import 'package:servicesapp/core/widgets/app_status_badge.dart';
+import 'package:servicesapp/core/widgets/next_step_row.dart';
 
 /// Dados de apresentação da Home do cliente.
 ///
@@ -379,8 +380,14 @@ class _ActiveJobsList extends StatelessWidget {
           children: [
             for (var i = 0; i < jobs.length; i++) ...[
               if (i > 0) const Divider(height: 1, color: AppColors.divider),
-              _ActiveJobRow(
-                job: jobs[i],
+              NextStepRow(
+                icon: jobs[i].icon,
+                title: jobs[i].serviceLabel,
+                status: jobs[i].status,
+                subtitle: jobs[i].needsAction
+                    ? (jobs[i].nextStepLabel ?? jobs[i].metadataLabel)
+                    : jobs[i].metadataLabel,
+                needsAction: jobs[i].needsAction,
                 onPressed: () => onJobPressed(jobs[i].id),
               ),
             ],
@@ -398,84 +405,6 @@ class _ActiveJobsList extends StatelessWidget {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActiveJobRow extends StatelessWidget {
-  const _ActiveJobRow({required this.job, required this.onPressed});
-
-  final ClientHomeActiveJobViewData job;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return InkWell(
-      onTap: onPressed,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(AppRadius.input),
-              ),
-              child: Icon(job.icon, color: AppColors.primary),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    job.serviceLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  AppStatusBadge.fromPresentation(presentation: job.status),
-                  if (job.nextStepLabel != null) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      job.nextStepLabel!,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: job.needsAction
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
-                        fontWeight:
-                            job.needsAction ? FontWeight.w700 : FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    job.metadataLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
-            ),
           ],
         ),
       ),
@@ -524,42 +453,20 @@ class _EmptyJobsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          AppRadius.card,
-        ),
-        border: Border.all(
-          color: AppColors.divider,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.yard_outlined,
-            size: 40,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Ainda não tens pedidos ativos.',
-            textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FilledButton(
-            onPressed: onPressed,
-            child: const Text('Criar primeiro pedido'),
-          ),
-        ],
+      child: AppEmptyState(
+        icon: Icons.yard_outlined,
+        title: 'Ainda sem pedidos ativos',
+        message: 'Cria um pedido e recebe propostas de jardineiros perto de ti.',
+        actionLabel: 'Criar primeiro pedido',
+        onAction: onPressed,
       ),
     );
   }

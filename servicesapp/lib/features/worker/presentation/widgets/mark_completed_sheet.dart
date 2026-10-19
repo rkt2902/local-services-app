@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/primary_action_button.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import 'work_photos_strip.dart';
 
 /// Folha "Terminou o trabalho?" (design 7b), antes de `mark_job_done`.
@@ -33,15 +33,8 @@ class MarkCompletedSheet extends StatefulWidget {
     required String priceLabel,
     required Future<bool> Function(List<XFile> photos) onSend,
   }) async {
-    final sent = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
-      ),
+    final sent = await AppSheet.show<bool>(
+      context,
       builder: (_) => MarkCompletedSheet(
         clientName: clientName,
         workedTimeLabel: workedTimeLabel,
@@ -77,82 +70,69 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
     final name = widget.clientName.trim();
     final who = name.isEmpty ? 'ao cliente' : 'a $name';
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          0,
-          AppSpacing.lg,
-          AppSpacing.md,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Terminou o trabalho?',
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+    return AppSheet(
+      title: 'Terminou o trabalho?',
+      isSubmitting: _sending,
+      onClose: () => Navigator.of(context).pop(false),
+      primaryActionLabel: 'Enviar para confirmação',
+      primaryActionIcon: Icons.send_rounded,
+      onPrimaryAction: _send,
+      secondaryActionLabel: 'Continuar a trabalhar',
+      onSecondaryAction: () => Navigator.of(context).pop(false),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Vamos pedir $who que confirme. O trabalho fica concluído quando '
+            'confirmar, ou sozinho ao fim de 48 horas.',
+            style:
+                textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text.rich(
+            TextSpan(
+              text: 'Fotos do "depois"',
+              style:
+                  textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+              children: [
+                TextSpan(
+                  text: ' · recomendado',
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Vamos pedir $who que confirme. O trabalho fica concluído quando '
-              'confirmar, ou sozinho ao fim de 48 horas.',
-              style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          WorkPhotosStrip(
+            photos: _photos,
+            enabled: !_sending,
+            onChanged: (photos) => setState(() => _photos = photos),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+              border: Border.all(color: AppColors.divider),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text.rich(
-              TextSpan(
-                text: 'Fotos do "depois"',
-                style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-                children: [
-                  TextSpan(
-                    text: ' · recomendado',
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
+            child: Column(
+              children: [
+                _SummaryRow(
+                  label: 'Tempo registado',
+                  value: widget.workedTimeLabel,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                _SummaryRow(
+                  label: 'Valor acordado',
+                  value: widget.priceLabel,
+                  highlighted: true,
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xs),
-            WorkPhotosStrip(
-              photos: _photos,
-              enabled: !_sending,
-              onChanged: (photos) => setState(() => _photos = photos),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.input),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Column(
-                children: [
-                  _SummaryRow(label: 'Tempo registado', value: widget.workedTimeLabel),
-                  const SizedBox(height: AppSpacing.xs),
-                  _SummaryRow(
-                    label: 'Valor acordado',
-                    value: widget.priceLabel,
-                    highlighted: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            PrimaryActionButton(
-              label: 'Enviar para confirmação',
-              icon: Icons.send_rounded,
-              isLoading: _sending,
-              onPressed: _send,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextButton(
-              onPressed: _sending ? null : () => Navigator.of(context).pop(false),
-              child: const Text('Continuar a trabalhar'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

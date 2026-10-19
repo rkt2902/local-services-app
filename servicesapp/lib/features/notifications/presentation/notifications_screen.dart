@@ -8,6 +8,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
@@ -395,22 +396,15 @@ class _NotificationsEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.notifications_none_rounded,
-            size: 64,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Sem notificações.',
-            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: AppEmptyState(
+          icon: Icons.notifications_none_rounded,
+          title: 'Sem notificações',
+          message: 'Os avisos sobre os teus pedidos e trabalhos aparecem aqui.',
+          tone: AppStatusColor.neutral,
+        ),
       ),
     );
   }

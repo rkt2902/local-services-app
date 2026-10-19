@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_status_color.dart';
 import '../application/auth_controller.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 
 /// Terminar sessão com confirmação: pergunta primeiro, chama
 /// `AuthController.signOut` e só sai para `/` se correu bem. Se falhar
@@ -13,25 +14,13 @@ import '../application/auth_controller.dart';
 /// Partilhado pela conta do cliente, pelo perfil do cliente e por
 /// `/choose-role`.
 Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (dialogCtx) => AlertDialog(
-      title: const Text('Terminar sessão?'),
-      content: const Text('Vais precisar do teu email e senha para voltar a entrar.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogCtx, false),
-          child: const Text('Voltar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(dialogCtx, true),
-          style: TextButton.styleFrom(
-            foregroundColor: AppStatusColor.cancelled.foreground,
-          ),
-          child: const Text('Terminar sessão'),
-        ),
-      ],
-    ),
+  final confirmed = await AppConfirmDialog.show(
+    context,
+    icon: Icons.logout_rounded,
+    title: 'Terminar sessão?',
+    message: 'Vais precisar do teu email e senha para voltar a entrar.',
+    confirmLabel: 'Terminar sessão',
+    destructive: true,
   );
   if (confirmed != true || !context.mounted) return;
 

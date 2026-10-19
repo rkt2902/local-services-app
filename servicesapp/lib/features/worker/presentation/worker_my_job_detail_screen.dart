@@ -14,6 +14,7 @@ import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/price_labels.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../auth/application/auth_providers.dart';
@@ -156,24 +157,13 @@ class _WorkerMyJobDetailScreenState
   }
 
   Future<void> _withdrawProposal() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Retirar proposta?'),
-        content: const Text(
-            'O pedido ficará disponível para outros jardineiros.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Não'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            style: TextButton.styleFrom(foregroundColor: AppStatusColor.cancelled.foreground),
-            child: const Text('Retirar'),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.undo_rounded,
+      title: 'Retirar proposta?',
+      message: 'O pedido fica disponível para outros jardineiros.',
+      confirmLabel: 'Retirar',
+      destructive: true,
     );
     if (confirmed != true || !mounted) return;
     setState(() => _withdrawing = true);

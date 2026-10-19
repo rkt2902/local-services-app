@@ -14,6 +14,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/bottom_actions_bar.dart';
@@ -60,23 +61,14 @@ class _ClientScheduledJobDetailScreenState
     final result = await CancelJobDialog.show(context, isClient: true);
     if (result == null || !mounted) return;
 
-    final wantsReopen = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Voltar a publicar?'),
-        content: const Text(
-            'Queres voltar a publicar este pedido para encontrar outro jardineiro?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sim'),
-          ),
-        ],
-      ),
+    final wantsReopen = await AppConfirmDialog.show(
+      context,
+      icon: Icons.replay_rounded,
+      title: 'Voltar a publicar?',
+      message: 'Queres voltar a publicar este pedido para encontrar outro '
+          'jardineiro?',
+      confirmLabel: 'Sim',
+      cancelLabel: 'Não',
     );
     // Fechar o diálogo sem responder (toque fora, voltar) é desistir, não
     // "Não": antes cancelava na mesma.
