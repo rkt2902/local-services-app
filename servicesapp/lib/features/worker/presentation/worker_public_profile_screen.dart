@@ -6,6 +6,7 @@ import '../../../core/router/app_back_navigation.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
@@ -13,6 +14,7 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_showcase_section.dart';
 
@@ -51,23 +53,22 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
             color: AppColors.textPrimary,
           ),
         ),
-        title: Text(
-          'Perfil',
-          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-        ),
       ),
       bottomNavigationBar: isVisitor
-          ? SafeArea(
-              child: Padding(
+          ? ColoredBox(
+              color: AppColors.surface,
+              child: SafeArea(
+                child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.sm,
                   AppSpacing.lg,
                   AppSpacing.md,
                 ),
-                child: PrimaryActionButton(
-                  label: 'Criar conta',
-                  onPressed: () => context.go('/signup'),
+                  child: PrimaryActionButton(
+                    label: 'Criar conta',
+                    onPressed: () => context.go('/signup'),
+                  ),
                 ),
               ),
             )
@@ -79,85 +80,125 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
           if (card == null) {
             return const Center(child: Text('Perfil não encontrado.'));
           }
+          final hasRatings = card.ratingCount > 0;
+          final ratingStyle =
+              textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary);
+          final ratingRow = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                size: AppSizes.inlineIcon,
+                color: AppColors.logoAccent,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              if (hasRatings) ...[
+                Text(
+                  decimalLabel(card.avgRating, 1),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  ' · ${card.ratingCount} '
+                  'avalia${card.ratingCount == 1 ? 'ção' : 'ções'}',
+                  style: ratingStyle,
+                ),
+              ] else
+                Text('Sem avaliações ainda', style: ratingStyle),
+            ],
+          );
+
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
               AppSpacing.xl,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: CircleAvatar(
-                    radius: 44,
-                    backgroundColor: AppColors.primaryContainer,
-                    backgroundImage: card.avatarUrl != null
-                        ? NetworkImage(card.avatarUrl!)
-                        : null,
-                    child: card.avatarUrl == null
-                        ? const Icon(
-                            Icons.person_outline_rounded,
-                            size: 40,
-                            color: AppColors.primary,
-                          )
-                        : null,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.xxs),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: CircleAvatar(
+                        radius: AppSizes.publicAvatar / 2,
+                        backgroundColor: AppColors.primaryContainer,
+                        backgroundImage: card.avatarUrl != null
+                            ? NetworkImage(card.avatarUrl!)
+                            : null,
+                        child: card.avatarUrl == null
+                            ? const Icon(
+                                Icons.person_outline_rounded,
+                                size: AppSizes.emptyIcon,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 1,
-                  child: Text(
-                    card.fullName,
-                    textAlign: TextAlign.center,
-                    style:
-                        textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-                  ),
-                ),
-                if (card.locationName.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    card.locationName,
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.textSecondary),
-                  ),
-                ],
                 const SizedBox(height: AppSpacing.sm),
                 AppStaggeredEntrance(
-                  index: 2,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  index: 1,
+                  child: Column(
                     children: [
-                      const Icon(Icons.star_rounded,
-                          size: 18, color: AppColors.logoAccent),
-                      const SizedBox(width: AppSpacing.xxs),
                       Text(
-                        card.ratingCount > 0
-                            ? '${decimalLabel(card.avgRating, 1)} (${card.ratingCount})'
-                            : 'Sem avaliações ainda',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                        card.fullName,
+                        textAlign: TextAlign.center,
+                        style: textTheme.titleLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
+                      // Só a zona: o raio fica de fora do cartão público
+                      // (worker_public_card, 0033).
+                      if (card.locationName.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          card.locationName,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.xxs),
+                      // As avaliações individuais só se leem com sessão
+                      // (RLS de ratings); o visitante vê só a média.
+                      if (hasRatings && !isVisitor)
+                        InkWell(
+                          onTap: () => showWorkerRatingsSheet(
+                            context,
+                            workerId: card.workerId,
+                            workerName: card.fullName,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.input),
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xxs),
+                            child: ratingRow,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.xxs),
+                          child: ratingRow,
+                        ),
                     ],
                   ),
                 ),
-                if (card.bio != null && card.bio!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  AppStaggeredEntrance(
-                    index: 3,
-                    child: Text(
-                      card.bio!,
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.textPrimary),
-                    ),
-                  ),
-                ],
                 if (card.serviceNames.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.sm),
                   AppStaggeredEntrance(
-                    index: 4,
+                    index: 2,
                     child: Wrap(
                       alignment: WrapAlignment.center,
                       spacing: AppSpacing.xs,
@@ -183,27 +224,15 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
-                if (card.highlights.isNotEmpty ||
-                    card.socialLinks.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  AppStaggeredEntrance(
-                    index: 5,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.card),
-                        border: Border.all(color: AppColors.divider),
-                      ),
-                      // A apresentação já aparece acima, centrada.
-                      child: WorkerShowcaseSection(
-                        highlights: card.highlights,
-                        socialLinks: card.socialLinks,
-                      ),
-                    ),
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 3,
+                  child: WorkerShowcaseSection(
+                    bio: card.bio,
+                    highlights: card.highlights,
+                    socialLinks: card.socialLinks,
                   ),
-                ],
+                ),
               ],
             ),
           );

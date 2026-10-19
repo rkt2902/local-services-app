@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Destaques e redes, cartão público e avaliações (U6)
+
+- **Adaptado ao que já existia (0051):** o editor continua a ser a secção "Destaques e redes"
+  de `WorkerProfileEditScreen` e o cartão público continua em `/w/:id`; não se criou rota nova.
+- **Editor:** "Em destaque" com as linhas e "+ Adicionar destaque · N de 5", que abre uma
+  `AppSheet` (recusa vazio e repetido). Fechar a folha sem adicionar limpa o campo, porque o
+  "Guardar" junta o texto pendente à lista. Redes em linhas com ícone e nome à esquerda;
+  "Ver como o cliente vê" em botão largo. Saíram os dois textos de ajuda.
+- **Cartão público:** sem título "Perfil", foto com aro, nome, zona e "★ 4,9 · N avaliações".
+  O raio ("até 15 km") do design não aparece: `worker_public_card` (0033) não o expõe de
+  propósito. As estrelas abrem a folha de avaliações só com sessão (a RLS de `ratings` não
+  deixa o visitante ler as avaliações). Os serviços continuam por baixo.
+- **`WorkerShowcaseSection`:** cartões "SOBRE" e "EM DESTAQUE", "VER TRABALHOS E REDES" com
+  botões em duas colunas e a nota "Informação partilhada pelo jardineiro.". Igual no cartão
+  público e na folha de avaliações.
+- **Folha de avaliações:** uma avaliação por cartão (inicial, nome, data, estrelas e
+  comentário). Passam a aparecer também as avaliações sem comentário. Vazio com `AppEmptyState`.
+
 ## 2026-10-19 — Autenticação: login, código do email e escolha de papel (U5)
 
 - **Adaptado, não copiado:** o código de referência separava cada ecrã em vista + wrapper

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../data/worker_showcase.dart';
 
@@ -10,6 +11,10 @@ import '../../data/worker_showcase.dart';
 /// Usado no perfil que o cliente abre a partir das propostas (folha de
 /// avaliações) e no cartão público `/w/:workerId`. Não mostra nada se o
 /// worker não preencheu nada.
+///
+/// Design U6: "Sobre" e "Em destaque" em cartões brancos com o título em
+/// maiúsculas, links em duas colunas e a nota de que é informação do
+/// próprio jardineiro.
 class WorkerShowcaseSection extends StatelessWidget {
   const WorkerShowcaseSection({
     super.key,
@@ -34,66 +39,80 @@ class WorkerShowcaseSection extends StatelessWidget {
     final hasBio = bio != null && bio!.trim().isNotEmpty;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasBio) ...[
-          Text(
-            'Sobre',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+        if (hasBio)
+          _ShowcaseCard(
+            title: 'SOBRE',
+            child: Text(
+              bio!.trim(),
+              style:
+                  textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+            ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            bio!.trim(),
-            style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
-          ),
-        ],
         if (highlights.isNotEmpty) ...[
-          if (hasBio) const SizedBox(height: AppSpacing.md),
-          Text(
-            'Em destaque',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          for (final highlight in highlights)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      highlight,
-                      style: textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.textPrimary),
+          if (hasBio) const SizedBox(height: AppSpacing.sm),
+          _ShowcaseCard(
+            title: 'EM DESTAQUE',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < highlights.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: i == 0 ? 0 : AppSpacing.s10,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: AppSizes.inlineIcon,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            highlights[i],
+                            style: textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textPrimary),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
         ],
         if (socialLinks.isNotEmpty) ...[
-          SizedBox(
-            height: highlights.isNotEmpty
-                ? AppSpacing.xs
-                : (hasBio ? AppSpacing.md : 0),
-          ),
+          if (hasBio || highlights.isNotEmpty)
+            const SizedBox(height: AppSpacing.md),
           Text(
-            'Ver trabalhos e redes',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+            'VER TRABALHOS E REDES',
+            style: textTheme.labelMedium?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              for (final link in socialLinks) _SocialLinkButton(link: link),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Duas colunas, como no design; um link sozinho fica a meio.
+              final width = (constraints.maxWidth - AppSpacing.xs) / 2;
+              return Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final link in socialLinks)
+                    SizedBox(
+                      width: width,
+                      child: _SocialLinkButton(link: link),
+                    ),
+                ],
+              );
+            },
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
@@ -102,6 +121,40 @@ class WorkerShowcaseSection extends StatelessWidget {
           style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
+    );
+  }
+}
+
+class _ShowcaseCard extends StatelessWidget {
+  const _ShowcaseCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          child,
+        ],
+      ),
     );
   }
 }
@@ -136,35 +189,39 @@ class _SocialLinkButton extends StatelessWidget {
       link: true,
       label: 'Abrir ${link.label}',
       excludeSemantics: true,
-      child: Material(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: InkWell(
-          onTap: () => _open(context),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(socialLinkIcon(link), size: 18, color: AppColors.primary),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  link.label,
-                  style: textTheme.labelLarge?.copyWith(color: AppColors.primary),
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                const Icon(
-                  Icons.open_in_new_rounded,
-                  size: 14,
-                  color: AppColors.primary,
-                ),
-              ],
-            ),
+      child: OutlinedButton(
+        onPressed: () => _open(context),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(AppSizes.linkButtonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.divider),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.input),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              socialLinkIcon(link),
+              size: AppSizes.inlineIcon,
+              color: AppColors.textPrimary,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Flexible(
+              child: Text(
+                link.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

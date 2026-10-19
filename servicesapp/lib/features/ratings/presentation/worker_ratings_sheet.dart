@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/utils/price_labels.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
+import '../../../core/theme/app_status_color.dart';
+import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../worker/application/worker_providers.dart';
@@ -87,8 +91,7 @@ Future<void> showWorkerRatingsSheet(
                             ),
                           ),
                         ),
-                      const SliverToBoxAdapter(child: Divider(height: 1)),
-                      ratingsAsync.when(
+                                            ratingsAsync.when(
                         loading: () => SliverPadding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.md,
@@ -115,29 +118,43 @@ Future<void> showWorkerRatingsSheet(
                         error: (_, _) => const SliverToBoxAdapter(
                             child: SizedBox.shrink()),
                         data: (ratings) {
-                          final withComment = ratings
-                              .where((r) =>
-                                  r.comment != null && r.comment!.isNotEmpty)
-                              .toList();
-                          if (withComment.isEmpty) {
-                            return SliverFillRemaining(
+                          if (ratings.isEmpty) {
+                            return const SliverFillRemaining(
                               hasScrollBody: false,
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(AppSpacing.xl),
-                                  child: Text(ratings.isEmpty
-                                      ? 'Ainda sem avaliações.'
-                                      : 'Ainda sem comentários.'),
+                              child: Padding(
+                                padding: EdgeInsets.all(AppSpacing.lg),
+                                child: AppEmptyState(
+                                  icon: Icons.star_outline_rounded,
+                                  title: 'Ainda sem avaliações',
+                                  message:
+                                      'As avaliações dos clientes aparecem aqui.',
+                                  tone: AppStatusColor.neutral,
                                 ),
                               ),
                             );
                           }
-                          return SliverList.separated(
-                            itemCount: withComment.length,
-                            separatorBuilder: (_, _) =>
-                                const Divider(height: 1, indent: 16),
-                            itemBuilder: (ctx, i) =>
-                                _RatingRow(rating: withComment[i]),
+                          // Design U6: um cartão por avaliação, com ou sem
+                          // comentário (as estrelas contam por si).
+                          return SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.md,
+                              AppSpacing.md,
+                              AppSpacing.md,
+                              0,
+                            ),
+                            sliver: SliverList.separated(
+                              itemCount: ratings.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: AppSpacing.sm),
+                              itemBuilder: (ctx, i) {
+                                final row = _RatingRow(rating: ratings[i]);
+                                // Stagger só nos primeiros, para não atrasar
+                                // listas longas.
+                                return i < 6
+                                    ? AppStaggeredEntrance(index: i, child: row)
+                                    : row;
+                              },
+                            ),
                           );
                         },
                       ),
@@ -246,21 +263,60 @@ class _RatingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+    final textTheme = Theme.of(context).textTheme;
+    final name = rating.raterName?.trim().isNotEmpty == true
+        ? rating.raterName!.trim()
+        : 'Cliente';
+    final comment = rating.comment?.trim();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
+              Container(
+                width: AppSizes.reviewAvatar,
+                height: AppSizes.reviewAvatar,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
                 child: Text(
-                  rating.raterName?.isNotEmpty == true
-                      ? rating.raterName!
-                      : 'Avaliador',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  name.characters.first.toUpperCase(),
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      DateFormat('dd/MM/yyyy').format(rating.createdAt.toLocal()),
+                      style: textTheme.labelMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
                 ),
               ),
               Row(
@@ -269,20 +325,19 @@ class _RatingRow extends StatelessWidget {
                   final filled = i < rating.stars;
                   return Icon(
                     filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                    size: 14,
+                    size: AppSizes.ratingStar,
                     color: AppColors.logoAccent,
                   );
                 }),
               ),
             ],
           ),
-          if (rating.comment != null && rating.comment!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xxs),
+          if (comment != null && comment.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              rating.comment!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              comment,
+              style:
+                  textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
             ),
           ],
         ],

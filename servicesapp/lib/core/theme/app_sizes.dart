@@ -66,4 +66,10 @@ abstract final class AppSizes {
   static const double authBrandIcon = 26.0;
   static const double authHeaderIcon = 56.0;
   static const double authHeaderGlyph = 28.0;
+
+  // Perfil do jardineiro: destaques, redes e cartão público (U6).
+  static const double linkButtonHeight = 44.0;
+  static const double publicAvatar = 76.0;
+  static const double reviewAvatar = 36.0;
+  static const double socialFieldLabelWidth = 76.0;
 }

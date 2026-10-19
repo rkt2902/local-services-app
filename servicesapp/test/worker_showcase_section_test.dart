@@ -23,8 +23,8 @@ void main() {
       ],
     )));
 
-    expect(find.text('Sobre'), findsOneWidget);
-    expect(find.text('Em destaque'), findsOneWidget);
+    expect(find.text('SOBRE'), findsOneWidget);
+    expect(find.text('EM DESTAQUE'), findsOneWidget);
     expect(find.text('Empresa com seguro'), findsOneWidget);
     expect(find.text('Instagram'), findsOneWidget);
     expect(find.text('TikTok'), findsOneWidget);
