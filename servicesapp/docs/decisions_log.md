@@ -20,8 +20,8 @@
 - **Diálogos:** "Alterar vagas" e "Fechar pedido de ajuda?" passam a `AppConfirmDialog`
   (`message` ficou opcional). O máximo de vagas continua 10 (limite da RPC), não 5.
 - **Texto de fechar diferente do design:** o design diz "Quem já está na equipa continua",
-  mas `cancel_help_request` (0049) também tira os aceites. O texto diz o que a RPC faz até
-  o Henrique decidir se o comportamento muda.
+  mas `cancel_help_request` (0049) também tira os aceites. Decisão do Henrique (19/10): fica
+  como está; o texto diz o que a RPC faz e para tirar só uma pessoa usa-se "Retirar".
 
 ## 2026-10-19 — Criar pedido passo 2 e Editar pedido (U3)
 
