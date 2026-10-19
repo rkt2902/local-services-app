@@ -6,49 +6,36 @@ import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_step_progress.dart';
+import '../../../core/widgets/bottom_actions_bar.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/client_create_job_wizard_provider.dart';
 import '../application/job_request_form.dart';
 import 'widgets/job_location_picker.dart';
 import 'widgets/job_schedule_fields.dart';
 
-/// Opção de dimensão apresentada no passo 2 — `id` corresponde ao
-/// `SizeEstimate.value` real, para conversão direta sem tabela extra.
-class ClientJobSizeOption {
-  const ClientJobSizeOption({required this.id, required this.label});
+/// Texto curto de cada dimensão no chip do passo 2 (o chip é estreito:
+/// 3 por linha). As faixas de m² são as mesmas de `SizeEstimate.label`.
+String _sizeChipLabel(SizeEstimate? size) => switch (size) {
+      SizeEstimate.small => 'Até 100 m²',
+      SizeEstimate.medium => '100-300 m²',
+      SizeEstimate.large => '300+ m²',
+      null => 'Dimensão',
+    };
 
-  final String id;
-  final String label;
-}
-
-// Quebra de linha explícita (`\n`) em vez do texto completo de
-// `SizeEstimate.label` — o chip é estreito (3 por linha) e o valor
-// completo ("Pequeno (até 100m²)") ficava a quebrar em pontos aleatórios;
-// mesmas faixas de m², só formatadas para caber em 2 linhas curtas.
-const _sizeOptions = [
-  ClientJobSizeOption(id: 'small', label: 'Pequeno\n(até 100m²)'),
-  ClientJobSizeOption(id: 'medium', label: 'Médio\n(100-300m²)'),
-  ClientJobSizeOption(id: 'large', label: 'Grande\n(300m²+)'),
-];
-
-/// Escolha de prazo no passo 2.
+/// Passo 2/4 de "Criar pedido" (design U3, "Quando e onde"): modo da data,
+/// localização, urgência e dimensão.
 ///
-/// NOTA DE INTEGRAÇÃO: não é o mesmo conceito que `Urgency` (o model real
-/// só tem normal/urgent). "Flexível" aqui só define `DateMode.flexible` e
-/// "Indicar disponibilidade" define `DateMode.availability` (texto livre
-/// em `availability_text`); nenhum dos dois mexe em `Urgency`, que fica em
-/// `Urgency.normal` por omissão.
-enum ClientJobUrgency { flexible, normal, urgent, availability }
-
-/// Passo 2/4 de "Criar pedido": prazo, dimensão e localização.
-///
-/// A localização (mapa/GPS/morada) vive no widget partilhado
-/// `JobLocationPicker`, também usado em "Editar pedido".
+/// Os campos da data (`JobScheduleFields`) e a localização
+/// (`JobLocationPicker`) são partilhados com "Editar pedido". A urgência é
+/// independente do modo da data (`Urgency` só tem normal/urgente).
 class ClientCreateJobScheduleScreen extends ConsumerStatefulWidget {
   const ClientCreateJobScheduleScreen({super.key, this.fromReview = false});
 
@@ -66,9 +53,10 @@ class _ClientCreateJobScheduleScreenState
     extends ConsumerState<ClientCreateJobScheduleScreen> {
   final _availabilityController = TextEditingController();
 
-  late ClientJobUrgency _urgency;
+  late DateMode _dateMode;
+  late bool _urgent;
   DateTime? _selectedDate;
-  String? _selectedSizeOptionId;
+  SizeEstimate? _size;
   late JobLocationValue _location;
   late final JobLocationValue _initialLocation;
 
@@ -78,15 +66,10 @@ class _ClientCreateJobScheduleScreenState
 
     final wizard = ref.read(clientCreateJobWizardProvider);
 
-    _urgency = switch (wizard.dateMode) {
-      DateMode.availability => ClientJobUrgency.availability,
-      DateMode.flexible => ClientJobUrgency.flexible,
-      DateMode.fixed => wizard.urgency == Urgency.urgent
-          ? ClientJobUrgency.urgent
-          : ClientJobUrgency.normal,
-    };
+    _dateMode = wizard.dateMode;
+    _urgent = wizard.urgency == Urgency.urgent;
     _selectedDate = wizard.preferredDate;
-    _selectedSizeOptionId = wizard.sizeEstimate?.value;
+    _size = wizard.sizeEstimate;
     _availabilityController.text = wizard.availabilityText;
     _availabilityController.addListener(_onAvailabilityChanged);
 
@@ -119,16 +102,36 @@ class _ClientCreateJobScheduleScreenState
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  bool get _requiresDate =>
-      _urgency == ClientJobUrgency.normal || _urgency == ClientJobUrgency.urgent;
-
-  bool get _requiresAvailability => _urgency == ClientJobUrgency.availability;
+  Future<void> _pickSize() async {
+    final picked = await AppSheet.show<SizeEstimate>(
+      context,
+      builder: (sheetContext) => AppSheet(
+        title: 'Dimensão aproximada',
+        onClose: () => Navigator.pop(sheetContext),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final size in SizeEstimate.values) ...[
+              if (size != SizeEstimate.values.first)
+                const SizedBox(height: AppSpacing.xs),
+              _SizeOptionRow(
+                label: size.label,
+                selected: _size == size,
+                onPressed: () => Navigator.pop(sheetContext, size),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _size = picked);
+  }
 
   bool get _canContinue {
-    if (_selectedSizeOptionId == null) return false;
+    if (_size == null) return false;
     if (!_location.hasPin) return false;
-    if (_requiresDate && _selectedDate == null) return false;
-    if (_requiresAvailability &&
+    if (_dateMode == DateMode.fixed && _selectedDate == null) return false;
+    if (_dateMode == DateMode.availability &&
         availabilityTextError(_availabilityController.text) != null) {
       return false;
     }
@@ -138,24 +141,15 @@ class _ClientCreateJobScheduleScreenState
   void _continue() {
     if (!_canContinue) return;
 
-    final urgency = _urgency == ClientJobUrgency.urgent
-        ? Urgency.urgent
-        : Urgency.normal;
-    final dateMode = switch (_urgency) {
-      ClientJobUrgency.flexible => DateMode.flexible,
-      ClientJobUrgency.availability => DateMode.availability,
-      ClientJobUrgency.normal || ClientJobUrgency.urgent => DateMode.fixed,
-    };
-
     final notifier = ref.read(clientCreateJobWizardProvider.notifier);
     notifier.setSchedule(
-      dateMode: dateMode,
-      preferredDate: dateMode == DateMode.fixed ? _selectedDate : null,
-      availabilityText: dateMode == DateMode.availability
+      dateMode: _dateMode,
+      preferredDate: _dateMode == DateMode.fixed ? _selectedDate : null,
+      availabilityText: _dateMode == DateMode.availability
           ? _availabilityController.text.trim()
           : '',
-      urgency: urgency,
-      sizeEstimate: SizeEstimate.fromValue(_selectedSizeOptionId!),
+      urgency: _urgent ? Urgency.urgent : Urgency.normal,
+      sizeEstimate: _size!,
     );
     notifier.setLocation(
       addressText: _location.addressText,
@@ -172,26 +166,6 @@ class _ClientCreateJobScheduleScreenState
     }
   }
 
-  Widget _urgencyOption(
-    int index,
-    ClientJobUrgency value,
-    String title,
-    String subtitle,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: AppStaggeredEntrance(
-        index: index,
-        child: JobOptionCard(
-          title: title,
-          subtitle: subtitle,
-          selected: _urgency == value,
-          onPressed: () => setState(() => _urgency = value),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -205,172 +179,206 @@ class _ClientCreateJobScheduleScreenState
         leading: const AppBackButton(),
         titleSpacing: 0,
         title: Text(
-          'Criar pedido',
+          'Quando e onde',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
-      ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.md,
-            ),
-            child: AppStepProgress(currentStep: 2, totalSteps: 4),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppStaggeredEntrance(
-                    index: 0,
-                    child: Text(
-                      'Prazo',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  _urgencyOption(1, ClientJobUrgency.flexible, 'Flexível',
-                      'Posso agendar mais tarde'),
-                  _urgencyOption(2, ClientJobUrgency.normal, 'Normal',
-                      'Dentro de alguns dias'),
-                  _urgencyOption(3, ClientJobUrgency.urgent, 'Urgente',
-                      'O quanto antes'),
-                  _urgencyOption(
-                    4,
-                    ClientJobUrgency.availability,
-                    'Indicar disponibilidade',
-                    'Diz por palavras tuas quando dá jeito',
-                  ),
-                  // Chaves nos itens destes blocos condicionais: sem elas,
-                  // aparecer/desaparecer desloca os irmãos e o Flutter
-                  // recria widgets com estado (ver JobLocationPicker).
-                  if (_requiresDate) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    AppStaggeredEntrance(
-                      key: const ValueKey('schedule_date_label'),
-                      index: 5,
-                      child: Text(
-                        'Quando precisas do serviço?',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    AppStaggeredEntrance(
-                      key: const ValueKey('schedule_date_field'),
-                      index: 5,
-                      child: JobDateField(
-                        date: _selectedDate,
-                        onPressed: _pickDate,
-                      ),
-                    ),
-                  ],
-                  if (_requiresAvailability) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    AppStaggeredEntrance(
-                      key: const ValueKey('schedule_availability_field'),
-                      index: 5,
-                      child: AvailabilityTextField(
-                        controller: _availabilityController,
-                        maxLength: availabilityTextMaxLength,
-                        hintText: availabilityTextHint,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.md),
-                  AppStaggeredEntrance(
-                    index: 6,
-                    child: Text(
-                      'Dimensão aproximada',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStaggeredEntrance(
-                    index: 7,
-                    child: _SizeSelector(
-                      options: _sizeOptions,
-                      selectedId: _selectedSizeOptionId,
-                      onSelected: (id) {
-                        setState(() => _selectedSizeOptionId = id);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  JobLocationPicker(
-                    key: const ValueKey('schedule_location'),
-                    initial: _initialLocation,
-                    staggerStartIndex: 8,
-                    onChanged: (value) => setState(() => _location = value),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        actions: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.lg,
-            ),
-            child: PrimaryActionButton(
-              label: 'Continuar',
-              onPressed: _canContinue ? _continue : null,
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Center(
+              child: Text(
+                '2/4',
+                style: textTheme.labelLarge
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
             ),
           ),
         ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: AppStepProgress(currentStep: 2, totalSteps: 4),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppStaggeredEntrance(
+                      index: 0,
+                      child: JobScheduleFields(
+                        dateMode: _dateMode,
+                        onDateModeChanged: (mode) =>
+                            setState(() => _dateMode = mode),
+                        date: _selectedDate,
+                        onPickDate: _pickDate,
+                        availabilityController: _availabilityController,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    JobLocationPicker(
+                      key: const ValueKey('schedule_location'),
+                      initial: _initialLocation,
+                      staggerStartIndex: 1,
+                      onChanged: (value) => setState(() => _location = value),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 4,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _AttributeChip(
+                              label: 'Normal',
+                              selected: !_urgent,
+                              selectedBackground: AppColors.divider,
+                              selectedForeground: AppColors.textPrimary,
+                              onPressed: () => setState(() => _urgent = false),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: _AttributeChip(
+                              label: 'Urgente',
+                              selected: _urgent,
+                              selectedBackground:
+                                  AppStatusColor.cancelled.background,
+                              selectedForeground:
+                                  AppStatusColor.cancelled.foreground,
+                              onPressed: () => setState(() => _urgent = true),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: _AttributeChip(
+                              label: _sizeChipLabel(_size),
+                              selected: false,
+                              selectedBackground: AppColors.surface,
+                              selectedForeground: AppColors.textPrimary,
+                              trailingIcon: Icons.expand_more_rounded,
+                              muted: _size == null,
+                              onPressed: _pickSize,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            BottomActionsBar(children: [
+              PrimaryActionButton(
+                label: 'Continuar',
+                onPressed: _canContinue ? _continue : null,
+              ),
+            ]),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SizeSelector extends StatelessWidget {
-  const _SizeSelector({
-    required this.options,
-    required this.selectedId,
-    required this.onSelected,
+/// Pílula de atributo (urgência ou dimensão), não um badge de estado.
+class _AttributeChip extends StatelessWidget {
+  const _AttributeChip({
+    required this.label,
+    required this.selected,
+    required this.selectedBackground,
+    required this.selectedForeground,
+    required this.onPressed,
+    this.trailingIcon,
+    this.muted = false,
   });
 
-  final List<ClientJobSizeOption> options;
-  final String? selectedId;
-  final ValueChanged<String> onSelected;
+  final String label;
+  final bool selected;
+  final Color selectedBackground;
+  final Color selectedForeground;
+  final VoidCallback onPressed;
+  final IconData? trailingIcon;
+
+  /// Texto em cinzento (ex.: dimensão ainda por escolher).
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < options.length; i++) ...[
-          Expanded(
-            child: _SizeChip(
-              label: options[i].label,
-              selected: selectedId == options[i].id,
-              onPressed: () => onSelected(options[i].id),
+    final textTheme = Theme.of(context).textTheme;
+    final foreground = selected
+        ? selectedForeground
+        : muted
+            ? AppColors.textSecondary
+            : AppColors.textPrimary;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? selectedBackground : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: Container(
+            constraints: const BoxConstraints(
+              minHeight: AppSizes.attributeChipHeight,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              border: Border.all(
+                color: selected ? selectedBackground : AppColors.divider,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: foreground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (trailingIcon != null)
+                  Icon(
+                    trailingIcon,
+                    size: AppSizes.inlineIcon,
+                    color: AppColors.textSecondary,
+                  ),
+              ],
             ),
           ),
-          if (i < options.length - 1) const SizedBox(width: AppSpacing.xs),
-        ],
-      ],
+        ),
+      ),
     );
   }
 }
 
-class _SizeChip extends StatelessWidget {
-  const _SizeChip({
+/// Linha de escolha única na folha "Dimensão aproximada".
+class _SizeOptionRow extends StatelessWidget {
+  const _SizeOptionRow({
     required this.label,
     required this.selected,
     required this.onPressed,
@@ -383,26 +391,34 @@ class _SizeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
     return Material(
-      color: selected ? AppColors.primary : AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
+      color: selected ? AppColors.primaryContainer : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          alignment: Alignment.center,
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: selected ? null : Border.all(color: AppColors.divider),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: textTheme.labelMedium?.copyWith(
-              color: selected ? AppColors.surface : AppColors.textPrimary,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(
+              color: selected ? AppColors.primary : AppColors.divider,
             ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: selected ? FontWeight.w700 : null,
+                  ),
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_rounded, color: AppColors.primary),
+            ],
           ),
         ),
       ),

@@ -37,3 +37,22 @@ String jobDeadlineLabel(
       return text.isEmpty ? 'Ver disponibilidade' : text;
   }
 }
+
+const _weekdayNames = [
+  'Segunda',
+  'Terça',
+  'Quarta',
+  'Quinta',
+  'Sexta',
+  'Sábado',
+  'Domingo',
+];
+
+/// "Sábado, 25/10" (dia da semana + dia/mês), como no campo de data do
+/// design U3. Junta o ano só quando não é o ano de [now].
+String weekdayDateLabel(DateTime date, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final weekday = _weekdayNames[date.weekday - 1];
+  final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
+  return '$weekday, ${DateFormat(pattern).format(date)}';
+}

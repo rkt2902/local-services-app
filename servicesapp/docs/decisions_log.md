@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Criar pedido passo 2 e Editar pedido (U3)
+
+- **`JobScheduleFields` partilhado:** três botões (Data fixa, Flexível, Disponibilidade) e por
+  baixo só o campo do modo escolhido, com fade. Data escrita como "Sábado, 25/10"
+  (`weekdayDateLabel`). Saíram os cartões de opção (`JobOptionCard`) e o enum
+  `ClientJobUrgency`: o modo da data passa a ser `DateMode` direto.
+- **Urgência separada da data:** "Normal"/"Urgente" ao lado da dimensão, para qualquer modo
+  de data (antes só existia com data fixa). A base de dados já aceitava as combinações.
+- **Dimensão** num chip que abre a folha "Dimensão aproximada", porque o U3 só mostra o valor
+  e o passo 2 continua a ser o único sítio onde se escolhe.
+- **Mapa:** "Onde?", pin verde, "Usar a minha localização" por cima do mapa. A dica diz
+  "Toca no mapa" e não "Arrasta o pin", porque o flutter_map não arrasta marcadores sem um
+  plugin extra; o pin muda com um toque.
+- **Editar pedido:** fechar (X), aviso azul aos jardineiros que propuseram, contador
+  "118 / 10 mín.", SnackBar "Pedido atualizado. Avisámos 2 jardineiros." A morada continua
+  editável (o U3 não a mostra, mas a RPC `update_job_request` suporta e tirá-la era perder
+  uma funcionalidade). Pedido que já saiu de aberto mostra "Este pedido já não pode ser
+  editado" com "Ver pedido"; o texto sobre Remarcar só aparece se o pedido está confirmado.
+
 ## 2026-10-19 — Inícios dos dois papéis e "+" do jardineiro (U2)
 
 - **Cabeçalho igual nos dois:** "Bom dia/Boa tarde/Boa noite" (`dayGreeting`), "Olá, Nome" e o

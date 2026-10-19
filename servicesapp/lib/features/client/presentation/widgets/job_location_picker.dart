@@ -6,8 +6,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_text_field.dart';
 
@@ -46,6 +46,7 @@ class JobLocationPicker extends StatefulWidget {
     required this.initial,
     required this.onChanged,
     this.staggerStartIndex = 0,
+    this.title = 'Onde?',
     super.key,
   });
 
@@ -54,6 +55,9 @@ class JobLocationPicker extends StatefulWidget {
 
   /// Índice de [AppStaggeredEntrance] do primeiro elemento.
   final int staggerStartIndex;
+
+  /// Título da secção, por cima do mapa.
+  final String title;
 
   @override
   State<JobLocationPicker> createState() => _JobLocationPickerState();
@@ -210,7 +214,9 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
     });
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) throw Exception('Serviço de localização desativado.');
+      if (!serviceEnabled) {
+        throw Exception('Serviço de localização desativado.');
+      }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -251,13 +257,12 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
         AppStaggeredEntrance(
           index: start,
           child: Text(
-            'Localização',
-            style: textTheme.labelMedium?.copyWith(
-              color: AppColors.textPrimary,
-            ),
+            widget.title,
+            style:
+                textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.sm),
         AppStaggeredEntrance(
           // Chave estável: sem ela, um bloco condicional acima (ex.: o
           // campo de data a aparecer/desaparecer) pode fazer o Flutter
@@ -269,47 +274,102 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),
             child: SizedBox(
-              height: 200,
-              child: FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter:
-                      _pinPosition ?? const LatLng(38.7169, -9.1399),
-                  initialZoom: 14,
-                  onTap: _onMapTap,
-                ),
+              height: AppSizes.jobMapHeight,
+              child: Stack(
                 children: [
-                  // TODO(mapa-estilizado): tile "standard" da OSM de
-                  // propósito (2026-09). Um mapa nativo com estilo de marca
-                  // exige o SDK do Google Maps (projeto, faturação e API
-                  // key): decisão de produto e orçamento para mais tarde.
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.servicesapp',
-                  ),
-                  if (_pinPosition != null)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: _pinPosition!,
-                          child: Icon(
-                            Icons.location_on,
-                            color: AppStatusColor.cancelled.foreground,
-                            size: 36,
-                          ),
+                  Positioned.fill(
+                    child: FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter:
+                            _pinPosition ?? const LatLng(38.7169, -9.1399),
+                        initialZoom: 14,
+                        onTap: _onMapTap,
+                      ),
+                      children: [
+                        // TODO(mapa-estilizado): tile "standard" da OSM de
+                        // propósito (2026-09). Um mapa nativo com estilo de
+                        // marca exige o SDK do Google Maps (projeto,
+                        // faturação e API key): decisão de produto e
+                        // orçamento para mais tarde.
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.servicesapp',
                         ),
+                        if (_pinPosition != null)
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: _pinPosition!,
+                                width: AppSizes.mapPin,
+                                height: AppSizes.mapPin,
+                                alignment: Alignment.topCenter,
+                                child: const Icon(
+                                  Icons.location_on_outlined,
+                                  color: AppColors.primary,
+                                  size: AppSizes.mapPin,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
+                  ),
+                  // O pin muda com um toque no mapa (o flutter_map não
+                  // arrasta marcadores sem um plugin extra).
+                  Positioned(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.xs,
+                    child: _MapPill(
+                      child: Text(
+                        'Toca no mapa',
+                        style: textTheme.labelMedium
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: AppSpacing.xs,
+                    bottom: AppSpacing.xs,
+                    child: _MapPill(
+                      onPressed: _loadingLocation ? null : _getLocation,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_loadingLocation)
+                            const SizedBox.square(
+                              dimension: AppSizes.inlineSpinner,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            const Icon(
+                              Icons.my_location_rounded,
+                              size: AppSizes.inlineIcon,
+                              color: AppColors.primary,
+                            ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            _loadingLocation
+                                ? 'A localizar...'
+                                : 'Usar a minha localização',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
         if (_locationError != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Text(
               _locationError!,
               style: textTheme.bodySmall?.copyWith(
@@ -317,42 +377,30 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
               ),
             ),
           ),
-        AppStaggeredEntrance(
-          index: start + 2,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _loadingLocation ? null : _getLocation,
-              icon: _loadingLocation
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.my_location),
-              label: const Text('Usar a minha localização'),
-            ),
-          ),
-        ),
         const SizedBox(height: AppSpacing.sm),
         AppStaggeredEntrance(
-          index: start + 3,
+          index: start + 2,
           child: AppTextField(
             controller: _addressController,
             label: 'Morada / referência',
             hintText: 'Ex: Rua das Flores 23, portão azul',
+            keyboardType: TextInputType.streetAddress,
+            textInputAction: TextInputAction.search,
+            onFieldSubmitted: (_) => _geocode(),
             suffixIcon: _geocoding
                 ? const Padding(
                     padding: EdgeInsets.all(AppSpacing.sm),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
+                    child: SizedBox.square(
+                      dimension: AppSizes.inlineSpinner,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
                 : IconButton(
                     tooltip: 'Procurar morada',
-                    icon: const Icon(Icons.search),
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.primary,
+                    ),
                     onPressed: _geocode,
                   ),
           ),
@@ -368,6 +416,33 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Pílula branca por cima do mapa (dica ou botão).
+class _MapPill extends StatelessWidget {
+  const _MapPill({required this.child, this.onPressed});
+
+  final Widget child;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: child,
+        ),
+      ),
     );
   }
 }
