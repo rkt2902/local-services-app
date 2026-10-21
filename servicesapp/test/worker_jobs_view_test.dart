@@ -1,0 +1,212 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:servicesapp/core/theme/app_status_color.dart';
+import 'package:servicesapp/core/theme/app_status_presentation.dart';
+import 'package:servicesapp/features/worker/data/worker_job_board_entry_model.dart';
+import 'package:servicesapp/features/worker/presentation/widgets/worker_jobs_view.dart';
+import 'package:servicesapp/features/worker/presentation/worker_jobs_screen.dart'
+    hide WorkerJobsScreen;
+
+WorkerJobBoardEntry _entry({
+  WorkerJobBoardRole role = WorkerJobBoardRole.responsible,
+  String status = 'accepted',
+  String? jobStatus = 'confirmed',
+  DateTime? confirmedDate,
+  String? confirmedTime,
+  DateTime? markedDoneAt,
+  String? cancelReason,
+  bool cancelledByClient = false,
+  DateTime? jobUpdatedAt,
+}) =>
+    WorkerJobBoardEntry(
+      entryId: 'e1',
+      role: role,
+      jobId: 'j1',
+      serviceTypeName: 'Corte de relva',
+      personName: 'João Pires',
+      addressText: 'Rua das Flores 12, Cascais',
+      locationArea: 'Cascais',
+      confirmedDate: confirmedDate,
+      confirmedTime: confirmedTime,
+      hourlyRate: 20,
+      estimatedHoursMin: 3,
+      status: status,
+      createdAt: DateTime(2026, 10, 17, 10),
+      jobStatus: jobStatus,
+      markedDoneAt: markedDoneAt,
+      cancelReason: cancelReason,
+      cancelledByClient: cancelledByClient,
+      jobUpdatedAt: jobUpdatedAt,
+    );
+
+WorkerJobListItemViewData _item(
+  String id, {
+  String? role,
+  bool muted = false,
+  String status = 'Agendado',
+}) =>
+    WorkerJobListItemViewData(
+      id: id,
+      title: 'Serviço $id',
+      serviceIcon: Icons.yard_outlined,
+      metaLabel: 'Detalhe $id',
+      status:
+          AppStatusPresentation(label: status, color: AppStatusColor.success),
+      roleLabel: role,
+      muted: muted,
+    );
+
+Widget _screen({
+  WorkerJobsTab tab = WorkerJobsTab.scheduled,
+  WorkerJobsTabViewData pending = const WorkerJobsTabViewData(),
+  WorkerJobsTabViewData scheduled = const WorkerJobsTabViewData(),
+  WorkerJobsTabViewData history = const WorkerJobsTabViewData(),
+  VoidCallback? onFind,
+}) {
+  return MaterialApp(
+    home: WorkerJobsScreen(
+      selectedTab: tab,
+      pendingTabLabel: 'Pendentes 3',
+      scheduledTabLabel: 'Agendados 4',
+      historyTabLabel: 'Histórico',
+      pending: pending,
+      scheduled: scheduled,
+      history: history,
+      onTabSelected: (_) {},
+      onJobPressed: (_) {},
+      onLoadMore: (_) {},
+      onFindJobsPressed: onFind,
+    ),
+  );
+}
+
+void main() {
+  final now = DateTime(2026, 10, 19, 10);
+
+  group('texto dos cartões (design A2)', () {
+    test('agendado como responsável: dia, hora, zona e valor', () {
+      final t = workerJobCardText(
+        _entry(
+            confirmedDate: DateTime(2026, 10, 19), confirmedTime: '09:00:00'),
+        WorkerJobsTab.scheduled,
+        now,
+      );
+      expect(t.meta, 'Hoje · 9:00 · Cascais');
+      expect(t.amount, '≈ 60 €');
+    });
+
+    test('agendado como ajudante: com quem e sem valor', () {
+      final t = workerJobCardText(
+        _entry(
+          role: WorkerJobBoardRole.helper,
+          confirmedDate: DateTime(2026, 10, 23),
+          confirmedTime: '08:30:00',
+        ),
+        WorkerJobsTab.scheduled,
+        now,
+      );
+      expect(t.meta, 'Sex, 23/10 · 8:30 · com João Pires');
+      expect(t.amount, isNull);
+    });
+
+    test('à espera do cliente: feito a e horas até confirmar sozinho', () {
+      final t = workerJobCardText(
+        _entry(
+          jobStatus: 'awaiting_confirmation',
+          markedDoneAt: DateTime(2026, 10, 18, 17),
+        ),
+        WorkerJobsTab.scheduled,
+        now,
+      );
+      expect(t.meta, 'Feito a 18/10 · confirma automaticamente em 31h');
+    });
+
+    test('histórico: concluído, cancelado, não selecionada e expirado', () {
+      final updated = DateTime(2026, 10, 16, 12);
+      String meta(WorkerJobBoardEntry e) =>
+          workerJobCardText(e, WorkerJobsTab.history, now).meta;
+
+      expect(meta(_entry(jobStatus: 'completed', jobUpdatedAt: updated)),
+          '16/10 · Cascais · ≈ 60 €');
+      expect(
+        meta(_entry(
+            jobStatus: 'cancelled',
+            cancelledByClient: true,
+            jobUpdatedAt: updated)),
+        '16/10 · cancelado pelo cliente',
+      );
+      expect(
+        meta(_entry(
+            status: 'rejected', jobStatus: 'confirmed', jobUpdatedAt: updated)),
+        '16/10 · o cliente escolheu outra proposta',
+      );
+      expect(
+        meta(_entry(
+            status: 'pending',
+            jobStatus: 'no_response',
+            jobUpdatedAt: updated)),
+        '16/10 · expirou sem resposta',
+      );
+    });
+
+    test('mês do histórico, com o ano só quando não é o atual', () {
+      expect(workerHistoryMonthLabel(DateTime(2026, 10, 2), now), 'Outubro');
+      expect(workerHistoryMonthLabel(DateTime(2025, 12, 2), now),
+          'Dezembro de 2025');
+    });
+  });
+
+  testWidgets('tabs com contagem, chip Ajudante e badge do trabalho',
+      (tester) async {
+    await tester.pumpWidget(_screen(
+      scheduled: WorkerJobsTabViewData(sections: [
+        WorkerJobsSectionViewData(items: [
+          _item('1'),
+          _item('2', role: 'Ajudante'),
+        ]),
+      ]),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pendentes 3'), findsOneWidget);
+    expect(find.text('Agendados 4'), findsOneWidget);
+    expect(find.text('Serviço 1'), findsOneWidget);
+    expect(find.text('Ajudante'), findsOneWidget);
+    expect(find.text('Agendado'), findsNWidgets(2));
+  });
+
+  testWidgets('histórico agrupado por mês', (tester) async {
+    await tester.pumpWidget(_screen(
+      tab: WorkerJobsTab.history,
+      history: WorkerJobsTabViewData(sections: [
+        WorkerJobsSectionViewData(label: 'Outubro', items: [
+          _item('1', status: 'Concluído'),
+          _item('2', muted: true, status: 'Cancelado'),
+        ]),
+        WorkerJobsSectionViewData(label: 'Setembro', items: [
+          _item('3', muted: true, status: 'Não selecionada'),
+        ]),
+      ]),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('OUTUBRO'), findsOneWidget);
+    expect(find.text('SETEMBRO'), findsOneWidget);
+    expect(find.text('Não selecionada'), findsOneWidget);
+  });
+
+  testWidgets('vazios por tab: só pendentes e agendados têm botão',
+      (tester) async {
+    var found = 0;
+    await tester.pumpWidget(_screen(onFind: () => found++));
+    await tester.pumpAndSettle();
+    expect(find.text('Nada agendado'), findsOneWidget);
+    await tester.tap(find.text('Ver pedidos disponíveis'));
+    expect(found, 1);
+
+    await tester.pumpWidget(_screen(tab: WorkerJobsTab.history));
+    await tester.pumpAndSettle();
+    expect(find.text('Histórico vazio'), findsOneWidget);
+    expect(find.text('Ver pedidos disponíveis'), findsNothing);
+  });
+}

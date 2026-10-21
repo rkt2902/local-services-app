@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_brand_badge.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../../core/theme/app_spacing.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -24,7 +25,7 @@ class LandingScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -32,7 +33,7 @@ class LandingScreen extends StatelessWidget {
               const Center(
                 child: AppBrandBadge(size: 100, iconSize: 48),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: AppSpacing.s28),
               Text(
                 'ProJardim',
                 style: textTheme.displaySmall?.copyWith(
@@ -40,7 +41,7 @@ class LandingScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.s10),
               Text(
                 'Serviços locais ao teu alcance.',
                 style: textTheme.bodyMedium?.copyWith(
@@ -53,7 +54,7 @@ class LandingScreen extends StatelessWidget {
                 label: 'Entrar',
                 onPressed: () => context.push(loginPath),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.sm),
               OutlinedButton(
                 onPressed: () => context.push('/signup'),
                 style: OutlinedButton.styleFrom(

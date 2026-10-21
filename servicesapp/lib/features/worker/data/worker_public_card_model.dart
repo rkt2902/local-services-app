@@ -1,4 +1,5 @@
 import '../../../core/config/storage_urls.dart';
+import 'worker_showcase.dart';
 
 /// Perfil público mínimo do worker — fonte: view `worker_public_card`
 /// (migration 0033, definer-style, GRANT a `anon`). Sem telefone nem
@@ -13,6 +14,10 @@ class WorkerPublicCard {
   final double avgRating;
   final int ratingCount;
 
+  /// Destaques e links (0051); vazios antes de a migration ser aplicada.
+  final List<String> highlights;
+  final List<WorkerSocialLink> socialLinks;
+
   const WorkerPublicCard({
     required this.workerId,
     required this.fullName,
@@ -22,6 +27,8 @@ class WorkerPublicCard {
     required this.serviceNames,
     required this.avgRating,
     required this.ratingCount,
+    this.highlights = const [],
+    this.socialLinks = const [],
   });
 
   factory WorkerPublicCard.fromJson(Map<String, dynamic> json) =>
@@ -34,5 +41,7 @@ class WorkerPublicCard {
         serviceNames: List<String>.from(json['service_names'] as List? ?? []),
         avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0,
         ratingCount: (json['rating_count'] as num?)?.toInt() ?? 0,
+        highlights: highlightsFromJson(json['highlights']),
+        socialLinks: WorkerSocialLink.listFromJson(json['social_links']),
       );
 }

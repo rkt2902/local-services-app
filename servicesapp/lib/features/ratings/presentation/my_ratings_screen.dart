@@ -244,6 +244,7 @@ class _RatingsHeader extends StatelessWidget {
           Row(
             children: [
               IconButton(
+                tooltip: 'Voltar',
                 onPressed: onBack,
                 icon: const Icon(
                   Icons.arrow_back,
@@ -401,6 +402,7 @@ class _SummaryUnavailable extends StatelessWidget {
         ),
         if (onRetry != null)
           IconButton(
+            tooltip: 'Tentar novamente',
             onPressed: onRetry,
             icon: const Icon(
               Icons.refresh_rounded,

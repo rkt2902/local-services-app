@@ -12,7 +12,7 @@ String jobDistinguisherLabel(JobRequest job) {
   final fmt = DateFormat('dd/MM');
   final parts = <String>[];
 
-  final area = _areaOf(job);
+  final area = jobAreaLabel(job);
   if (area.isNotEmpty) parts.add(area);
 
   final date = job.confirmedDate ?? job.preferredDate;
@@ -23,7 +23,8 @@ String jobDistinguisherLabel(JobRequest job) {
   return parts.join(' · ');
 }
 
-String _areaOf(JobRequest job) {
+/// Localidade do pedido ("Cascais"), sem a morada exata.
+String jobAreaLabel(JobRequest job) {
   final area = job.locationArea?.trim() ?? '';
   if (area.isNotEmpty) return area;
   // Pedidos antigos sem location_area: último segmento da morada.

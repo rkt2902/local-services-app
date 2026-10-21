@@ -19,7 +19,8 @@ class AppAccountMenuItem {
   final IconData icon;
   final String? trailingLabel;
 
-  /// Ação destrutiva (ex.: "Eliminar conta"): ícone e texto a vermelho.
+  /// Ação destrutiva (ex.: "Eliminar conta"): ícone e texto a vermelho,
+  /// sem a seta (design U7: não abre um ecrã, pede confirmação).
   final bool destructive;
 }
 
@@ -113,6 +114,7 @@ class _AccountMenuRow extends StatelessWidget {
                       color: item.destructive
                           ? destructiveColor
                           : AppColors.textPrimary,
+                      fontWeight: item.destructive ? FontWeight.w700 : null,
                     ),
                   ),
                 ),
@@ -127,14 +129,16 @@ class _AccountMenuRow extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(
-                  width: AppSpacing.xs,
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
+                if (!item.destructive) ...[
+                  const SizedBox(
+                    width: AppSpacing.xs,
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
               ],
             ),
           ),

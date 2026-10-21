@@ -52,6 +52,24 @@ class WorkerJobBoardEntry {
   /// mais páginas, sem precisar de uma query de contagem à parte.
   final int totalCount;
 
+  /// Campos da 0053 para os cartões do design A2. Todos `null` com a BD
+  /// antiga: o ecrã cai no nome do serviço, na morada e em [createdAt].
+  final String? serviceTypeId;
+
+  /// Só a localidade ("Cascais").
+  final String? locationArea;
+  final DateTime? markedDoneAt;
+  final String? cancelReason;
+  final bool cancelledByClient;
+  final bool cancelledByMe;
+
+  /// Última alteração do pedido (ou da proposta): data do cartão no
+  /// Histórico.
+  final DateTime? jobUpdatedAt;
+
+  /// Início do trabalho (0052, devolvido desde a 0053): badge "Em curso".
+  final DateTime? startedAt;
+
   const WorkerJobBoardEntry({
     required this.entryId,
     required this.role,
@@ -71,6 +89,14 @@ class WorkerJobBoardEntry {
     required this.createdAt,
     this.jobStatus,
     this.totalCount = 0,
+    this.serviceTypeId,
+    this.locationArea,
+    this.markedDoneAt,
+    this.cancelReason,
+    this.cancelledByClient = false,
+    this.cancelledByMe = false,
+    this.jobUpdatedAt,
+    this.startedAt,
   });
 
   factory WorkerJobBoardEntry.fromJson(Map<String, dynamic> json) =>
@@ -97,5 +123,19 @@ class WorkerJobBoardEntry {
         createdAt: DateTime.parse(json['created_at'] as String),
         jobStatus: json['job_status'] as String?,
         totalCount: (json['total_count'] as num?)?.toInt() ?? 0,
+        serviceTypeId: json['service_type_id'] as String?,
+        locationArea: json['location_area'] as String?,
+        markedDoneAt: json['marked_done_at'] != null
+            ? DateTime.parse(json['marked_done_at'] as String)
+            : null,
+        cancelReason: json['cancel_reason'] as String?,
+        cancelledByClient: json['cancelled_by_client'] as bool? ?? false,
+        cancelledByMe: json['cancelled_by_me'] as bool? ?? false,
+        jobUpdatedAt: json['job_updated_at'] != null
+            ? DateTime.parse(json['job_updated_at'] as String)
+            : null,
+        startedAt: json['started_at'] != null
+            ? DateTime.parse(json['started_at'] as String)
+            : null,
       );
 }

@@ -89,6 +89,8 @@ Dados específicos de quem presta serviço. 1:1 com `profiles` (apenas role=work
 | base_lng            | numeric     | NOT NULL, longitude da base                  |
 | tools               | text[]      | lista de ferramentas                         |
 | photos              | text[]      | URLs de trabalhos anteriores (Storage)       |
+| highlights          | text[]      | 0051: até 5 destaques, 1 a 80 caracteres (CHECK `worker_highlights_valid`) |
+| social_links        | jsonb       | 0051: até 4 `{kind, url}`, kind instagram/facebook/website/other, url só `https://` (CHECK `worker_social_links_valid`) |
 | created_at          | timestamptz |                                              |
 | updated_at          | timestamptz |                                              |
 
@@ -172,7 +174,10 @@ Pedidos criados por clientes.
 | expires_at                | timestamptz | created_at + 48h (para `no_response`)                       |
 | location_area             | text        | nullable (0043): localidade; é o que os workers sem proposta aceite veem em vez da morada exata |
 | completion_photo_path     | text        | nullable (0046): foto opcional do worker ao marcar concluído (bucket `job-photos`) |
-| marked_done_at            | timestamptz | nullable (0046): quando passou a `awaiting_confirmation`; conta os 3 dias da auto-confirmação |
+| marked_done_at            | timestamptz | nullable (0046): quando passou a `awaiting_confirmation`; conta os 3 dias da auto-confirmação (48h desde a 0052) |
+| started_at                | timestamptz | nullable (0052): quando o jardineiro iniciou; "Em curso" = `confirmed` com isto preenchido |
+| before_photo_paths        | text[]      | NOT NULL DEFAULT '{}' (0052): até 3 fotos de antes, `job-photos/<worker>/<job>/` |
+| after_photo_paths         | text[]      | NOT NULL DEFAULT '{}' (0052): até 3 fotos de depois; a 1.ª também vai para `completion_photo_path` |
 | day_reminder_sent_on      | date        | nullable (0046): controlo do lembrete da manhã do dia |
 | overdue_notified_at       | timestamptz | nullable (0046): aviso "a data passou sem concluir" |
 | confirmation_reminder_sent_at | timestamptz | nullable (0046): lembrete ao cliente para confirmar |

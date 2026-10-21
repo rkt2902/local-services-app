@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
@@ -16,16 +15,6 @@ import '../../jobs/application/job_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/client_providers.dart';
 import 'widgets/client_account_view.dart';
-
-const _monthsPt = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-];
-
-String _memberSinceLabel(DateTime? createdAt) {
-  if (createdAt == null) return 'Membro ProJardim';
-  return 'Membro desde ${_monthsPt[createdAt.month - 1]} de ${createdAt.year}';
-}
 
 class ClientProfileScreen extends ConsumerWidget {
   const ClientProfileScreen({super.key});
@@ -92,13 +81,6 @@ class ClientProfileScreen extends ConsumerWidget {
     }
 
     final jobs = jobsAsync.asData?.value ?? [];
-    final activeJobs = jobs
-        .where((j) =>
-            j.status == JobStatus.confirmed ||
-            j.status == JobStatus.awaitingConfirmation)
-        .length;
-    final completedJobs =
-        jobs.where((j) => j.status == JobStatus.completed).length;
 
     final ratingSummary = ratingSummaryAsync?.asData?.value;
     final ratingLabel = ratingSummary == null
@@ -111,10 +93,7 @@ class ClientProfileScreen extends ConsumerWidget {
     return ClientAccountScreen(
       data: ClientAccountViewData(
         name: profile.fullName,
-        memberSinceLabel: _memberSinceLabel(profile.createdAt),
         totalJobs: jobs.length,
-        activeJobs: activeJobs,
-        completedJobs: completedJobs,
         ratingLabel: ratingLabel,
         reviewsLabel: reviewsLabel,
         avatarImage: profile.avatarUrl != null

@@ -20,7 +20,7 @@ void main() {
     expect(tester.getSize(find.byKey(key)), const Size(390, 844));
   });
 
-  testWidgets('PC: o ecrã fica com 640 de largura e a altura toda', (
+  testWidgets('PC: o ecrã fica com 720 de largura e a altura toda', (
     tester,
   ) async {
     _setSize(tester, const Size(1440, 900));
@@ -32,7 +32,7 @@ void main() {
       ),
     );
     expect(tester.getSize(find.byKey(key)).height, 900);
-    expect(tester.getSize(find.byKey(key)).width, lessThanOrEqualTo(640));
+    expect(tester.getSize(find.byKey(key)).width, lessThanOrEqualTo(720));
   });
 
   testWidgets('rodar o telemóvel não apaga o que foi escrito', (tester) async {

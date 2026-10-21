@@ -315,7 +315,7 @@ class _ClientJobConfirmedView extends StatelessWidget {
                       index: 1,
                       child: _ContactButton(
                         icon: Icons.chat_outlined,
-                        label: 'Contactar via WhatsApp',
+                        label: 'Falar por WhatsApp',
                         onPressed: onCallPressed,
                       ),
                     ),

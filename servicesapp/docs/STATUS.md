@@ -1,12 +1,29 @@
 # LocalServices (ProJardim) — Project Status
 
-> Snapshot honesto do estado do projeto. Atualizado em 2026-09-08.
+> Snapshot honesto do estado do projeto. Atualizado em 2026-09-08 (revisto a 2026-10-18, ver primeira entrada abaixo).
 > Sem spin — o que funciona, o que não funciona, o que é placeholder, o que bloqueia utilizadores reais.
 > Esta atualização é o resultado de uma auditoria completa (código + RLS + navegação + cobertura do redesign) pedida em 2026-09-08. Auditoria só de leitura — nenhum ficheiro de código foi alterado; o registo detalhado fica no relatório dessa conversa, não replicado aqui linha a linha.
 
 ---
 
 ## O que funciona end-to-end hoje
+
+**2026-10-18, login com Google e Facebook:** botões "Continuar com Google/Facebook" no
+login e no registo, pelo OAuth do Supabase (`signInWithOAuth`), na web e nas apps (deep
+link `pt.projardim.app://login-callback`). Conta nova escolhe o papel e escreve só o
+telemóvel; o nome vem da conta e a foto é copiada para o Storage (`avatars/<id>.jpg`).
+Falta a configuração no Google Cloud, na Meta e no Supabase (`SETUP.md` passo 7); até lá
+os botões dão erro. Sem migration.
+
+**2026-10-18, limpeza de docs e design system:** os itens SA1, SA2, SA3, M4 (CHECKs),
+contacto do jardineiro responsável para ajudantes, P-8-8, P1/A1 (labels de `JobStatus`),
+reskin de `client_jobs_screen` e shimmer nas listas estavam marcados como abertos mas já
+estão resolvidos no código e nas migrations (ver `improvements.md`, secção "Revisão de
+2026-10-18"). Erros, estrelas e ícones de notificação passaram a usar os tokens
+(`AppStatusColor`, `AppColors.logoAccent`) em vez de `Colors.red`/`amber`/`green`. Todos os
+botões só com ícone têm descrição para leitores de ecrã. O ficheiro de arquitetura passou a
+`docs/ARCHITECTURE.md` (antes `architecture.md`, que não batia com o CLAUDE.md em sistemas
+que distinguem maiúsculas).
 
 **2026-10-17, limpeza sem decisões:** todas as migrations até à 0046 aplicadas
 (confirmado pelo Henrique). CI no GitHub Actions (`ci.yml`: `flutter analyze` + `flutter
@@ -38,10 +55,25 @@ todas as tabelas.
   a auth, onboarding, dashboards, contas e vários sub-fluxos — cobertura detalhada na secção
   seguinte, porque é desigual.
 - **Ecrãs de conta** (`WorkerAccountScreen`/`ClientAccountScreen`) — resumo, cartão partilhável
-  (QR via `qr_flutter`), menu de definições, "Contacto & suporte", "Sobre a app".
+  (QR via `qr_flutter`), menu de definições, "Contacto e suporte", "Sobre a app".
 - **Cartão público do worker** (`/w/:workerId`, migration 0033, view `worker_public_card`) —
   perfil mínimo pensado para acesso sem sessão. **Nota:** a rota existe e funciona se
   visitada, mas nada na app gera um link/QR que resolva para ela de facto — ver "Rotas órfãs".
+- **Iniciar trabalho, temporizador e 48h** (2026-10-19, migration 0052 por aplicar), a
+  seguir o design de 19/10 (ecrãs 6, 6b, 7, 7b). O jardineiro inicia a partir de 1h antes
+  da hora, com fotos de antes opcionais; o ecrã mostra o tempo em curso e "Reportar
+  problema"; concluir pede fotos de depois e mostra o tempo registado. O cliente vê "Em
+  curso", o tempo e as fotos. Confirmação automática em 48h com lembrete às 24h. Antes da
+  0052 aplicada, "Iniciar trabalho" dá erro (a RPC não existe). A lista "Os meus
+  trabalhos" mostra "Em curso" depois da 0053 (`get_worker_job_board` passa a devolver
+  `started_at`).
+- **Destaques e redes sociais do jardineiro** (2026-10-18, migration 0051 por aplicar) —
+  em Editar perfil > "Destaques e redes sociais": até 5 destaques curtos e links para
+  Instagram, Facebook, site e um outro (TikTok, YouTube, Google Maps), validados e sempre
+  `https://`. O cliente vê-os, com a apresentação, ao tocar no jardineiro numa proposta
+  (agora abre sempre, mesmo sem avaliações) e no cartão `/w/:workerId`. Sem selo de
+  verificação: diz "Informação partilhada pelo jardineiro". Antes da 0051 a secção diz
+  "Em breve" e o resto do perfil grava como antes.
 - **Ecrã dedicado de candidatura a ajudante** (`apply_as_helper_screen.dart`) — mostra
   pagamento/hora e data/hora confirmada ANTES de candidatar (migration 0034).
 - **RPC única de "Os meus trabalhos"** (`get_worker_job_board`, migration 0035) — substitui a
@@ -98,8 +130,12 @@ client_job_detail/confirmed/rate-worker, fleet card (scan/confirm/status).
   loading → `AppSkeletonShimmer`, vazios reskinned, `AppFadeThroughSwitcher` na troca de tabs)
   foi reskinned em 2026-09-16, completando o ecrã.
 
-**NUNCA redesenhado — ainda Material 3 puro, vintage Fase 8 (funcionalmente correto,
-visualmente destoante):**
+**✅ RESOLVIDO (confirmado a 2026-10-18):** `client_jobs_screen.dart` já é um wrapper fino
+sobre `widgets/client_jobs_view.dart`, com tokens e shimmer. A tabela abaixo fica como
+histórico.
+
+~~**NUNCA redesenhado — ainda Material 3 puro, vintage Fase 8 (funcionalmente correto,
+visualmente destoante):**~~
 
 | Ecrã | Rota | Nota |
 |---|---|---|
@@ -125,6 +161,9 @@ dizia que `status_timeline.dart` "será refeito do zero no redesign visual" — 
 de todos os ecrãs de detalhe de job, com zona de detalhe para subtitle/note e largura adaptativa
 para não dar overflow. Ver `decisions_log.md` 2026-10-15.
 
+**✅ RESOLVIDO (confirmado a 2026-10-18):** o shimmer é usado em todos os ecrãs de lista e de
+detalhe (`AppSkeletonShimmer`/`AppScreenLoadingSkeleton`); os spinners que restam estão
+dentro de botões, no mapa e no visualizador de fotos. Nota antiga:
 **Sistema de shimmer (`AppSkeletonShimmer`) usado de forma inconsistente:** só 4 ecrãs o adotam
 (`worker_dashboard`, `worker_jobs_view`, `worker_available_jobs_view`, `apply_as_helper`) — outros
 ecrãs de lista já reskinned (`client_home_view`, `worker_my_job_detail_view`) continuam a usar
@@ -159,9 +198,11 @@ delta"). Confirmado de forma independente em 2026-10-16 (ver entrada acima) — 
 
 ### 🟠 ALTO — antes de mostrar a alguém fora da equipa
 
-(Os 4 itens já conhecidos continuam válidos e estão detalhados em `improvements.md`: push
-notifications/FCM, SA3 Storage path, SA2 ratings participação, contacto do worker principal —
-nenhum mudou de estado nesta auditoria.)
+**Atualizado 2026-10-18:** dos 4 itens antigos só falta configurar o push (FCM): o código
+está na app e a configuração está no `SETUP.md`. SA3 (path do upload) já estava fechado na
+baseline 0001 (policies de INSERT por `auth.uid()` em `avatars` e `job-photos`), SA2
+(avaliações) foi fechado pela 0042 e o contacto do jardineiro responsável chega aos
+ajudantes desde a 0048/0049 (WhatsApp no ecrã do ajudante).
 
 **✅ RESOLVIDO (código) 2026-10-15 — hardening de segurança de 2026-09-09 (migration 0032)
 tinha partido silenciosamente 4 pontos de nome/avatar da contraparte.** A policy `USING(true)`
@@ -273,8 +314,9 @@ pedidos abertos.
 
 ### Riscos aceites (sem mudança desde 2026-07-09)
 
-SA1, SA2, SA3 — ver tabela completa em `improvements.md`. Nenhum foi corrigido nem piorado
-nesta auditoria.
+~~SA1, SA2, SA3~~ — **todos fechados (confirmado no código a 2026-10-18):** SA1 pela 0042/0046
+(`REVOKE EXECUTE` de `auto_confirm_completed_jobs`/`auto_expire_jobs` a `authenticated`),
+SA2 pela 0042 (S4), SA3 já na baseline 0001.
 
 ---
 

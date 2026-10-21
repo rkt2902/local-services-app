@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_password_strength_meter.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/pending_signup_provider.dart';
+import 'widgets/social_sign_in_buttons.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -76,7 +79,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
     });
@@ -87,10 +90,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s10, AppSpacing.s6, AppSpacing.s10, 0),
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Voltar',
                     onPressed: () =>
                         context.canPop() ? context.pop() : context.go('/'),
                     icon: const Icon(Icons.arrow_back_rounded),
@@ -107,7 +111,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 20),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.s22, AppSpacing.xs, AppSpacing.s22, AppSpacing.s20),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -120,7 +124,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ? 'Introduz o nome completo.'
                             : null,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _emailController,
                         label: 'Email',
@@ -133,7 +137,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _phoneController,
                         label: 'Telemóvel',
@@ -145,13 +149,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           emptyMessage: 'Introduz o telemóvel.',
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _passwordController,
                         label: 'Password',
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.newPassword],
                         suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Mostrar palavra-passe'
+                              : 'Esconder palavra-passe',
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
                           icon: Icon(
@@ -170,10 +177,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         validator: passwordPolicyValidator,
                       ),
                       if (_passwordController.text.isNotEmpty) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.sm),
                         AppPasswordStrengthMeter(password: _passwordController.text),
                       ],
-                      const SizedBox(height: 14),
+                      const SizedBox(height: AppSpacing.s14),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -218,13 +225,48 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Divider(
+                              color: AppColors.divider,
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
+                            child: Text(
+                              'ou',
+                              style: textTheme.labelLarge?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Divider(
+                              color: AppColors.divider,
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SocialSignInButtons(
+                        enabled: !isLoading,
+                        onPressed: (provider) => ref
+                            .read(authControllerProvider.notifier)
+                            .signInWithSocial(provider),
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.s22, 0, AppSpacing.s22, AppSpacing.s20),
               child: PrimaryActionButton(
                 label: 'Criar conta',
                 isLoading: isLoading,

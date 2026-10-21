@@ -127,7 +127,7 @@ class ClientJobsScreen extends ConsumerWidget {
             workerName: workerName,
             workerAvatarUrl: workerAvatarUrl,
             nextStepLabel: activeStatuses.contains(job.status)
-                ? clientJobNextStepLabel(job)
+                ? clientJobNextStepLabel(job, now: DateTime.now())
                 : null,
             needsAction: clientJobNeedsAction(job),
           );

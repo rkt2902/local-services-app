@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+
 class UserAvatarWithName extends StatelessWidget {
   const UserAvatarWithName({
     super.key,
@@ -8,7 +11,11 @@ class UserAvatarWithName extends StatelessWidget {
     this.radius = 20.0,
     this.nameStyle,
     this.fallbackLabel,
+    this.subtitle,
   });
+
+  /// Linha secundária por baixo do nome (ex.: "Corte de relva · 200 m²").
+  final String? subtitle;
 
   final String name;
   final String? avatarUrl;
@@ -48,13 +55,27 @@ class UserAvatarWithName extends StatelessWidget {
                   ),
                 ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.s10),
         Expanded(
-          child: Text(
-            displayName,
-            style: nameStyle ?? theme.textTheme.titleMedium,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                displayName,
+                style: nameStyle ?? theme.textTheme.titleMedium,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty)
+                Text(
+                  subtitle!,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+            ],
           ),
         ),
       ],

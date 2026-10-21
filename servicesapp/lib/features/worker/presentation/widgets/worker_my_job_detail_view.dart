@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/enums.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
@@ -20,15 +21,15 @@ import '../../../ratings/application/rating_providers.dart';
 import '../../application/worker_job_rules.dart';
 import '../../../ratings/presentation/submit_rating_sheet.dart';
 
-/// Dados de apresentação do ecrã "O meu trabalho" (Flow 6 + estados
+/// Dados de apresentação do ecrã "O meu trabalho" (design A1 + estados
 /// preservados de sessões anteriores).
 ///
 /// A integração (worker_my_job_detail_screen.dart) mapeia os models reais
 /// (JobProposal/JobRequest) para esta estrutura. Este ecrã não consulta
-/// providers, repositories ou Supabase diretamente — a única exceção é
-/// _PrincipalRatingCard, que já era um ConsumerWidget auto-contido antes
-/// desta separação (mesmo padrão usado noutros pontos da app, ex.
-/// _RatingChip em worker_jobs_screen.dart).
+/// providers, repositories ou Supabase diretamente — a única exceção são
+/// as linhas de "Avaliações" (_RatingTargetRow), ConsumerWidgets
+/// auto-contidos como o antigo _PrincipalRatingCard (mesmo padrão usado
+/// noutros pontos da app, ex. _RatingChip em worker_jobs_screen.dart).
 class WorkerMyJobDetailViewData {
   const WorkerMyJobDetailViewData({
     required this.jobId,
@@ -60,12 +61,15 @@ class WorkerMyJobDetailViewData {
     required this.agreedPriceLabel,
     required this.canMarkCompleted,
     this.markCompletedHint,
+    this.startedAt,
+    this.canStart = false,
+    this.startHint,
     this.rescheduleBlocked = false,
     this.overdueMessage,
-    this.cancelledMessage,
+    this.inactive,
+    this.completed,
     this.helpTeamLoaded = false,
-    this.helpTeamLabel,
-    this.helpTeamAwaitingApproval = false,
+    this.helpTeam,
     this.titleSubtitle,
     this.sizeLabel,
     this.estimatedHoursLabel,
@@ -85,6 +89,8 @@ class WorkerMyJobDetailViewData {
 
   final String serviceLabel;
   final String dateLabel;
+
+  /// "Qui, 23/10 · 9:00".
   final String confirmedScheduleLabel;
 
   final String addressLabel;
@@ -122,16 +128,19 @@ class WorkerMyJobDetailViewData {
   /// "A data já passou..." quando o trabalho confirmado está atrasado.
   final String? overdueMessage;
 
-  /// Banner de trabalho cancelado/expirado (sem contacto com o cliente).
-  final String? cancelledMessage;
+  /// Trabalho aceite que já não vai acontecer (cancelado ou expirado):
+  /// cartão vermelho ou cinzento, dados esbatidos e sem ações.
+  final WorkerInactiveJobViewData? inactive;
+
+  /// Trabalho concluído: tempo registado, fotos e avaliações.
+  final WorkerCompletedJobViewData? completed;
 
   /// `false` enquanto os pedidos de ajuda carregam: não mostra nem o cartão
   /// "Equipa" nem o botão "Preciso de ajudantes".
   final bool helpTeamLoaded;
 
-  /// Resumo da equipa; `null` = sem pedido de ajudantes ativo.
-  final String? helpTeamLabel;
-  final bool helpTeamAwaitingApproval;
+  /// Cartão "Equipa"; `null` = sem pedido de ajudantes ativo.
+  final WorkerJobTeamViewData? helpTeam;
 
   final List<AcceptedHelper> helpersForRating;
 
@@ -144,7 +153,17 @@ class WorkerMyJobDetailViewData {
   /// Texto por baixo do botão quando ainda não pode concluir.
   final String? markCompletedHint;
 
-  /// Zona e data por baixo do título, para distinguir pedidos iguais.
+  /// Início do trabalho (migration 0052). Preenchido = "Em curso": o botão
+  /// do fundo passa a "Marcar como concluído" e aparece o temporizador.
+  final DateTime? startedAt;
+
+  /// "Iniciar trabalho" disponível (a partir de 1h antes da hora).
+  final bool canStart;
+
+  /// Texto por baixo de "Iniciar trabalho".
+  final String? startHint;
+
+  /// "Sofia Marques · Cascais" por baixo do título.
   final String? titleSubtitle;
 
   final bool proposingReschedule;
@@ -152,6 +171,78 @@ class WorkerMyJobDetailViewData {
   final bool rejectingReschedule;
   final bool cancellingJob;
   final bool withdrawing;
+}
+
+/// Cartão "Equipa" do design A1: "1 de 2 vagas", um círculo por vaga e o
+/// número de candidatos por decidir.
+class WorkerJobTeamViewData {
+  const WorkerJobTeamViewData({
+    required this.memberNames,
+    required this.emptySlots,
+    this.filledLabel,
+    this.pendingLabel,
+    this.awaitingApproval = false,
+  });
+
+  /// Ajudantes já na equipa, por ordem (dão as iniciais dos círculos).
+  final List<String> memberNames;
+
+  /// Vagas ainda por preencher (círculos vazios).
+  final int emptySlots;
+
+  /// "1 de 2 vagas"; `null` enquanto os candidatos carregam.
+  final String? filledLabel;
+
+  /// "2 candidatos por decidir" ou "À espera de aprovação do cliente".
+  final String? pendingLabel;
+  final bool awaitingApproval;
+}
+
+class WorkerInactiveJobViewData {
+  const WorkerInactiveJobViewData({
+    required this.title,
+    required this.body,
+    required this.expired,
+    required this.areaLabel,
+  });
+
+  final String title;
+  final String body;
+
+  /// Expirado: ampulheta a cinzento em vez do calendário a vermelho.
+  final bool expired;
+
+  /// Só a localidade: a morada exata já não interessa.
+  final String areaLabel;
+}
+
+class WorkerCompletedJobViewData {
+  const WorkerCompletedJobViewData({
+    required this.metaLabel,
+    this.beforePhotoUrls = const [],
+    this.afterPhotoUrls = const [],
+    this.receivedReview,
+  });
+
+  /// "Concluído a 23/10. Tempo registado: 2h 40min."
+  final String metaLabel;
+  final List<String> beforePhotoUrls;
+  final List<String> afterPhotoUrls;
+
+  /// Avaliação que o cliente deixou ao jardineiro neste trabalho.
+  final WorkerReceivedReviewViewData? receivedReview;
+}
+
+class WorkerReceivedReviewViewData {
+  const WorkerReceivedReviewViewData({
+    required this.authorFirstName,
+    required this.stars,
+    this.comment,
+  });
+
+  final String authorFirstName;
+  final int stars;
+  final String? comment;
 }
 
 class WorkerMyJobDetailScreen extends StatefulWidget {
@@ -162,12 +253,16 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
     required this.onRequestHelpersPressed,
     required this.onViewTeamPressed,
     required this.onMarkCompleted,
+    required this.onStartJob,
+    required this.onReportProblem,
     required this.onProposeReschedule,
     required this.onAcceptReschedule,
     required this.onRejectReschedule,
     required this.onCancelJob,
     required this.onWithdrawProposal,
     required this.onPhotoTap,
+    required this.onWorkPhotoTap,
+    required this.onBrowseAvailableJobs,
     super.key,
     this.onCompletionFeedbackFinished,
   });
@@ -184,12 +279,24 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
   /// no wrapper (ver worker_my_job_detail_screen.dart _markCompleted).
   final Future<bool> Function() onMarkCompleted;
 
+  /// Abre a folha "Iniciar o trabalho agora?" e chama `start_job`. A view
+  /// só mostra o estado de carregamento; o ecrã atualiza pelo provider.
+  final Future<void> Function() onStartJob;
+
+  final VoidCallback onReportProblem;
+
   final VoidCallback onProposeReschedule;
   final VoidCallback onAcceptReschedule;
   final VoidCallback onRejectReschedule;
   final VoidCallback onCancelJob;
   final VoidCallback onWithdrawProposal;
   final ValueChanged<int> onPhotoTap;
+
+  /// Abre as fotos de antes ou de depois em ecrã inteiro.
+  final void Function(List<String> urls, int index) onWorkPhotoTap;
+
+  /// "Ver pedidos disponíveis" num trabalho cancelado ou expirado.
+  final VoidCallback onBrowseAvailableJobs;
 
   /// Executado depois do AppSuccessFeedback — navega para /worker/home.
   final VoidCallback? onCompletionFeedbackFinished;
@@ -202,6 +309,7 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
 
 class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   bool _completing = false;
+  bool _starting = false;
   bool _showSuccessFeedback = false;
   Timer? _successTimer;
 
@@ -235,6 +343,16 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     );
   }
 
+  Future<void> _handleStart() async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      await widget.onStartJob();
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
   @override
   void dispose() {
     _successTimer?.cancel();
@@ -244,8 +362,32 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final data = widget.data;
-    final isConfirmed = data.proposalStatus == ProposalStatus.accepted &&
-        data.jobStatus == JobStatus.confirmed;
+    final accepted = data.proposalStatus == ProposalStatus.accepted;
+    final isConfirmed = accepted && data.jobStatus == JobStatus.confirmed;
+
+    final Widget body;
+    if (isConfirmed) {
+      body = _buildConfirmedBody(context);
+    } else if (accepted && data.inactive != null) {
+      body = _InactiveJobBody(
+        inactive: data.inactive!,
+        dateTimeLabel: data.confirmedScheduleLabel,
+        priceLabel: data.agreedPriceLabel,
+        clientName: data.clientName,
+        clientAvatarUrl: data.clientAvatarUrl,
+        onBrowseAvailableJobs: widget.onBrowseAvailableJobs,
+      );
+    } else if (accepted &&
+        data.jobStatus == JobStatus.completed &&
+        data.completed != null) {
+      body = _CompletedJobBody(
+        data: data,
+        completed: data.completed!,
+        onWorkPhotoTap: widget.onWorkPhotoTap,
+      );
+    } else {
+      body = _buildOtherBody(context);
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -274,7 +416,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
       ),
       body: Stack(
         children: [
-          isConfirmed ? _buildConfirmedBody(context) : _buildOtherBody(context),
+          body,
           Positioned.fill(
             child: AppSuccessFeedback(
               visible: _showSuccessFeedback,
@@ -286,11 +428,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     );
   }
 
-  // ── Flow 6 — accepted + confirmed ("Trabalho agendado") ──────────────────
+  // ── Agendado / em curso (design A1, primeira coluna) ──────────────────────
 
   Widget _buildConfirmedBody(BuildContext context) {
     final data = widget.data;
     final textTheme = Theme.of(context).textTheme;
+    final hasMap = !(data.locationLat == 0 && data.locationLng == 0);
 
     return Column(
       children: [
@@ -298,16 +441,16 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.md,
+              AppSpacing.xs,
               AppSpacing.lg,
               AppSpacing.lg,
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: StatusTimelineCard(steps: data.timelineSteps),
+                  child: StatusTimelineHorizontal(steps: data.timelineSteps),
                 ),
                 if (data.overdueMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
@@ -320,48 +463,20 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 1,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: UserAvatarWithName(
-                          name: data.clientName,
-                          avatarUrl: data.clientAvatarUrl,
-                          radius: 22,
-                          fallbackLabel: 'Cliente',
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _CallButton(
-                        enabled: data.clientPhone.isNotEmpty,
-                        onPressed: widget.onCallClientPressed,
-                      ),
-                    ],
+                if (data.startedAt != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppStaggeredEntrance(
+                    index: 1,
+                    child: _WorkTimerCard(
+                      startedAt: data.startedAt!,
+                      estimatedHoursLabel: data.estimatedHoursLabel,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 2,
-                  child: _JobInformationCard(
-                    serviceLabel: data.serviceLabel,
-                    areaLabel: data.sizeLabel ?? 'Não especificado',
-                    dateTimeLabel: data.confirmedScheduleLabel,
-                    locationLabel: data.addressLabel,
-                    priceLabel: data.agreedPriceLabel,
-                    onOpenMap: (data.locationLat == 0 && data.locationLng == 0)
-                        ? null
-                        : () => AddressMapLink.openInMaps(
-                              data.locationLat,
-                              data.locationLng,
-                            ),
-                  ),
-                ),
+                ],
                 if (data.rescheduleStatus == RescheduleStatus.pending) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
-                    index: 3,
+                    index: 1,
                     child: _RescheduleBanner(
                       proposedByMe: data.rescheduleProposedByMe,
                       label: data.proposedRescheduleLabel,
@@ -372,14 +487,39 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 2,
+                  child: _JobFactsCard(
+                    dateTimeLabel: data.confirmedScheduleLabel,
+                    locationLabel: data.addressLabel,
+                    priceLabel: data.agreedPriceLabel,
+                    onOpenMap: hasMap
+                        ? () => AddressMapLink.openInMaps(
+                              data.locationLat,
+                              data.locationLng,
+                            )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppStaggeredEntrance(
+                  index: 3,
+                  child: _ClientWhatsAppCard(
+                    name: data.clientName,
+                    avatarUrl: data.clientAvatarUrl,
+                    onWhatsApp: data.clientPhone.isEmpty
+                        ? null
+                        : widget.onCallClientPressed,
+                  ),
+                ),
                 if (data.helpTeamLoaded) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.sm),
                   AppStaggeredEntrance(
                     index: 4,
-                    child: data.helpTeamLabel != null
-                        ? _HelpTeamCard(
-                            label: data.helpTeamLabel!,
-                            awaitingApproval: data.helpTeamAwaitingApproval,
+                    child: data.helpTeam != null
+                        ? _TeamCard(
+                            team: data.helpTeam!,
                             onViewTeam: widget.onViewTeamPressed,
                           )
                         : _HelpersActionButton(
@@ -416,32 +556,57 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
           ),
         ),
-        Container(
-          color: AppColors.background,
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.sm,
-            AppSpacing.lg,
-            AppSpacing.lg,
-          ),
+        _BottomBar(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PrimaryActionButton(
-                label: 'Marcar como concluído',
-                isLoading: _completing,
-                onPressed: (_completing || !data.canMarkCompleted)
-                    ? null
-                    : _handleMarkCompleted,
-              ),
-              if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  data.markCompletedHint!,
-                  textAlign: TextAlign.center,
-                  style: textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
+              if (data.startedAt == null) ...[
+                PrimaryActionButton(
+                  label: 'Iniciar trabalho',
+                  icon: data.canStart
+                      ? Icons.play_arrow_rounded
+                      : Icons.lock_outline_rounded,
+                  isLoading: _starting,
+                  onPressed:
+                      (_starting || !data.canStart) ? null : _handleStart,
+                ),
+                if (data.startHint != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    data.startHint!,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ] else ...[
+                PrimaryActionButton(
+                  label: 'Marcar como concluído',
+                  icon: Icons.check_circle_outline_rounded,
+                  isLoading: _completing,
+                  onPressed: (_completing || !data.canMarkCompleted)
+                      ? null
+                      : _handleMarkCompleted,
+                ),
+                if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    data.markCompletedHint!,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+                TextButton(
+                  onPressed: widget.onReportProblem,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppStatusColor.cancelled.foreground,
+                  ),
+                  child: const Text(
+                    'Reportar problema',
+                    style: TextStyle(decoration: TextDecoration.underline),
+                  ),
                 ),
               ],
             ],
@@ -451,8 +616,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     );
   }
 
-  // ── Outros estados (rejected/superseded/pending, e accepted fora de
-  // confirmed) — conteúdo/lógica preservados de sessões anteriores, só com
+  // ── Outros estados (rejected/superseded/pending, e accepted à espera de
+  // confirmação) — conteúdo/lógica preservados de sessões anteriores, só com
   // limpeza de tokens (AppColors/AppSpacing/AppRadius) para consistência
   // visual com o resto da app.
 
@@ -517,11 +682,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     if (data.proposalStatus == ProposalStatus.accepted) {
+      // confirmed, completed, cancelled e noResponse têm composição própria
+      // (design A1); aqui só chega awaitingConfirmation.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (data.rescheduleStatus == RescheduleStatus.pending &&
-              data.cancelledMessage == null) ...[
+          if (data.rescheduleStatus == RescheduleStatus.pending) ...[
             _RescheduleBanner(
               proposedByMe: data.rescheduleProposedByMe,
               label: data.proposedRescheduleLabel,
@@ -532,40 +698,20 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          // Trabalho cancelado/expirado: só o motivo, sem contacto (já não
-          // há nada a combinar com o cliente).
-          if (data.cancelledMessage != null)
-            _InfoBanner(
-              icon: Icons.cancel_outlined,
-              color: AppStatusColor.cancelled,
-              message: data.cancelledMessage!,
-            )
-          else ...[
-            Text('Cliente', style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
-            const SizedBox(height: AppSpacing.sm),
-            _ClientContactCard(
-              name: data.clientName,
-              avatarUrl: data.clientAvatarUrl,
-              phone: data.clientPhone,
-              onCallPressed: widget.onCallClientPressed,
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          // jobStatus == confirmed nunca chega aqui — esse caso é servido
-          // por _buildConfirmedBody (Flow 6). Só awaitingConfirmation,
-          // completed e cancelled restam dentro deste ramo "accepted".
-          if (data.jobStatus == JobStatus.awaitingConfirmation)
-            const _InfoBanner(
-              icon: Icons.hourglass_top_rounded,
-              color: AppStatusColor.info,
-              message: WorkerJobDayRules.awaitingConfirmationMessage,
-            )
-          else if (data.jobStatus == JobStatus.completed)
-            _CompletedSection(
-              jobId: data.jobId,
-              clientId: data.clientId,
-              helpers: data.helpersForRating,
-            ),
+          Text('Cliente', style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
+          const SizedBox(height: AppSpacing.sm),
+          _ClientContactCard(
+            name: data.clientName,
+            avatarUrl: data.clientAvatarUrl,
+            phone: data.clientPhone,
+            onCallPressed: widget.onCallClientPressed,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _InfoBanner(
+            icon: Icons.hourglass_top_rounded,
+            color: AppStatusColor.info,
+            message: WorkerJobDayRules.awaitingConfirmationMessage,
+          ),
         ],
       );
     }
@@ -613,7 +759,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         const _InfoBanner(
           icon: Icons.schedule_outlined,
           color: AppStatusColor.waiting,
-          message: 'A tua proposta está a aguardar resposta do cliente.',
+          message: 'A tua proposta está à espera de resposta do cliente.',
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
@@ -635,46 +781,93 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   }
 }
 
-// ── Flow 6 building blocks ────────────────────────────────────────────────
+// ── Blocos do design A1 ────────────────────────────────────────────────────
 
-class _CallButton extends StatelessWidget {
-  const _CallButton({required this.onPressed, this.enabled = true});
+/// "Sofia Marques" → "SM"; um só nome → "S".
+String _initials(String name) {
+  final parts =
+      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  final first = parts.first[0];
+  final last = parts.length > 1 ? parts.last[0] : '';
+  return '$first$last'.toUpperCase();
+}
 
-  final VoidCallback onPressed;
-  final bool enabled;
+/// Barra branca do fundo com a ação principal do estado.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: enabled ? onPressed : null,
-      tooltip: 'Contactar via WhatsApp',
-      style: IconButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        backgroundColor: AppColors.primaryContainer,
-        foregroundColor: AppColors.primary,
-        disabledBackgroundColor: AppColors.divider,
-        disabledForegroundColor: AppColors.textSecondary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.input),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.divider)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
+          child: child,
         ),
       ),
-      icon: const Icon(Icons.chat_outlined),
     );
   }
 }
 
-class _JobInformationCard extends StatelessWidget {
-  const _JobInformationCard({
-    required this.serviceLabel,
-    required this.areaLabel,
+class _InitialsAvatar extends StatelessWidget {
+  const _InitialsAvatar({
+    required this.name,
+    this.avatarUrl,
+    this.size = AppSizes.avatarSmall,
+    this.muted = false,
+  });
+
+  final String name;
+  final String? avatarUrl;
+  final double size;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final background =
+        muted ? AppStatusColor.neutral.background : AppColors.primaryContainer;
+    final foreground = muted ? AppColors.textSecondary : AppColors.primary;
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: background,
+      backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+      child: hasAvatar
+          ? null
+          : Text(
+              _initials(name),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+    );
+  }
+}
+
+/// Data e hora, local e valor, cada um com ícone, etiqueta e valor.
+class _JobFactsCard extends StatelessWidget {
+  const _JobFactsCard({
     required this.dateTimeLabel,
     required this.locationLabel,
     required this.priceLabel,
     this.onOpenMap,
+    this.muted = false,
   });
 
-  final String serviceLabel;
-  final String areaLabel;
   final String dateTimeLabel;
   final String locationLabel;
   final String priceLabel;
@@ -682,8 +875,251 @@ class _JobInformationCard extends StatelessWidget {
   /// Abre a morada exata no mapa. `null` quando não há coordenadas.
   final VoidCallback? onOpenMap;
 
+  /// Trabalho cancelado ou expirado: tudo a cinzento.
+  final bool muted;
+
   @override
   Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        children: [
+          _FactRow(
+            icon: Icons.calendar_today_outlined,
+            label: 'Data e hora',
+            value: dateTimeLabel,
+            muted: muted,
+          ),
+          const Divider(height: 1, color: AppColors.divider),
+          _FactRow(
+            icon: Icons.location_on_outlined,
+            label: 'Local',
+            value: locationLabel,
+            muted: muted,
+            action: onOpenMap == null
+                ? null
+                : _InlineLink(
+                    label: 'Abrir localização no mapa',
+                    onPressed: onOpenMap!,
+                  ),
+          ),
+          const Divider(height: 1, color: AppColors.divider),
+          _FactRow(
+            icon: Icons.euro_rounded,
+            label: 'Valor',
+            value: priceLabel,
+            muted: muted,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FactRow extends StatelessWidget {
+  const _FactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.action,
+    this.muted = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Widget? action;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: AppSizes.infoRowIcon,
+            color: muted ? AppColors.textSecondary : AppColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: textTheme.labelMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  value,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: muted ? AppColors.textSecondary : AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (action != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  action!,
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineLink extends StatelessWidget {
+  const _InlineLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        alignment: Alignment.centerLeft,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+  }
+}
+
+/// Cliente com "Falar por WhatsApp" ao lado (único contacto da app).
+class _ClientWhatsAppCard extends StatelessWidget {
+  const _ClientWhatsAppCard({
+    required this.name,
+    required this.avatarUrl,
+    required this.onWhatsApp,
+  });
+
+  final String name;
+  final String? avatarUrl;
+
+  /// `null` quando o cliente não tem telefone.
+  final VoidCallback? onWhatsApp;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final displayName = name.isNotEmpty ? name : 'Cliente';
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          _InitialsAvatar(name: displayName, avatarUrl: avatarUrl),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleSmall
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+                Text(
+                  'Cliente',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          // Em ecrãs estreitos o texto parte em duas linhas (como no
+          // design) em vez de empurrar o nome para fora.
+          Flexible(
+            child: OutlinedButton.icon(
+              onPressed: onWhatsApp,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: AppColors.divider),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.input),
+                ),
+              ),
+              icon: const Icon(
+                Icons.chat_outlined,
+                size: AppSizes.inlineIcon,
+                color: AppColors.primary,
+              ),
+              label: const Text(
+                'Falar por WhatsApp',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cartão "Equipa": vagas preenchidas, um círculo por vaga, candidatos por
+/// decidir e "Ver equipa" (lobby).
+class _TeamCard extends StatelessWidget {
+  const _TeamCard({required this.team, required this.onViewTeam});
+
+  final WorkerJobTeamViewData team;
+  final VoidCallback onViewTeam;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final pillColor = AppStatusColor.waiting;
+    final slots = [
+      for (final name in team.memberNames)
+        _InitialsAvatar(name: name, size: AppSizes.teamSlot),
+      for (var i = 0; i < team.emptySlots; i++)
+        Container(
+          width: AppSizes.teamSlot,
+          height: AppSizes.teamSlot,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.divider),
+          ),
+        ),
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -693,35 +1129,723 @@ class _JobInformationCard extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _InformationRow(label: 'Serviço', value: '$serviceLabel · $areaLabel'),
-          const SizedBox(height: AppSpacing.sm),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: AppSpacing.sm),
-          _InformationRow(label: 'Data e hora', value: dateTimeLabel),
-          const SizedBox(height: AppSpacing.sm),
-          _InformationRow(label: 'Local', value: locationLabel),
-          const SizedBox(height: AppSpacing.sm),
-          _InformationRow(label: 'Valor', value: priceLabel, highlighted: true),
-          if (onOpenMap != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onOpenMap,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.input),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Equipa',
+                  style: textTheme.titleMedium
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+              ),
+              if (team.filledLabel != null)
+                Text(
+                  team.filledLabel!,
+                  style: textTheme.labelMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+            ],
+          ),
+          if (slots.isNotEmpty || team.pendingLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
+                    children: slots,
                   ),
                 ),
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Abrir localização no mapa'),
+                if (team.pendingLabel != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: pillColor.background,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        team.pendingLabel!,
+                        textAlign: TextAlign.center,
+                        style: textTheme.labelMedium
+                            ?.copyWith(color: pillColor.foreground),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: onViewTeam,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              minimumSize: const Size.fromHeight(AppSizes.compactButtonHeight),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+            ),
+            child: const Text('Ver equipa'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso da regra do dia anterior + "Remarcar" e "Cancelar".
+class _RescheduleCancelRow extends StatelessWidget {
+  const _RescheduleCancelRow({
+    required this.reschedulePending,
+    required this.proposingReschedule,
+    required this.cancelling,
+    required this.cancelBlockedBy24h,
+    required this.rescheduleBlocked,
+    required this.onProposeReschedule,
+    required this.onCancelJob,
+  });
+
+  final bool reschedulePending;
+  final bool proposingReschedule;
+  final bool cancelling;
+  final bool cancelBlockedBy24h;
+  final bool rescheduleBlocked;
+  final VoidCallback onProposeReschedule;
+  final VoidCallback onCancelJob;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final danger = AppStatusColor.cancelled.foreground;
+    final canReschedule =
+        !(reschedulePending || proposingReschedule || rescheduleBlocked);
+    final canCancel = !(reschedulePending || cancelling || cancelBlockedBy24h);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.input),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              size: AppSizes.inlineIcon,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.',
+                style: textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
               ),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: canReschedule ? onProposeReschedule : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  backgroundColor: AppColors.surface,
+                  side: const BorderSide(color: AppColors.divider),
+                  minimumSize:
+                      const Size.fromHeight(AppSizes.compactButtonHeight),
+                  shape: shape,
+                ),
+                child: const Text('Remarcar'),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: canCancel ? onCancelJob : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: danger,
+                  backgroundColor: AppColors.surface,
+                  side: BorderSide(
+                    color: canCancel
+                        ? AppStatusColor.cancelled.background
+                        : AppColors.divider,
+                  ),
+                  minimumSize:
+                      const Size.fromHeight(AppSizes.compactButtonHeight),
+                  shape: shape,
+                ),
+                child: const Text('Cancelar'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Cancelado ou expirado (design A1, segunda coluna) ──────────────────────
+
+class _InactiveJobBody extends StatelessWidget {
+  const _InactiveJobBody({
+    required this.inactive,
+    required this.dateTimeLabel,
+    required this.priceLabel,
+    required this.clientName,
+    required this.clientAvatarUrl,
+    required this.onBrowseAvailableJobs,
+  });
+
+  final WorkerInactiveJobViewData inactive;
+  final String dateTimeLabel;
+  final String priceLabel;
+  final String clientName;
+  final String? clientAvatarUrl;
+  final VoidCallback onBrowseAvailableJobs;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final color =
+        inactive.expired ? AppStatusColor.neutral : AppStatusColor.cancelled;
+    final displayName = clientName.isNotEmpty ? clientName : 'Cliente';
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xs,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppStaggeredEntrance(
+                  index: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: color.background,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          inactive.expired
+                              ? Icons.hourglass_disabled_rounded
+                              : Icons.event_busy_outlined,
+                          color: color.foreground,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                inactive.title,
+                                style: textTheme.titleSmall
+                                    ?.copyWith(color: AppColors.textPrimary),
+                              ),
+                              if (inactive.body.isNotEmpty) ...[
+                                const SizedBox(height: AppSpacing.xxs),
+                                Text(
+                                  inactive.body,
+                                  style: textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 1,
+                  child: _JobFactsCard(
+                    dateTimeLabel: dateTimeLabel,
+                    locationLabel: inactive.areaLabel,
+                    priceLabel: priceLabel,
+                    muted: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppStaggeredEntrance(
+                  index: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        _InitialsAvatar(
+                          name: displayName,
+                          avatarUrl: clientAvatarUrl,
+                          muted: true,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                style: textTheme.titleSmall?.copyWith(
+                                    color: AppColors.textSecondary),
+                              ),
+                              Text(
+                                'Cliente',
+                                style: textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _BottomBar(
+          child: OutlinedButton(
+            onPressed: onBrowseAvailableJobs,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+            ),
+            child: const Text('Ver pedidos disponíveis'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Concluído (design A1, terceira coluna) ─────────────────────────────────
+
+class _CompletedJobBody extends StatelessWidget {
+  const _CompletedJobBody({
+    required this.data,
+    required this.completed,
+    required this.onWorkPhotoTap,
+  });
+
+  final WorkerMyJobDetailViewData data;
+  final WorkerCompletedJobViewData completed;
+  final void Function(List<String> urls, int index) onWorkPhotoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final hasPhotos = completed.beforePhotoUrls.isNotEmpty ||
+        completed.afterPhotoUrls.isNotEmpty;
+    final clientName = data.clientName.isNotEmpty ? data.clientName : 'Cliente';
+    final success = AppStatusColor.success;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppStaggeredEntrance(
+            index: 0,
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: success.background,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: AppSizes.heroIcon,
+                    color: success.foreground,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Trabalho concluído',
+                    style: textTheme.titleMedium
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                  if (completed.metaLabel.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      completed.metaLabel,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (hasPhotos) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppStaggeredEntrance(
+              index: 1,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _WorkPhotoTile(
+                      label: 'Antes',
+                      urls: completed.beforePhotoUrls,
+                      onTap: onWorkPhotoTap,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: _WorkPhotoTile(
+                      label: 'Depois',
+                      urls: completed.afterPhotoUrls,
+                      onTap: onWorkPhotoTap,
+                      highlighted: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          AppStaggeredEntrance(
+            index: 2,
+            child: Text(
+              'Avaliações',
+              style:
+                  textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          AppStaggeredEntrance(
+            index: 3,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Column(
+                children: [
+                  _RatingTargetRow(
+                    jobId: data.jobId,
+                    rateeId: data.clientId,
+                    name: clientName,
+                    avatarUrl: data.clientAvatarUrl,
+                    roleLabel: 'Cliente',
+                    actionTitle: 'Avaliar o cliente',
+                  ),
+                  for (final helper in data.helpersForRating) ...[
+                    const Divider(height: 1, color: AppColors.divider),
+                    _RatingTargetRow(
+                      jobId: data.jobId,
+                      rateeId: helper.workerId,
+                      name: helper.fullName,
+                      roleLabel: 'Ajudante',
+                      actionTitle: 'Avaliar: ${helper.fullName}',
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (completed.receivedReview != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppStaggeredEntrance(
+              index: 4,
+              child: _ReceivedReviewCard(review: completed.receivedReview!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkPhotoTile extends StatelessWidget {
+  const _WorkPhotoTile({
+    required this.label,
+    required this.urls,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  /// Proporção das miniaturas de "Antes" e "Depois" no design.
+  static const double _aspectRatio = 1.35;
+
+  final String label;
+  final List<String> urls;
+  final void Function(List<String> urls, int index) onTap;
+
+  /// "Depois" leva o verde claro enquanto não há foto.
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = urls.isNotEmpty;
+    return Semantics(
+      button: hasPhoto,
+      label: hasPhoto ? 'Fotos de $label' : 'Sem fotos de $label',
+      child: AspectRatio(
+        aspectRatio: _aspectRatio,
+        child: Material(
+          color: highlighted
+              ? AppStatusColor.success.background
+              : AppStatusColor.neutral.background,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: hasPhoto ? () => onTap(urls, 0) : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (hasPhoto)
+                  Image.network(urls.first, fit: BoxFit.cover, cacheWidth: 600),
+                Positioned(
+                  left: AppSpacing.xs,
+                  bottom: AppSpacing.xs,
+                  child: ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      decoration: hasPhoto
+                          ? BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.pill),
+                            )
+                          : null,
+                      child: Text(
+                        urls.length > 1 ? '$label · ${urls.length}' : label,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Uma linha de "Avaliações": "Avaliar o cliente" com seta enquanto falta
+/// avaliar; nome, "avaliação enviada" e estrelas depois. Mantida como
+/// ConsumerStatefulWidget auto-contido (mesma decisão do antigo
+/// _PrincipalRatingCard): evita passar o estado de cada avaliação
+/// (myRatingForJobAndRateeProvider) pelo ViewData.
+class _RatingTargetRow extends ConsumerStatefulWidget {
+  const _RatingTargetRow({
+    required this.jobId,
+    required this.rateeId,
+    required this.name,
+    required this.roleLabel,
+    required this.actionTitle,
+    this.avatarUrl,
+  });
+
+  final String jobId;
+  final String rateeId;
+  final String name;
+  final String roleLabel;
+  final String actionTitle;
+  final String? avatarUrl;
+
+  @override
+  ConsumerState<_RatingTargetRow> createState() => _RatingTargetRowState();
+}
+
+class _RatingTargetRowState extends ConsumerState<_RatingTargetRow> {
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final ratingAsync = ref.watch(
+      myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
+    );
+    final existing = ratingAsync.asData?.value;
+    final loaded = ratingAsync.hasValue;
+    final canRate = loaded && existing == null;
+
+    return Material(
+      color: canRate ? AppColors.primaryContainer : AppColors.surface,
+      child: InkWell(
+        onTap: canRate ? _showSheet : null,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            children: [
+              _InitialsAvatar(
+                name: widget.name,
+                avatarUrl: widget.avatarUrl,
+                muted: existing != null,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      existing != null ? widget.name : widget.actionTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleSmall
+                          ?.copyWith(color: AppColors.textPrimary),
+                    ),
+                    Text(
+                      existing != null
+                          ? '${widget.roleLabel} · avaliação enviada'
+                          : (widget.roleLabel == 'Cliente'
+                              ? widget.name
+                              : widget.roleLabel),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              if (existing != null)
+                Semantics(
+                  label: '${existing.stars} de 5 estrelas',
+                  child: ExcludeSemantics(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        5,
+                        (i) => Icon(
+                          i < existing.stars
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          size: AppSizes.ratingStar,
+                          color: AppColors.logoAccent,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (canRate)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSheet() async {
+    final submitted = await showSubmitRatingSheet(
+      context: context,
+      title: widget.actionTitle,
+      successMessage: 'Avaliação enviada!',
+      onSubmit: (stars, comment) async {
+        await ref.read(ratingRepositoryProvider).submitPrincipalRating(
+              jobId: widget.jobId,
+              rateeId: widget.rateeId,
+              stars: stars,
+              comment: comment,
+            );
+      },
+    );
+    if (submitted != true || !mounted) return;
+    ref.invalidate(
+      myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
+    );
+    // "O que falta fazer" do dashboard conta as avaliações dadas.
+    ref.invalidate(myRatingsGivenProvider);
+  }
+}
+
+/// "A Sofia avaliou-te com 5" e o comentário.
+class _ReceivedReviewCard extends StatelessWidget {
+  const _ReceivedReviewCard({required this.review});
+
+  final WorkerReceivedReviewViewData review;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final comment = review.comment?.trim() ?? '';
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.star_outline_rounded,
+            size: AppSizes.infoRowIcon,
+            color: AppColors.logoAccent,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${review.authorFirstName} avaliou-te com ${review.stars}',
+                  style: textTheme.titleSmall
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+                if (comment.isNotEmpty)
+                  Text(
+                    '"$comment"',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -734,12 +1858,10 @@ class _InformationRow extends StatelessWidget {
   const _InformationRow({
     required this.label,
     required this.value,
-    this.highlighted = false,
   });
 
   final String label;
   final String value;
-  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -762,10 +1884,7 @@ class _InformationRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: textTheme.bodyMedium?.copyWith(
-              color: highlighted ? AppColors.primary : AppColors.textPrimary,
-              fontWeight: highlighted ? FontWeight.w700 : null,
-            ),
+            style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
           ),
         ),
       ],
@@ -798,138 +1917,6 @@ class _HelpersActionButton extends StatelessWidget {
         icon: const Icon(Icons.group_add_outlined),
         label: const Text('Preciso de ajudantes'),
       ),
-    );
-  }
-}
-
-/// Cartão "Equipa": estado do pedido de ajudantes + "Ver equipa" (lobby).
-class _HelpTeamCard extends StatelessWidget {
-  const _HelpTeamCard({
-    required this.label,
-    required this.awaitingApproval,
-    required this.onViewTeam,
-  });
-
-  final String label;
-  final bool awaitingApproval;
-  final VoidCallback onViewTeam;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final statusColor =
-        awaitingApproval ? AppStatusColor.waiting : AppStatusColor.info;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.groups_outlined, color: statusColor.foreground),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  'Equipa',
-                  style: textTheme.titleMedium
-                      ?.copyWith(color: AppColors.textPrimary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: onViewTeam,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.input),
-              ),
-            ),
-            icon: const Icon(Icons.arrow_forward_rounded),
-            label: const Text('Ver equipa'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RescheduleCancelRow extends StatelessWidget {
-  const _RescheduleCancelRow({
-    required this.reschedulePending,
-    required this.proposingReschedule,
-    required this.cancelling,
-    required this.cancelBlockedBy24h,
-    required this.rescheduleBlocked,
-    required this.onProposeReschedule,
-    required this.onCancelJob,
-  });
-
-  final bool reschedulePending;
-  final bool proposingReschedule;
-  final bool cancelling;
-  final bool cancelBlockedBy24h;
-  final bool rescheduleBlocked;
-  final VoidCallback onProposeReschedule;
-  final VoidCallback onCancelJob;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    (reschedulePending || proposingReschedule || rescheduleBlocked)
-                        ? null
-                        : onProposeReschedule,
-                icon: const Icon(Icons.event_repeat),
-                label: const Text('Remarcar'),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: (reschedulePending || cancelling || cancelBlockedBy24h)
-                    ? null
-                    : onCancelJob,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppStatusColor.cancelled.foreground,
-                ),
-                icon: const Icon(Icons.close),
-                label: const Text('Cancelar'),
-              ),
-            ),
-          ],
-        ),
-        if (cancelBlockedBy24h || rescheduleBlocked) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.',
-            textAlign: TextAlign.center,
-            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ],
     );
   }
 }
@@ -973,7 +1960,7 @@ class _RescheduleBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   proposedByMe
-                      ? 'Aguarda resposta à remarcação que propuseste para $label'
+                      ? 'À espera de resposta à remarcação que propuseste para $label'
                           .trim()
                       : 'O cliente propôs remarcar para $label'.trim(),
                   style: textTheme.bodyMedium?.copyWith(color: color.foreground),
@@ -1089,7 +2076,7 @@ class _ClientContactCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: phone.isEmpty ? null : onCallPressed,
             icon: const Icon(Icons.chat_outlined),
-            label: const Text('Contactar via WhatsApp'),
+            label: const Text('Falar por WhatsApp'),
           ),
         ],
       ),
@@ -1259,180 +2246,107 @@ class _ProposalSummaryCard extends StatelessWidget {
   }
 }
 
-class _CompletedSection extends StatelessWidget {
-  const _CompletedSection({
-    required this.jobId,
-    required this.clientId,
-    required this.helpers,
-  });
 
-  final String jobId;
-  final String clientId;
-  final List<AcceptedHelper> helpers;
+/// "Tempo em curso" (design 7): relógio a contar desde o início, com a hora
+/// de início e a estimativa da proposta. Atualiza de segundo a segundo.
+class _WorkTimerCard extends StatefulWidget {
+  const _WorkTimerCard({required this.startedAt, this.estimatedHoursLabel});
+
+  final DateTime startedAt;
+  final String? estimatedHoursLabel;
+
+  @override
+  State<_WorkTimerCard> createState() => _WorkTimerCardState();
+}
+
+class _WorkTimerCardState extends State<_WorkTimerCard> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  static String _clock(Duration d) {
+    final seconds = d.isNegative ? 0 : d.inSeconds;
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '$h:${two(m)}:${two(s)}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    const color = AppStatusColor.info;
+    final started = widget.startedAt.toLocal();
+    final startedLabel =
+        'Iniciado às ${started.hour.toString().padLeft(2, '0')}:${started.minute.toString().padLeft(2, '0')}';
+    final elapsed = DateTime.now().difference(widget.startedAt);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _InfoBanner(
-          icon: Icons.task_alt_rounded,
-          color: AppStatusColor.success,
-          message: 'Trabalho concluído. Obrigado pelo teu trabalho!',
+    return Semantics(
+      label: 'Tempo em curso',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: color.background,
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Deixa a tua avaliação',
-          style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _PrincipalRatingCard(
-          jobId: jobId,
-          rateeId: clientId,
-          title: 'Avaliar o cliente',
-          submittedLabel: 'Cliente avaliado ✓',
-        ),
-        for (final helper in helpers)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: _PrincipalRatingCard(
-              jobId: jobId,
-              rateeId: helper.workerId,
-              title: 'Avaliar: ${helper.fullName}',
-              submittedLabel: '${helper.fullName} avaliado ✓',
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Mantido como ConsumerStatefulWidget auto-contido (mesma decisão já usada
-/// para _RatingChip noutros ecrãs) — evita ter de threading do estado de
-/// avaliação (myRatingForJobAndRateeProvider) através do ViewData.
-class _PrincipalRatingCard extends ConsumerStatefulWidget {
-  const _PrincipalRatingCard({
-    required this.jobId,
-    required this.rateeId,
-    required this.title,
-    required this.submittedLabel,
-  });
-
-  final String jobId;
-  final String rateeId;
-  final String title;
-  final String submittedLabel;
-
-  @override
-  ConsumerState<_PrincipalRatingCard> createState() {
-    return _PrincipalRatingCardState();
-  }
-}
-
-class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ratingAsync = ref.watch(
-      myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
-    );
-
-    return ratingAsync.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (existing) {
-        if (existing != null) {
-          return Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.primary,
-                  size: 18,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    widget.submittedLabel,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.textPrimary),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tempo em curso',
+                    style: textTheme.labelMedium
+                        ?.copyWith(color: color.foreground),
                   ),
-                ),
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => Icon(
-                      i < existing.stars
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 16,
-                      color: Colors.amber,
+                  const SizedBox(height: AppSpacing.xxs),
+                  ExcludeSemantics(
+                    child: Text(
+                      _clock(elapsed),
+                      style: textTheme.displaySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  startedLabel,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
                 ),
+                if (widget.estimatedHoursLabel != null)
+                  Text(
+                    'Estimado ${widget.estimatedHoursLabel}',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
               ],
             ),
-          );
-        }
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.title,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.textPrimary),
-                ),
-              ),
-              FilledButton.tonal(
-                onPressed: _showSheet,
-                child: const Text('Avaliar'),
-              ),
-            ],
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
-  }
-
-  Future<void> _showSheet() async {
-    final submitted = await showSubmitRatingSheet(
-      context: context,
-      title: widget.title,
-      successMessage: 'Avaliação enviada!',
-      onSubmit: (stars, comment) async {
-        await ref.read(ratingRepositoryProvider).submitPrincipalRating(
-              jobId: widget.jobId,
-              rateeId: widget.rateeId,
-              stars: stars,
-              comment: comment,
-            );
-      },
-    );
-    if (submitted != true || !mounted) return;
-    ref.invalidate(
-      myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
-    );
-    // "O que falta fazer" do dashboard conta as avaliações dadas.
-    ref.invalidate(myRatingsGivenProvider);
   }
 }

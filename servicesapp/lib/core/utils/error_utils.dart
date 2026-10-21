@@ -44,13 +44,13 @@ String friendlyError(Object e) {
       msg.contains('rate_limit') ||
       msg.contains('over_request_rate_limit') ||
       msg.contains('over_email_send_rate_limit')) {
-    return 'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.';
+    return 'Demasiadas tentativas. Espera alguns minutos e tenta novamente.';
   }
 
   // Limite anti-spam da policy de INSERT de job_requests (migration 0042):
   // é a única razão realista para a RLS recusar um pedido criado pela app.
   if (msg.contains('row-level security') && msg.contains('job_requests')) {
-    return 'Já criaste vários pedidos na última hora. Aguarda um pouco e tenta novamente.';
+    return 'Já criaste vários pedidos na última hora. Espera um pouco e tenta novamente.';
   }
   // Validações novas das RPCs (migration 0042): a mensagem já é para o
   // utilizador.
@@ -77,7 +77,7 @@ String friendlyError(Object e) {
     if (msg.contains('sem remarcação')) {
       return 'Esta remarcação já foi respondida. Atualiza o pedido.';
     }
-    return 'Já existe uma remarcação pendente. Aguarda a resposta.';
+    return 'Já existe uma remarcação pendente. Espera pela resposta.';
   }
 
   // Genéricos
@@ -106,7 +106,7 @@ String friendlyError(Object e) {
       msg.contains('not authorized') ||
       msg.contains('invalid state') ||
       msg.contains('estado inválido')) {
-    return 'Esta ação já não é válida — o estado do pedido pode ter mudado. Atualiza e tenta novamente.';
+    return 'Esta ação já não é válida. O estado do pedido pode ter mudado. Atualiza e tenta novamente.';
   }
 
   return 'Ocorreu um erro inesperado. Tenta novamente.';

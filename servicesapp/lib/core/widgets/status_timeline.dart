@@ -103,7 +103,7 @@ List<Widget> _timelineDetailLines(ThemeData theme, List<StatusTimelineStepData> 
     final noteColor =
         step.noteIsWarning ? AppStatusColor.waiting : AppStatusColor.success;
     lines.add(Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 3),
       decoration: BoxDecoration(
         color: noteColor.background,
         borderRadius: BorderRadius.circular(8),
@@ -203,7 +203,7 @@ class _StatusTimelineHorizontalState extends State<StatusTimelineHorizontal> {
         if (detailLines.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
           for (final line in detailLines)
-            Padding(padding: const EdgeInsets.only(top: 4), child: line),
+            Padding(padding: const EdgeInsets.only(top: AppSpacing.xxs), child: line),
         ],
       ],
     );
@@ -303,7 +303,7 @@ class _HorizontalTimelineNodeState extends State<_HorizontalTimelineNode>
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.s6),
           Text(
             step.label,
             textAlign: TextAlign.center,

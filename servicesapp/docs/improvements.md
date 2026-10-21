@@ -10,6 +10,32 @@
 
 ---
 
+## ✅ Revisão de 2026-10-18 — itens que já estavam resolvidos
+
+Confirmado por leitura do código e das migrations (não de memória):
+
+| Item | Onde foi resolvido |
+|---|---|
+| **SA3** upload para qualquer path | Baseline `0001`: INSERT em `avatars` exige nome do ficheiro = `auth.uid()`; em `job-photos` exige a 1.ª pasta = `auth.uid()` |
+| **SA2** avaliações por REST direto | `0042` (S4): policy de INSERT direto em `ratings` apagada (só as RPCs `submit_*_rating`, que validam a participação) e pedidos só nascem `open` |
+| **SA1** `auto_confirm`/`auto_expire` chamáveis | `0042` e `0046`/`0049`: `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` |
+| **M4** CHECKs `people_needed`/`slots_needed` | Já na baseline `0001` (`check_people_needed`, `check_slots_needed`) |
+| **Contacto do principal para ajudantes** | `principalPhone` no ecrã do ajudante e na lista de candidaturas (0048/0049) |
+| **P-8-8** cancelados em `open` no histórico | Decidido e feito a 2026-10-18: aparecem em Histórico |
+| **P1/A1** labels de `JobStatus` duplicados | `JobStatus.presentation(...)` em `app_status_presenters.dart`, os `_statusChip` antigos já não existem |
+| **P3** `Colors.orange`/`Colors.red` soltos | 2026-10-18: erros com `AppStatusColor.cancelled.foreground`, notificações com `AppStatusColor`, estrelas com `AppColors.logoAccent` |
+| **P4** wildcard `_statusLabel` | O código já não existe |
+| **P7** `architecture.md` obsoleto | Substituído pelo `ARCHITECTURE.md` de 2026-10-16 (extraído do código) |
+| **M4 radius** constantes no AppTheme | `AppRadius` (input 12, card 16, pill 999) |
+
+Ainda abertos de verdade: FCM e OAuth (só falta configurar, ver `SETUP.md` passos 4 e 7),
+WEB-1, e os itens pós-lançamento. As cores das marcas Google e Facebook dos botões de login
+social vivem em `AppColors` (`googleBlue`..., `facebookBlue`). Os botões de
+remover foto (26 px) e de contar ajudantes (36 px) estão abaixo dos 48 px recomendados
+para toque; fica para quando houver revisão visual desses ecrãs.
+
+---
+
 ## 🗺️ Roadmap limpo — 2026-07-09
 
 > Para o roadmap completo e análise de segurança, ver `docs/STATUS.md`.
@@ -22,7 +48,9 @@
 | **SA3** fix: Storage INSERT path restriction | Qualquer autenticado pode fazer upload para qualquer path de avatar | S | migration (manual apply) |
 | **SA2** fix: ratings INSERT com verificação de participação | Bypass REST permite inserir avaliação para qualquer job | M | migration (manual apply) |
 | **Contacto do worker principal para ajudantes** | Ajudantes veem o nome mas não o telefone do principal — regra de negócio implementada pela metade | S | nenhuma |
-- **OAuth** (Google/Apple login) (Facebook login): Tem de ser implementado
+- **OAuth** Google e Facebook: ✅ código feito a 2026-10-18, falta configurar (`SETUP.md` passo 7).
+  Apple login fica por fazer: só é obrigatório na App Store se houver outro login social
+  na app iOS (regra 4.8 da Apple), por isso entra quando se publicar no iPhone.
 
 ### 🟡 MÉDIO — polish antes do lançamento mais amplo
 

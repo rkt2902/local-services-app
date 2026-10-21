@@ -91,7 +91,7 @@ class _WorkerHelpRequestsLobbyScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;
@@ -106,7 +106,7 @@ class _WorkerHelpRequestsLobbyScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;
@@ -270,6 +270,7 @@ class _WorkerHelpRequestsLobbyScreenState
           filledPlacesLabel:
               '${accepted.length} de ${hr.slotsNeeded} vaga${hr.slotsNeeded == 1 ? '' : 's'} '
               'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
+          filledCountLabel: '${accepted.length} de ${hr.slotsNeeded}',
           filledProgress: hr.slotsNeeded == 0 ? 0 : accepted.length / hr.slotsNeeded,
           acceptedHelpers: accepted
               .map((c) => WorkerAcceptedHelperViewData(
@@ -300,7 +301,7 @@ class _WorkerHelpRequestsLobbyScreenState
               actionsBlocked: isFilled || isAwaitingApproval,
               blockedReasonLabel: isFilled
                   ? 'Vagas já preenchidas.'
-                  : (isAwaitingApproval ? 'Aguarda aprovação do cliente.' : null),
+                  : (isAwaitingApproval ? 'À espera de aprovação do cliente.' : null),
               acceptance: AcceptHelperViewData(
                 initialRateInput: decimalLabel(suggested, 2),
                 suggestedRateLabel: 'Sugerido: ${hourlyRateLabel(suggested)}',

@@ -1,3 +1,5 @@
+import 'worker_showcase.dart';
+
 class WorkerProfile {
   final String profileId;
   final String fullName;
@@ -12,6 +14,13 @@ class WorkerProfile {
   final List<String> tools;
   final List<String> serviceTypeIds;
 
+  /// Destaques e links do perfil (0051). Só são gravados quando a linha
+  /// lida da BD já tinha estas colunas ([showcaseSupported]): assim a app
+  /// nova continua a gravar o resto do perfil antes de a 0051 ser aplicada.
+  final List<String> highlights;
+  final List<WorkerSocialLink> socialLinks;
+  final bool showcaseSupported;
+
   const WorkerProfile({
     required this.profileId,
     required this.fullName,
@@ -25,6 +34,9 @@ class WorkerProfile {
     this.locationName = '',
     required this.tools,
     required this.serviceTypeIds,
+    this.highlights = const [],
+    this.socialLinks = const [],
+    this.showcaseSupported = false,
   });
 
   factory WorkerProfile.fromJson(
@@ -47,6 +59,10 @@ class WorkerProfile {
         locationName: json['location_name'] as String? ?? '',
         tools: List<String>.from(json['tools'] as List? ?? []),
         serviceTypeIds: serviceTypeIds,
+        highlights: highlightsFromJson(json['highlights']),
+        socialLinks: WorkerSocialLink.listFromJson(json['social_links']),
+        showcaseSupported: json.containsKey('highlights') &&
+            json.containsKey('social_links'),
       );
 
   Map<String, dynamic> toWorkerJson() => {
@@ -57,6 +73,10 @@ class WorkerProfile {
         'base_lng': baseLng,
         'tools': tools,
         if (locationName.isNotEmpty) 'location_name': locationName,
+        if (showcaseSupported) ...{
+          'highlights': highlights,
+          'social_links': socialLinks.map((l) => l.toJson()).toList(),
+        },
       };
 
   WorkerProfile copyWith({
@@ -71,6 +91,8 @@ class WorkerProfile {
     String? locationName,
     List<String>? tools,
     List<String>? serviceTypeIds,
+    List<String>? highlights,
+    List<WorkerSocialLink>? socialLinks,
   }) =>
       WorkerProfile(
         profileId: profileId,
@@ -85,5 +107,8 @@ class WorkerProfile {
         locationName: locationName ?? this.locationName,
         tools: tools ?? this.tools,
         serviceTypeIds: serviceTypeIds ?? this.serviceTypeIds,
+        highlights: highlights ?? this.highlights,
+        socialLinks: socialLinks ?? this.socialLinks,
+        showcaseSupported: showcaseSupported,
       );
 }

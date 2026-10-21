@@ -44,6 +44,22 @@ class JobRequest {
   /// como concluído (opcional, migration 0046).
   final String? completionPhotoPath;
 
+  /// Quando o jardineiro carregou em "Iniciar trabalho" (migration 0052).
+  /// Com o pedido `confirmed`, preenchido quer dizer "Em curso".
+  final DateTime? startedAt;
+
+  /// Fotos de "antes" (ao iniciar) e de "depois" (ao concluir), caminhos no
+  /// bucket `job-photos`, até 3 cada (migration 0052).
+  final List<String> beforePhotoPaths;
+  final List<String> afterPhotoPaths;
+
+  /// Quando o jardineiro marcou como concluído (migration 0046).
+  final DateTime? markedDoneAt;
+
+  /// Última alteração da linha. Num pedido cancelado ou concluído é,
+  /// na prática, quando isso aconteceu (não há `cancelled_at`).
+  final DateTime? updatedAt;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -80,7 +96,21 @@ class JobRequest {
     this.cancelledWorkerId,
     this.excludedWorkerIds = const [],
     this.completionPhotoPath,
+    this.startedAt,
+    this.beforePhotoPaths = const [],
+    this.updatedAt,
+    this.afterPhotoPaths = const [],
+    this.markedDoneAt,
   });
+
+  /// `confirmed` com início marcado: o trabalho está a decorrer.
+  bool get isInProgress => status == JobStatus.confirmed && startedAt != null;
+
+  /// Tempo entre o início e a marcação de concluído; `null` sem um dos dois.
+  Duration? get workedDuration =>
+      (startedAt != null && markedDoneAt != null)
+          ? markedDoneAt!.difference(startedAt!)
+          : null;
 
   factory JobRequest.fromJson(Map<String, dynamic> json) => JobRequest(
         id: json['id'] as String,
@@ -131,6 +161,19 @@ class JobRequest {
         cancelledWorkerId: json['cancelled_worker_id'] as String?,
         excludedWorkerIds: List<String>.from(json['excluded_worker_ids'] as List? ?? []),
         completionPhotoPath: json['completion_photo_path'] as String?,
+        startedAt: json['started_at'] != null
+            ? DateTime.parse(json['started_at'] as String)
+            : null,
+        beforePhotoPaths:
+            List<String>.from(json['before_photo_paths'] as List? ?? const []),
+        afterPhotoPaths:
+            List<String>.from(json['after_photo_paths'] as List? ?? const []),
+        markedDoneAt: json['marked_done_at'] != null
+            ? DateTime.parse(json['marked_done_at'] as String)
+            : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'] as String)
+            : null,
       );
 
   JobRequest copyWith({
@@ -169,6 +212,11 @@ class JobRequest {
     String? cancelledWorkerId,
     List<String>? excludedWorkerIds,
     String? completionPhotoPath,
+    DateTime? startedAt,
+    List<String>? beforePhotoPaths,
+    List<String>? afterPhotoPaths,
+    DateTime? markedDoneAt,
+    DateTime? updatedAt,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -209,5 +257,10 @@ class JobRequest {
         cancelledWorkerId: cancelledWorkerId ?? this.cancelledWorkerId,
         excludedWorkerIds: excludedWorkerIds ?? this.excludedWorkerIds,
         completionPhotoPath: completionPhotoPath ?? this.completionPhotoPath,
+        startedAt: startedAt ?? this.startedAt,
+        beforePhotoPaths: beforePhotoPaths ?? this.beforePhotoPaths,
+        afterPhotoPaths: afterPhotoPaths ?? this.afterPhotoPaths,
+        markedDoneAt: markedDoneAt ?? this.markedDoneAt,
+        updatedAt: updatedAt ?? this.updatedAt,
       );
 }

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../notifications/application/push_notification_service.dart';
 import '../application/auth_providers.dart';
 import '../application/session_provider.dart';
@@ -14,18 +16,19 @@ import '../application/session_provider.dart';
 /// (migration 0049 por aplicar).
 const _deleteUnavailableMessage =
     'Ainda não é possível eliminar a conta pela app. Tenta mais tarde ou '
-    'fala connosco em "Contacto & suporte".';
+    'fala connosco em "Contacto e suporte".';
 
 /// "Eliminar conta" com confirmação em dois passos, partilhado pela conta
 /// do cliente e pela do jardineiro.
 ///
-/// 1. Explica o que acontece (dados pessoais apagados, avaliações
-///    anónimas, trabalhos em curso primeiro, sem volta atrás).
-/// 2. Confirmação final, onde corre o pedido ao servidor. Uma recusa (ex.:
+/// 1. Explica o que acontece (dados pessoais apagados, avaliações como
+///    "Conta eliminada", trabalhos em curso primeiro).
+/// 2. Confirmação final ("Não dá para desfazer."), onde corre o pedido ao servidor. Uma recusa (ex.:
 ///    trabalho em curso) aparece dentro do próprio diálogo.
 ///
 /// Se correr bem: fecha a sessão neste dispositivo, vai para `/` e avisa.
-Future<void> confirmAndDeleteAccount(BuildContext context, WidgetRef ref) async {
+Future<void> confirmAndDeleteAccount(
+    BuildContext context, WidgetRef ref) async {
   final proceed = await showDialog<bool>(
     context: context,
     builder: (dialogCtx) => const _ExplainDialog(),
@@ -74,63 +77,68 @@ class _ExplainDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    const points = [
-      'Os teus dados pessoais (nome, telefone e foto) são apagados.',
-      'As avaliações que deste e recebeste ficam, mas anónimas.',
-      'Trabalhos em curso têm de estar concluídos ou cancelados antes.',
-      'Não dá para desfazer.',
-    ];
-    return AlertDialog(
-      title: const Text('Eliminar conta?'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Antes de continuares, vê o que acontece:',
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-            for (final point in points) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '•',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      point,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Voltar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: TextButton.styleFrom(
-            foregroundColor: AppStatusColor.cancelled.foreground,
+    // O que `delete_my_account` (0049) faz: anonimiza o perfil, o nome
+    // passa a "Conta eliminada" e recusa se houver trabalhos em curso.
+    return AppConfirmDialog(
+      icon: null,
+      title: 'Eliminar conta?',
+      stepLabel: '1/2',
+      confirmLabel: 'Continuar',
+      destructive: true,
+      outlinedConfirm: true,
+      onConfirm: () => Navigator.pop(context, true),
+      onCancel: () => Navigator.pop(context, false),
+      details: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ImpactRow(
+            icon: Icons.delete_outline_rounded,
+            color: AppStatusColor.cancelled.foreground,
+            label: 'Os teus dados pessoais são apagados.',
           ),
-          child: const Text('Continuar'),
+          const SizedBox(height: AppSpacing.sm),
+          _ImpactRow(
+            icon: Icons.visibility_off_outlined,
+            color: AppStatusColor.neutral.foreground,
+            label: 'As avaliações ficam como "Conta eliminada".',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ImpactRow(
+            icon: Icons.pending_actions_outlined,
+            color: AppStatusColor.waiting.foreground,
+            label: 'Os trabalhos em curso têm de estar fechados.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImpactRow extends StatelessWidget {
+  const _ImpactRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: AppSizes.inlineIcon, color: color),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
         ),
       ],
     );
@@ -172,52 +180,17 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final danger = AppStatusColor.cancelled.foreground;
-    return AlertDialog(
-      title: const Text('Tens a certeza?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'A tua conta vai ser eliminada de vez e deixas de conseguir '
-            'entrar com este email.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              _error!,
-              style: textTheme.bodyMedium?.copyWith(color: danger),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: _deleting ? null : () => Navigator.pop(context, false),
-          child: const Text('Voltar'),
-        ),
-        FilledButton(
-          onPressed: _deleting ? null : _delete,
-          style: FilledButton.styleFrom(
-            backgroundColor: danger,
-            foregroundColor: AppColors.surface,
-          ),
-          child: _deleting
-              ? SizedBox.square(
-                  dimension: AppSpacing.md,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: danger,
-                  ),
-                )
-              : const Text('Eliminar conta'),
-        ),
-      ],
+    return AppConfirmDialog(
+      icon: null,
+      title: 'Tens a certeza?',
+      stepLabel: '2/2',
+      message: 'Não dá para desfazer.',
+      confirmLabel: 'Eliminar conta',
+      destructive: true,
+      isSubmitting: _deleting,
+      errorText: _error,
+      onConfirm: _delete,
+      onCancel: () => Navigator.pop(context, false),
     );
   }
 }

@@ -8,7 +8,7 @@ import '../constants/enums.dart';
 /// Extraído de `worker_job_detail_screen.dart` (`_deadlineLabel`) para
 /// `core/utils/` quando passou a ser usado também em
 /// `client_jobs_screen.dart` — 2+ features, por isso deixa de ser privado
-/// de um ecrã (ver architecture.md: "core/ só para o que é partilhado por
+/// de um ecrã (ver ARCHITECTURE.md: "core/ só para o que é partilhado por
 /// 2+ features"). Recebe os dois campos em bruto (não um `JobRequest`)
 /// para não obrigar `core/` a depender do model da feature `jobs`.
 ///
@@ -36,4 +36,35 @@ String jobDeadlineLabel(
       final text = availabilityText?.trim() ?? '';
       return text.isEmpty ? 'Ver disponibilidade' : text;
   }
+}
+
+const _weekdayNames = [
+  'Segunda',
+  'Terça',
+  'Quarta',
+  'Quinta',
+  'Sexta',
+  'Sábado',
+  'Domingo',
+];
+
+/// "Sábado, 25/10" (dia da semana + dia/mês), como no campo de data do
+/// design U3. Junta o ano só quando não é o ano de [now].
+String weekdayDateLabel(DateTime date, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final weekday = _weekdayNames[date.weekday - 1];
+  final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
+  return '$weekday, ${DateFormat(pattern).format(date)}';
+}
+
+const _weekdayShortNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+/// "Qui, 23/10" (dia da semana abreviado + dia/mês), como no detalhe do
+/// trabalho do jardineiro (design A1). Junta o ano só quando não é o ano
+/// de [now].
+String shortWeekdayDateLabel(DateTime date, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final weekday = _weekdayShortNames[date.weekday - 1];
+  final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
+  return '$weekday, ${DateFormat(pattern).format(date)}';
 }

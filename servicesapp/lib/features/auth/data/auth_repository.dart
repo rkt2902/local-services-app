@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/constants/password_policy.dart';
@@ -13,6 +14,12 @@ abstract final class PasswordResetErrorCode {
   static const invalidCode = 'app_invalid_code';
   static const unexpected = 'app_unexpected_error';
 }
+
+/// Foto do Google em tamanho maior: o URL que o Google dá termina em
+/// `=s96-c` (96 px), demasiado pequeno para o avatar do perfil.
+@visibleForTesting
+String socialAvatarSourceUrl(String url) =>
+    url.replaceFirst(RegExp(r'=s\d+-c$'), '=s400-c');
 
 class AuthRepository {
   final SupabaseClient _client;
@@ -43,14 +50,89 @@ class AuthRepository {
     required String fullName,
     required String phone,
     required UserRole role,
+    String? avatarUrl,
   }) async {
     await _client.from('profiles').upsert({
       'id': userId,
       'full_name': fullName,
       'phone': phone,
       'role': role.value,
+      'avatar_url': ?avatarUrl,
     });
   }
+
+  // ── Login com Google / Facebook (OAuth do Supabase) ───────────────────
+  //
+  // Um só caminho para os dois e para todas as plataformas: o Supabase
+  // abre a página do Google/Facebook (no browser, na web na própria aba)
+  // e devolve a sessão por redirect. A sessão chega por
+  // `onAuthStateChange` e o router trata do resto: conta nova sem perfil
+  // vai para /choose-role, conta existente para o início do papel.
+  // Configuração (Google Cloud, app do Facebook, Supabase): docs/SETUP.md.
+
+  /// Deep link de volta nas apps Android/iOS. Tem de estar nos "Redirect
+  /// URLs" do Supabase e registado no AndroidManifest e no Info.plist.
+  static const nativeOAuthCallback = 'pt.projardim.app://login-callback';
+
+  /// Abre o login do [provider]. Na web, [returnTo] (destino guardado em
+  /// `?from=`) volta no redirect; nas apps o deep link não o leva.
+  Future<void> signInWithSocial(
+    OAuthProvider provider, {
+    String? returnTo,
+  }) async {
+    final String redirectTo;
+    if (kIsWeb) {
+      final query = returnTo == null || returnTo.isEmpty
+          ? ''
+          : '?from=${Uri.encodeComponent(returnTo)}';
+      redirectTo = '${Uri.base.origin}/$query';
+    } else {
+      redirectTo = nativeOAuthCallback;
+    }
+    await _client.auth.signInWithOAuth(
+      provider,
+      redirectTo: redirectTo,
+      // Facebook: o email não vem sem pedir explicitamente.
+      scopes: provider == OAuthProvider.facebook
+          ? 'email public_profile'
+          : null,
+    );
+  }
+
+  /// Copia a foto da conta Google/Facebook para o Storage do projeto
+  /// (`avatars/<id>.jpg`), porque a app só mostra fotos do próprio Storage
+  /// (`StorageUrls`). Melhor esforço: devolve `null` se falhar (rede, CORS
+  /// na web, ficheiro estranho) e a pessoa fica sem foto, como no registo
+  /// por email; pode pôr uma depois em Editar perfil.
+  Future<String?> importSocialAvatar(String userId, String sourceUrl) async {
+    try {
+      final uri = Uri.tryParse(socialAvatarSourceUrl(sourceUrl));
+      if (uri == null || uri.scheme != 'https') return null;
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final contentType = response.headers['content-type'] ?? '';
+      final bytes = response.bodyBytes;
+      if (!contentType.startsWith('image/') ||
+          bytes.isEmpty ||
+          bytes.length > _maxSocialAvatarBytes) {
+        return null;
+      }
+      final path = '$userId.jpg';
+      final bucket = _client.storage.from('avatars');
+      await bucket.uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(upsert: true, contentType: contentType),
+      );
+      final url = bucket.getPublicUrl(path);
+      return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
+    } catch (e) {
+      debugPrint('importSocialAvatar falhou: $e');
+      return null;
+    }
+  }
+
+  static const _maxSocialAvatarBytes = 5 * 1024 * 1024;
 
   Future<({String fullName, String phone})?> fetchNameAndPhone(
       String userId) async {
@@ -229,7 +311,7 @@ class AuthRepository {
     }
     if (code == 'over_request_rate_limit' || code == 'over_email_send_rate_limit') {
       throw AuthException(
-        'Demasiadas tentativas. Aguarda alguns minutos e tenta novamente.',
+        'Demasiadas tentativas. Espera alguns minutos e tenta novamente.',
         code: PasswordResetErrorCode.unexpected,
       );
     }

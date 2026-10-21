@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_spacing.dart';
 
 class AddressMapLink extends StatelessWidget {
   const AddressMapLink({
@@ -33,7 +34,7 @@ class AddressMapLink extends StatelessWidget {
       onTap: _openMaps,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.s6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -42,7 +43,7 @@ class AddressMapLink extends StatelessWidget {
               size: 20,
               color: theme.colorScheme.primary,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

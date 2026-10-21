@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_motion_tokens.dart';
+import '../../../../core/theme/app_spacing.dart';
 
 class OnboardingPageIndicator extends StatelessWidget {
   const OnboardingPageIndicator({
@@ -30,7 +31,7 @@ class OnboardingPageIndicator extends StatelessWidget {
         return AnimatedContainer(
           duration: transitionDuration,
           curve: AppMotionCurve.standard,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
           width: isActive ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(

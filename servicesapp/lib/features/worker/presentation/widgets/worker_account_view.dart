@@ -73,9 +73,10 @@ class WorkerAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',
-          style: textTheme.titleLarge?.copyWith(
+          style: textTheme.displaySmall?.copyWith(
             color: AppColors.textPrimary,
           ),
         ),
@@ -225,7 +226,7 @@ class WorkerAccountScreen extends StatelessWidget {
                   ),
                   AppAccountMenuItem(
                     id: 'support',
-                    label: 'Contacto & suporte',
+                    label: 'Contacto e suporte',
                     icon: Icons.support_agent_outlined,
                   ),
                   AppAccountMenuItem(
@@ -257,11 +258,12 @@ class WorkerAccountScreen extends StatelessWidget {
                     id: 'sign_out',
                     label: 'Terminar sessão',
                     icon: Icons.logout_rounded,
+                    destructive: true,
                   ),
                   AppAccountMenuItem(
                     id: 'delete_account',
                     label: 'Eliminar conta',
-                    icon: Icons.delete_forever_outlined,
+                    icon: Icons.delete_outline_rounded,
                     destructive: true,
                   ),
                 ],

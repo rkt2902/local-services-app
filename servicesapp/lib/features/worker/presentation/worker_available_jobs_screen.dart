@@ -17,6 +17,7 @@ import '../../notifications/application/notification_providers.dart';
 import '../application/worker_providers.dart';
 import '../data/worker_profile_model.dart';
 import 'widgets/worker_available_jobs_view.dart' as view;
+import '../../../core/theme/app_spacing.dart';
 
 /// Lista de jobs disponíveis no raio do worker ("Pedidos disponíveis").
 ///
@@ -60,7 +61,7 @@ class _WorkerAvailableJobsScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.s20, AppSpacing.lg, AppSpacing.xxs),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Distância', style: Theme.of(ctx).textTheme.titleLarge),
@@ -78,7 +79,7 @@ class _WorkerAvailableJobsScreenState
                     : null,
                 onTap: () => Navigator.pop(ctx, radiusKm),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.xs),
           ],
         ),
       ),
@@ -239,6 +240,7 @@ class _NotificationButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(unreadCountProvider);
     return IconButton(
+      tooltip: 'Notificações',
       icon: Badge(
         label: Text('$count'),
         isLabelVisible: count > 0,

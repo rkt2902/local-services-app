@@ -3,6 +3,312 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-19 — Notificações (A4)
+
+- **Uma vista para os dois papéis:** `core/widgets/app_notifications_view.dart` só desenha;
+  `notifications_screen.dart` liga `allNotificationsProvider` e a apresentação vem de
+  `notifications/application/notification_presentation.dart` (funções puras).
+- **Ícone e tom por tipo** pela legenda do design, só com os cinco tons: success (proposta,
+  aceite, lembrete do dia, concluído), waiting (candidato, nova data), info (editado,
+  trabalho feito, pedido de ajudantes, iniciado, pedido novo na zona), cancelled (cancelado,
+  retirado da equipa), neutral (expirado, não escolhido, retirado). Não lida é o fundo verde
+  claro e o ponto, não um tom.
+- **"(Serviço, dd/mm)" no título:** a 0049 já grava esse contexto no fim do corpo; a app
+  muda-o para o título, nas notificações antigas e novas, sem migration. As de hoje levam
+  "Há 10 min" no fim do corpo; as outras ficam pela secção (Hoje, Ontem, Mais antigas).
+- **Filtro "Trabalhos"** deixa de fora as oportunidades novas (pedido novo na zona, vaga de
+  ajudante reaberta). As contagens são das 50 mais recentes que a app carrega.
+- **Secções como um cartão com linhas**, como no design. "Marcar todas como lidas" deixou de
+  ser otimista: espera pelo servidor e pela lista nova.
+- **"Confirmar conclusão"** aparece no aviso de trabalho feito enquanto não foi lido e abre o
+  pedido (onde se veem as fotos antes de confirmar), o mesmo destino do toque.
+- **Mantido fora do design:** o ecrã continua fora do ShellRoute (sub-fluxo com voltar),
+  como antes; "Alertas" na barra do cliente continua a abri-lo por cima.
+
+## 2026-10-19 — Propostas recebidas do cliente (A3)
+
+- **Ecrã separado em vista e integração:** `widgets/client_proposals_view.dart` só desenha
+  (lista, estados e a folha); `client_proposals_screen.dart` lê os providers, ordena e
+  formata com as funções puras de `application/client_proposal_labels.dart`.
+- **Valor grande = total estimado com a equipa incluída** ("24 a 48 €", ou "48 €" com uma só
+  estimativa de horas); por baixo as horas e o preço por hora ("2 a 4h · 12,00 €/h"), que é o
+  compromisso real do jardineiro. Sem horas mostra só o preço por hora. A lista ordena por
+  esse mesmo total mínimo (antes ignorava a equipa); `compareByEstimatedPrice` saiu.
+- **Data:** dia da semana e hora exata ("Qui, 23/10 · 9:00"), não manhã/tarde como no
+  design, porque a proposta guarda a hora; sem data, "Data a combinar com o jardineiro".
+- **"Recomendada"** continua a ser só destaque (borda e chip verde, botão "Escolher" cheio),
+  pela mesma regra: melhor média com pelo menos 3 avaliações.
+- **Folha:** `AppSheet` com resumo, três linhas fixas e "Aceitar proposta · valor". Fecha só
+  depois de o servidor aceitar; erro fica dentro da folha; proposta indisponível troca a
+  folha pelo aviso "Esta proposta já não está disponível" com "Ver propostas".
+  `AppSheet.show` ganhou `enableDrag` para não se fechar a meio do pedido.
+- **Texto do pagamento adaptado:** "Pagas diretamente ao jardineiro, depois de confirmares que
+  o trabalho está feito", porque a app não trata pagamentos.
+- **Mantido fora do design:** a nota que o jardineiro escreve na proposta (até 2 linhas).
+
+## 2026-10-19 — Os meus trabalhos do jardineiro (A2)
+
+- **Três tabs montadas ao mesmo tempo** (`IndexedStack`, uma `PageStorageKey` por tab) em
+  vez do fade: cada tab guarda o scroll e pagina por si. Os rótulos chegam formatados
+  ("Pendentes 3", "Agendados 4", "Histórico" sem número) e as contagens vêm do
+  `total_count` da RPC.
+- **Badge = estado do trabalho**, com "Não selecionada" (e afins) só quando não houve
+  trabalho para este jardineiro. "Agendado", "Em curso", "À espera do cliente" (âmbar),
+  "Concluído", "Cancelado" (vermelho quando o trabalho era dele, cinzento quando não) e
+  "Expirado" (cinzento, tanto `no_response` como expirado depois da data). "Ajudante" é um
+  chip de papel ao lado, não um estado.
+- **Cartões:** ícone do serviço, título, uma linha de detalhe por tab e papel ("Hoje · 9:00 ·
+  Cascais", "com João Pires", "Feito a 18/10 · confirma automaticamente em 31h",
+  "cancelado pelo cliente", "o cliente escolheu outra proposta") e o valor estimado a verde
+  só nos do responsável. Histórico agrupado por mês, fechados a cinzento; páginas seguintes
+  entram sem animação.
+- **Migration 0053:** `get_worker_job_board` passa a devolver `service_type_id`,
+  `location_area`, `marked_done_at`, `started_at`, `cancel_reason`, `cancelled_by_client`/
+  `cancelled_by_me` (booleanos, sem ids) e `job_updated_at`. Sem ela a app funciona: ícone
+  pelo nome do serviço, localidade tirada da morada, data pela marcada ou de criação, e
+  "cancelado" sem dizer por quem.
+
+## 2026-10-19 — Detalhe do meu trabalho do jardineiro (A1)
+
+- **Mesmo ecrã, três composições:** `worker_my_job_detail_view.dart` escolhe pelo estado real
+  (proposta aceite + `confirmed`, `cancelled`/`no_response` ou `completed`); não há enum novo de
+  estado. Pendente, não selecionada, retirada e à espera de confirmação continuam como estavam.
+- **Agendado:** linha de estado sem cartão, cartão com ícones (data abreviada "Qui, 22/10 ·
+  9:00", local com "Abrir localização no mapa", valor), cliente com "Falar por WhatsApp", cartão
+  "Equipa" com um círculo por vaga (iniciais dos ajudantes aceites) e candidatos por decidir, a
+  regra do dia anterior sempre visível por cima de Remarcar/Cancelar, e "Iniciar trabalho" com
+  cadeado e "Disponível a partir das 8:00 de qui, 22/10". A descrição do pedido fica (o design
+  não a mostra, mas o jardineiro precisa dela).
+- **Cancelado ou expirado:** cartão vermelho (ou cinzento com ampulheta quando expirou), dados
+  a cinzento só com a localidade, cliente sem WhatsApp e "Ver pedidos disponíveis" no fundo. A
+  data do cancelamento vem de `updated_at` (não há `cancelled_at`; num pedido cancelado é a
+  última alteração).
+- **Concluído:** "Concluído a dd/MM" (de `updated_at`) e o tempo registado, em vez de "A Sofia
+  confirmou": o pedido também fica concluído sozinho 48h depois (0052) e a app não distingue os
+  dois casos. Fotos de antes/depois, lista "Avaliações" (cliente e ajudantes, com seta até
+  avaliar, estrelas depois) e a avaliação que o cliente deixou neste trabalho
+  (`get_my_ratings_received`, filtrada pelo pedido e pelo cliente).
+
+## 2026-10-19 — Navegação lateral em tablet deitado e PC (U8)
+
+- **Já existia (`AppAdaptiveShell`, PR #15):** não se criou outra shell. Mudaram só os valores
+  e o topo da lateral.
+- **Valores do design:** coluna de conteúdo de 640 para 720 (`AppBreakpoints.contentMaxWidth`,
+  vale para todos os ecrãs, detalhes incluídos, sem segundo painel). Lado menor mínimo para a
+  lateral de 600 para 480 (`compactShortestSide`): telemóvel deitado continua com bottom nav,
+  tablets e janelas baixas de PC passam a lateral mais cedo. O corte nos 840 fica igual.
+- **Topo da lateral:** marca (`AppBrandBadge`) e "+" quadrado de cantos redondos com sombra,
+  com entrada escalonada, em vez do botão redondo. Lateral com 92 de largura.
+
+## 2026-10-19 — Conta, suporte, terminar sessão e eliminar conta (U7)
+
+- **Sem widgets novos onde já havia:** o bloco perigoso continua a ser um `AppAccountMenuGroup`
+  (as linhas `destructive` ficam a vermelho e sem seta) e os diálogos continuam a ser
+  `AppConfirmDialog`, que ganhou `stepLabel` ("1/2"), ícone opcional e `outlinedConfirm`.
+- **A minha conta (cliente):** título grande, cartão branco com "Cliente · N pedidos" e seta
+  (abre o perfil, em vez da roda dentada), um só grupo com pedidos, avaliações, definições,
+  suporte e "Sobre". Saíram os três números (pedidos, em curso, concluídos). O jardineiro
+  mantém o cartão digital e os grupos; só mudam o título e o bloco perigoso.
+- **Contacto e suporte:** folha com ícone, "Respondemos em 1 dia útil" (`AppLinks.
+  supportResponseTime`), o email e "Copiar email" / "Escrever". "Escrever" passa a abrir a app
+  de email (`mailto:` com assunto): é suporte da ProJardim, fora da app; o contacto entre
+  cliente e jardineiro continua só por WhatsApp. Sem app de email, avisa para copiar.
+- **Terminar sessão e eliminar conta:** diálogos só com texto, como no design. Eliminar: passo
+  1/2 com as três consequências reais da 0049 (dados apagados, avaliações como "Conta
+  eliminada", trabalhos em curso fechados antes) e "Continuar" só com rebordo; passo 2/2
+  "Não dá para desfazer." com "Eliminar conta" a vermelho. O erro do servidor continua dentro
+  do diálogo.
+
+## 2026-10-19 — Destaques e redes, cartão público e avaliações (U6)
+
+- **Adaptado ao que já existia (0051):** o editor continua a ser a secção "Destaques e redes"
+  de `WorkerProfileEditScreen` e o cartão público continua em `/w/:id`; não se criou rota nova.
+- **Editor:** "Em destaque" com as linhas e "+ Adicionar destaque · N de 5", que abre uma
+  `AppSheet` (recusa vazio e repetido). Fechar a folha sem adicionar limpa o campo, porque o
+  "Guardar" junta o texto pendente à lista. Redes em linhas com ícone e nome à esquerda;
+  "Ver como o cliente vê" em botão largo. Saíram os dois textos de ajuda.
+- **Cartão público:** sem título "Perfil", foto com aro, nome, zona e "★ 4,9 · N avaliações".
+  O raio ("até 15 km") do design não aparece: `worker_public_card` (0033) não o expõe de
+  propósito. As estrelas abrem a folha de avaliações só com sessão (a RLS de `ratings` não
+  deixa o visitante ler as avaliações). Os serviços continuam por baixo.
+- **`WorkerShowcaseSection`:** cartões "SOBRE" e "EM DESTAQUE", "VER TRABALHOS E REDES" com
+  botões em duas colunas e a nota "Informação partilhada pelo jardineiro.". Igual no cartão
+  público e na folha de avaliações.
+- **Folha de avaliações:** uma avaliação por cartão (inicial, nome, data, estrelas e
+  comentário). Passam a aparecer também as avaliações sem comentário. Vazio com `AppEmptyState`.
+
+## 2026-10-19 — Autenticação: login, código do email e escolha de papel (U5)
+
+- **Adaptado, não copiado:** o código de referência separava cada ecrã em vista + wrapper
+  com callbacks. Os três ecrãs já funcionavam com Riverpod e o router decide os destinos,
+  por isso só mudou a apresentação; a lógica (signIn, OAuth, `verifySignupCode`,
+  `createProfile`, contagem de 60 s do reenvio) ficou igual.
+- **Login:** fundo branco, alinhado à esquerda, marca 52, "Senha" em vez de "Password",
+  "Esqueceste-te da senha?", "Criar conta" no rodapé. "Termos" e "Política de
+  Privacidade" a verde na frase dos botões sociais, mas sem toque: ainda não há páginas.
+- **Código do email:** sem barra de título (só a seta), título grande, email a negrito na
+  frase, "Confirmar" logo por baixo das caixas, "Reenviar em 0:42" e caixa cinzenta no fundo
+  com "Entra" (vai para /login) e "recupera a senha" (vai para o pedido de código de
+  recuperação com o email preenchido). Mantém-se o `AppOtpInput` de 6 caixas.
+- **Escolha de papel:** aviso a âmbar, cartões compactos em linha com ✓, "Os teus dados" com
+  "+351" fixo antes do telemóvel (só ajuda visual, outros indicativos continuam aceites). O
+  texto por baixo diz quem contacta conforme o papel (`phoneUsageHint`). "Os teus dados" só
+  aparece quando ainda falta o telefone (conta Google/Facebook), como antes: no registo por
+  email o nome e o telefone já foram pedidos.
+
+## 2026-10-19 — Fluxo do ajudante e lobby da equipa (U4)
+
+- **As minhas candidaturas:** pílulas "Pendentes N / Aceites N / Histórico" em vez das três
+  secções seguidas; abre na primeira com candidaturas. Cartão pendente com inicial do
+  responsável, "À espera", data/zona/equipamento, caixa "Sugestão do responsável" e
+  "À espera da decisão de X" com "Retirar". Datas como "Sábado, 25/10 · 8:30".
+- **Trabalho como ajudante:** cabeçalho "Ajudas X" sem cartão, timeline num cartão branco
+  com a frase do passo numa caixa verde, detalhes em linhas rótulo/valor com "Mapa", cartão
+  "RESPONSÁVEL" com ★ e WhatsApp, "Desistir" em texto vermelho.
+- **Lobby:** saiu o cartão "Responsável" (é o próprio); o serviço e a data passam para o
+  subtítulo de "Equipa". Cartão "Vagas preenchidas 1 de 2" com "Alterar vagas" e "Fechar
+  pedido de ajuda" lá dentro; secções "Aceites · N" e "Por decidir · N"; ajudante com
+  "Na equipa", WhatsApp e "Retirar"; candidato sem badge, com "Aceitar" e o X de recusar
+  (mantido, o design não o mostra mas tirá-lo era perder a ação).
+- **Diálogos:** "Alterar vagas" e "Fechar pedido de ajuda?" passam a `AppConfirmDialog`
+  (`message` ficou opcional). O máximo de vagas continua 10 (limite da RPC), não 5.
+- **Texto de fechar diferente do design:** o design diz "Quem já está na equipa continua",
+  mas `cancel_help_request` (0049) também tira os aceites. Decisão do Henrique (19/10): fica
+  como está; o texto diz o que a RPC faz e para tirar só uma pessoa usa-se "Retirar".
+
+## 2026-10-19 — Criar pedido passo 2 e Editar pedido (U3)
+
+- **`JobScheduleFields` partilhado:** três botões (Data fixa, Flexível, Disponibilidade) e por
+  baixo só o campo do modo escolhido, com fade. Data escrita como "Sábado, 25/10"
+  (`weekdayDateLabel`). Saíram os cartões de opção (`JobOptionCard`) e o enum
+  `ClientJobUrgency`: o modo da data passa a ser `DateMode` direto.
+- **Urgência separada da data:** "Normal"/"Urgente" ao lado da dimensão, para qualquer modo
+  de data (antes só existia com data fixa). A base de dados já aceitava as combinações.
+- **Dimensão** num chip que abre a folha "Dimensão aproximada", porque o U3 só mostra o valor
+  e o passo 2 continua a ser o único sítio onde se escolhe.
+- **Mapa:** "Onde?", pin verde, "Usar a minha localização" por cima do mapa. A dica diz
+  "Toca no mapa" e não "Arrasta o pin", porque o flutter_map não arrasta marcadores sem um
+  plugin extra; o pin muda com um toque.
+- **Editar pedido:** fechar (X), aviso azul aos jardineiros que propuseram, contador
+  "118 / 10 mín.", SnackBar "Pedido atualizado. Avisámos 2 jardineiros." A morada continua
+  editável (o U3 não a mostra, mas a RPC `update_job_request` suporta e tirá-la era perder
+  uma funcionalidade). Pedido que já saiu de aberto mostra "Este pedido já não pode ser
+  editado" com "Ver pedido"; o texto sobre Remarcar só aparece se o pedido está confirmado.
+
+## 2026-10-19 — Inícios dos dois papéis e "+" do jardineiro (U2)
+
+- **Cabeçalho igual nos dois:** "Bom dia/Boa tarde/Boa noite" (`dayGreeting`), "Olá, Nome" e o
+  sino `HomeNotificationButton` com ponto vermelho. Saíram o avatar, a data e o emoji.
+- **Cliente:** pedido à espera de confirmação diz quanto falta para a confirmação automática
+  ("Confirma em 46h."), contado de `marked_done_at` + 48h.
+- **Jardineiro:** Pendentes/Agendados em cartões brancos que abrem a aba certa de "Os meus
+  trabalhos"; "O que falta fazer" com o título fora do cartão; "Trabalho hoje às 9:00" com
+  "Iniciar disponível a partir das 8:00" (ou "Em curso"); "trabalhos por concluir".
+  Oportunidades em lista (até 3) com serviço e dimensão, zona, distância e quando, e "Urgente";
+  "Ver todas" abre a aba Pedidos.
+- **"Próximo trabalho" mantido** no Início do jardineiro, apesar de não estar no U2, para não
+  tirar uma funcionalidade sem decisão do Henrique.
+- **"+" do jardineiro:** folha "O que queres fazer?" com Encontrar trabalho e Pedidos de ajuda,
+  e Cartão frota só quando o cartão está ativo (pedido do Henrique). O estado do cartão é lido
+  no `WorkerShell` para já estar carregado quando a folha abre.
+- **Não aplicado:** "À espera de ti" como estado curto do cliente, porque o mesmo label curto
+  aparece também do lado do jardineiro.
+
+## 2026-10-19 — Componentes base em falta (U1)
+
+- **Novos em `core/widgets/`:** `AppConfirmDialog`, `AppEmptyState`, `AppSheet`, `NextStepRow`,
+  `TodoRow`, a partir do código de referência do Claude Design, adaptados ao que já existia.
+- **Não recriados:** `AppBarTitle`, `AppBarStatusBadge` e `SocialSignInButtons` já existiam e
+  são usados em muitos ecrãs; a referência trocava-lhes a API. Ficaram, com o
+  `AppStatusBadge` a ganhar `dense` e o mapa de labels curtos a ficar público
+  (`shortStatusLabel`) para o `NextStepRow`.
+- **Diálogos:** os 10 `AlertDialog` de confirmação passaram a `AppConfirmDialog` (perigo a
+  vermelho para cancelar, retirar, desistir, sair e eliminar conta). Os 4 com formulário
+  ficaram como estavam.
+- **Tamanhos:** os valores fixos da referência (48, 68, 40, 420…) entraram como tokens em
+  `AppSizes`; o fundo verde claro das linhas com ação é `AppColors.primaryTint`.
+- **Texto do design não usado:** "O jardineiro recebe o pagamento" no diálogo de confirmar
+  conclusão, porque a app não trata pagamentos.
+- **Google e Facebook:** "G" desenhado com as 4 cores oficiais (sem asset nem pacote novo) e
+  botão do Facebook azul da marca com texto branco, como no design.
+
+## 2026-10-19 — O código passa a seguir o design: iniciar trabalho e 48h (0052)
+
+- **Sem estado novo:** "Em curso" é `confirmed` com `started_at`. Evita mexer em todas as
+  RPCs, listas e políticas que filtram por `status`.
+- **Janela de início:** 1h antes da hora combinada, na hora de Lisboa; sem hora, a partir do
+  dia; sem data, sempre. A app calcula o mesmo para o botão e a BD volta a verificar.
+- **Fotos:** até 3 de antes (opcionais) e 3 de depois (recomendadas), caminhos validados na
+  BD (têm de ser do próprio jardineiro, deste trabalho, e existir no Storage).
+  `completion_photo_path` continua com a 1.ª de depois para compatibilidade.
+- **48h:** o lembrete das 24h e a confirmação passam para `auto_confirm_completed_jobs`, de
+  hora a hora; o `send_job_reminders` diário deixava o lembrete até 24h atrasado.
+- **Contacto:** o design mostra telefone e chat; mantém-se só WhatsApp (regra do projeto).
+- **"Valor a receber":** a app mostra "Valor acordado" (o preço da proposta); não há regra
+  de comissão para calcular outro valor.
+- **Textos e espaçamento:** "Falar por WhatsApp", "Tentar novamente", "À espera de…",
+  "jardineiro", sem travessões na UI. A escala 4 a 32 do design entrou em `AppSpacing` e os
+  valores soltos dos ecrãs passaram a usar os tokens, sem mudar medidas.
+
+## 2026-10-18 — Destaques e redes sociais no perfil do jardineiro (0051)
+
+- **Onde:** nova secção "Destaques e redes sociais" em Editar perfil (a apresentação/bio já
+  existia na vista geral e continua lá). O cliente vê tudo na folha que abre ao tocar no
+  jardineiro numa proposta, que passa a abrir sempre (antes só com avaliações), e no
+  cartão `/w/:workerId`.
+- **Formato:** destaques em `text[]` (5 × 80); links em `jsonb` `[{kind, url}]` com um campo
+  por tipo (Instagram, Facebook, Site, Outro) em vez de uma lista livre: mais simples de
+  preencher no telemóvel e chega para mostrar a empresa ou fotos. `@nome` vira o link
+  completo; `http://` vira `https://`.
+- **Segurança:** os links abrem fora da app e são vistos por visitantes sem conta, por isso
+  a BD tem CHECK (só `https://`, sem `user@`, tamanho máximo) e a app volta a filtrar ao ler.
+  Escrita pelo UPDATE owner-only já existente em `worker_profiles`, sem RPC nova.
+- **Sem selo "Verificado":** a secção diz "Informação partilhada pelo jardineiro".
+- **Compatibilidade:** `WorkerProfile.showcaseSupported` só fica `true` se a linha lida já
+  tem as colunas; até lá a app não as envia no UPDATE (senão o PostgREST recusava gravar o
+  perfil inteiro) e a secção diz "Em breve".
+- **Numeração:** 0051, porque a thread do login com Google e Facebook pode usar a 0050.
+
+## 2026-10-18 — Login com Google e Facebook
+
+- **Um só caminho para tudo:** `signInWithOAuth` do Supabase (página do Google/Facebook no
+  browser, volta por redirect), em vez de `google_sign_in`/`flutter_facebook_auth` nativos.
+  Funciona igual na web, Android e iOS e só precisa de um cliente OAuth "Web" no Google e de
+  uma app na Meta, sem SHA-1, `google-services.json` nem chaves nas apps. Custa um salto ao
+  browser no telemóvel.
+- **Volta às apps:** deep link `pt.projardim.app://login-callback` (intent-filter no
+  `AndroidManifest.xml`, `CFBundleURLTypes` no `Info.plist`); o `supabase_flutter` lê a
+  sessão do link e o router manda `/login-callback` para `/`. Na web volta a
+  `<origem>/` (com `?from=` se havia destino guardado).
+- **Conta nova:** sem trigger nem migration. Continua a ser `/choose-role` a criar o perfil;
+  aí, sem telemóvel nos dados (conta social), o ecrã pede nome (já preenchido com o da
+  conta) e telemóvel, porque o contacto é por WhatsApp.
+- **Foto:** a app só mostra fotos do Storage do projeto (`StorageUrls`), por isso ao criar o
+  perfil a foto da conta é descarregada e enviada para `avatars/<id>.jpg` (Google em 400 px).
+  Melhor esforço: se falhar (na web o browser pode bloquear o download por CORS), a conta é
+  criada sem foto.
+- **Termos:** quem entra assim não vê a caixa dos termos do registo; os botões têm por baixo
+  "Ao continuar com Google ou Facebook aceitas os Termos e a Política de Privacidade".
+- **Apple:** fica para quando houver app iOS publicada (a App Store exige-o se houver outro
+  login social).
+
+## 2026-10-18 — Tokens do design system, acessibilidade e docs em dia
+
+- **Cores soltas trocadas por tokens:** os ~30 `Colors.red`/`redAccent` (SnackBars de erro,
+  botões destrutivos, borda de erro do `AppTextField`) passaram a
+  `AppStatusColor.cancelled.foreground`, que já era o padrão nos ecrãs mais recentes. Estrelas
+  de avaliação mostradas (`Colors.amber`) passaram a `AppColors.logoAccent`, a mesma cor do
+  `RatingStarsInput`. Ícones das notificações com `AppStatusColor` (verde = `primary`, laranja
+  = `waiting`, azul = `info`, cinza = `neutral`). Ficam de fora as 4 cores do logótipo Google
+  (marca de terceiros) e o `inactiveColor` do indicador do onboarding (decorativo).
+- **Acessibilidade:** todos os `IconButton` têm `tooltip` (é o que o TalkBack/VoiceOver lê).
+  Os olhos das passwords dizem "Mostrar/Esconder palavra-passe" conforme o estado.
+- **Logs:** tirados os `debugPrint('[UPLOAD_PHOTO] ...')` (corriam também em release).
+- **`docs/architecture.md` → `docs/ARCHITECTURE.md`:** o CLAUDE.md e 13 referências usavam
+  maiúsculas; no Windows funcionava, no Linux (CI, sessões cloud) o ficheiro não era encontrado.
+- **Docs:** `STATUS.md` e `improvements.md` tinham SA1/SA2/SA3, M4, P-8-8, P1/A1 e o reskin de
+  `client_jobs_screen` como abertos; todos já estavam resolvidos (tabela em `improvements.md`).
+
 ## 2026-10-18 — Decisões pendentes, todas feitas (defaults escolhidos pelo Claude)
 
 O Henrique pediu para fazer tudo o que estava por decidir. Defaults escolhidos:

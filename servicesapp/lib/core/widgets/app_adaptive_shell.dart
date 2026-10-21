@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_breakpoints.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
 import 'app_bottom_navigation.dart';
+import 'app_brand_badge.dart';
 import 'app_content_width.dart';
+import 'app_motion.dart';
 
 /// Scaffold dos 2 shells (cliente e jardineiro). Em telemóvel e tablet ao
 /// alto mostra a [AppBottomNavigation] de sempre; a partir de
 /// [AppBreakpoints.expanded] (tablet deitado, PC) troca-a por uma
-/// [NavigationRail] à esquerda, com a ação central como botão no topo, e
+/// [NavigationRail] à esquerda, com a marca e a ação central no topo, e
 /// mantém o conteúdo centrado com [AppContentWidth] (que no telemóvel não
 /// faz nada).
 ///
@@ -49,8 +53,7 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final useRail =
-        size.width >= AppBreakpoints.expanded &&
+    final useRail = size.width >= AppBreakpoints.expanded &&
         size.shortestSide >= AppBreakpoints.compactShortestSide;
     final content = KeyedSubtree(
       key: _contentKey,
@@ -90,16 +93,52 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
             unselectedLabelTextStyle: textTheme.labelMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
+            minWidth: AppSizes.railWidth,
+            groupAlignment: -1,
+            // Marca e "+" no topo, como no design U8; o "+" é quadrado de
+            // cantos redondos com sombra, igual ao destaque da bottom nav.
             leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: FloatingActionButton(
-                elevation: 0,
-                tooltip: widget.centralActionTooltip,
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.surface,
-                shape: const CircleBorder(),
-                onPressed: widget.onCentralActionPressed,
-                child: const Icon(Icons.add_rounded),
+              padding: const EdgeInsets.only(
+                top: AppSpacing.lg,
+                bottom: AppSpacing.lg,
+              ),
+              child: Column(
+                children: [
+                  const AppStaggeredEntrance(
+                    index: 0,
+                    child: AppBrandBadge(
+                      size: AppSizes.railBrand,
+                      iconSize: AppSizes.rowIcon,
+                      backgroundColor: AppColors.surface,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AppStaggeredEntrance(
+                    index: 1,
+                    child: Tooltip(
+                      message: widget.centralActionTooltip,
+                      child: Material(
+                        color: AppColors.primary,
+                        elevation: 4,
+                        shadowColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                        ),
+                        child: InkWell(
+                          onTap: widget.onCentralActionPressed,
+                          borderRadius: BorderRadius.circular(AppRadius.card),
+                          child: const SizedBox.square(
+                            dimension: AppSizes.railAction,
+                            child: Icon(
+                              Icons.add_rounded,
+                              color: AppColors.surface,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             destinations: [

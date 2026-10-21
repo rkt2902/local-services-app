@@ -3,90 +3,127 @@ import 'package:flutter/material.dart';
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_motion_tokens.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
+import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/app_status_badge.dart';
 
 enum WorkerJobsTab {
   pending,
   scheduled,
-  completed,
+  history,
 }
 
-/// Papel do worker autenticado nesse trabalho específico — deriva de estar
-/// em `job_proposals` (responsável) ou em `help_acceptances` (ajudante).
-/// Ver `docs/database_schema.md` — um worker nunca é as duas coisas no
-/// mesmo job.
-enum WorkerJobRole {
-  responsible,
-  helper,
-}
-
+/// Uma entrada de "Os meus trabalhos" (design A2): proposta, candidatura a
+/// ajudante ou trabalho. Tudo chega já formatado pela integração
+/// (worker_jobs_screen.dart); este widget não consulta providers.
 class WorkerJobListItemViewData {
   const WorkerJobListItemViewData({
     required this.id,
     required this.title,
-    required this.personName,
-    required this.locationLabel,
-    required this.secondaryLabel,
-    required this.priceLabel,
+    required this.serviceIcon,
+    required this.metaLabel,
     required this.status,
-    this.role = WorkerJobRole.responsible,
+    this.roleLabel,
+    this.amountLabel,
     this.muted = false,
+    this.animateEntrance = true,
   });
 
+  /// Id da proposta ou da candidatura (`entry_id`).
   final String id;
   final String title;
-  final String personName;
-  final String locationLabel;
-  final String secondaryLabel;
-  final String priceLabel;
-  final AppStatusPresentation status;
-  final WorkerJobRole role;
+  final IconData serviceIcon;
 
-  /// Exemplo: proposta rejeitada ou substituída.
+  /// "Hoje · 9:00 · Cascais", "12/10 · com Rui Costa", já formatado.
+  final String metaLabel;
+
+  /// Estado do trabalho; "Não selecionada" e afins só quando não houve
+  /// trabalho para este jardineiro.
+  final AppStatusPresentation status;
+
+  /// "Ajudante": papel neste trabalho, não um estado.
+  final String? roleLabel;
+
+  /// "≈ 60 €" a verde por baixo da linha de detalhe.
+  final String? amountLabel;
+
+  /// Registos fechados sem trabalho concluído: tudo a cinzento.
   final bool muted;
+
+  /// `false` nos itens que chegam por paginação (sem entrada escalonada).
+  final bool animateEntrance;
+}
+
+class WorkerJobsSectionViewData {
+  const WorkerJobsSectionViewData({required this.items, this.label});
+
+  /// Mês no Histórico ("Outubro"); `null` sem cabeçalho.
+  final String? label;
+  final List<WorkerJobListItemViewData> items;
+}
+
+/// Estado de uma tab: cada uma carrega e pagina por si.
+class WorkerJobsTabViewData {
+  const WorkerJobsTabViewData({
+    this.sections = const [],
+    this.loading = false,
+    this.errorMessage,
+    this.canLoadMore = false,
+    this.loadingMore = false,
+  });
+
+  final List<WorkerJobsSectionViewData> sections;
+  final bool loading;
+  final String? errorMessage;
+  final bool canLoadMore;
+  final bool loadingMore;
+
+  bool get isEmpty => sections.every((s) => s.items.isEmpty);
 }
 
 class WorkerJobsScreen extends StatelessWidget {
   const WorkerJobsScreen({
     required this.selectedTab,
-    required this.pendingCount,
-    required this.scheduledCount,
-    required this.completedCount,
-    required this.jobs,
+    required this.pendingTabLabel,
+    required this.scheduledTabLabel,
+    required this.historyTabLabel,
+    required this.pending,
+    required this.scheduled,
+    required this.history,
     required this.onTabSelected,
     required this.onJobPressed,
+    required this.onLoadMore,
     super.key,
-    this.loading = false,
-    this.errorMessage,
     this.onRetry,
     this.onRefresh,
     this.highlightedJobId,
-    this.onLoadMore,
-    this.loadingMore = false,
     this.onFindJobsPressed,
   });
 
   final WorkerJobsTab selectedTab;
 
+  /// "Pendentes 3", "Agendados 4", "Histórico", já formatados.
+  final String pendingTabLabel;
+  final String scheduledTabLabel;
+  final String historyTabLabel;
+
+  final WorkerJobsTabViewData pending;
+  final WorkerJobsTabViewData scheduled;
+  final WorkerJobsTabViewData history;
+
   /// CTA dos estados vazios ("Ver pedidos disponíveis").
   final VoidCallback? onFindJobsPressed;
-
-  final int pendingCount;
-  final int scheduledCount;
-  final int completedCount;
-
-  /// A integração deve passar apenas os itens correspondentes à tab atual.
-  final List<WorkerJobListItemViewData> jobs;
 
   final ValueChanged<WorkerJobsTab> onTabSelected;
   final ValueChanged<String> onJobPressed;
 
-  final bool loading;
-  final String? errorMessage;
+  /// Scroll infinito: pede a página seguinte da tab.
+  final ValueChanged<WorkerJobsTab> onLoadMore;
+
   final VoidCallback? onRetry;
   final Future<void> Function()? onRefresh;
 
@@ -96,20 +133,27 @@ class WorkerJobsScreen extends StatelessWidget {
   /// depois limpá-lo.
   final String? highlightedJobId;
 
-  /// Scroll infinito da tab "Concluídos" — chamado quando o utilizador se
-  /// aproxima do fim da lista. `null` nas tabs sem paginação.
-  final VoidCallback? onLoadMore;
-  final bool loadingMore;
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+
+    Widget tab(WorkerJobsTab t, WorkerJobsTabViewData data) => _JobsTabContent(
+          key: PageStorageKey<String>('worker_jobs_${t.name}'),
+          tab: t,
+          data: data,
+          onRetry: onRetry,
+          onRefresh: onRefresh,
+          onJobPressed: onJobPressed,
+          highlightedJobId: highlightedJobId,
+          onLoadMore: data.canLoadMore ? () => onLoadMore(t) : null,
+          onFindJobsPressed: onFindJobsPressed,
+        );
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -120,80 +164,38 @@ class WorkerJobsScreen extends StatelessWidget {
               ),
               child: Text(
                 'Os meus trabalhos',
-                style: textTheme.titleLarge?.copyWith(
+                style: textTheme.displaySmall?.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _JobsTabButton(
-                      label: 'Pendentes',
-                      count: pendingCount,
-                      selected:
-                          selectedTab == WorkerJobsTab.pending,
-                      onPressed: () {
-                        onTabSelected(WorkerJobsTab.pending);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: _JobsTabButton(
-                      label: 'Agendados',
-                      count: scheduledCount,
-                      selected:
-                          selectedTab == WorkerJobsTab.scheduled,
-                      onPressed: () {
-                        onTabSelected(WorkerJobsTab.scheduled);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: _JobsTabButton(
-                      label: 'Histórico',
-                      count: completedCount,
-                      selected:
-                          selectedTab == WorkerJobsTab.completed,
-                      onPressed: () {
-                        onTabSelected(WorkerJobsTab.completed);
-                      },
-                    ),
-                  ),
-                ],
+              child: _JobsTabs(
+                labels: {
+                  WorkerJobsTab.pending: pendingTabLabel,
+                  WorkerJobsTab.scheduled: scheduledTabLabel,
+                  WorkerJobsTab.history: historyTabLabel,
+                },
+                selectedTab: selectedTab,
+                onSelected: onTabSelected,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            const Divider(
-              height: 1,
-              color: AppColors.divider,
-            ),
+            // IndexedStack e não um fade: cada tab guarda o scroll e as
+            // listas podem atualizar em segundo plano sem recomeçar.
             Expanded(
-              child: AppFadeThroughSwitcher(
-                switchKey: selectedTab,
-                child: _JobsTabContent(
-                  key: ValueKey<WorkerJobsTab>(selectedTab),
-                  jobs: jobs,
-                  loading: loading,
-                  errorMessage: errorMessage,
-                  onRetry: onRetry,
-                  onRefresh: onRefresh,
-                  onJobPressed: onJobPressed,
-                  highlightedJobId: highlightedJobId,
-                  onLoadMore: onLoadMore,
-                  loadingMore: loadingMore,
-                  emptyMessage: _emptyMessageFor(selectedTab),
-                  emptyActionLabel: selectedTab == WorkerJobsTab.completed
-                      ? null
-                      : 'Ver pedidos disponíveis',
-                  onEmptyActionPressed: onFindJobsPressed,
-                ),
+              child: IndexedStack(
+                index: selectedTab.index,
+                children: [
+                  tab(WorkerJobsTab.pending, pending),
+                  tab(WorkerJobsTab.scheduled, scheduled),
+                  tab(WorkerJobsTab.history, history),
+                ],
               ),
             ),
           ],
@@ -203,28 +205,52 @@ class WorkerJobsScreen extends StatelessWidget {
   }
 }
 
-String _emptyMessageFor(WorkerJobsTab tab) => switch (tab) {
-      WorkerJobsTab.pending =>
-        'Sem propostas nem candidaturas à espera de resposta. '
-            'Envia uma proposta a um pedido perto de ti.',
-      WorkerJobsTab.scheduled =>
-        'Ainda não tens trabalhos agendados. Quando um cliente aceitar a '
-            'tua proposta, o trabalho aparece aqui.',
-      WorkerJobsTab.completed =>
-        'Ainda não tens histórico. Os trabalhos concluídos, cancelados ou '
-            'que não foram para ti aparecem aqui.',
-    };
+/// Controlo segmentado igual ao de "Os meus pedidos" do cliente.
+class _JobsTabs extends StatelessWidget {
+  const _JobsTabs({
+    required this.labels,
+    required this.selectedTab,
+    required this.onSelected,
+  });
 
-class _JobsTabButton extends StatelessWidget {
-  const _JobsTabButton({
+  final Map<WorkerJobsTab, String> labels;
+  final WorkerJobsTab selectedTab;
+  final ValueChanged<WorkerJobsTab> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        children: [
+          for (final t in WorkerJobsTab.values) ...[
+            if (t.index > 0) const SizedBox(width: AppSpacing.xxs),
+            Expanded(
+              child: _TabButton(
+                label: labels[t]!,
+                selected: selectedTab == t,
+                onPressed: () => onSelected(t),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TabButton extends StatelessWidget {
+  const _TabButton({
     required this.label,
-    required this.count,
     required this.selected,
     required this.onPressed,
   });
 
   final String label;
-  final int count;
   final bool selected;
   final VoidCallback onPressed;
 
@@ -235,47 +261,26 @@ class _JobsTabButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '$label, $count',
       child: Material(
-        color: selected
-            ? AppColors.primary
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          AppRadius.pill,
-        ),
+        color: selected ? AppColors.surface : AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(
-            AppRadius.pill,
-          ),
-          child: Container(
-            constraints: const BoxConstraints(
-              minHeight: 48,
-            ),
+          borderRadius: BorderRadius.circular(AppRadius.input),
+          child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
+              horizontal: AppSpacing.xs,
               vertical: AppSpacing.xs,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(
-                AppRadius.pill,
-              ),
-              border: selected
-                  ? null
-                  : Border.all(
-                      color: AppColors.divider,
-                    ),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$label\n$count',
-                textAlign: TextAlign.center,
-                style: textTheme.labelMedium?.copyWith(
-                  color: selected
-                      ? AppColors.surface
-                      : AppColors.textPrimary,
-                ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.bodyMedium?.copyWith(
+                color:
+                    selected ? AppColors.textPrimary : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),
@@ -287,37 +292,40 @@ class _JobsTabButton extends StatelessWidget {
 
 class _JobsTabContent extends StatefulWidget {
   const _JobsTabContent({
-    required this.jobs,
-    required this.loading,
-    required this.errorMessage,
+    required this.tab,
+    required this.data,
     required this.onRetry,
     required this.onRefresh,
     required this.onJobPressed,
     required this.highlightedJobId,
     required this.onLoadMore,
-    required this.loadingMore,
-    required this.emptyMessage,
-    this.emptyActionLabel,
-    this.onEmptyActionPressed,
+    this.onFindJobsPressed,
     super.key,
   });
 
-  final String emptyMessage;
-  final String? emptyActionLabel;
-  final VoidCallback? onEmptyActionPressed;
-
-  final List<WorkerJobListItemViewData> jobs;
-  final bool loading;
-  final String? errorMessage;
+  final WorkerJobsTab tab;
+  final WorkerJobsTabViewData data;
   final VoidCallback? onRetry;
   final Future<void> Function()? onRefresh;
   final ValueChanged<String> onJobPressed;
   final String? highlightedJobId;
   final VoidCallback? onLoadMore;
-  final bool loadingMore;
+  final VoidCallback? onFindJobsPressed;
 
   @override
   State<_JobsTabContent> createState() => _JobsTabContentState();
+}
+
+/// Linha da lista: cabeçalho de mês ou cartão.
+class _Row {
+  const _Row.section(this.label)
+      : item = null,
+        entranceIndex = 0;
+  const _Row.item(this.item, this.entranceIndex) : label = null;
+
+  final String? label;
+  final WorkerJobListItemViewData? item;
+  final int entranceIndex;
 }
 
 class _JobsTabContentState extends State<_JobsTabContent> {
@@ -355,7 +363,7 @@ class _JobsTabContentState extends State<_JobsTabContent> {
   }
 
   void _handleScroll() {
-    if (widget.onLoadMore == null || widget.loadingMore) return;
+    if (widget.onLoadMore == null || widget.data.loadingMore) return;
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
     if (position.maxScrollExtent - position.pixels < _loadMoreThreshold) {
@@ -383,28 +391,45 @@ class _JobsTabContentState extends State<_JobsTabContent> {
     return _itemKeys.putIfAbsent(id, GlobalKey.new);
   }
 
+  List<_Row> _rows() {
+    final rows = <_Row>[];
+    var entranceIndex = 0;
+    for (final section in widget.data.sections) {
+      if (section.items.isEmpty) continue;
+      final label = section.label?.trim() ?? '';
+      if (label.isNotEmpty) rows.add(_Row.section(label));
+      for (final item in section.items) {
+        rows.add(_Row.item(item, entranceIndex++));
+      }
+    }
+    return rows;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (widget.loading) {
+    final data = widget.data;
+
+    if (data.loading) {
       return const _JobsSkeletonList();
     }
 
-    if (widget.errorMessage != null) {
-      return _JobsMessageState(
-        icon: Icons.error_outline_rounded,
-        message: widget.errorMessage!,
-        actionLabel:
-            widget.onRetry == null ? null : 'Tentar novamente',
-        onActionPressed: widget.onRetry,
+    if (data.errorMessage != null) {
+      return _CenteredState(
+        child: AppEmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Não foi possível carregar',
+          message: data.errorMessage!,
+          tone: AppStatusColor.cancelled,
+          actionLabel: widget.onRetry == null ? null : 'Tentar novamente',
+          onAction: widget.onRetry,
+        ),
       );
     }
 
-    if (widget.jobs.isEmpty) {
-      final emptyState = _JobsMessageState(
-        icon: Icons.work_outline_rounded,
-        message: widget.emptyMessage,
-        actionLabel: widget.emptyActionLabel,
-        onActionPressed: widget.onEmptyActionPressed,
+    if (data.isEmpty) {
+      final emptyState = _EmptyForTab(
+        tab: widget.tab,
+        onFindJobsPressed: widget.onFindJobsPressed,
       );
 
       if (widget.onRefresh == null) return emptyState;
@@ -423,49 +448,56 @@ class _JobsTabContentState extends State<_JobsTabContent> {
       );
     }
 
-    final showFooter = widget.onLoadMore != null && widget.loadingMore;
+    final rows = _rows();
+    final showFooter = widget.onLoadMore != null && data.loadingMore;
 
-    final list = ListView.separated(
+    final list = ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.sm,
+        AppSpacing.xs,
         AppSpacing.lg,
         AppSpacing.xl,
       ),
-      itemCount: widget.jobs.length + (showFooter ? 1 : 0),
-      separatorBuilder: (_, _) {
-        return const SizedBox(height: AppSpacing.sm);
-      },
+      itemCount: rows.length + (showFooter ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == widget.jobs.length) {
+        if (index == rows.length) {
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
-              ),
+            padding: EdgeInsets.only(top: AppSpacing.xs),
+            child: AppSkeletonShimmer(child: _JobSkeletonCard()),
+          );
+        }
+
+        final row = rows[index];
+        if (row.label != null) {
+          return Padding(
+            padding: EdgeInsets.only(
+              top: index == 0 ? 0 : AppSpacing.sm,
+              bottom: AppSpacing.xs,
+            ),
+            child: Text(
+              row.label!.toUpperCase(),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           );
         }
 
-        final job = widget.jobs[index];
-
-        return AppStaggeredEntrance(
+        final job = row.item!;
+        final card = Padding(
           key: _keyFor(job.id),
-          index: index,
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: _WorkerJobCard(
             job: job,
             highlighted: widget.highlightedJobId == job.id,
             onPressed: () => widget.onJobPressed(job.id),
           ),
         );
+        if (!job.animateEntrance) return card;
+        return AppStaggeredEntrance(index: row.entranceIndex, child: card);
       },
     );
 
@@ -474,6 +506,64 @@ class _JobsTabContentState extends State<_JobsTabContent> {
     return RefreshIndicator(
       onRefresh: widget.onRefresh!,
       child: list,
+    );
+  }
+}
+
+class _EmptyForTab extends StatelessWidget {
+  const _EmptyForTab({required this.tab, this.onFindJobsPressed});
+
+  final WorkerJobsTab tab;
+  final VoidCallback? onFindJobsPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CenteredState(child: _state());
+  }
+
+  AppEmptyState _state() {
+    return switch (tab) {
+      WorkerJobsTab.pending => AppEmptyState(
+          icon: Icons.send_outlined,
+          title: 'Sem propostas pendentes',
+          message:
+              'As propostas que enviares e as candidaturas a ajudante aparecem aqui.',
+          actionLabel:
+              onFindJobsPressed == null ? null : 'Ver pedidos disponíveis',
+          onAction: onFindJobsPressed,
+        ),
+      WorkerJobsTab.scheduled => AppEmptyState(
+          icon: Icons.event_available_outlined,
+          title: 'Nada agendado',
+          message:
+              'Quando um cliente aceitar a tua proposta, o trabalho aparece aqui.',
+          actionLabel:
+              onFindJobsPressed == null ? null : 'Ver pedidos disponíveis',
+          onAction: onFindJobsPressed,
+        ),
+      WorkerJobsTab.history => const AppEmptyState(
+          icon: Icons.history_rounded,
+          title: 'Histórico vazio',
+          message:
+              'Os trabalhos concluídos, cancelados e não escolhidos ficam guardados aqui.',
+          tone: AppStatusColor.neutral,
+        ),
+    };
+  }
+}
+
+class _CenteredState extends StatelessWidget {
+  const _CenteredState({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: child,
+      ),
     );
   }
 }
@@ -519,7 +609,8 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    _disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (!_configured) {
       _configured = true;
       // Card já entra realçado (é o caso real de um deep-link): arranca o
@@ -562,134 +653,94 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final job = widget.job;
+    final muted = job.muted;
 
-    return Opacity(
-      opacity: job.muted ? 0.58 : 1,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(
-          AppRadius.card,
-        ),
-        child: InkWell(
-          onTap: widget.onPressed,
-          borderRadius: BorderRadius.circular(
-            AppRadius.card,
-          ),
-          child: AnimatedBuilder(
-            animation: _highlightController,
-            builder: (context, child) {
-              final t = _highlightController.value;
-              // Fundo âmbar claro (mesmo token dos badges "waiting") a
-              // desvanecer para a superfície normal do card.
-              final background = Color.lerp(
-                AppColors.surface,
-                AppStatusColor.waiting.background,
-                t,
-              )!;
-              final border = Color.lerp(
-                AppColors.divider,
-                AppStatusColor.waiting.foreground,
-                t,
-              )!;
-              return Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.card,
-                  ),
-                  border: Border.all(color: border),
-                ),
-                child: child,
-              );
-            },
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: widget.onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: AnimatedBuilder(
+          animation: _highlightController,
+          builder: (context, child) {
+            final t = _highlightController.value;
+            // Fundo âmbar claro (mesmo token dos badges "waiting") a
+            // desvanecer para a superfície normal do card.
+            final background = Color.lerp(
+              muted ? AppColors.background : AppColors.surface,
+              AppStatusColor.waiting.background,
+              t,
+            )!;
+            final border = Color.lerp(
+              AppColors.divider,
+              AppStatusColor.waiting.foreground,
+              t,
+            )!;
+            return Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                border: Border.all(color: border),
+              ),
+              child: child,
+            );
+          },
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ServiceIcon(icon: job.serviceIcon, muted: muted),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _RoleIcon(role: job.role),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  job.title,
-                                  maxLines: 2,
-                                  overflow:
-                                      TextOverflow.ellipsis,
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              if (job.role == WorkerJobRole.helper) ...[
-                                const SizedBox(width: AppSpacing.xxs),
-                                const _HelperBadge(),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(
-                            height: AppSpacing.xxs,
-                          ),
-                          Text(
-                            job.personName.isEmpty
-                                ? job.locationLabel
-                                : '${job.personName} · '
-                                    '${job.locationLabel}',
-                            maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
-                            style:
-                                textTheme.labelMedium?.copyWith(
-                              color:
-                                  AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      job.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: muted
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    AppStatusBadge.fromPresentation(
-                      presentation: job.status,
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      job.metaLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        job.secondaryLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                    if (job.amountLabel != null) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        job.amountLabel!,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      job.priceLabel,
-                      maxLines: 1,
-                      style:
-                          textTheme.titleMedium?.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // Papel e estado empilhados à direita, como no design.
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (job.roleLabel != null) ...[
+                    _RoleChip(label: job.roleLabel!),
+                    const SizedBox(height: AppSpacing.xxs),
+                  ],
+                  AppStatusBadge.fromPresentation(presentation: job.status),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -697,40 +748,38 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
   }
 }
 
-/// Ícone do card com tom diferente por papel: `primary` quando o worker é o
-/// responsável, `AppStatusColor.info` quando é ajudante — mesma paleta usada
-/// no selo "Ajudante" e no ecrã de candidatura.
-class _RoleIcon extends StatelessWidget {
-  const _RoleIcon({required this.role});
+class _ServiceIcon extends StatelessWidget {
+  const _ServiceIcon({required this.icon, required this.muted});
 
-  final WorkerJobRole role;
+  final IconData icon;
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
-    final isHelper = role == WorkerJobRole.helper;
     return Container(
-      width: 40,
-      height: 40,
+      width: AppSizes.rowIconBox,
+      height: AppSizes.rowIconBox,
       decoration: BoxDecoration(
-        color: isHelper
-            ? AppStatusColor.info.background
+        color: muted
+            ? AppStatusColor.neutral.background
             : AppColors.primaryContainer,
         borderRadius: BorderRadius.circular(AppRadius.input),
       ),
       alignment: Alignment.center,
       child: Icon(
-        isHelper ? Icons.groups_outlined : Icons.person_outline,
-        color: isHelper ? AppStatusColor.info.foreground : AppColors.primary,
-        size: 20,
+        icon,
+        size: AppSizes.rowIcon,
+        color: muted ? AppStatusColor.neutral.foreground : AppColors.primary,
       ),
     );
   }
 }
 
-/// Selo "Ajudante" — só aparece quando o worker não é o responsável do
-/// trabalho. Ausente nos cards onde é responsável (nada a mostrar).
-class _HelperBadge extends StatelessWidget {
-  const _HelperBadge();
+/// Chip "Ajudante": papel neste trabalho, não estado (cores `info`).
+class _RoleChip extends StatelessWidget {
+  const _RoleChip({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -745,7 +794,7 @@ class _HelperBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
-        'Ajudante',
+        label,
         style: textTheme.labelSmall?.copyWith(
           color: AppStatusColor.info.foreground,
           fontWeight: FontWeight.w600,
@@ -763,7 +812,7 @@ class _JobsSkeletonList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.sm,
+        AppSpacing.xs,
         AppSpacing.lg,
         AppSpacing.xl,
       ),
@@ -789,35 +838,35 @@ class _JobSkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 104,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          AppRadius.card,
-        ),
-        border: Border.all(
-          color: AppColors.divider,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: const Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SkeletonLine(widthFactor: 0.52),
-          SizedBox(height: AppSpacing.xs),
-          _SkeletonLine(widthFactor: 0.36),
-          Spacer(),
-          Row(
-            children: [
-              Expanded(
-                child: _SkeletonLine(widthFactor: 0.55),
-              ),
-              SizedBox(width: AppSpacing.lg),
-              SizedBox(
-                width: 52,
-                child: _SkeletonLine(widthFactor: 1),
-              ),
-            ],
+          Container(
+            width: AppSizes.rowIconBox,
+            height: AppSizes.rowIconBox,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonLine(widthFactor: 0.55),
+                SizedBox(height: AppSpacing.xs),
+                _SkeletonLine(widthFactor: 0.8),
+                SizedBox(height: AppSpacing.xs),
+                _SkeletonLine(widthFactor: 0.25),
+              ],
+            ),
           ),
         ],
       ),
@@ -838,63 +887,12 @@ class _SkeletonLine extends StatelessWidget {
       widthFactor: widthFactor,
       alignment: Alignment.centerLeft,
       child: Container(
-        height: 12,
+        height: AppSpacing.sm,
         decoration: BoxDecoration(
           color: AppColors.divider,
           borderRadius: BorderRadius.circular(
             AppRadius.pill,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JobsMessageState extends StatelessWidget {
-  const _JobsMessageState({
-    required this.icon,
-    required this.message,
-    this.actionLabel,
-    this.onActionPressed,
-  });
-
-  final IconData icon;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onActionPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 40,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            if (actionLabel != null &&
-                onActionPressed != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: onActionPressed,
-                child: Text(actionLabel!),
-              ),
-            ],
-          ],
         ),
       ),
     );

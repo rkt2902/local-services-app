@@ -128,6 +128,22 @@ All snapshot data came from a single `snapshot_tables.csv` file.
 0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
 Ver o cabeçalho do ficheiro.
 
+**`0052_job_start_flow.sql`: criada, NÃO aplicada** (aplicar depois da 0049 e da 0051).
+"Iniciar trabalho" (`start_job`, a partir de 1h antes da hora), fotos de antes e depois
+(`before_photo_paths`/`after_photo_paths`, até 3), `started_at`, `mark_job_done` com
+`p_photo_paths text[]` e a exigir início, confirmação automática em 48h com lembrete às
+24h (cron de hora a hora), aviso novo `job_started`.
+
+**`0053_worker_jobs_board_cards.sql`: criada, NÃO aplicada** (aplicar depois da 0048 e
+da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quando foi
+iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
+alteração, para os cartões de "Os meus trabalhos" (design A2).
+
+**`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
+Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
+`worker_profiles`, com CHECK na BD (só `https://`), e as duas colunas no fim de
+`worker_public_card`. A 0050 ficou reservada para outra thread.
+
 **`0049_pending_decisions.sql`: criada, NÃO aplicada** (aplicar depois da 0048).
 Eliminar conta, editar pedido, gestão da equipa, avisos com o trabalho e a data, avisos
 aos ajudantes, remarcar trabalho atrasado, fecho ao fim de 14 dias sem escolha, report

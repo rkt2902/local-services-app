@@ -11,12 +11,16 @@ WorkerTodoScheduledJob _job(
   DateTime? date,
   RescheduleStatus? reschedule,
   String? proposedBy,
+  String? time,
+  DateTime? startedAt,
 }) =>
     WorkerTodoScheduledJob(
       proposalId: 'p$id',
       jobId: 'j$id',
       status: status,
       confirmedDate: date,
+      confirmedTime: time,
+      startedAt: startedAt,
       rescheduleStatus: reschedule,
       rescheduleProposedBy: proposedBy,
     );
@@ -93,6 +97,29 @@ void main() {
     expect(item.target.extra, {'initialTab': 'scheduled'});
   });
 
+  test('um só trabalho hoje com hora diz a hora e quando pode iniciar', () {
+    final items = _build(
+      scheduled: [_job('1', date: DateTime(2026, 10, 18), time: '09:00:00')],
+    );
+    final item = _find(items, WorkerTodoKind.workToday)!;
+    expect(item.label, 'Trabalho hoje às 9:00');
+    expect(item.subtitle, 'Iniciar disponível a partir das 8:00');
+  });
+
+  test('trabalho de hoje já iniciado diz "Em curso"', () {
+    final items = _build(scheduled: [
+      _job(
+        '1',
+        date: DateTime(2026, 10, 18),
+        time: '14:30',
+        startedAt: DateTime(2026, 10, 18, 14, 35),
+      ),
+    ]);
+    final item = _find(items, WorkerTodoKind.workToday)!;
+    expect(item.label, 'Trabalho hoje às 14:30');
+    expect(item.subtitle, 'Em curso');
+  });
+
   test('um só trabalho hoje como ajudante abre o ecrã do ajudante', () {
     final items = _build(help: [_help('a', date: DateTime(2026, 10, 18))]);
     expect(_find(items, WorkerTodoKind.workToday)!.target.location, '/worker/help/a');
@@ -106,7 +133,7 @@ void main() {
     ]);
     final item = _find(items, WorkerTodoKind.toMarkDone)!;
     expect(item.count, 1);
-    expect(item.label, '1 trabalho por marcar como concluído');
+    expect(item.label, '1 trabalho por concluir');
   });
 
   test('avaliações: escondidas enquanto os dados não chegam', () {

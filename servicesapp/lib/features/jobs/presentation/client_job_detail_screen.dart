@@ -12,6 +12,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -59,7 +60,7 @@ class _ClientJobDetailScreenState
   static const _commonProblems = [
     (id: 'no_show', label: 'Não apareceu', prefill: 'O jardineiro responsável não apareceu. '),
     (id: 'late', label: 'Atraso', prefill: 'O jardineiro responsável chegou com atraso. '),
-    (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto — '),
+    (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto. '),
   ];
 
   Future<void> _cancelJob() async {
@@ -68,24 +69,14 @@ class _ClientJobDetailScreenState
 
     // Open jobs have no confirmed worker — simple confirmation, no reason picker
     if (job.status == JobStatus.open) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogCtx) => AlertDialog(
-          title: const Text('Cancelar pedido?'),
-          content:
-              const Text('Tens a certeza que queres cancelar este pedido?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, false),
-              child: const Text('Voltar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Cancelar pedido'),
-            ),
-          ],
-        ),
+      final confirmed = await AppConfirmDialog.show(
+        context,
+        icon: Icons.event_busy_outlined,
+        title: 'Cancelar pedido?',
+        message: 'O pedido deixa de aparecer aos jardineiros. Não dá para '
+            'desfazer.',
+        confirmLabel: 'Cancelar pedido',
+        destructive: true,
       );
       if (confirmed != true || !mounted) return;
       setState(() => _saving = true);
@@ -107,7 +98,7 @@ class _ClientJobDetailScreenState
         ref.invalidate(jobByIdProvider(widget.jobId));
       } catch (e) {
         scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       } finally {
         if (!navigatedAway && mounted) setState(() => _saving = false);
@@ -135,23 +126,13 @@ class _ClientJobDetailScreenState
   /// ficam em [_handleConfirmCompleted], que mostra o AppSuccessFeedback
   /// antes de sair do ecrã.
   Future<bool> _confirmJobCompletion() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Confirmar conclusão'),
-        content: const Text(
-            'Confirmas que o trabalho foi concluído conforme esperado?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.task_alt_rounded,
+      title: 'Confirmar conclusão?',
+      message: 'Confirmas que o trabalho ficou feito como combinado. '
+          'Depois podes avaliar o jardineiro.',
+      confirmLabel: 'Confirmar',
     );
     if (confirmed != true || !mounted) return false;
 
@@ -165,7 +146,7 @@ class _ClientJobDetailScreenState
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(
-            content: Text(friendlyError(e)), backgroundColor: Colors.red),
+            content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
       return false;
     } finally {
@@ -201,32 +182,76 @@ class _ClientJobDetailScreenState
     await _showClientRatingSheet();
   }
 
-  /// Foto que o worker juntou ao marcar como concluído (migration 0046).
-  Widget _completionPhoto(String storagePath, ThemeData theme) {
-    final url = ref.read(jobRepositoryProvider).jobPhotoPublicUrl(storagePath);
-    return AppStaggeredEntrance(
-      index: 5,
-      child: Column(
+  /// Fotos de antes e de depois e o tempo registado pelo jardineiro
+  /// (migrations 0046 e 0052). Pedidos antigos só têm
+  /// `completionPhotoPath`.
+  Widget _workRecord(JobRequest job, ThemeData theme) {
+    final repo = ref.read(jobRepositoryProvider);
+    final after = job.afterPhotoPaths.isNotEmpty
+        ? job.afterPhotoPaths
+        : [?job.completionPhotoPath];
+    final worked = job.workedDuration;
+
+    Widget photoRow(String label, List<String> paths) {
+      final urls = paths.map(repo.jobPhotoPublicUrl).toList();
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Foto do trabalho feito',
+            label,
             style: theme.textTheme.labelMedium
                 ?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => PhotoViewerScreen(photoUrls: [url], initialIndex: 0),
-            )),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              child: AspectRatio(
-                aspectRatio: 4 / 3,
-                child: Image.network(url, fit: BoxFit.cover, cacheWidth: 800),
-              ),
-            ),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (var i = 0; i < urls.length; i++)
+                Semantics(
+                  button: true,
+                  label: '$label, foto ${i + 1}',
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) =>
+                          PhotoViewerScreen(photoUrls: urls, initialIndex: i),
+                    )),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.input),
+                      child: Image.network(
+                        urls[i],
+                        width: AppSpacing.xl * 3,
+                        height: AppSpacing.xl * 3,
+                        fit: BoxFit.cover,
+                        cacheWidth: 400,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
+        ],
+      );
+    }
+
+    return AppStaggeredEntrance(
+      index: 5,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (worked != null) ...[
+            Text(
+              'Tempo registado: ${durationLabel(worked)}',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (job.beforePhotoPaths.isNotEmpty) ...[
+            photoRow('Antes', job.beforePhotoPaths),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (after.isNotEmpty) photoRow('Depois', after),
         ],
       ),
     );
@@ -256,13 +281,13 @@ class _ClientJobDetailScreenState
                 children: [
                   Text('Reportar problema',
                       style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Descreve o que aconteceu. O teu relato fica registado para referência futura.',
                     style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   TextFormField(
                     controller: descController,
                     maxLines: 4,
@@ -285,7 +310,7 @@ class _ClientJobDetailScreenState
                           color: AppStatusColor.cancelled.foreground),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   FilledButton(
                     onPressed: submitting
                         ? null
@@ -339,23 +364,13 @@ class _ClientJobDetailScreenState
     );
 
     if (!mounted) return;
-    final confirmAnyway = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Confirmar conclusão?'),
-        content: const Text(
-            'Queres confirmar a conclusão do trabalho mesmo assim?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: const Text('Ainda não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Sim, confirmar'),
-          ),
-        ],
-      ),
+    final confirmAnyway = await AppConfirmDialog.show(
+      context,
+      icon: Icons.task_alt_rounded,
+      title: 'Confirmar conclusão?',
+      message: 'Queres confirmar a conclusão do trabalho mesmo assim?',
+      confirmLabel: 'Sim, confirmar',
+      cancelLabel: 'Ainda não',
     );
     if (confirmAnyway == true && mounted) {
       await _handleConfirmCompleted();
@@ -437,7 +452,7 @@ class _ClientJobDetailScreenState
                   ),
                 ),
                 icon: const Icon(Icons.chat_outlined),
-                label: const Text('Contactar via WhatsApp'),
+                label: const Text('Falar por WhatsApp'),
               ),
             ],
           ),
@@ -736,8 +751,11 @@ class _ClientJobDetailScreenState
               children: [
                 _workerContactCard(job, workerInfoAsync, theme),
                 const SizedBox(height: AppSpacing.md),
-                if (job.completionPhotoPath != null) ...[
-                  _completionPhoto(job.completionPhotoPath!, theme),
+                if (job.workedDuration != null ||
+                    job.beforePhotoPaths.isNotEmpty ||
+                    job.afterPhotoPaths.isNotEmpty ||
+                    job.completionPhotoPath != null) ...[
+                  _workRecord(job, theme),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 AppStaggeredEntrance(
@@ -750,8 +768,10 @@ class _ClientJobDetailScreenState
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Confirma a conclusão ou relate um problema. Assim que '
-                  'confirmares, podes avaliar o profissional.',
+                  'Confirma a conclusão ou reporta um problema. Sem resposta, '
+                  'fica confirmado automaticamente 48 horas depois de o '
+                  'jardineiro o dar por concluído. Depois de confirmares, '
+                  'podes avaliar o jardineiro.',
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: AppColors.textSecondary),
                 ),

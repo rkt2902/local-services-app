@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
+import '../../../core/utils/day_greeting.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/service_icon.dart';
@@ -66,7 +66,7 @@ class ClientHomeScreen extends ConsumerWidget {
                     .map((t) => t.name)
                     .firstOrNull ??
                 'Desconhecido',
-            nextStepLabel: clientJobNextStepLabel(job),
+            nextStepLabel: clientJobNextStepLabel(job, now: DateTime.now()),
             metadataLabel: _metadataLabel(job),
             status: job.status.presentation(
               proposalCount: job.proposalCount,
@@ -79,9 +79,7 @@ class ClientHomeScreen extends ConsumerWidget {
 
     final data = view.ClientHomeViewData(
       firstName: profile?.fullName.split(' ').first ?? '',
-      greetingSubtitle: DateFormat('dd/MM/yyyy').format(DateTime.now()),
-      avatarImage:
-          profile?.avatarUrl != null ? NetworkImage(profile!.avatarUrl!) : null,
+      greeting: dayGreeting(DateTime.now()),
       hasUnreadNotifications: unreadCount > 0,
       activeJobs: activeJobs,
       activeJobsTotal: activeTotal,

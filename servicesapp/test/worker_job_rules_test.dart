@@ -102,20 +102,33 @@ void main() {
     });
   });
 
-  group('cancelledJobBannerMessage', () {
-    test('mostra quem cancelou e o motivo', () {
-      expect(
-        cancelledJobBannerMessage(cancelReason: 'no_longer_needed', cancelledByMe: false),
-        'O cliente cancelou este trabalho. Motivo: Já não preciso do serviço.',
+  group('inactiveJobMessage (cartão cancelado ou expirado)', () {
+    test('cancelado pelo cliente: data, motivo e "não precisas de fazer nada"', () {
+      final m = inactiveJobMessage(
+        cancelReason: 'no_longer_needed',
+        cancelledByMe: false,
+        endedAt: DateTime(2026, 10, 20, 10),
       );
-      expect(
-        cancelledJobBannerMessage(cancelReason: null, cancelledByMe: true),
-        'Cancelaste este trabalho.',
-      );
-      expect(
-        cancelledJobBannerMessage(cancelReason: 'expired', cancelledByMe: false),
-        startsWith('Trabalho expirado'),
-      );
+      expect(m.title, 'O cliente cancelou este trabalho');
+      expect(m.body,
+          'Cancelado a 20/10. Motivo: Já não preciso do serviço. Não precisas de fazer nada.');
+      expect(m.expired, isFalse);
+    });
+
+    test('cancelado por mim, sem motivo nem data', () {
+      final m = inactiveJobMessage(cancelReason: null, cancelledByMe: true);
+      expect(m.title, 'Cancelaste este trabalho');
+      expect(m.body, isEmpty);
+    });
+
+    test('expirado depois da data e sem resposta', () {
+      final m = inactiveJobMessage(cancelReason: 'expired', cancelledByMe: false);
+      expect(m.title, 'Este trabalho expirou');
+      expect(m.expired, isTrue);
+      final n = inactiveJobMessage(
+          cancelReason: null, cancelledByMe: false, noResponse: true);
+      expect(n.title, 'Este pedido expirou');
+      expect(n.expired, isTrue);
     });
   });
 
@@ -150,6 +163,9 @@ void main() {
       expect(s?.label,
           'Ajudantes: 1 de 2 vagas preenchidas · 3 candidatos por decidir');
       expect(s?.awaitingApproval, isFalse);
+      expect(s?.slots, 2);
+      expect(s?.filled, 1);
+      expect(s?.undecided, 3);
     });
 
     test('singular e candidatos ainda a carregar', () {

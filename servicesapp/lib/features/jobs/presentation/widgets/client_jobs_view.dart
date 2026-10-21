@@ -7,9 +7,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/address_map_link.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
-import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
 
 enum ClientJobsTab { active, history }
@@ -567,12 +567,9 @@ class _EmptyState extends StatelessWidget {
                 .clamp(0, double.infinity),
           ),
           child: Center(
-            child: AppStaggeredEntrance(
-              index: 0,
-              child: tab == ClientJobsTab.active
-                  ? _ActiveEmpty(onCreateJob: onCreateJob)
-                  : const _HistoryEmpty(),
-            ),
+            child: tab == ClientJobsTab.active
+                ? _ActiveEmpty(onCreateJob: onCreateJob)
+                : const _HistoryEmpty(),
           ),
         ),
       ),
@@ -587,39 +584,12 @@ class _ActiveEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: const BoxDecoration(
-            color: AppColors.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: const Icon(Icons.yard_outlined, color: AppColors.primary, size: 34),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Ainda sem pedidos ativos',
-          textAlign: TextAlign.center,
-          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Cria um pedido e recebe propostas de jardineiros perto de ti.',
-          textAlign: TextAlign.center,
-          style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: 180,
-          child: PrimaryActionButton(label: 'Criar pedido', onPressed: onCreateJob),
-        ),
-      ],
+    return AppEmptyState(
+      icon: Icons.yard_outlined,
+      title: 'Ainda sem pedidos ativos',
+      message: 'Cria um pedido e recebe propostas de jardineiros perto de ti.',
+      actionLabel: 'Criar pedido',
+      onAction: onCreateJob,
     );
   }
 }
@@ -629,34 +599,11 @@ class _HistoryEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 68,
-          height: 68,
-          decoration: BoxDecoration(
-            color: AppStatusColor.neutral.background,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Icon(Icons.history_rounded, color: AppStatusColor.neutral.foreground, size: 34),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          'Sem histórico',
-          textAlign: TextAlign.center,
-          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Os pedidos concluídos e cancelados aparecem aqui.',
-          textAlign: TextAlign.center,
-          style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
+    return AppEmptyState(
+      icon: Icons.history_rounded,
+      title: 'Sem histórico',
+      message: 'Os pedidos concluídos e cancelados aparecem aqui.',
+      tone: AppStatusColor.neutral,
     );
   }
 }

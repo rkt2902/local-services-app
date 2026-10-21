@@ -14,6 +14,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/bottom_actions_bar.dart';
@@ -60,23 +61,14 @@ class _ClientScheduledJobDetailScreenState
     final result = await CancelJobDialog.show(context, isClient: true);
     if (result == null || !mounted) return;
 
-    final wantsReopen = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Voltar a publicar?'),
-        content: const Text(
-            'Queres voltar a publicar este pedido para encontrar outro jardineiro?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sim'),
-          ),
-        ],
-      ),
+    final wantsReopen = await AppConfirmDialog.show(
+      context,
+      icon: Icons.replay_rounded,
+      title: 'Voltar a publicar?',
+      message: 'Queres voltar a publicar este pedido para encontrar outro '
+          'jardineiro?',
+      confirmLabel: 'Sim',
+      cancelLabel: 'Não',
     );
     // Fechar o diálogo sem responder (toque fora, voltar) é desistir, não
     // "Não": antes cancelava na mesma.
@@ -105,7 +97,7 @@ class _ClientScheduledJobDetailScreenState
       ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (!navigatedAway && mounted) setState(() => _saving = false);
@@ -130,7 +122,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Remarcação enviada.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
@@ -148,7 +140,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Nova data aceite.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
@@ -166,7 +158,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Remarcação recusada.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
@@ -184,7 +176,7 @@ class _ClientScheduledJobDetailScreenState
       ));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _approvingHelp.remove(helpRequestId));
@@ -343,7 +335,7 @@ class _ClientScheduledJobDetailScreenState
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'Aguarda resposta à remarcação que propuseste.',
+                    'À espera de resposta à remarcação que propuseste.',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: AppStatusColor.waiting.foreground),
                   ),
@@ -409,7 +401,10 @@ class _ClientScheduledJobDetailScreenState
                           .firstOrNull ??
                       '—',
                   subtitle: jobDistinguisherLabel(job),
-                  presentation: job.status.presentation(),
+                  presentation: job.isInProgress
+                      ? const AppStatusPresentation(
+                          label: 'Em curso', color: AppStatusColor.info)
+                      : job.status.presentation(),
                   onBack: () => goBackOrToRoleHome(context),
                 ),
                 Expanded(
@@ -579,7 +574,7 @@ String _scheduleLabel(JobRequest job) {
 /// lá só existe para `open`). Deriva de `confirmedDate`, dado real, em vez
 /// de inventar uma frase estática.
 String _timelineSupportingLabel(JobRequest job) {
-  if (job.confirmedDate == null) return 'Data a combinar com o profissional.';
+  if (job.confirmedDate == null) return 'Data a combinar com o jardineiro.';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return 'Serviço agendado para $date (horário flexível).';
   if (job.confirmedTime != null) return 'Serviço agendado para $date às ${job.confirmedTime}.';
@@ -608,6 +603,7 @@ class _ScheduledHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),
@@ -688,7 +684,7 @@ class _WorkerContactCard extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             IconButton(
               onPressed: phone.isEmpty ? null : onOpenWhatsApp,
-              tooltip: 'WhatsApp',
+              tooltip: 'Falar por WhatsApp',
               icon: const Icon(Icons.chat_outlined, color: AppColors.primary),
             ),
           ],
@@ -913,6 +909,7 @@ class _LoadingHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),

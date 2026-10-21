@@ -282,6 +282,14 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 - **Registo**: `AuthRepository.signUp` (`auth.signUp` com `data: {full_name, phone}`)
   → `createProfile` (`profiles.upsert`, não uma RPC; a antiga `create_user_profile` foi apagada na 0042) → `/choose-role`
   escreve `role` → `/worker/setup` ou `/client/home`.
+- **Login com Google/Facebook (2026-10-18)**: `AuthRepository.signInWithSocial` →
+  `signInWithOAuth` do Supabase. Web: redirect para `<origem>/` (com `?from=`). Apps: deep
+  link `pt.projardim.app://login-callback` (intent-filter Android, `CFBundleURLTypes` iOS);
+  o `supabase_flutter` troca o código pela sessão e `resolveRedirect` manda
+  `/login-callback` para `/`. Conta nova cai em `/choose-role` (sem perfil), que pede nome e
+  telemóvel quando os metadados não trazem telemóvel (`RegistrationIdentity`) e copia a foto
+  da conta (`avatar_url`/`picture`) para `avatars/<id>.jpg` (`importSocialAvatar`, melhor
+  esforço). Configuração: `SETUP.md` passo 7.
 - **Login**: `signInWithPassword`. Conta com email por confirmar (`email_not_confirmed`)
   → `AuthEmailNotConfirmed`: reenvia o código e vai para `/verify-email`.
 - **Confirmação de email por código (2026-10-17)**: funciona com "Confirm email" ligado
@@ -330,7 +338,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | Tabela | Propósito | Colunas-chave |
 |---|---|---|
 | `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` (texto livre; a app só mostra URLs do Storage do projeto, `StorageUrls`) |
-| `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030) |
+| `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
 | `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046) |
@@ -385,7 +393,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `accept_help_candidate` | `p_help_acceptance_id, p_agreed_rate` | `void` | `HelpRequestRepository` |
 | `accept_reschedule` | `p_job_id` | `void` | `JobRepository.acceptReschedule` |
 | `approve_help_request` | `p_help_request_id` | `void` | `HelpRequestRepository.approveHelpRequest` |
-| `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
+| `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`; `15 * * * *` desde a 0052: lembrete às 24h e confirmação às 48h), sem caller Dart |
 | `auto_expire_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
 | `cancel_job` | `p_job_id, p_reason, p_reason_detail?, p_client_wants_reopen?` | `uuid` (novo job se reaberto) | `JobRepository.cancelJob` |
 | `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name)` | `RatingRepository` |
@@ -393,7 +401,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
-| `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho) | `void` | `ProposalRepository.markJobCompleted` |
+| `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho). Desde a 0052: `p_job_id, p_photo_paths text[]` (até 3 fotos de depois) e exige `started_at` | `void` | `ProposalRepository.markJobCompleted` |
+| `start_job` (0052) | `p_job_id, p_photo_paths text[]` (até 3 fotos de antes; a partir de 1h antes da hora) | `void` | `JobRepository.startJob` |
 | `propose_reschedule` | `p_job_id, p_new_date, p_new_time?, p_new_flexible?` | `void` | `JobRepository.proposeReschedule` |
 | `reject_help_candidate` | `p_help_acceptance_id` | `void` | `HelpRequestRepository.rejectHelpCandidate` |
 | `reject_reschedule` | `p_job_id` | `void` | `JobRepository.rejectReschedule` |
@@ -422,7 +431,7 @@ muda (ver secção 13).
 |---|---|---|---|
 | `worker_profiles_public` | **não** (definer-style, deliberado) | `authenticated` | `bio, radius_km, tools, location_name, photos` — sem coordenadas |
 | `worker_rating_summary` | **sim** (deliberado — ratings já é `USING(true)`) | `authenticated` | `worker_id, avg_rating, rating_count` |
-| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating — sem telefone/coordenadas/raio |
+| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio |
 
 ### Triggers
 
@@ -459,8 +468,10 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
 | `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
+| `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
+| `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
 
-Próxima migration: `0050`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0050` se ainda estiver livre, senão `0052`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -475,9 +486,10 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 |---|---|---|
 | criar pedido | INSERT direto | `new_job_in_radius` (trigger) |
 | aceitar proposta → `confirmed` | `accept_proposal` | `proposal_accepted` / `proposal_rejected` (outras) |
+| worker inicia (continua `confirmed`, "Em curso" = `started_at` preenchido, 0052) | `start_job` | `job_started` |
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |
 | cliente confirma → `completed` | `confirm_job_completion` | `job_completed` |
-| 3 dias sem confirmação → `completed` | `auto_confirm_completed_jobs` (cron) | `job_completed` |
+| 3 dias (48h desde a 0052) sem confirmação nem problema reportado → `completed` | `auto_confirm_completed_jobs` (cron) | `job_completed` |
 | 48h sem proposta → `no_response` | `auto_expire_jobs` (cron) | `job_no_response` |
 | cancelar | `cancel_job` | `job_cancelled` (+ `job_reopened` se reaberto) |
 
@@ -521,6 +533,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `proposal_rejected` | `accept_proposal` (outras propostas) | `/worker/job/:id` | go |
 | `job_cancelled` | `cancel_job` | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_reopened` | `cancel_job` | `/worker/job/:id` | go |
+| `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_no_response` | `auto_expire_jobs` (cron) | `/client/job/:id` | go |
@@ -536,7 +549,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 ## 10. Design system e motion
 
 **Tokens** (`core/theme/`): `AppColors` (paleta fixa — primary `#2E7D32`, background
-`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSpacing` (xxs4/xs8/sm12/md16/lg24/xl32),
+`#F6F8F6`, surface `#FFFFFF`, textPrimary/Secondary, divider), `AppSizes` (caixas de ícone, alturas de botão e larguras dos componentes base, U1), `AppSpacing` (escala do design 19/10: 4·6·8·10·12·14·16·18·20·22·24·26·28·32; xxs4/s6/xs8/s10/sm12/s14/md16/s18/s20/s22/lg24/s26/s28/xl32),
 `AppRadius` (input12/card16/pill999), `AppTypography` (Plus Jakarta Sans, display/title/subtitle/body/caption),
 `AppStatusColor` (waiting/info/success/cancelled/neutral, cada um com `background`+`foreground`),
 `AppMotionDuration`/`AppMotionCurve` (ver abaixo), `AppTheme.light()` (Material 3,
@@ -560,7 +573,12 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `PrimaryActionButton` | `label`, `onPressed`; `isLoading=false`, `height=52` |
 | `BottomActionsBar` | `children` |
 | `AppFilterChip` | `label`, `onPressed`; `selected`, `leadingIcon`, `trailingIcon`, `showCheckmark` |
-| `AppStatusBadge` | `label`, `statusColor` (ou `.fromPresentation(presentation:)`) |
+| `AppStatusBadge` | `label`, `statusColor` (ou `.fromPresentation(presentation:)`); `dense` para linhas de lista |
+| `AppConfirmDialog` (U1) | `icon`, `title`, `message`, `confirmLabel`, `destructive`; `AppConfirmDialog.show` devolve `true`/`false`/`null`; `isSubmitting`/`errorText` quando a ação corre dentro do diálogo. Substitui os `AlertDialog` de confirmação; os 4 que têm formulário (cancelar, remarcar, reportar, alterar vagas) continuam `AlertDialog` |
+| `AppEmptyState` (U1) | `icon`, `title`, `message`, botão opcional (`actionLabel`+`onAction` ou `action`), `tone` (`null` = verde da marca) |
+| `AppSheet` (U1) | pega, título com fechar, conteúdo, ação principal e secundária opcionais; abrir com `AppSheet.show` |
+| `NextStepRow` (U1) | linha de pedido no Início do cliente: estado curto ao lado do título; com ação, fundo `primaryTint`, ponto verde e próximo passo |
+| `TodoRow` (U1) | linha de "O que falta fazer": `icon`, `tone` (`AppStatusColor`), `title` |
 | `AppBarStatusBadge` | igual ao `AppStatusBadge` + `trailingMargin=AppSpacing.md` — versão para `AppBar.actions`, com labels curtos próprios (ver `decisions_log.md` 2026-10-16) |
 | `AppBackButton` | `color=AppColors.textPrimary`, `tooltip='Voltar'` — chama `goBackOrToRoleHome` |
 | `AppBottomNavigation` | `items` (exatamente 4), `selectedIndex`, `onItemSelected`, `onCentralActionPressed` |
@@ -613,7 +631,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | OCR (ML Kit) | `fleet_card_text_extractor.dart` | `google_mlkit_text_recognition`, local, a foto é apagada logo depois de extrair os 3 campos — nunca vai a Storage |
 | QR | `qr_flutter` | cartão partilhável do worker (`worker_profile_screen.dart`) e estado ativo do cartão frota (`fleet_card_screen.dart`) |
 | Partilhar | `share_plus` | partilhar o link do cartão do worker |
-| Domínio e suporte | `core/config/app_links.dart` | `APP_PUBLIC_URL` e `SUPPORT_EMAIL` por `--dart-define` (opcionais; sem eles: na web o próprio site, nas apps `projardim.pt`). Usados no link `/w/:id`, no `User-Agent` do Nominatim e em "Contacto & suporte" |
+| Domínio e suporte | `core/config/app_links.dart` | `APP_PUBLIC_URL` e `SUPPORT_EMAIL` por `--dart-define` (opcionais; sem eles: na web o próprio site, nas apps `projardim.pt`). Usados no link `/w/:id`, no `User-Agent` do Nominatim e em "Contacto e suporte" |
 | Fotos | `image_picker` (seleção) + `flutter_image_compress` (`job_repository.dart`: `minWidth/minHeight: 800`, `quality: 60`, JPEG) antes do upload para Storage |
 
 ---

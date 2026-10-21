@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
+import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/utils/phone_utils.dart';
-import '../../../../core/widgets/user_avatar_with_name.dart';
 
 /// Estado puramente visual de UMA secção (um `HelpRequest`) do lobby — não
 /// substitui `HelpRequestStatus`. Um job pode, em teoria, ter mais do que
@@ -48,6 +49,7 @@ class HelpRequestSectionViewData {
     required this.pendingCandidates,
     this.slotsNeeded = 0,
     this.canManage = false,
+    this.filledCountLabel,
   });
 
   final String helpRequestId;
@@ -66,6 +68,10 @@ class HelpRequestSectionViewData {
 
   /// Ex.: "1 de 2 vagas preenchidas" — já formatado pela integração.
   final String filledPlacesLabel;
+
+  /// Ex.: "1 de 2", ao lado de "Vagas preenchidas". `null` mostra só
+  /// [filledPlacesLabel].
+  final String? filledCountLabel;
 
   /// 0...1, já calculado pela integração.
   final double filledProgress;
@@ -319,13 +325,13 @@ class _WorkerHelpRequestsLobbyViewState
     final callback = widget.onCloseHelpRequest;
     if (callback == null) return;
     final confirmed = await _confirm(
-      title: 'Fechar pedido de ajuda',
-      message: section.acceptedHelpers.isEmpty
-          ? 'O pedido deixa de aparecer aos outros jardineiros e as '
-              'candidaturas por decidir são recusadas.'
-          : 'O pedido deixa de aparecer aos outros jardineiros. Os ajudantes '
-              'aceites e os candidatos são avisados de que já não são precisos.',
-      confirmLabel: 'Fechar pedido',
+      icon: Icons.do_not_disturb_alt_rounded,
+      title: 'Fechar pedido de ajuda?',
+      message: closeHelpRequestMessage(
+        pendingCount: section.pendingCandidates.length,
+        acceptedCount: section.acceptedHelpers.length,
+      ),
+      confirmLabel: 'Fechar',
     );
     if (!confirmed) return;
     await _runTeamAction(
@@ -340,9 +346,9 @@ class _WorkerHelpRequestsLobbyViewState
     final id = helper.applicationId;
     if (callback == null || id == null) return;
     final confirmed = await _confirm(
-      title: 'Retirar da equipa',
-      message: '${helper.name} deixa de fazer parte da equipa e é avisado. '
-          'A vaga volta a ficar aberta.',
+      icon: Icons.person_remove_outlined,
+      title: 'Retirar ${helper.name} da equipa?',
+      message: '${helper.name} é avisado e a vaga volta a ficar aberta.',
       confirmLabel: 'Retirar',
     );
     if (!confirmed) return;
@@ -350,26 +356,18 @@ class _WorkerHelpRequestsLobbyViewState
   }
 
   Future<bool> _confirm({
+    required IconData icon,
     required String title,
     required String message,
     required String confirmLabel,
   }) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: icon,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      destructive: true,
     );
     return mounted && confirmed == true;
   }
@@ -448,7 +446,7 @@ class _LobbyContent extends StatelessWidget {
 
     return Column(
       children: [
-        _LobbyHeader(onBack: onBack),
+        _LobbyHeader(onBack: onBack, subtitle: data.jobReferenceLabel),
         Expanded(
           child: ListView(
             key: const PageStorageKey('worker_help_requests_lobby'),
@@ -459,11 +457,6 @@ class _LobbyContent extends StatelessWidget {
               AppSpacing.lg,
             ),
             children: [
-              AppStaggeredEntrance(
-                index: nextIndex(),
-                child: _ResponsibleCard(data: data),
-              ),
-              const SizedBox(height: AppSpacing.sm),
               if (data.sections.isEmpty)
                 AppStaggeredEntrance(
                   index: nextIndex(),
@@ -485,32 +478,26 @@ class _LobbyContent extends StatelessWidget {
                     AppStaggeredEntrance(
                       index: nextIndex(),
                       child: _CapacityCard(
-                        filledPlacesLabel: section.filledPlacesLabel,
-                        progress: section.filledProgress,
-                        statusPresentation: section.statusPresentation,
+                        section: section,
+                        busy: processingApplications
+                            .contains(section.helpRequestId),
+                        onChangeSlots: section.canManage && onChangeSlots != null
+                            ? () => onChangeSlots!(section)
+                            : null,
+                        onClose: section.canManage && onCloseHelpRequest != null
+                            ? () => onCloseHelpRequest!(section)
+                            : null,
                       ),
                     ),
-                  if (section.canManage &&
-                      (onChangeSlots != null || onCloseHelpRequest != null)) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    _TeamManagementActions(
-                      busy: processingApplications
-                          .contains(section.helpRequestId),
-                      onChangeSlots: onChangeSlots == null
-                          ? null
-                          : () => onChangeSlots!(section),
-                      onClose: onCloseHelpRequest == null
-                          ? null
-                          : () => onCloseHelpRequest!(section),
-                    ),
-                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (section.acceptedHelpers.isNotEmpty) ...[
-                    const _SectionLabel(label: 'Aceites'),
+                    _SectionLabel(
+                      label: 'Aceites · ${section.acceptedHelpers.length}',
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     for (final helper in section.acceptedHelpers)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: AppStaggeredEntrance(
                           index: nextIndex(),
                           child: _AcceptedHelperCard(
@@ -526,20 +513,23 @@ class _LobbyContent extends StatelessWidget {
                             onViewRatings: helper.ratingLabel == null
                                 ? null
                                 : () => onViewRatings(
-                                    helper.workerId,
-                                    helper.name,
-                                  ),
+                                      helper.workerId,
+                                      helper.name,
+                                    ),
                           ),
                         ),
                       ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
                   ],
                   if (section.pendingCandidates.isNotEmpty) ...[
-                    const _SectionLabel(label: 'Por decidir'),
+                    _SectionLabel(
+                      label:
+                          'Por decidir · ${section.pendingCandidates.length}',
+                    ),
                     const SizedBox(height: AppSpacing.xs),
                     for (final candidate in section.pendingCandidates)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: AppStaggeredEntrance(
                           index: nextIndex(),
                           child: _CandidateCard(
@@ -550,9 +540,9 @@ class _LobbyContent extends StatelessWidget {
                             onViewRatings: candidate.ratingLabel == null
                                 ? null
                                 : () => onViewRatings(
-                                    candidate.workerId,
-                                    candidate.name,
-                                  ),
+                                      candidate.workerId,
+                                      candidate.name,
+                                    ),
                             onAccept: () => onAccept(candidate),
                             onReject: () => onReject(candidate),
                           ),
@@ -570,8 +560,8 @@ class _LobbyContent extends StatelessWidget {
                       child: Text(
                         'Sem candidatos ainda.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                              color: AppColors.textSecondary,
+                            ),
                       ),
                     ),
                   const SizedBox(height: AppSpacing.md),
@@ -585,22 +575,24 @@ class _LobbyContent extends StatelessWidget {
 }
 
 class _LobbyHeader extends StatelessWidget {
-  const _LobbyHeader({required this.onBack});
+  const _LobbyHeader({required this.onBack, this.subtitle});
 
   final VoidCallback onBack;
+
+  /// Serviço, zona e data do trabalho ("Abate de árvore · Sintra · 25/10").
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final sub = subtitle;
 
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xs,
         AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.sm,
+        AppSpacing.xs,
       ),
       child: Row(
         children: [
@@ -611,11 +603,25 @@ class _LobbyHeader extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
-            child: Text(
-              'Equipa',
-              style: textTheme.titleLarge?.copyWith(
-                color: AppColors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Equipa',
+                  style: textTheme.titleLarge?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (sub != null && sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -624,122 +630,130 @@ class _LobbyHeader extends StatelessWidget {
   }
 }
 
-class _ResponsibleCard extends StatelessWidget {
-  const _ResponsibleCard({required this.data});
+/// Cartão branco das linhas da equipa (vagas, aceites, candidatos).
+class _LobbyCard extends StatelessWidget {
+  const _LobbyCard({required this.child});
 
-  final WorkerHelpLobbyViewData data;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.divider),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                UserAvatarWithName(
-                  name: data.responsibleName.isNotEmpty
-                      ? data.responsibleName
-                      : 'Tu',
-                  avatarUrl: data.responsibleAvatarUrl,
-                  radius: 20,
-                  nameStyle: textTheme.titleMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.xl + AppSpacing.md,
-                  ),
-                  child: Text(
-                    'Responsável · ${data.jobReferenceLabel}',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: AppSpacing.xxs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text(
-              'Responsável',
-              style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
+      child: child,
     );
   }
 }
 
+/// "Vagas preenchidas 1 de 2", a barra e as ações de gestão por baixo.
 class _CapacityCard extends StatelessWidget {
   const _CapacityCard({
-    required this.filledPlacesLabel,
-    required this.progress,
-    required this.statusPresentation,
+    required this.section,
+    required this.busy,
+    required this.onChangeSlots,
+    required this.onClose,
   });
 
-  final String filledPlacesLabel;
-  final double progress;
-  final AppStatusPresentation statusPresentation;
+  final HelpRequestSectionViewData section;
+  final bool busy;
+
+  /// `null` esconde a ação (sem gestão ou equipa já fechada).
+  final VoidCallback? onChangeSlots;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final countLabel = section.filledCountLabel;
+    final linkStyle = textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+    );
+    final linkButtonStyle = TextButton.styleFrom(
+      minimumSize: Size.zero,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
+    return _LobbyCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  filledPlacesLabel,
+                  countLabel == null
+                      ? section.filledPlacesLabel
+                      : 'Vagas preenchidas',
                   style: textTheme.titleMedium?.copyWith(
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              AppStatusBadge.fromPresentation(presentation: statusPresentation),
+              if (section.displayMode == WorkerHelpSectionDisplayMode.filled)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: AppStatusBadge.fromPresentation(
+                    presentation: section.statusPresentation,
+                    dense: true,
+                  ),
+                ),
+              if (countLabel != null)
+                Text(
+                  countLabel,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
             child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
-              minHeight: 8,
+              value: section.filledProgress.clamp(0.0, 1.0),
+              minHeight: AppSizes.progressBarHeight,
               backgroundColor: AppColors.divider,
               valueColor: const AlwaysStoppedAnimation<Color>(
                 AppColors.primary,
               ),
             ),
           ),
+          if (onChangeSlots != null || onClose != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.xxs,
+              children: [
+                if (onChangeSlots != null)
+                  TextButton(
+                    onPressed: busy ? null : onChangeSlots,
+                    style: linkButtonStyle.copyWith(
+                      foregroundColor:
+                          const WidgetStatePropertyAll(AppColors.primary),
+                    ),
+                    child: Text('Alterar vagas', style: linkStyle),
+                  ),
+                if (onClose != null)
+                  TextButton(
+                    onPressed: busy ? null : onClose,
+                    style: linkButtonStyle.copyWith(
+                      foregroundColor: WidgetStatePropertyAll(
+                        AppStatusColor.cancelled.foreground,
+                      ),
+                    ),
+                    child: Text('Fechar pedido de ajuda', style: linkStyle),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -757,11 +771,10 @@ class _AwaitingApprovalCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: presentation.color.background,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: presentation.color.foreground),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,7 +817,10 @@ class _SectionLabel extends StatelessWidget {
 
     return Text(
       label.toUpperCase(),
-      style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+      style: textTheme.labelMedium?.copyWith(
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }
@@ -820,79 +836,80 @@ class _AcceptedHelperCard extends StatelessWidget {
   final WorkerAcceptedHelperViewData helper;
   final VoidCallback? onViewRatings;
 
-  /// "Retirar da equipa"; `null` esconde o botão.
+  /// "Retirar" da equipa; `null` esconde o botão.
   final VoidCallback? onRemove;
   final bool removing;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final danger = AppStatusColor.cancelled.foreground;
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.input),
+    );
+    final buttonText =
+        textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700);
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppStatusColor.success.background,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppStatusColor.success.foreground),
-      ),
+    return _LobbyCard(
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _WorkerSummary(
-                  name: helper.name,
-                  avatarUrl: helper.avatarUrl,
-                  ratingLabel: helper.ratingLabel,
-                  equipmentLabel: helper.equipmentLabel,
-                  statusPresentation: helper.statusPresentation,
-                  onViewRatings: onViewRatings,
-                ),
-              ),
-              if (helper.rateLabel != null) ...[
-                const SizedBox(width: AppSpacing.sm),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    AppStatusBadge.fromPresentation(
-                      presentation: helper.statusPresentation,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      helper.rateLabel!,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: AppColors.primary,
+          _WorkerSummary(
+            name: helper.name,
+            avatarUrl: helper.avatarUrl,
+            ratingLabel: helper.ratingLabel,
+            detailLabel: helper.rateLabel ?? helper.equipmentLabel,
+            statusPresentation: helper.statusPresentation,
+            onViewRatings: onViewRatings,
+            trailing: const AppStatusBadge(
+              label: 'Na equipa',
+              statusColor: AppStatusColor.success,
+              dense: true,
+            ),
+          ),
+          if (helper.phone != null || onRemove != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                if (helper.phone != null)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          openWhatsAppOrWarn(context, helper.phone!),
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('Falar por WhatsApp'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.divider),
+                        minimumSize: const Size.fromHeight(
+                          AppSizes.compactButtonHeight,
+                        ),
+                        shape: buttonShape,
+                        textStyle: buttonText,
                       ),
                     ),
-                  ],
-                ),
+                  )
+                else
+                  const Spacer(),
+                if (onRemove != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  OutlinedButton(
+                    onPressed: removing ? null : onRemove,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: danger,
+                      side: BorderSide(
+                        color: AppStatusColor.cancelled.background,
+                      ),
+                      minimumSize: const Size(
+                        AppSizes.compactButtonHeight,
+                        AppSizes.compactButtonHeight,
+                      ),
+                      shape: buttonShape,
+                      textStyle: buttonText,
+                    ),
+                    child: Text(removing ? 'A retirar...' : 'Retirar'),
+                  ),
+                ],
               ],
-            ],
-          ),
-          if (helper.phone != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => openWhatsAppOrWarn(context, helper.phone!),
-                icon: const Icon(Icons.chat_outlined),
-                label: const Text('Falar por WhatsApp'),
-              ),
-            ),
-          ],
-          if (onRemove != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: removing ? null : onRemove,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppStatusColor.cancelled.foreground,
-                ),
-                icon: const Icon(Icons.person_remove_outlined),
-                label: Text(removing ? 'A retirar...' : 'Retirar da equipa'),
-              ),
             ),
           ],
         ],
@@ -923,25 +940,16 @@ class _CandidateCard extends StatelessWidget {
 
     return Opacity(
       opacity: candidate.actionsBlocked ? 0.55 : 1,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: AppColors.divider),
-        ),
+      child: _LobbyCard(
         child: Column(
           children: [
             _WorkerSummary(
               name: candidate.name,
               avatarUrl: candidate.avatarUrl,
               ratingLabel: candidate.ratingLabel,
-              equipmentLabel: candidate.equipmentLabel,
+              detailLabel: candidate.equipmentLabel,
               statusPresentation: candidate.statusPresentation,
               onViewRatings: onViewRatings,
-              trailing: AppStatusBadge.fromPresentation(
-                presentation: candidate.statusPresentation,
-              ),
             ),
             if (candidate.message != null) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -953,29 +961,33 @@ class _CandidateCard extends StatelessWidget {
                 Expanded(
                   child: PrimaryActionButton(
                     label: processing ? 'A processar...' : 'Aceitar',
+                    height: AppSizes.compactButtonHeight,
                     onPressed: actionsEnabled ? onAccept : null,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Material(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.input),
-                  child: InkWell(
-                    onTap: actionsEnabled ? onReject : null,
+                Tooltip(
+                  message: 'Recusar',
+                  child: Material(
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(AppRadius.input),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppRadius.input),
-                        border: Border.all(color: AppColors.divider),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: actionsEnabled
-                            ? AppColors.textSecondary
-                            : AppStatusColor.neutral.foreground,
+                    child: InkWell(
+                      onTap: actionsEnabled ? onReject : null,
+                      borderRadius: BorderRadius.circular(AppRadius.input),
+                      child: Container(
+                        width: AppSizes.compactButtonHeight,
+                        height: AppSizes.compactButtonHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.input),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: actionsEnabled
+                              ? AppColors.textSecondary
+                              : AppStatusColor.neutral.foreground,
+                        ),
                       ),
                     ),
                   ),
@@ -1000,45 +1012,30 @@ class _CandidateCard extends StatelessWidget {
   }
 }
 
-/// "Alterar vagas" e "Fechar pedido de ajuda" de uma secção.
-class _TeamManagementActions extends StatelessWidget {
-  const _TeamManagementActions({
-    required this.busy,
-    required this.onChangeSlots,
-    required this.onClose,
-  });
-
-  final bool busy;
-  final VoidCallback? onChangeSlots;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xxs,
-      children: [
-        if (onChangeSlots != null)
-          TextButton.icon(
-            onPressed: busy ? null : onChangeSlots,
-            icon: const Icon(Icons.tune_rounded),
-            label: const Text('Alterar vagas'),
-          ),
-        if (onClose != null)
-          TextButton.icon(
-            onPressed: busy ? null : onClose,
-            style: TextButton.styleFrom(
-              foregroundColor: AppStatusColor.cancelled.foreground,
-            ),
-            icon: const Icon(Icons.block_rounded),
-            label: const Text('Fechar pedido de ajuda'),
-          ),
-      ],
-    );
+/// Texto de "Fechar pedido de ajuda?" com o que a RPC
+/// `cancel_help_request` (0049) faz de facto: os candidatos por decidir são
+/// recusados e quem está na equipa sai; todos são avisados.
+@visibleForTesting
+String closeHelpRequestMessage({
+  required int pendingCount,
+  required int acceptedCount,
+}) {
+  final pending = switch (pendingCount) {
+    0 => null,
+    1 => 'O candidato por decidir é avisado.',
+    final n => 'Os $n candidatos por decidir são avisados.',
+  };
+  final team = acceptedCount == 0
+      ? null
+      : 'Quem já está na equipa também sai e é avisado.';
+  final parts = [?pending, ?team];
+  if (parts.isEmpty) {
+    return 'O pedido deixa de aparecer aos outros jardineiros.';
   }
+  return parts.join(' ');
 }
 
-/// Escolher o número de vagas (1 a 10, nunca abaixo dos aceites).
+/// "Alterar vagas": − número +, com o mínimo (os aceites) e o máximo.
 class _SlotsDialog extends StatefulWidget {
   const _SlotsDialog({required this.initialSlots, required this.minimumSlots});
 
@@ -1056,21 +1053,36 @@ class _SlotsDialogState extends State<_SlotsDialog> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return AlertDialog(
-      title: const Text('Alterar vagas'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
+    final accepted = widget.minimumSlots;
+    final minimumLabel = accepted > 0
+        ? 'Mínimo $_min (${accepted == 1 ? 'já aceite' : 'já aceites'})'
+        : 'Mínimo $_min';
+    final canDecrease = _slots > _min;
+    final canIncrease = _slots < lobbyMaxSlots;
+
+    return AppConfirmDialog(
+      icon: Icons.group_outlined,
+      title: 'Alterar vagas',
+      confirmLabel: 'Guardar',
+      onConfirm: () => Navigator.pop(context, _slots),
+      onCancel: () => Navigator.pop(context),
+      details: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton.outlined(
-                onPressed: _slots > _min ? () => setState(() => _slots--) : null,
+              IconButton(
+                onPressed: canDecrease ? () => setState(() => _slots--) : null,
                 tooltip: 'Menos uma vaga',
+                style: IconButton.styleFrom(
+                  fixedSize: const Size.square(AppSizes.actionIconBox),
+                  side: const BorderSide(color: AppColors.divider),
+                  foregroundColor: AppColors.textPrimary,
+                ),
                 icon: const Icon(Icons.remove_rounded),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              SizedBox(
+                width: AppSizes.slotsValueWidth,
                 child: AnimatedSwitcher(
                   duration: MediaQuery.of(context).disableAnimations
                       ? Duration.zero
@@ -1078,42 +1090,36 @@ class _SlotsDialogState extends State<_SlotsDialog> {
                   child: Text(
                     '$_slots',
                     key: ValueKey(_slots),
-                    style: textTheme.displaySmall
-                        ?.copyWith(color: AppColors.textPrimary),
+                    textAlign: TextAlign.center,
+                    style: textTheme.displaySmall?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-              IconButton.outlined(
-                onPressed: _slots < lobbyMaxSlots
-                    ? () => setState(() => _slots++)
-                    : null,
+              IconButton(
+                onPressed: canIncrease ? () => setState(() => _slots++) : null,
                 tooltip: 'Mais uma vaga',
+                style: IconButton.styleFrom(
+                  fixedSize: const Size.square(AppSizes.actionIconBox),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.surface,
+                  disabledBackgroundColor: AppColors.divider,
+                ),
                 icon: const Icon(Icons.add_rounded),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            widget.minimumSlots > 0
-                ? 'Já tens ${widget.minimumSlots} '
-                    '${widget.minimumSlots == 1 ? 'ajudante aceite' : 'ajudantes aceites'}, '
-                    'por isso não podes ter menos vagas do que isso.'
-                : 'Entre 1 e $lobbyMaxSlots vagas.',
+            '$minimumLabel · máximo $lobbyMaxSlots',
             textAlign: TextAlign.center,
-            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style:
+                textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _slots),
-          child: const Text('Guardar'),
-        ),
-      ],
     );
   }
 }
@@ -1122,8 +1128,9 @@ class _SlotsDialogState extends State<_SlotsDialog> {
 const lobbyMaxSlots = 10;
 
 /// Mínimo de vagas ao alterar: os aceites, e nunca menos de 1.
-int lobbySlotsMinimum(int acceptedCount) =>
-    acceptedCount < 1 ? 1 : (acceptedCount > lobbyMaxSlots ? lobbyMaxSlots : acceptedCount);
+int lobbySlotsMinimum(int acceptedCount) => acceptedCount < 1
+    ? 1
+    : (acceptedCount > lobbyMaxSlots ? lobbyMaxSlots : acceptedCount);
 
 /// Mensagem do candidato (`help_acceptances.message`), em bloco citado.
 class _CandidateMessage extends StatelessWidget {
@@ -1161,16 +1168,16 @@ class _CandidateMessage extends StatelessWidget {
   }
 }
 
-/// Nome + avatar (cor do anel/fundo consoante o `statusPresentation` — o
-/// mesmo `AppStatusColor` já usado nos badges) + rating opcional +
-/// equipamento. Partilhado entre candidato pendente, ajudante aceite e o
-/// resumo dentro do bottom sheet de aceitação.
+/// Avatar, nome e uma linha "detalhe · ★ 4.7" (taxa ou equipamento e
+/// avaliação). O fundo do avatar sem foto usa a cor do
+/// `statusPresentation`. Partilhado entre candidato, ajudante aceite e o
+/// resumo da folha de aceitação.
 class _WorkerSummary extends StatelessWidget {
   const _WorkerSummary({
     required this.name,
     required this.avatarUrl,
     required this.ratingLabel,
-    required this.equipmentLabel,
+    required this.detailLabel,
     required this.statusPresentation,
     this.onViewRatings,
     this.trailing,
@@ -1179,7 +1186,7 @@ class _WorkerSummary extends StatelessWidget {
   final String name;
   final String? avatarUrl;
   final String? ratingLabel;
-  final String equipmentLabel;
+  final String detailLabel;
   final AppStatusPresentation statusPresentation;
   final VoidCallback? onViewRatings;
   final Widget? trailing;
@@ -1189,16 +1196,17 @@ class _WorkerSummary extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
     // `name` vazio normalmente é RLS a bloquear o perfil do candidato
-    // (ver fetchCandidatesForHelpRequest), não "sem nome" — mostra o papel
+    // (ver fetchCandidatesForHelpRequest), não "sem nome": mostra o papel
     // em vez de "—"/inicial "?".
     final displayName = name.isNotEmpty ? name : 'Jardineiro';
     final initial = displayName.trim()[0].toUpperCase();
+    final detailStyle =
+        textTheme.labelMedium?.copyWith(color: AppColors.textSecondary);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
-          radius: 22,
+          radius: AppSizes.rowIconBox / 2,
           backgroundColor: statusPresentation.color.background,
           backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
           child: hasAvatar
@@ -1217,38 +1225,33 @@ class _WorkerSummary extends StatelessWidget {
             children: [
               Text(
                 displayName,
-                style: textTheme.bodyMedium?.copyWith(
+                style: textTheme.titleSmall?.copyWith(
                   color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              if (ratingLabel != null)
-                GestureDetector(
-                  onTap: onViewRatings,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        size: 12,
-                        color: Colors.amber,
+              const SizedBox(height: AppSpacing.xxs / 2),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(detailLabel, style: detailStyle),
+                  if (ratingLabel != null)
+                    GestureDetector(
+                      onTap: onViewRatings,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(' · ', style: detailStyle),
+                          Icon(
+                            Icons.star_rounded,
+                            size: AppSizes.ratingStar,
+                            color: AppStatusColor.waiting.foreground,
+                          ),
+                          Text(' ${ratingLabel!}', style: detailStyle),
+                        ],
                       ),
-                      const SizedBox(width: 2),
-                      Text(
-                        ratingLabel!,
-                        style: textTheme.labelSmall?.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 2),
-              Text(
-                equipmentLabel,
-                style: textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -1372,7 +1375,7 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
                   name: widget.candidate.name,
                   avatarUrl: widget.candidate.avatarUrl,
                   ratingLabel: widget.candidate.ratingLabel,
-                  equipmentLabel: widget.candidate.equipmentLabel,
+                  detailLabel: widget.candidate.equipmentLabel,
                   statusPresentation: widget.candidate.statusPresentation,
                 ),
               ),

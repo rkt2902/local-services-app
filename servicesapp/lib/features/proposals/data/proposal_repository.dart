@@ -191,10 +191,14 @@ class ProposalRepository {
   /// [photoPath] é o caminho devolvido por
   /// `JobRepository.uploadCompletionPhoto` (opcional). A RPC recusa antes
   /// do dia do trabalho (migration 0046).
-  Future<void> markJobCompleted(String jobId, {String? photoPath}) async {
+  /// Exige o trabalho iniciado; até 3 fotos de "depois" (migration 0052).
+  Future<void> markJobCompleted(
+    String jobId, {
+    List<String> photoPaths = const [],
+  }) async {
     await _client.rpc('mark_job_done', params: {
       'p_job_id': jobId,
-      'p_photo_path': ?photoPath,
+      'p_photo_paths': photoPaths,
     });
   }
 

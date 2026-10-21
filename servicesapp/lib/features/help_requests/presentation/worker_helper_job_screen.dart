@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/price_labels.dart';
@@ -97,7 +98,7 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
           AsyncValue(:final error?) => _HelperJobMessage(
               icon: Icons.cloud_off_outlined,
               message: friendlyError(error),
-              actionLabel: 'Tentar de novo',
+              actionLabel: 'Tentar novamente',
               onAction: () => ref.invalidate(myHelpAcceptancesProvider),
             ),
           _ => const _HelperJobLoading(),
@@ -139,43 +140,46 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
         children: [
           AppStaggeredEntrance(
             index: index++,
-            child: _HeaderCard(acceptance: acceptance, stage: stage),
+            child: _HeaderRow(acceptance: acceptance, stage: stage),
           ),
           const SizedBox(height: AppSpacing.md),
           AppStaggeredEntrance(
             index: index++,
-            child: StatusTimelineCard(
+            child: _TimelineCard(
               steps: helperTimelineSteps(acceptance, stage),
+              closed: stage == HelperJobStage.closed,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           AppStaggeredEntrance(
             index: index++,
             child: _DetailsCard(acceptance: acceptance, actions: actions),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           AppStaggeredEntrance(
             index: index++,
             child: _PrincipalCard(acceptance: acceptance, actions: actions),
           ),
           if (actions.canRatePrincipal) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             AppStaggeredEntrance(
               index: index++,
               child: _RatePrincipalSection(acceptance: acceptance),
             ),
           ],
           if (actions.canWithdrawApplication || actions.canGiveUp) ...[
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             AppStaggeredEntrance(
               index: index++,
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
+              child: Center(
+                child: TextButton(
                   onPressed: _withdrawing ? null : () => _withdraw(acceptance),
-                  style: OutlinedButton.styleFrom(
+                  style: TextButton.styleFrom(
                     foregroundColor: AppStatusColor.cancelled.foreground,
-                    side: BorderSide(color: AppStatusColor.cancelled.foreground),
+                    textStyle: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   child: Text(
                     _withdrawing
@@ -304,11 +308,13 @@ String _principal(HelpAcceptanceSummary a) =>
         ? 'o jardineiro responsável'
         : a.principalName;
 
+/// "Sábado, 25/10 · 8:30" (sem hora: só o dia).
 String _scheduleLabel(DateTime date, String? time) {
-  final dateStr = DateFormat('dd/MM/yyyy').format(date);
-  if (time == null || time.isEmpty) return dateStr;
-  final timeStr = time.length >= 5 ? time.substring(0, 5) : time;
-  return '$dateStr às $timeStr';
+  final day = weekdayDateLabel(date);
+  if (time == null || time.length < 5) return day;
+  final hour = int.tryParse(time.substring(0, 2));
+  final clock = hour == null ? time.substring(0, 5) : '$hour${time.substring(2, 5)}';
+  return '$day · $clock';
 }
 
 /// Valor a mostrar: acordado depois de aceite; enquanto pendente, a
@@ -325,8 +331,9 @@ String helperRateLabel(HelpAcceptanceSummary a) {
   return 'Valor a combinar';
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.acceptance, required this.stage});
+/// "Ajudas Miguel", o serviço e o estado, sem cartão (design U4).
+class _HeaderRow extends StatelessWidget {
+  const _HeaderRow({required this.acceptance, required this.stage});
 
   final HelpAcceptanceSummary acceptance;
   final HelperJobStage stage;
@@ -334,49 +341,107 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Container(
+          width: AppSizes.actionIconBox,
+          height: AppSizes.actionIconBox,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.input),
+          ),
+          child: const Icon(Icons.handshake_outlined, color: AppColors.primary),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ajudas ${_principal(acceptance)}',
+                style:
+                    textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+              ),
+              Text(
+                acceptance.serviceTypeName,
+                style: textTheme.labelMedium
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        AppStatusBadge.fromPresentation(
+          presentation: helperStagePresentation(acceptance, stage),
+          dense: true,
+        ),
+      ],
+    );
+  }
+}
+
+/// Timeline horizontal e, por baixo, a frase do passo atual numa caixa
+/// verde (vermelha quando a candidatura fechou).
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({required this.steps, required this.closed});
+
+  final List<StatusTimelineStepData> steps;
+  final bool closed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final message = steps
+        .where((s) => s.state == StatusTimelineStepState.current)
+        .map((s) => s.subtitle)
+        .firstOrNull;
+    final background =
+        closed ? AppStatusColor.cancelled.background : AppColors.primaryTint;
+    final foreground =
+        closed ? AppStatusColor.cancelled.foreground : AppColors.primary;
     return _SectionCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.input),
-            ),
-            child: const Icon(Icons.handshake_outlined, color: AppColors.primary),
+          // A frase do passo vai na caixa de baixo, não por baixo do traço.
+          StatusTimelineHorizontal(
+            steps: [
+              for (final step in steps)
+                StatusTimelineStepData(
+                  label: step.label,
+                  statusColor: step.statusColor,
+                  state: step.state,
+                  dateLabel: step.dateLabel,
+                  note: step.note,
+                  noteIsWarning: step.noteIsWarning,
+                ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  acceptance.serviceTypeName,
-                  style: textTheme.titleLarge
-                      ?.copyWith(color: AppColors.textPrimary),
+          if (message != null && message.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+              child: Text(
+                message,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  'Ajudas ${_principal(acceptance)}',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                AppStatusBadge.fromPresentation(
-                  presentation: helperStagePresentation(acceptance, stage),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
+/// Data, valor, equipamento e morada em linhas "rótulo · valor".
 class _DetailsCard extends StatelessWidget {
   const _DetailsCard({required this.acceptance, required this.actions});
 
@@ -385,48 +450,122 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final hasCoordinates =
         acceptance.locationLat != 0 || acceptance.locationLng != 0;
+    final isPending =
+        helperJobStage(acceptance.status, acceptance.jobStatus) ==
+            HelperJobStage.pending;
+    final String? address;
+    if (actions.showsContact) {
+      address = acceptance.addressText.isNotEmpty
+          ? acceptance.addressText
+          : (hasCoordinates ? 'Localização no mapa' : null);
+    } else if (isPending) {
+      address = acceptance.addressText.isNotEmpty
+          ? acceptance.addressText
+          : 'A morada exata aparece quando fores aceite.';
+    } else {
+      address = null;
+    }
+
     return _SectionCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xxs,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Detalhes',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _InfoRow(
+          _FactRow(
             icon: Icons.event_outlined,
-            label: acceptance.confirmedDate != null
-                ? _scheduleLabel(acceptance.confirmedDate!, acceptance.confirmedTime)
-                : 'Data a combinar',
+            label: 'Data',
+            value: acceptance.confirmedDate != null
+                ? _scheduleLabel(
+                    acceptance.confirmedDate!, acceptance.confirmedTime)
+                : 'A combinar',
           ),
-          const SizedBox(height: AppSpacing.xs),
-          _InfoRow(icon: Icons.euro_rounded, label: helperRateLabel(acceptance)),
-          if (acceptance.broughtEquipment) ...[
-            const SizedBox(height: AppSpacing.xs),
-            const _InfoRow(icon: Icons.build_outlined, label: 'Levas equipamento'),
-          ],
-          const SizedBox(height: AppSpacing.xs),
-          if (actions.showsContact && hasCoordinates)
-            AddressMapLink(
-              address: acceptance.addressText,
-              lat: acceptance.locationLat,
-              lng: acceptance.locationLng,
-            )
-          else if (actions.showsContact && acceptance.addressText.isNotEmpty)
-            _InfoRow(icon: Icons.place_outlined, label: acceptance.addressText)
-          else if (!actions.showsContact &&
-              helperJobStage(acceptance.status, acceptance.jobStatus) ==
-                  HelperJobStage.pending)
-            _InfoRow(
+          const Divider(height: 1, color: AppColors.divider),
+          _FactRow(
+            icon: Icons.payments_outlined,
+            label: 'Valor',
+            value: helperRateLabel(acceptance),
+          ),
+          const Divider(height: 1, color: AppColors.divider),
+          _FactRow(
+            icon: Icons.handyman_outlined,
+            label: 'Equipamento',
+            value: acceptance.broughtEquipment
+                ? 'Levas equipamento'
+                : 'Sem equipamento',
+          ),
+          if (address != null) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            _FactRow(
               icon: Icons.place_outlined,
-              label: acceptance.addressText.isNotEmpty
-                  ? acceptance.addressText
-                  : 'A morada exata aparece quando fores aceite.',
+              value: address,
+              trailing: actions.showsContact && hasCoordinates
+                  ? TextButton(
+                      onPressed: () => AddressMapLink.openInMaps(
+                        acceptance.locationLat,
+                        acceptance.locationLng,
+                      ),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.only(left: AppSpacing.sm),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Mapa'),
+                    )
+                  : null,
             ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Uma linha do cartão de detalhes: ícone, rótulo à esquerda e valor em
+/// negrito à direita. Sem [label], o valor ocupa a linha (morada).
+class _FactRow extends StatelessWidget {
+  const _FactRow({
+    required this.icon,
+    required this.value,
+    this.label,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String? label;
+  final String value;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final valueStyle = textTheme.bodyMedium?.copyWith(
+      color: AppColors.textPrimary,
+      fontWeight: FontWeight.w700,
+    );
+    final rowLabel = label;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, size: AppSizes.rowIcon, color: AppColors.textSecondary),
+          const SizedBox(width: AppSpacing.sm),
+          if (rowLabel != null) ...[
+            Text(
+              rowLabel,
+              style:
+                  textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(value, textAlign: TextAlign.right, style: valueStyle),
+            ),
+          ] else
+            Expanded(child: Text(value, style: valueStyle)),
+          ?trailing,
         ],
       ),
     );
@@ -448,39 +587,75 @@ class _PrincipalCard extends ConsumerWidget {
         : null;
     final hasRating = summary != null && summary.ratingCount > 0;
     final phone = acceptance.principalPhone;
+    final name = _principal(acceptance);
 
     return _SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Responsável',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(Icons.person_outline, color: AppColors.textSecondary),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
+              CircleAvatar(
+                radius: AppSizes.rowIconBox / 2,
+                backgroundColor: AppColors.primaryContainer,
                 child: Text(
-                  _principal(acceptance),
-                  style: textTheme.bodyLarge
-                      ?.copyWith(color: AppColors.textPrimary),
+                  name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase(),
+                  style:
+                      textTheme.titleMedium?.copyWith(color: AppColors.primary),
                 ),
               ),
-              if (hasRating)
-                TextButton.icon(
-                  onPressed: () => showWorkerRatingsSheet(
-                    context,
-                    workerId: principalId,
-                    workerName: acceptance.principalName,
-                  ),
-                  icon: const Icon(Icons.star_rounded),
-                  label: Text(
-                    '${decimalLabel(summary.avgRating, 1)} (${summary.ratingCount})',
-                  ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'RESPONSÁVEL',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: hasRating
+                          ? () => showWorkerRatingsSheet(
+                                context,
+                                workerId: principalId,
+                                workerName: acceptance.principalName,
+                              )
+                          : null,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (hasRating) ...[
+                            const SizedBox(width: AppSpacing.xxs),
+                            Icon(
+                              Icons.star_rounded,
+                              size: AppSizes.inlineIcon,
+                              color: AppStatusColor.waiting.foreground,
+                            ),
+                            Text(
+                              decimalLabel(summary.avgRating, 1),
+                              style: textTheme.titleSmall?.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ),
             ],
           ),
           if (actions.showsContact && phone.isNotEmpty) ...[
@@ -491,13 +666,25 @@ class _PrincipalCard extends ConsumerWidget {
                 onPressed: () => openWhatsAppOrWarn(context, phone),
                 icon: const Icon(Icons.chat_outlined),
                 label: const Text('Falar por WhatsApp'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.divider),
+                  minimumSize:
+                      const Size.fromHeight(AppSizes.compactButtonHeight),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                  textStyle: textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ] else if (!actions.showsContact) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               'O contacto aparece quando fores aceite na equipa.',
-              style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style:
+                  textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ],
@@ -567,48 +754,25 @@ class _RatePrincipalSection extends ConsumerWidget {
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.child});
+  const _SectionCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSpacing.md),
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: padding,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.divider),
       ),
       child: child,
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: AppColors.textSecondary),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textPrimary),
-          ),
-        ),
-      ],
     );
   }
 }

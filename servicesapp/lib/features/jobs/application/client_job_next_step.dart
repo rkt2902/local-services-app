@@ -1,4 +1,5 @@
 import '../../../core/constants/enums.dart';
+import '../../worker/application/worker_job_rules.dart';
 import '../data/job_model.dart';
 
 // Próximo passo de um pedido, do ponto de vista do cliente. Partilhado pelo
@@ -42,10 +43,23 @@ bool clientJobNeedsAction(JobRequest job) =>
     _rescheduleAwaitsClient(job) ||
     (job.status == JobStatus.open && job.proposalCount > 0);
 
-/// Uma linha a dizer o que acontece a seguir com o pedido.
-String clientJobNextStepLabel(JobRequest job) {
+/// Uma linha a dizer o que acontece a seguir com o pedido. Com [now], o
+/// pedido à espera de confirmação diz quanto tempo falta para ficar
+/// confirmado sozinho (48h depois de o jardineiro o dar por concluído).
+String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
   if (job.status == JobStatus.awaitingConfirmation) {
-    return 'O jardineiro deu o trabalho por concluído. Confirma.';
+    const base = 'O jardineiro deu o trabalho por concluído.';
+    final doneAt = job.markedDoneAt;
+    if (now != null && doneAt != null) {
+      final left = doneAt
+          .add(const Duration(hours: WorkerJobDayRules.autoConfirmHours))
+          .difference(now);
+      if (left.inMinutes > 0) {
+        final hours = (left.inMinutes / 60).ceil();
+        return '$base Confirma em ${hours}h.';
+      }
+    }
+    return '$base Confirma.';
   }
   if (_rescheduleAwaitsClient(job)) {
     return 'O jardineiro propôs uma nova data. Responde.';
@@ -58,6 +72,7 @@ String clientJobNextStepLabel(JobRequest job) {
     if (n <= 0) return 'À espera de propostas dos jardineiros.';
     return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
   }
+  if (job.isInProgress) return 'O jardineiro já começou o trabalho.';
   return 'Trabalho marcado. Fala com o jardineiro por WhatsApp.';
 }
 

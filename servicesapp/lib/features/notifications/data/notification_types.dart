@@ -7,6 +7,10 @@ abstract class NotificationType {
   static const jobCancelled = 'job_cancelled';
   static const jobReopened = 'job_reopened';
   static const jobMarkedDone = 'job_marked_done';
+
+  /// Migration 0052: para o cliente, o jardineiro carregou em "Iniciar
+  /// trabalho". `relatedId` = id do pedido.
+  static const jobStarted = 'job_started';
   static const jobCompleted = 'job_completed';
   static const jobNoResponse = 'job_no_response';
 
