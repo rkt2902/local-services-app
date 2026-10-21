@@ -28,9 +28,9 @@ Confirmado por leitura do código e das migrations (não de memória):
 | **P7** `architecture.md` obsoleto | Substituído pelo `ARCHITECTURE.md` de 2026-10-16 (extraído do código) |
 | **M4 radius** constantes no AppTheme | `AppRadius` (input 12, card 16, pill 999) |
 
-Ainda abertos de verdade: FCM (só falta configurar, ver `SETUP.md`), OAuth, WEB-1, e os
-itens pós-lançamento. Os 4 `Color(0xFF...)` do logótipo da Google no `login_screen.dart`
-ficam de propósito (são as cores da marca Google, o botão está desativado). Os botões de
+Ainda abertos de verdade: FCM e OAuth (só falta configurar, ver `SETUP.md` passos 4 e 7),
+WEB-1, e os itens pós-lançamento. As cores das marcas Google e Facebook dos botões de login
+social vivem em `AppColors` (`googleBlue`..., `facebookBlue`). Os botões de
 remover foto (26 px) e de contar ajudantes (36 px) estão abaixo dos 48 px recomendados
 para toque; fica para quando houver revisão visual desses ecrãs.
 
@@ -48,7 +48,9 @@ para toque; fica para quando houver revisão visual desses ecrãs.
 | **SA3** fix: Storage INSERT path restriction | Qualquer autenticado pode fazer upload para qualquer path de avatar | S | migration (manual apply) |
 | **SA2** fix: ratings INSERT com verificação de participação | Bypass REST permite inserir avaliação para qualquer job | M | migration (manual apply) |
 | **Contacto do worker principal para ajudantes** | Ajudantes veem o nome mas não o telefone do principal — regra de negócio implementada pela metade | S | nenhuma |
-- **OAuth** (Google/Apple login) (Facebook login): Tem de ser implementado
+- **OAuth** Google e Facebook: ✅ código feito a 2026-10-18, falta configurar (`SETUP.md` passo 7).
+  Apple login fica por fazer: só é obrigatório na App Store se houver outro login social
+  na app iOS (regra 4.8 da Apple), por isso entra quando se publicar no iPhone.
 
 ### 🟡 MÉDIO — polish antes do lançamento mais amplo
 

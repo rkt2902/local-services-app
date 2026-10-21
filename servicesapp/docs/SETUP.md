@@ -14,6 +14,7 @@ Ordem recomendada e porquê:
 4. Firebase e push
 5. Domínio real (quando o comprares; até lá o `netlify.app` serve)
 6. Testes manuais que ficaram pendentes
+7. Login com Google e Facebook (depende do passo 2; pode ser feito logo a seguir)
 
 Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
@@ -147,8 +148,8 @@ Supabase > Authentication > URL Configuration.
   - `https://projardim.netlify.app/**`
   - `http://localhost:*/**` (para testar no PC com `flutter run -d chrome`)
 
-Isto não muda nada visível hoje: a recuperação de senha e a confirmação de email são
-por código, não por link. Fica certo para quando algum email tiver links.
+A recuperação de senha e a confirmação de email são por código, não por link, mas o
+login com Google e Facebook (passo 7) volta para estes endereços.
 
 **Diz ao Claude:** "URLs do Supabase configurados."
 
@@ -387,6 +388,91 @@ Coisas que ficaram para testar num telemóvel real (o ambiente do Claude não te
       consegui reproduzir o overflow de 3px sem dispositivo.
 
 **Diz ao Claude:** a lista do que falhou, com screenshots.
+
+---
+
+## 7. Login com Google e Facebook
+
+O código já está feito: botões "Continuar com Google" e "Continuar com Facebook" no
+login e no registo, na web e nas apps. Quem entra pela primeira vez escolhe o papel e
+escreve só o telemóvel (o nome já vem preenchido da conta e a foto é copiada para o
+Storage). Enquanto um provider não estiver ligado no Supabase, o botão dele dá erro.
+Nada disto precisa de migration.
+
+Vais precisar do URL de callback do Supabase, que é sempre
+`https://twpflvcoyeiysnychkom.supabase.co/auth/v1/callback` (também aparece em
+Supabase > Authentication > Sign In / Providers, dentro do Google ou do Facebook, em
+"Callback URL").
+
+### 7.1 Supabase: Redirect URL das apps
+
+- [ ] Supabase > Authentication > URL Configuration > Redirect URLs, adicionar
+      `pt.projardim.app://login-callback` (é por aqui que o Android e o iPhone voltam à
+      app). As da web já ficaram no passo 2.
+
+### 7.2 Google
+
+1. [ ] [console.cloud.google.com](https://console.cloud.google.com) > criar um projeto
+       "ProJardim" (ou usar o do Firebase, se já o criaste no passo 4).
+2. [ ] Google Auth Platform (ou APIs & Services > OAuth consent screen) > Get started:
+       nome da app "ProJardim", email de suporte o teu, público **External**, contacto o
+       teu email.
+3. [ ] Em **Branding**, Authorized domains: `supabase.co` e `netlify.app` (e o domínio
+       real quando o tiveres). Não carregues logótipo por agora: com logótipo o Google
+       pede verificação manual, que demora semanas.
+4. [ ] Em **Data access**, deixa só os scopes por omissão (`email`, `profile`,
+       `openid`). São os únicos que a app usa e não pedem verificação.
+5. [ ] Em **Clients** > Create client > tipo **Web application**, nome "Supabase".
+       Authorized redirect URIs: o URL de callback do Supabase (acima). Guarda o
+       **Client ID** e o **Client secret**. Não é preciso criar clientes Android nem iOS:
+       a app usa a página de login do Google no browser, o que serve para tudo.
+6. [ ] Em **Audience**, carrega em **Publish app** (passa de Testing a In production).
+       Sem isto só entram as contas que adicionares como test users.
+7. [ ] Supabase > Authentication > Sign In / Providers > **Google**: ligar, colar o
+       Client ID e o Client secret, guardar.
+
+### 7.3 Facebook
+
+1. [ ] [developers.facebook.com](https://developers.facebook.com) > My Apps > Create
+       App. Caso de uso **Authenticate and request data from users with Facebook
+       Login**, tipo **Consumer** se perguntar. Nome "ProJardim".
+2. [ ] Use cases > Facebook Login > Customize > **Permissions**: confirmar que `email`
+       e `public_profile` estão adicionadas (não precisam de revisão da Meta).
+3. [ ] Use cases > Facebook Login > **Settings**: em Valid OAuth Redirect URIs pôr o URL
+       de callback do Supabase. Guardar.
+4. [ ] App settings > Basic: guardar o **App ID** e o **App Secret**. Preencher também
+       Privacy Policy URL, User data deletion (pode ser um URL com instruções, por
+       exemplo uma página que diga para usar Conta > Eliminar conta ou escrever para o
+       suporte) e categoria. Sem isto a Meta não deixa pôr a app em Live.
+5. [ ] Pôr a app em **Live** (interruptor App Mode no topo, ou Publish). Enquanto
+       estiver em Development só entram as contas com papel na app (tu e os testers
+       que adicionares em App roles).
+6. [ ] Supabase > Authentication > Sign In / Providers > **Facebook**: ligar, App ID
+       no campo Client ID, App Secret no Client Secret, guardar.
+
+Nota: a Meta pede uma página de Política de Privacidade real para a app ficar em Live.
+Se ainda não a tiveres, deixa o Facebook em Development (só tu e os testers) e liga só
+o Google por agora.
+
+### Testar
+
+- [ ] Web (site do Netlify): Continuar com Google, conta que nunca usaste na app. Vai
+      para "Como quer usar a ProJardim?", com o nome já escrito e o campo do
+      telemóvel vazio. Escolher papel, escrever o telemóvel, Continuar. Entra no início
+      do papel e a foto da conta Google aparece no perfil.
+- [ ] Repetir com o Facebook (na web e no Android).
+- [ ] Android: Continuar com Google abre o browser e, depois de escolher a conta, volta
+      sozinho à app já com sessão.
+- [ ] Sair e voltar a entrar com o mesmo Google: vai direto para o início, sem pedir o
+      papel outra vez.
+- [ ] Conta antiga criada por email e password: entrar com o Google do mesmo email. Deve
+      entrar na mesma conta (o Supabase junta as duas pelo email).
+- [ ] Na web, se a foto não aparecer (o browser pode bloquear o download da foto do
+      Facebook), a conta fica criada na mesma, sem foto. Diz-me se acontecer.
+- [ ] Cancelar a meio (fechar a página do Google): a app fica no login, sem erro.
+
+**Diz ao Claude:** "Google ligado (e Facebook: sim/não). Testei na web e no Android:
+o que falhou foi ..."
 
 ---
 

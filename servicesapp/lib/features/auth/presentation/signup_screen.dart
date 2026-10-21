@@ -5,11 +5,13 @@ import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/app_password_strength_meter.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/pending_signup_provider.dart';
+import 'widgets/social_sign_in_buttons.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -222,6 +224,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Divider(
+                              color: AppColors.divider,
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                            ),
+                            child: Text(
+                              'ou',
+                              style: textTheme.labelLarge?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Divider(
+                              color: AppColors.divider,
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SocialSignInButtons(
+                        enabled: !isLoading,
+                        onPressed: (provider) => ref
+                            .read(authControllerProvider.notifier)
+                            .signInWithSocial(provider),
                       ),
                     ],
                   ),
