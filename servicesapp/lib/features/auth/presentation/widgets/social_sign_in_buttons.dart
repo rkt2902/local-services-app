@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
+import '../../../../core/config/app_links.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -8,15 +9,18 @@ import '../../../../core/theme/app_spacing.dart';
 /// "Continuar com Google" e "Continuar com Facebook", no login e no
 /// registo. Quem entra pela primeira vez assim não passa pela caixa dos
 /// termos do registo por email, por isso a frase dos termos vai aqui.
+/// O Facebook só aparece com [AppLinks.facebookLoginEnabled].
 class SocialSignInButtons extends StatelessWidget {
   const SocialSignInButtons({
     super.key,
     required this.enabled,
     required this.onPressed,
+    this.showFacebook = AppLinks.facebookLoginEnabled,
   });
 
   final bool enabled;
   final ValueChanged<OAuthProvider> onPressed;
+  final bool showFacebook;
 
   @override
   Widget build(BuildContext context) {
@@ -28,21 +32,24 @@ class SocialSignInButtons extends StatelessWidget {
           icon: const _GoogleMark(),
           onPressed: enabled ? () => onPressed(OAuthProvider.google) : null,
         ),
-        const SizedBox(height: AppSpacing.sm),
         // Facebook pede o botão azul da marca com texto e "f" brancos.
-        _SocialButton(
-          label: 'Continuar com Facebook',
-          icon: const Icon(
-            Icons.facebook,
-            size: AppSizes.socialLogo,
-            color: AppColors.surface,
+        if (showFacebook) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _SocialButton(
+            label: 'Continuar com Facebook',
+            icon: const Icon(
+              Icons.facebook,
+              size: AppSizes.socialLogo,
+              color: AppColors.surface,
+            ),
+            background: AppColors.facebookBlue,
+            foreground: AppColors.surface,
+            onPressed:
+                enabled ? () => onPressed(OAuthProvider.facebook) : null,
           ),
-          background: AppColors.facebookBlue,
-          foreground: AppColors.surface,
-          onPressed: enabled ? () => onPressed(OAuthProvider.facebook) : null,
-        ),
+        ],
         const SizedBox(height: AppSpacing.sm),
-        const _LegalNotice(),
+        _LegalNotice(withFacebook: showFacebook),
       ],
     );
   }
@@ -51,7 +58,9 @@ class SocialSignInButtons extends StatelessWidget {
 /// "Ao continuar com Google ou Facebook aceitas os Termos e a Política de
 /// Privacidade.", com os dois nomes a verde (design U5).
 class _LegalNotice extends StatelessWidget {
-  const _LegalNotice();
+  const _LegalNotice({required this.withFacebook});
+
+  final bool withFacebook;
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +73,10 @@ class _LegalNotice extends StatelessWidget {
       TextSpan(
         style: small?.copyWith(color: AppColors.textSecondary),
         children: [
-          const TextSpan(
-              text: 'Ao continuar com Google ou Facebook aceitas os '),
+          TextSpan(
+              text: withFacebook
+                  ? 'Ao continuar com Google ou Facebook aceitas os '
+                  : 'Ao continuar com Google aceitas os '),
           TextSpan(text: 'Termos', style: link),
           const TextSpan(text: ' e a '),
           TextSpan(text: 'Política de Privacidade', style: link),

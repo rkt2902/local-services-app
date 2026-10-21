@@ -3,6 +3,16 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-21 — Botão do Facebook escondido por omissão
+
+- **Porquê:** a verificação de negócio da Meta não aceita `netlify.app` e pede empresa ou
+  atividade registada, por isso a app da Meta fica em Development. Aí, quem não é tester
+  recebe um erro da Meta ao tocar em "Continuar com Facebook".
+- **Como:** `AppLinks.facebookLoginEnabled` (`--dart-define=FACEBOOK_LOGIN_ENABLED=true`,
+  por omissão `false`). Sem ele o botão e a menção ao Facebook na frase dos termos não
+  aparecem. O deploy web lê a variável `FACEBOOK_LOGIN_ENABLED` do GitHub. O código do
+  OAuth do Facebook fica igual; ligar é só a flag (`SETUP.md` 7.4).
+
 ## 2026-10-19 — Notificações (A4)
 
 - **Uma vista para os dois papéis:** `core/widgets/app_notifications_view.dart` só desenha;

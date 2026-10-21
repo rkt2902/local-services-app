@@ -13,7 +13,9 @@ login e no registo, pelo OAuth do Supabase (`signInWithOAuth`), na web e nas app
 link `pt.projardim.app://login-callback`). Conta nova escolhe o papel e escreve só o
 telemóvel; o nome vem da conta e a foto é copiada para o Storage (`avatars/<id>.jpg`).
 Falta a configuração no Google Cloud, na Meta e no Supabase (`SETUP.md` passo 7); até lá
-os botões dão erro. Sem migration.
+os botões dão erro. Sem migration. Desde 21/10 o botão do Facebook está escondido até haver
+`--dart-define=FACEBOOK_LOGIN_ENABLED=true` (a app da Meta fica em Development enquanto
+não houver verificação de negócio).
 
 **2026-10-18, limpeza de docs e design system:** os itens SA1, SA2, SA3, M4 (CHECKs),
 contacto do jardineiro responsável para ajudantes, P-8-8, P1/A1 (labels de `JobStatus`),

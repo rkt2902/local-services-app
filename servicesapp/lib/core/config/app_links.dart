@@ -21,6 +21,13 @@ abstract final class AppLinks {
     defaultValue: 'suporte@projardim.pt',
   );
 
+  /// "Continuar com Facebook" só aparece com
+  /// `--dart-define=FACEBOOK_LOGIN_ENABLED=true`. Enquanto a app da Meta
+  /// estiver em Development (sem verificação de negócio), quem não é tester
+  /// recebe um erro da Meta, por isso o botão fica escondido por omissão.
+  static const bool facebookLoginEnabled =
+      bool.fromEnvironment('FACEBOOK_LOGIN_ENABLED');
+
   /// Prazo de resposta prometido em "Contacto e suporte".
   static const String supportResponseTime = 'Respondemos em 1 dia útil';
 

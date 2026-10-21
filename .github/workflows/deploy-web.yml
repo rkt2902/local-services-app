@@ -49,17 +49,20 @@ jobs:
 
       - run: flutter pub get
 
-      # APP_PUBLIC_URL e SUPPORT_EMAIL são opcionais (Settings > Secrets and
-      # variables > Actions > Variables). Sem eles a app usa o próprio site e
-      # o email por defeito. Ver servicesapp/docs/SETUP.md.
+      # APP_PUBLIC_URL, SUPPORT_EMAIL e FACEBOOK_LOGIN_ENABLED são opcionais
+      # (Settings > Secrets and variables > Actions > Variables). Sem eles a
+      # app usa o próprio site, o email por defeito e esconde o botão do
+      # Facebook. Ver servicesapp/docs/SETUP.md.
       - name: Build web
         env:
           APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
           SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          FACEBOOK_LOGIN_ENABLED: ${{ vars.FACEBOOK_LOGIN_ENABLED }}
         run: |
           extra=()
           if [ -n "$APP_PUBLIC_URL" ]; then extra+=(--dart-define=APP_PUBLIC_URL="$APP_PUBLIC_URL"); fi
           if [ -n "$SUPPORT_EMAIL" ]; then extra+=(--dart-define=SUPPORT_EMAIL="$SUPPORT_EMAIL"); fi
+          if [ -n "$FACEBOOK_LOGIN_ENABLED" ]; then extra+=(--dart-define=FACEBOOK_LOGIN_ENABLED="$FACEBOOK_LOGIN_ENABLED"); fi
           flutter build web --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
