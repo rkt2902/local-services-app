@@ -81,7 +81,7 @@ class _ClientJobDetailScreenState
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx, true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(foregroundColor: AppStatusColor.cancelled.foreground),
               child: const Text('Cancelar pedido'),
             ),
           ],
@@ -107,7 +107,7 @@ class _ClientJobDetailScreenState
         ref.invalidate(jobByIdProvider(widget.jobId));
       } catch (e) {
         scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       } finally {
         if (!navigatedAway && mounted) setState(() => _saving = false);
@@ -165,7 +165,7 @@ class _ClientJobDetailScreenState
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(
-            content: Text(friendlyError(e)), backgroundColor: Colors.red),
+            content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
       return false;
     } finally {

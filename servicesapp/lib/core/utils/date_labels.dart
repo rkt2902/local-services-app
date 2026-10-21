@@ -8,7 +8,7 @@ import '../constants/enums.dart';
 /// Extraído de `worker_job_detail_screen.dart` (`_deadlineLabel`) para
 /// `core/utils/` quando passou a ser usado também em
 /// `client_jobs_screen.dart` — 2+ features, por isso deixa de ser privado
-/// de um ecrã (ver architecture.md: "core/ só para o que é partilhado por
+/// de um ecrã (ver ARCHITECTURE.md: "core/ só para o que é partilhado por
 /// 2+ features"). Recebe os dois campos em bruto (não um `JobRequest`)
 /// para não obrigar `core/` a depender do model da feature `jobs`.
 ///

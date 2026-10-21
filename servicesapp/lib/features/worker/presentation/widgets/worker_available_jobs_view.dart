@@ -72,7 +72,7 @@ class WorkerAvailableJobsFilters {
 /// `features/worker/presentation/widgets/` (não em `core/widgets/`) porque,
 /// apesar de genérico no tipo, é conceptualmente específico à feature
 /// `worker` (categoria/urgente são filtros de pedidos, não um conceito
-/// partilhado por 2+ features — ver architecture.md).
+/// partilhado por 2+ features — ver ARCHITECTURE.md).
 ///
 /// Esta abordagem permite ligar o provider real sem inventar:
 /// - o caminho do import;

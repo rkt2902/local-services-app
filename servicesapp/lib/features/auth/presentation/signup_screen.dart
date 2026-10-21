@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
@@ -76,7 +77,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
     });
@@ -91,6 +92,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Voltar',
                     onPressed: () =>
                         context.canPop() ? context.pop() : context.go('/'),
                     icon: const Icon(Icons.arrow_back_rounded),
@@ -152,6 +154,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.newPassword],
                         suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Mostrar palavra-passe'
+                              : 'Esconder palavra-passe',
                           onPressed: () => setState(
                               () => _obscurePassword = !_obscurePassword),
                           icon: Icon(

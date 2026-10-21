@@ -133,7 +133,7 @@ class _FleetCardConfirmDataScreenState
       setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(
         content: Text(friendlyError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
     }
   }
@@ -257,6 +257,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           ),

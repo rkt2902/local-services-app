@@ -3,6 +3,23 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Tokens do design system, acessibilidade e docs em dia
+
+- **Cores soltas trocadas por tokens:** os ~30 `Colors.red`/`redAccent` (SnackBars de erro,
+  botões destrutivos, borda de erro do `AppTextField`) passaram a
+  `AppStatusColor.cancelled.foreground`, que já era o padrão nos ecrãs mais recentes. Estrelas
+  de avaliação mostradas (`Colors.amber`) passaram a `AppColors.logoAccent`, a mesma cor do
+  `RatingStarsInput`. Ícones das notificações com `AppStatusColor` (verde = `primary`, laranja
+  = `waiting`, azul = `info`, cinza = `neutral`). Ficam de fora as 4 cores do logótipo Google
+  (marca de terceiros) e o `inactiveColor` do indicador do onboarding (decorativo).
+- **Acessibilidade:** todos os `IconButton` têm `tooltip` (é o que o TalkBack/VoiceOver lê).
+  Os olhos das passwords dizem "Mostrar/Esconder palavra-passe" conforme o estado.
+- **Logs:** tirados os `debugPrint('[UPLOAD_PHOTO] ...')` (corriam também em release).
+- **`docs/architecture.md` → `docs/ARCHITECTURE.md`:** o CLAUDE.md e 13 referências usavam
+  maiúsculas; no Windows funcionava, no Linux (CI, sessões cloud) o ficheiro não era encontrado.
+- **Docs:** `STATUS.md` e `improvements.md` tinham SA1/SA2/SA3, M4, P-8-8, P1/A1 e o reskin de
+  `client_jobs_screen` como abertos; todos já estavam resolvidos (tabela em `improvements.md`).
+
 ## 2026-10-18 — Decisões pendentes, todas feitas (defaults escolhidos pelo Claude)
 
 O Henrique pediu para fazer tudo o que estava por decidir. Defaults escolhidos:

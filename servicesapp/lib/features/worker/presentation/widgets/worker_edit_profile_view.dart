@@ -960,6 +960,7 @@ class _AddressSearchField extends StatelessWidget {
                 ),
               )
             : IconButton(
+                tooltip: 'Procurar morada',
                 icon: const Icon(Icons.search, color: AppColors.primary),
                 onPressed: onSearch,
               ),

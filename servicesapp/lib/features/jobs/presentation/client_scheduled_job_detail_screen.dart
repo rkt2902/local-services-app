@@ -105,7 +105,7 @@ class _ClientScheduledJobDetailScreenState
       ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (!navigatedAway && mounted) setState(() => _saving = false);
@@ -130,7 +130,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Remarcação enviada.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
@@ -148,7 +148,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Nova data aceite.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
@@ -166,7 +166,7 @@ class _ClientScheduledJobDetailScreenState
       scaffold.showSnackBar(const SnackBar(content: Text('Remarcação recusada.')));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
@@ -184,7 +184,7 @@ class _ClientScheduledJobDetailScreenState
       ));
     } catch (e) {
       scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
       );
     } finally {
       if (mounted) setState(() => _approvingHelp.remove(helpRequestId));
@@ -608,6 +608,7 @@ class _ScheduledHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),
@@ -913,6 +914,7 @@ class _LoadingHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Voltar',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),

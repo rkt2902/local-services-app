@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
@@ -319,7 +320,7 @@ class _WorkerEditProfileScreenState
     } catch (e) {
       if (mounted) {
         scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;
@@ -330,9 +331,9 @@ class _WorkerEditProfileScreenState
 
   Future<bool> _saveBaseLocation() async {
     if (_baseLat == null || _baseLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Localização em falta.'),
-        backgroundColor: Colors.red,
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Localização em falta.'),
+        backgroundColor: AppStatusColor.cancelled.foreground,
       ));
       return false;
     }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/router/app_back_navigation.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
@@ -88,7 +89,7 @@ class _ClientEditProfileScreenState
     } catch (e) {
       if (mounted) {
         scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
         );
       }
       return false;

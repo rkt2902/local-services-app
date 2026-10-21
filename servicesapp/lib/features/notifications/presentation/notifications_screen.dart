@@ -417,25 +417,25 @@ class _NotificationsEmptyState extends StatelessWidget {
 }
 
 (IconData, Color) _iconForType(String type) => switch (type) {
-      NotificationType.newJobInRadius => (Icons.yard, Colors.green.shade600),
+      NotificationType.newJobInRadius => (Icons.yard, AppColors.primary),
       NotificationType.proposalReceived =>
-        (Icons.description, Colors.orange.shade700),
+        (Icons.description, AppStatusColor.waiting.foreground),
       NotificationType.proposalAccepted =>
-        (Icons.check_circle, Colors.green.shade600),
+        (Icons.check_circle, AppColors.primary),
       NotificationType.proposalRejected =>
-        (Icons.cancel, Colors.red.shade600),
+        (Icons.cancel, AppStatusColor.cancelled.foreground),
       NotificationType.helpRequestApproved =>
-        (Icons.groups_outlined, Colors.green.shade600),
+        (Icons.groups_outlined, AppColors.primary),
       NotificationType.helpAccepted =>
-        (Icons.person_add_alt_1, Colors.green.shade600),
+        (Icons.person_add_alt_1, AppColors.primary),
       NotificationType.helpRejected =>
-        (Icons.person_remove, Colors.grey.shade600),
+        (Icons.person_remove, AppStatusColor.neutral.foreground),
       NotificationType.helpJobCancelled =>
-        (Icons.event_busy, Colors.red.shade400),
+        (Icons.event_busy, AppStatusColor.cancelled.foreground),
       NotificationType.helpRequestReopened =>
-        (Icons.group_add_outlined, Colors.blue.shade600),
+        (Icons.group_add_outlined, AppStatusColor.info.foreground),
       NotificationType.helpWithdrew =>
-        (Icons.person_remove_alt_1, Colors.orange.shade700),
+        (Icons.person_remove_alt_1, AppStatusColor.waiting.foreground),
       NotificationType.jobReminder =>
         (Icons.alarm_rounded, AppColors.primary),
       NotificationType.jobUpdated =>

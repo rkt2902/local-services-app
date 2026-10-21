@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -59,12 +58,9 @@ class JobRepository {
     required String clientId,
     required XFile file,
   }) async {
-    debugPrint('[UPLOAD_PHOTO] Compressing. path=${file.path}');
     final photo = await photoBytesForUpload(file);
-    debugPrint('[UPLOAD_PHOTO] Compressed. bytes=${photo.bytes.length}');
 
     final storagePath = '$clientId/$jobId/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    debugPrint('[UPLOAD_PHOTO] Uploading to storage. storagePath=$storagePath');
 
     await _client.storage.from('job-photos').uploadBinary(
           storagePath,
@@ -74,13 +70,11 @@ class JobRepository {
             upsert: true,
           ),
         );
-    debugPrint('[UPLOAD_PHOTO] Storage upload done. Inserting job_photos row.');
 
     await _client.from('job_photos').insert({
       'job_id': jobId,
       'storage_path': storagePath,
     });
-    debugPrint('[UPLOAD_PHOTO] job_photos row inserted.');
 
     return _client.storage.from('job-photos').getPublicUrl(storagePath);
   }

@@ -1,12 +1,22 @@
 # LocalServices (ProJardim) — Project Status
 
-> Snapshot honesto do estado do projeto. Atualizado em 2026-09-08.
+> Snapshot honesto do estado do projeto. Atualizado em 2026-09-08 (revisto a 2026-10-18, ver primeira entrada abaixo).
 > Sem spin — o que funciona, o que não funciona, o que é placeholder, o que bloqueia utilizadores reais.
 > Esta atualização é o resultado de uma auditoria completa (código + RLS + navegação + cobertura do redesign) pedida em 2026-09-08. Auditoria só de leitura — nenhum ficheiro de código foi alterado; o registo detalhado fica no relatório dessa conversa, não replicado aqui linha a linha.
 
 ---
 
 ## O que funciona end-to-end hoje
+
+**2026-10-18, limpeza de docs e design system:** os itens SA1, SA2, SA3, M4 (CHECKs),
+contacto do jardineiro responsável para ajudantes, P-8-8, P1/A1 (labels de `JobStatus`),
+reskin de `client_jobs_screen` e shimmer nas listas estavam marcados como abertos mas já
+estão resolvidos no código e nas migrations (ver `improvements.md`, secção "Revisão de
+2026-10-18"). Erros, estrelas e ícones de notificação passaram a usar os tokens
+(`AppStatusColor`, `AppColors.logoAccent`) em vez de `Colors.red`/`amber`/`green`. Todos os
+botões só com ícone têm descrição para leitores de ecrã. O ficheiro de arquitetura passou a
+`docs/ARCHITECTURE.md` (antes `architecture.md`, que não batia com o CLAUDE.md em sistemas
+que distinguem maiúsculas).
 
 **2026-10-17, limpeza sem decisões:** todas as migrations até à 0046 aplicadas
 (confirmado pelo Henrique). CI no GitHub Actions (`ci.yml`: `flutter analyze` + `flutter
@@ -98,8 +108,12 @@ client_job_detail/confirmed/rate-worker, fleet card (scan/confirm/status).
   loading → `AppSkeletonShimmer`, vazios reskinned, `AppFadeThroughSwitcher` na troca de tabs)
   foi reskinned em 2026-09-16, completando o ecrã.
 
-**NUNCA redesenhado — ainda Material 3 puro, vintage Fase 8 (funcionalmente correto,
-visualmente destoante):**
+**✅ RESOLVIDO (confirmado a 2026-10-18):** `client_jobs_screen.dart` já é um wrapper fino
+sobre `widgets/client_jobs_view.dart`, com tokens e shimmer. A tabela abaixo fica como
+histórico.
+
+~~**NUNCA redesenhado — ainda Material 3 puro, vintage Fase 8 (funcionalmente correto,
+visualmente destoante):**~~
 
 | Ecrã | Rota | Nota |
 |---|---|---|
@@ -125,6 +139,9 @@ dizia que `status_timeline.dart` "será refeito do zero no redesign visual" — 
 de todos os ecrãs de detalhe de job, com zona de detalhe para subtitle/note e largura adaptativa
 para não dar overflow. Ver `decisions_log.md` 2026-10-15.
 
+**✅ RESOLVIDO (confirmado a 2026-10-18):** o shimmer é usado em todos os ecrãs de lista e de
+detalhe (`AppSkeletonShimmer`/`AppScreenLoadingSkeleton`); os spinners que restam estão
+dentro de botões, no mapa e no visualizador de fotos. Nota antiga:
 **Sistema de shimmer (`AppSkeletonShimmer`) usado de forma inconsistente:** só 4 ecrãs o adotam
 (`worker_dashboard`, `worker_jobs_view`, `worker_available_jobs_view`, `apply_as_helper`) — outros
 ecrãs de lista já reskinned (`client_home_view`, `worker_my_job_detail_view`) continuam a usar
@@ -159,9 +176,11 @@ delta"). Confirmado de forma independente em 2026-10-16 (ver entrada acima) — 
 
 ### 🟠 ALTO — antes de mostrar a alguém fora da equipa
 
-(Os 4 itens já conhecidos continuam válidos e estão detalhados em `improvements.md`: push
-notifications/FCM, SA3 Storage path, SA2 ratings participação, contacto do worker principal —
-nenhum mudou de estado nesta auditoria.)
+**Atualizado 2026-10-18:** dos 4 itens antigos só falta configurar o push (FCM): o código
+está na app e a configuração está no `SETUP.md`. SA3 (path do upload) já estava fechado na
+baseline 0001 (policies de INSERT por `auth.uid()` em `avatars` e `job-photos`), SA2
+(avaliações) foi fechado pela 0042 e o contacto do jardineiro responsável chega aos
+ajudantes desde a 0048/0049 (WhatsApp no ecrã do ajudante).
 
 **✅ RESOLVIDO (código) 2026-10-15 — hardening de segurança de 2026-09-09 (migration 0032)
 tinha partido silenciosamente 4 pontos de nome/avatar da contraparte.** A policy `USING(true)`
@@ -273,8 +292,9 @@ pedidos abertos.
 
 ### Riscos aceites (sem mudança desde 2026-07-09)
 
-SA1, SA2, SA3 — ver tabela completa em `improvements.md`. Nenhum foi corrigido nem piorado
-nesta auditoria.
+~~SA1, SA2, SA3~~ — **todos fechados (confirmado no código a 2026-10-18):** SA1 pela 0042/0046
+(`REVOKE EXECUTE` de `auto_confirm_completed_jobs`/`auto_expire_jobs` a `authenticated`),
+SA2 pela 0042 (S4), SA3 já na baseline 0001.
 
 ---
 

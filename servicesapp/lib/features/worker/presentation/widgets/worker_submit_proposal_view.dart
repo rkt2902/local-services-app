@@ -834,6 +834,7 @@ class _HelpersSection extends StatelessWidget {
                           ),
                           _HelperCountButton(
                             icon: Icons.remove_rounded,
+                            tooltip: 'Menos um ajudante',
                             enabled: canDecrease,
                             onPressed: onDecrease,
                           ),
@@ -849,6 +850,7 @@ class _HelpersSection extends StatelessWidget {
                           ),
                           _HelperCountButton(
                             icon: Icons.add_rounded,
+                            tooltip: 'Mais um ajudante',
                             enabled: canIncrease,
                             onPressed: onIncrease,
                           ),
@@ -895,11 +897,13 @@ class _HelpersSection extends StatelessWidget {
 class _HelperCountButton extends StatelessWidget {
   const _HelperCountButton({
     required this.icon,
+    required this.tooltip,
     required this.enabled,
     required this.onPressed,
   });
 
   final IconData icon;
+  final String tooltip;
   final bool enabled;
   final VoidCallback onPressed;
 
@@ -907,6 +911,7 @@ class _HelperCountButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: enabled ? onPressed : null,
+      tooltip: tooltip,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(

@@ -1231,7 +1231,7 @@ class _WorkerSummary extends StatelessWidget {
                       const Icon(
                         Icons.star_rounded,
                         size: 12,
-                        color: Colors.amber,
+                        color: AppColors.logoAccent,
                       ),
                       const SizedBox(width: 2),
                       Text(

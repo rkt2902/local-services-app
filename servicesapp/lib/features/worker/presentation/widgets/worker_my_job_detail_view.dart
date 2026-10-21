@@ -1376,7 +1376,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
                           ? Icons.star_rounded
                           : Icons.star_outline_rounded,
                       size: 16,
-                      color: Colors.amber,
+                      color: AppColors.logoAccent,
                     ),
                   ),
                 ),
