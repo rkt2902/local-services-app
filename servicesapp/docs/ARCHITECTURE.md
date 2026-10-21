@@ -338,7 +338,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | Tabela | Propósito | Colunas-chave |
 |---|---|---|
 | `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` (texto livre; a app só mostra URLs do Storage do projeto, `StorageUrls`) |
-| `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030) |
+| `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
 | `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046) |
@@ -430,7 +430,7 @@ muda (ver secção 13).
 |---|---|---|---|
 | `worker_profiles_public` | **não** (definer-style, deliberado) | `authenticated` | `bio, radius_km, tools, location_name, photos` — sem coordenadas |
 | `worker_rating_summary` | **sim** (deliberado — ratings já é `USING(true)`) | `authenticated` | `worker_id, avg_rating, rating_count` |
-| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating — sem telefone/coordenadas/raio |
+| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio |
 
 ### Triggers
 
@@ -467,8 +467,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
 | `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
+| `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
 
-Próxima migration: `0050`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0050` se ainda estiver livre, senão `0052`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

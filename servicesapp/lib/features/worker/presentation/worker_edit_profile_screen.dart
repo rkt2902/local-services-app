@@ -15,6 +15,7 @@ import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
 import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
+import '../data/worker_showcase.dart';
 import 'widgets/worker_edit_profile_view.dart' as view;
 
 /// Formulário de edição do perfil do worker — extraído do antigo
@@ -58,6 +59,12 @@ class _WorkerEditProfileScreenState
   final _toolController = TextEditingController();
   final _serviceSearchController = TextEditingController();
 
+  final _highlightController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _facebookController = TextEditingController();
+  final _websiteController = TextEditingController();
+  final _otherLinkController = TextEditingController();
+
   bool _initialized = false;
 
   int _radiusKm = 10;
@@ -72,6 +79,7 @@ class _WorkerEditProfileScreenState
   XFile? _newAvatar;
   final List<String> _tools = [];
   final List<String> _selectedServiceTypeIds = [];
+  final List<String> _highlights = [];
 
   @override
   void initState() {
@@ -95,6 +103,11 @@ class _WorkerEditProfileScreenState
     _lngController.dispose();
     _toolController.dispose();
     _serviceSearchController.dispose();
+    _highlightController.dispose();
+    _instagramController.dispose();
+    _facebookController.dispose();
+    _websiteController.dispose();
+    _otherLinkController.dispose();
     super.dispose();
   }
 
@@ -117,6 +130,14 @@ class _WorkerEditProfileScreenState
     _selectedServiceTypeIds
       ..clear()
       ..addAll(profile.serviceTypeIds);
+    _highlights
+      ..clear()
+      ..addAll(profile.highlights);
+    for (final link in profile.socialLinks) {
+      final controller = _linkControllerFor(link.kind);
+      // Um link por tipo; se a BD tiver mais do que um, fica o primeiro.
+      if (controller.text.isEmpty) controller.text = link.url;
+    }
     _initialized = true;
   }
 
@@ -266,6 +287,75 @@ class _WorkerEditProfileScreenState
     setState(() => _tools.remove(tool));
   }
 
+  // ── Destaques e links ──────────────────────────────────────────────────
+
+  TextEditingController _linkControllerFor(WorkerSocialLinkKind kind) =>
+      switch (kind) {
+        WorkerSocialLinkKind.instagram => _instagramController,
+        WorkerSocialLinkKind.facebook => _facebookController,
+        WorkerSocialLinkKind.website => _websiteController,
+        WorkerSocialLinkKind.other => _otherLinkController,
+      };
+
+  void _addHighlight() {
+    final text = _highlightController.text.trim();
+    if (text.isEmpty) return;
+    if (_highlights.length >= maxWorkerHighlights) return;
+    setState(() {
+      _highlights.add(text.length > maxWorkerHighlightLength
+          ? text.substring(0, maxWorkerHighlightLength)
+          : text);
+      _highlightController.clear();
+    });
+  }
+
+  void _removeHighlight(int index) {
+    if (index < 0 || index >= _highlights.length) return;
+    setState(() => _highlights.removeAt(index));
+  }
+
+  /// Links normalizados para gravar (só os campos preenchidos e válidos; o
+  /// formulário já não deixa gravar um inválido).
+  List<WorkerSocialLink> get _draftSocialLinks => [
+        for (final kind in WorkerSocialLinkKind.values)
+          if (normalizeSocialLink(_linkControllerFor(kind).text, kind)
+              case final url?)
+            WorkerSocialLink(kind: kind, url: url),
+      ];
+
+  String _showcaseSummary(bool available) {
+    if (!available) return 'Em breve';
+    final links = _draftSocialLinks.length;
+    if (_highlights.isEmpty && links == 0) return 'Ainda sem destaques';
+    final parts = [
+      if (_highlights.isNotEmpty)
+        '${_highlights.length} '
+            '${_highlights.length == 1 ? 'destaque' : 'destaques'}',
+      if (links > 0) '$links ${links == 1 ? 'link' : 'links'}',
+    ];
+    return parts.join(' · ');
+  }
+
+  Future<bool> _saveShowcase() async {
+    // Texto escrito mas não adicionado com "+" também conta.
+    _addHighlight();
+    final saved = await _persist();
+    if (saved && mounted) {
+      // Mostra os links já normalizados (ex. @nome → link completo).
+      for (final link in _draftSocialLinks) {
+        _linkControllerFor(link.kind).text = link.url;
+      }
+    }
+    return saved;
+  }
+
+  void _previewPublicProfile() {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    ref.invalidate(workerPublicCardProvider(userId));
+    context.push('/w/$userId');
+  }
+
   // ── Navegação entre secções ────────────────────────────────────────────────
 
   void _openSection(view.WorkerProfileEditSection section) {
@@ -300,6 +390,8 @@ class _WorkerEditProfileScreenState
         radiusKm: _radiusKm,
         tools: List.of(_tools),
         serviceTypeIds: List.of(_selectedServiceTypeIds),
+        highlights: List.of(_highlights),
+        socialLinks: _draftSocialLinks,
       );
 
   Future<bool> _persist({bool uploadAvatarIfNeeded = false}) async {
@@ -316,6 +408,7 @@ class _WorkerEditProfileScreenState
       }
       await repo.updateProfile(draft);
       ref.invalidate(workerProfileProvider);
+      ref.invalidate(workerPublicCardProvider(profile.profileId));
       return true;
     } catch (e) {
       if (mounted) {
@@ -404,6 +497,12 @@ class _WorkerEditProfileScreenState
           toolsSummaryLabel:
               _tools.isEmpty ? 'Nenhuma ferramenta' : '${_tools.length} ferramentas',
           ratingsSummaryLabel: '$ratingLabel · $reviewsLabel',
+          showcaseSummaryLabel: _showcaseSummary(profile.showcaseSupported),
+          showcase: view.WorkerShowcaseEditViewData(
+            highlights: List.of(_highlights),
+            maxHighlights: maxWorkerHighlights,
+            available: profile.showcaseSupported,
+          ),
           baseLocation: view.WorkerBaseLocationViewData(
             manualCoordinatesEnabled: _showManualCoords,
             isResolvingLocation: _loadingLocation || _geocoding,
@@ -467,6 +566,24 @@ class _WorkerEditProfileScreenState
       onAddTool: _addTool,
       onRemoveTool: _removeTool,
       onSaveServicesAndTools: _saveServicesAndTools,
+      onOpenShowcase: () => _openSection(view.WorkerProfileEditSection.showcase),
+      highlightInputController: _highlightController,
+      instagramController: _instagramController,
+      facebookController: _facebookController,
+      websiteController: _websiteController,
+      otherLinkController: _otherLinkController,
+      instagramValidator: (v) =>
+          socialLinkError(v ?? '', WorkerSocialLinkKind.instagram),
+      facebookValidator: (v) =>
+          socialLinkError(v ?? '', WorkerSocialLinkKind.facebook),
+      websiteValidator: (v) =>
+          socialLinkError(v ?? '', WorkerSocialLinkKind.website),
+      otherLinkValidator: (v) =>
+          socialLinkError(v ?? '', WorkerSocialLinkKind.other),
+      onAddHighlight: _addHighlight,
+      onRemoveHighlight: _removeHighlight,
+      onPreviewPublicProfile: _previewPublicProfile,
+      onSaveShowcase: _saveShowcase,
       onRetry: () => ref.invalidate(workerProfileProvider),
     );
   }

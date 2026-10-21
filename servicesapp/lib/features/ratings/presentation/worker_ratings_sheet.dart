@@ -5,10 +5,14 @@ import '../../../core/utils/price_labels.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../worker/application/worker_providers.dart';
+import '../../worker/presentation/widgets/worker_showcase_section.dart';
 import '../application/rating_providers.dart';
 
-/// Opens a read-only bottom sheet showing a worker's average rating and
-/// the list of individual ratings with rater names and comments.
+/// Opens a read-only bottom sheet showing a worker's average rating, what
+/// the worker chose to highlight (bio, destaques e links, migration 0051)
+/// and the list of individual ratings with rater names and comments.
 /// Uses Consumer internally — no WidgetRef needed from the call site.
 Future<void> showWorkerRatingsSheet(
   BuildContext context, {
@@ -22,6 +26,9 @@ Future<void> showWorkerRatingsSheet(
       builder: (ctx, ref, _) {
         final summaryAsync = ref.watch(ratingSummaryProvider(workerId));
         final ratingsAsync = ref.watch(ratingsWithNamesProvider(workerId));
+        // Destaques: se falhar ou ainda não houver, a folha mostra só as
+        // avaliações, como antes.
+        final card = ref.watch(workerPublicCardProvider(workerId)).asData?.value;
 
         return DraggableScrollableSheet(
           initialChildSize: 0.55,
@@ -61,6 +68,25 @@ Future<void> showWorkerRatingsSheet(
                           ),
                         ),
                       ),
+                      if (card != null)
+                        SliverToBoxAdapter(
+                          child: AppStaggeredEntrance(
+                            index: 0,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.lg,
+                                0,
+                                AppSpacing.lg,
+                                AppSpacing.md,
+                              ),
+                              child: WorkerShowcaseSection(
+                                bio: card.bio,
+                                highlights: card.highlights,
+                                socialLinks: card.socialLinks,
+                              ),
+                            ),
+                          ),
+                        ),
                       const SliverToBoxAdapter(child: Divider(height: 1)),
                       ratingsAsync.when(
                         loading: () => SliverPadding(
@@ -94,12 +120,14 @@ Future<void> showWorkerRatingsSheet(
                                   r.comment != null && r.comment!.isNotEmpty)
                               .toList();
                           if (withComment.isEmpty) {
-                            return const SliverFillRemaining(
+                            return SliverFillRemaining(
                               hasScrollBody: false,
                               child: Center(
                                 child: Padding(
-                                  padding: EdgeInsets.all(32),
-                                  child: Text('Ainda sem avaliações.'),
+                                  padding: const EdgeInsets.all(32),
+                                  child: Text(ratings.isEmpty
+                                      ? 'Ainda sem avaliações.'
+                                      : 'Ainda sem comentários.'),
                                 ),
                               ),
                             );

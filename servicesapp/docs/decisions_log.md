@@ -3,28 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-10-18 — Login com Google e Facebook
+## 2026-10-18 — Destaques e redes sociais no perfil do jardineiro (0051)
 
-- **Um só caminho para tudo:** `signInWithOAuth` do Supabase (página do Google/Facebook no
-  browser, volta por redirect), em vez de `google_sign_in`/`flutter_facebook_auth` nativos.
-  Funciona igual na web, Android e iOS e só precisa de um cliente OAuth "Web" no Google e de
-  uma app na Meta, sem SHA-1, `google-services.json` nem chaves nas apps. Custa um salto ao
-  browser no telemóvel.
-- **Volta às apps:** deep link `pt.projardim.app://login-callback` (intent-filter no
-  `AndroidManifest.xml`, `CFBundleURLTypes` no `Info.plist`); o `supabase_flutter` lê a
-  sessão do link e o router manda `/login-callback` para `/`. Na web volta a
-  `<origem>/` (com `?from=` se havia destino guardado).
-- **Conta nova:** sem trigger nem migration. Continua a ser `/choose-role` a criar o perfil;
-  aí, sem telemóvel nos dados (conta social), o ecrã pede nome (já preenchido com o da
-  conta) e telemóvel, porque o contacto é por WhatsApp.
-- **Foto:** a app só mostra fotos do Storage do projeto (`StorageUrls`), por isso ao criar o
-  perfil a foto da conta é descarregada e enviada para `avatars/<id>.jpg` (Google em 400 px).
-  Melhor esforço: se falhar (na web o browser pode bloquear o download por CORS), a conta é
-  criada sem foto.
-- **Termos:** quem entra assim não vê a caixa dos termos do registo; os botões têm por baixo
-  "Ao continuar com Google ou Facebook aceitas os Termos e a Política de Privacidade".
-- **Apple:** fica para quando houver app iOS publicada (a App Store exige-o se houver outro
-  login social).
+- **Onde:** nova secção "Destaques e redes sociais" em Editar perfil (a apresentação/bio já
+  existia na vista geral e continua lá). O cliente vê tudo na folha que abre ao tocar no
+  jardineiro numa proposta, que passa a abrir sempre (antes só com avaliações), e no
+  cartão `/w/:workerId`.
+- **Formato:** destaques em `text[]` (5 × 80); links em `jsonb` `[{kind, url}]` com um campo
+  por tipo (Instagram, Facebook, Site, Outro) em vez de uma lista livre: mais simples de
+  preencher no telemóvel e chega para mostrar a empresa ou fotos. `@nome` vira o link
+  completo; `http://` vira `https://`.
+- **Segurança:** os links abrem fora da app e são vistos por visitantes sem conta, por isso
+  a BD tem CHECK (só `https://`, sem `user@`, tamanho máximo) e a app volta a filtrar ao ler.
+  Escrita pelo UPDATE owner-only já existente em `worker_profiles`, sem RPC nova.
+- **Sem selo "Verificado":** a secção diz "Informação partilhada pelo jardineiro".
+- **Compatibilidade:** `WorkerProfile.showcaseSupported` só fica `true` se a linha lida já
+  tem as colunas; até lá a app não as envia no UPDATE (senão o PostgREST recusava gravar o
+  perfil inteiro) e a secção diz "Em breve".
+- **Numeração:** 0051, porque a thread do login com Google e Facebook pode usar a 0050.
 
 ## 2026-10-18 — Tokens do design system, acessibilidade e docs em dia
 

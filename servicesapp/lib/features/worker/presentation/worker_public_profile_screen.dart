@@ -14,6 +14,7 @@ import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/worker_providers.dart';
+import 'widgets/worker_showcase_section.dart';
 
 /// Perfil público mínimo do worker — acessível via link/QR partilhado a
 /// partir do cartão digital, sem sessão. Ver `worker_public_card` (migration
@@ -179,6 +180,27 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
                                 ),
                               ))
                           .toList(),
+                    ),
+                  ),
+                ],
+                if (card.highlights.isNotEmpty ||
+                    card.socialLinks.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  AppStaggeredEntrance(
+                    index: 5,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.card),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      // A apresentação já aparece acima, centrada.
+                      child: WorkerShowcaseSection(
+                        highlights: card.highlights,
+                        socialLinks: card.socialLinks,
+                      ),
                     ),
                   ),
                 ],

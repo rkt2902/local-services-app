@@ -59,6 +59,13 @@ todas as tabelas.
 - **Cartão público do worker** (`/w/:workerId`, migration 0033, view `worker_public_card`) —
   perfil mínimo pensado para acesso sem sessão. **Nota:** a rota existe e funciona se
   visitada, mas nada na app gera um link/QR que resolva para ela de facto — ver "Rotas órfãs".
+- **Destaques e redes sociais do jardineiro** (2026-10-18, migration 0051 por aplicar) —
+  em Editar perfil > "Destaques e redes sociais": até 5 destaques curtos e links para
+  Instagram, Facebook, site e um outro (TikTok, YouTube, Google Maps), validados e sempre
+  `https://`. O cliente vê-os, com a apresentação, ao tocar no jardineiro numa proposta
+  (agora abre sempre, mesmo sem avaliações) e no cartão `/w/:workerId`. Sem selo de
+  verificação: diz "Informação partilhada pelo jardineiro". Antes da 0051 a secção diz
+  "Em breve" e o resto do perfil grava como antes.
 - **Ecrã dedicado de candidatura a ajudante** (`apply_as_helper_screen.dart`) — mostra
   pagamento/hora e data/hora confirmada ANTES de candidatar (migration 0034).
 - **RPC única de "Os meus trabalhos"** (`get_worker_job_board`, migration 0035) — substitui a

@@ -89,6 +89,8 @@ Dados específicos de quem presta serviço. 1:1 com `profiles` (apenas role=work
 | base_lng            | numeric     | NOT NULL, longitude da base                  |
 | tools               | text[]      | lista de ferramentas                         |
 | photos              | text[]      | URLs de trabalhos anteriores (Storage)       |
+| highlights          | text[]      | 0051: até 5 destaques, 1 a 80 caracteres (CHECK `worker_highlights_valid`) |
+| social_links        | jsonb       | 0051: até 4 `{kind, url}`, kind instagram/facebook/website/other, url só `https://` (CHECK `worker_social_links_valid`) |
 | created_at          | timestamptz |                                              |
 | updated_at          | timestamptz |                                              |
 

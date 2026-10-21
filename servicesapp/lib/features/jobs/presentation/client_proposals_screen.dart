@@ -429,13 +429,13 @@ class _ProposalCard extends ConsumerWidget {
           child: Column(
             children: [
               InkWell(
-                onTap: ratingSummary != null && ratingSummary.ratingCount > 0
-                    ? () => showWorkerRatingsSheet(
-                          context,
-                          workerId: proposal.workerId,
-                          workerName: workerName,
-                        )
-                    : null,
+                // Abre sempre: mesmo sem avaliações há a apresentação, os
+                // destaques e as redes sociais do jardineiro.
+                onTap: () => showWorkerRatingsSheet(
+                  context,
+                  workerId: proposal.workerId,
+                  workerName: workerName,
+                ),
                 borderRadius: BorderRadius.circular(AppRadius.input),
                 child: Row(
                   children: [
@@ -471,6 +471,14 @@ class _ProposalCard extends ConsumerWidget {
                           Text(
                             'Enviada ${_relativeTimeLabel(proposal.createdAt)}',
                             style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            'Ver perfil e avaliações',
+                            style: textTheme.labelMedium?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),

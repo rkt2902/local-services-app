@@ -71,6 +71,22 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0047, 0048 e 0049 aplicadas".
 
+### 0.4 Migration por aplicar: 0051 (depois da 0049)
+
+- [ ] SQL Editor: colar `supabase/migrations/0051_worker_showcase.sql` e correr. Pode
+      correr-se mais do que uma vez. (A 0050, se existir, é de outra tarefa e não depende
+      desta.)
+- [ ] Testar:
+  - Jardineiro: Editar perfil > Destaques e redes sociais. Adicionar 2 destaques, pôr
+    `@nome` no Instagram e `www.site.pt` no site, guardar: os campos passam a links
+    completos `https://`. "Ver como o cliente vê" abre o cartão com tudo.
+  - Um link inválido (ex. `ola` no site, ou um link do Facebook no campo Instagram)
+    mostra erro e não grava.
+  - Cliente: nas propostas recebidas, tocar no jardineiro abre o perfil com "Sobre",
+    "Em destaque", os botões das redes e as avaliações. Cada botão abre fora da app.
+
+**Diz ao Claude:** "0051 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático
