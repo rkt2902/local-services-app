@@ -16,6 +16,7 @@ import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
 import '../application/pending_signup_provider.dart';
 import 'sign_out_flow.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class ChooseRoleScreen extends ConsumerStatefulWidget {
   const ChooseRoleScreen({super.key});
@@ -93,11 +94,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
 
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(next.message),
-              backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        AppToast.of(context).error(next.message);
       }
     });
 

@@ -21,6 +21,7 @@ import '../../client/presentation/widgets/job_location_picker.dart';
 import '../../client/presentation/widgets/job_schedule_fields.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Mensagem quando a base de dados ainda não tem `update_job_request`
 /// (migration 0049 por aplicar).
@@ -153,7 +154,7 @@ class _EditJobFormState extends ConsumerState<_EditJobForm> {
     setState(() => _saving = true);
 
     final job = widget.job;
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final container = ProviderScope.containerOf(context, listen: false);
     final dateMode = _dateMode;
     try {
@@ -173,12 +174,7 @@ class _EditJobFormState extends ConsumerState<_EditJobForm> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          rpcErrorMessage(e, unavailableMessage: _editUnavailableMessage),
-        ),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(rpcErrorMessage(e, unavailableMessage: _editUnavailableMessage));
       return;
     }
     if (!mounted) return;
@@ -190,18 +186,7 @@ class _EditJobFormState extends ConsumerState<_EditJobForm> {
       1 => ' Avisámos 1 jardineiro.',
       final n => ' Avisámos $n jardineiros.',
     };
-    messenger.showSnackBar(SnackBar(
-      content: Row(
-        children: [
-          const Icon(
-            Icons.check_circle_outline_rounded,
-            color: AppColors.primaryContainer,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text('Pedido atualizado.$notified')),
-        ],
-      ),
-    ));
+    toast.show('Pedido atualizado.$notified');
     container.invalidate(jobByIdProvider(job.id));
     container.invalidate(clientJobsProvider);
   }

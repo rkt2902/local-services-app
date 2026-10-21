@@ -20,6 +20,7 @@ import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Passo 4/4 de "Criar pedido" — rever o draft e publicar.
 ///
@@ -87,11 +88,7 @@ class _ClientCreateJobReviewScreenState
     if (wizard.serviceTypeId == null ||
         wizard.locationLat == null ||
         wizard.locationLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text(
-            'Falta informação dos passos anteriores. Volta atrás e confirma.'),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      AppToast.of(context).error('Falta informação dos passos anteriores. Volta atrás e confirma.');
       return;
     }
 
@@ -99,7 +96,7 @@ class _ClientCreateJobReviewScreenState
       _publishing = true;
       _successVisible = false;
     });
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     // Capturados antes dos awaits: o ecrã pode já não existir quando o
     // temporizador de sucesso disparar (ex.: o utilizador voltou atrás).
@@ -133,12 +130,7 @@ class _ClientCreateJobReviewScreenState
       // O pedido não foi criado: pode repetir-se sem risco de duplicar.
       if (!mounted) return;
       setState(() => _publishing = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(friendlyError(e)),
-          backgroundColor: AppStatusColor.cancelled.foreground,
-        ),
-      );
+      toast.error(friendlyError(e));
       return;
     }
 
@@ -171,11 +163,9 @@ class _ClientCreateJobReviewScreenState
       // ecrã observa).
       if (failedPhotos > 0) {
         router.go('/client/job/$jobId');
-        messenger.showSnackBar(SnackBar(
-          content: Text(failedPhotos == 1
+        toast.error(failedPhotos == 1
               ? 'Pedido publicado, mas não foi possível enviar 1 foto.'
-              : 'Pedido publicado, mas não foi possível enviar $failedPhotos fotos.'),
-        ));
+              : 'Pedido publicado, mas não foi possível enviar $failedPhotos fotos.');
       } else {
         router.go('/client/home');
       }

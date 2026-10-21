@@ -6,13 +6,13 @@ import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_brand_badge.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import 'widgets/social_sign_in_buttons.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -77,13 +77,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
       if (next is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(next.message),
-              backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        AppToast.of(context).error(next.message);
       }
     });
+
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -255,36 +253,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    'Não tens conta?',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: isLoading ? null : () => context.go('/signup'),
-                    child: Text(
-                      'Criar conta',
+            // Com o teclado aberto o rodapé subia colado ao teclado e
+            // tapava o botão "Entrar". Esconde-se enquanto se escreve.
+            if (!keyboardOpen)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Não tens conta?',
                       style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.primaryPressed,
-                        fontWeight: FontWeight.w800,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: isLoading ? null : () => context.go('/signup'),
+                      child: Text(
+                        'Criar conta',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.primaryPressed,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

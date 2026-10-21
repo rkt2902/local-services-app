@@ -233,4 +233,18 @@ void main() {
       expect(_go('/worker/jobs', _worker), isNull);
     });
   });
+
+  group('recuperação de senha com sessão aberta pelo código', () {
+    test('fica em /forgot-password/reset seja qual for o papel', () {
+      for (final session in [
+        _client,
+        _worker,
+        _workerIncomplete,
+        _noRole,
+        SessionStatus.profileError,
+      ]) {
+        expect(_go('/forgot-password/reset?email=a%40b.pt', session), isNull);
+      }
+    });
+  });
 }

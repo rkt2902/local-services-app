@@ -109,32 +109,48 @@ class _AppOtpInputState extends State<AppOtpInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var i = 0; i < widget.length; i++)
-          Padding(
-            padding: EdgeInsets.only(
-              right: i == widget.length - 1 ? 0 : AppSpacing.xs,
-            ),
-            child: _OtpDigitBox(
-              controller: _controllers[i],
-              focusNode: _focusNodes[i],
-              autofocus: widget.autofocus && i == 0,
-              enabled: widget.enabled,
-              isActive: _controllers[i].text.isNotEmpty,
-              hasError: widget.hasError,
-              isLast: i == widget.length - 1,
-              onChanged: (value) => _handleChanged(i, value),
-            ),
-          ),
-      ],
+    // As caixas encolhem quando a largura não chega para 6 × 48 (ecrãs
+    // estreitos ou tamanho de letra/ecrã aumentado no sistema). Antes eram
+    // de largura fixa e a última caixa transbordava.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = AppSpacing.xs;
+        final totalGaps = gap * (widget.length - 1);
+        final fitted = (constraints.maxWidth - totalGaps) / widget.length;
+        final boxWidth = fitted < _maxBoxWidth ? fitted : _maxBoxWidth;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < widget.length; i++)
+              Padding(
+                padding: EdgeInsets.only(
+                  right: i == widget.length - 1 ? 0 : gap,
+                ),
+                child: _OtpDigitBox(
+                  width: boxWidth,
+                  controller: _controllers[i],
+                  focusNode: _focusNodes[i],
+                  autofocus: widget.autofocus && i == 0,
+                  enabled: widget.enabled,
+                  isActive: _controllers[i].text.isNotEmpty,
+                  hasError: widget.hasError,
+                  isLast: i == widget.length - 1,
+                  onChanged: (value) => _handleChanged(i, value),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
+/// Largura de cada caixa quando há espaço.
+const double _maxBoxWidth = 48;
+
 class _OtpDigitBox extends StatelessWidget {
   const _OtpDigitBox({
+    required this.width,
     required this.controller,
     required this.focusNode,
     required this.autofocus,
@@ -145,6 +161,7 @@ class _OtpDigitBox extends StatelessWidget {
     required this.onChanged,
   });
 
+  final double width;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool autofocus;
@@ -165,7 +182,7 @@ class _OtpDigitBox extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return SizedBox(
-      width: 48,
+      width: width,
       child: TextField(
         controller: controller,
         focusNode: focusNode,

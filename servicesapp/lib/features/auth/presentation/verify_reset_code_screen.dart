@@ -12,6 +12,7 @@ import '../../../core/widgets/app_otp_input.dart';
 import '../../../core/widgets/app_system_state_screen.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/password_reset_controller.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Passo 2 do fluxo de recuperação (dentro da rota `/forgot-password/reset`,
 /// ver `password_reset_screen.dart`) — código OTP + reenvio com cooldown.
@@ -78,17 +79,14 @@ class _VerifyResetCodeScreenState extends ConsumerState<VerifyResetCodeScreen> {
   /// os dois faria um reenvio avançar o utilizador para o passo 3 por
   /// engano). Usa `resendCode`, que devolve/lança diretamente.
   Future<void> _resend() async {
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(passwordResetControllerProvider.notifier).resendCode(widget.email);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('Código reenviado.')));
+      toast.show('Código reenviado.');
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(describePasswordResetError(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(describePasswordResetError(e));
     }
     if (!mounted) return;
     setState(() {

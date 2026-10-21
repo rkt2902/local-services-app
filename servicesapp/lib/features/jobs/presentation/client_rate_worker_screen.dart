@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/router/app_back_navigation.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -15,6 +14,7 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/rating_stars_input.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Cliente avalia o trabalho (jardineiro principal e ajudantes) pela RPC
 /// `submit_client_rating`, a mesma do cartão "Avaliar agora" do detalhe do
@@ -70,7 +70,7 @@ class _ClientRateWorkerScreenState
     if (_rating <= 0 || _submitting) return;
 
     setState(() => _submitting = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(ratingRepositoryProvider).submitClientRating(
             jobId: widget.jobId,
@@ -103,12 +103,7 @@ class _ClientRateWorkerScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(friendlyError(e)),
-          backgroundColor: AppStatusColor.cancelled.foreground,
-        ),
-      );
+      toast.error(friendlyError(e));
     }
   }
 

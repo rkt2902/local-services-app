@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
@@ -13,6 +12,7 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/pending_signup_provider.dart';
 import 'widgets/social_sign_in_buttons.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -79,9 +79,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.message), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        AppToast.of(context).error(next.message);
       }
     });
 

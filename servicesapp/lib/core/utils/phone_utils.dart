@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/app_toast.dart';
 
 /// Telefones: validação nos formulários e link de WhatsApp.
 ///
@@ -81,11 +82,9 @@ Future<bool> openWhatsApp(String phone) async {
 
 /// [openWhatsApp] com aviso em SnackBar quando não abre.
 Future<void> openWhatsAppOrWarn(BuildContext context, String phone) async {
-  final messenger = ScaffoldMessenger.maybeOf(context);
+  final toast = AppToast.maybeOf(context);
   if (await openWhatsApp(phone)) return;
-  messenger?.showSnackBar(
-    const SnackBar(content: Text(whatsAppUnavailableMessage)),
-  );
+  toast?.error(whatsAppUnavailableMessage);
 }
 
 /// Telefone no formato em que se grava em `profiles.phone`: `+351912345678`

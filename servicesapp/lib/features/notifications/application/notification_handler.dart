@@ -9,6 +9,7 @@ import '../../help_requests/data/help_request_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class NotificationHandler {
   static Future<void> _openHelperJob(
@@ -85,13 +86,7 @@ class NotificationHandler {
           );
         } else {
           context.go('/worker/home');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Não foi possível abrir o job. Verifica a lista de jobs.',
-              ),
-            ),
-          );
+          AppToast.of(context).error('Não foi possível abrir o job. Verifica a lista de jobs.');
         }
 
       case NotificationType.proposalRejected:
@@ -262,6 +257,19 @@ class NotificationHandler {
           extra: {'entryTransition': 'sharedAxis'},
         );
 
+      case NotificationType.newHelpRequestInRadius:
+        // 0054: pedido de ajuda novo na zona. relatedId = help_request_id:
+        // abre a candidatura direto; sem id, a descoberta.
+        final helpRequestId = notification.relatedId;
+        if (helpRequestId == null) {
+          context.push(
+            '/worker/help-requests',
+            extra: {'entryTransition': 'sharedAxis'},
+          );
+        } else {
+          context.push('/worker/help-requests/$helpRequestId/apply');
+        }
+
       case NotificationType.helpRequestPendingApproval:
         // Só o cliente recebe (0048). relatedId = job_id.
         if (notification.relatedId == null) break;
@@ -269,6 +277,7 @@ class NotificationHandler {
 
       case NotificationType.helpCandidateApplied:
       case NotificationType.helpWithdrew:
+      case NotificationType.helpRequestClosed:
         // Principal is told a helper applied (0048) or withdrew. relatedId = help_request_id.
         // Resolve job_id via fetch, then push to the lobby. Fallback to home.
         if (notification.relatedId == null) break;

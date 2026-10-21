@@ -41,6 +41,14 @@
                 <data android:scheme="pt.projardim.app" android:host="login-callback"/>
             </intent-filter>
         </activity>
+        <!-- Notificações push com o estilo da app: folha branca (silhueta,
+             como o Android exige) e o verde primary da ProJardim. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_projardim" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

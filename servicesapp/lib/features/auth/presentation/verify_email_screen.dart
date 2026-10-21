@@ -17,6 +17,7 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_providers.dart';
 import '../application/session_provider.dart';
 import '../data/auth_repository.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Confirmação de email por código de 6 dígitos.
 ///
@@ -85,14 +86,13 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   Future<void> _resend() async {
     if (_secondsLeft > 0 || _resending) return;
     setState(() => _resending = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref
           .read(authRepositoryProvider)
           .resendSignupConfirmation(widget.email);
       if (!mounted) return;
-      messenger
-          .showSnackBar(const SnackBar(content: Text('Código reenviado.')));
+      toast.show('Código reenviado.');
       setState(() {
         _otpInstanceKey++;
         _code = '';
@@ -102,10 +102,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
       _startCooldown();
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(_messageFor(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(_messageFor(e));
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -339,50 +336,52 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                 ),
               ),
             ),
-            // Quem já tem conta não precisa de ficar preso aqui.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.md,
+            // Quem já tem conta não precisa de ficar preso aqui. Escondido
+            // com o teclado aberto, para não subir colado a ele.
+            if (MediaQuery.viewInsetsOf(context).bottom == 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('Já tens conta com este email?',
+                          style: smallSecondary),
+                      TextButton(
+                        style: compactLink,
+                        onPressed: _verifying ? null : () => context.go('/login'),
+                        child: Text('Entra', style: smallLink),
+                      ),
+                      Text('ou', style: smallSecondary),
+                      TextButton(
+                        style: compactLink,
+                        onPressed: _verifying
+                            ? null
+                            : () => context.go(
+                                  '/forgot-password/request'
+                                  '?email=${Uri.encodeComponent(widget.email)}',
+                                ),
+                        child: Text('recupera a senha', style: smallLink),
+                      ),
+                      Text('.', style: smallSecondary),
+                    ],
+                  ),
+                ),
               ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppRadius.input),
-                ),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text('Já tens conta com este email?',
-                        style: smallSecondary),
-                    TextButton(
-                      style: compactLink,
-                      onPressed: _verifying ? null : () => context.go('/login'),
-                      child: Text('Entra', style: smallLink),
-                    ),
-                    Text('ou', style: smallSecondary),
-                    TextButton(
-                      style: compactLink,
-                      onPressed: _verifying
-                          ? null
-                          : () => context.go(
-                                '/forgot-password/request'
-                                '?email=${Uri.encodeComponent(widget.email)}',
-                              ),
-                      child: Text('recupera a senha', style: smallLink),
-                    ),
-                    Text('.', style: smallSecondary),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),

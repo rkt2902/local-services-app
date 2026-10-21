@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_status_color.dart';
 import '../application/auth_controller.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Terminar sessão com confirmação: pergunta primeiro, chama
 /// `AuthController.signOut` e só sai para `/` se correu bem. Se falhar
@@ -24,15 +24,12 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
   );
   if (confirmed != true || !context.mounted) return;
 
-  final messenger = ScaffoldMessenger.of(context);
+  final toast = AppToast.of(context);
   final router = GoRouter.of(context);
   await ref.read(authControllerProvider.notifier).signOut();
   final result = ref.read(authControllerProvider);
   if (result is AuthError) {
-    messenger.showSnackBar(SnackBar(
-      content: Text('Não foi possível terminar a sessão. ${result.message}'),
-      backgroundColor: AppStatusColor.cancelled.foreground,
-    ));
+    toast.error('Não foi possível terminar a sessão. ${result.message}');
     return;
   }
   router.go('/');

@@ -25,6 +25,7 @@ import '../application/help_request_providers.dart';
 import '../application/helper_job_state.dart';
 import '../data/help_request_model.dart';
 import 'widgets/helper_actions.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// "Trabalho como ajudante" — o detalhe de UMA candidatura, visto pelo
 /// próprio ajudante (rota `/worker/help/:acceptanceId`, fora do shell).
@@ -54,7 +55,7 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
     final isPending = acceptance.status == HelpAcceptanceStatus.pending;
     final confirmed = await confirmHelperWithdraw(context, isPending: isPending);
     if (!confirmed || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     setState(() => _withdrawing = true);
     try {
       await ref
@@ -63,18 +64,11 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
       if (!mounted) return;
       // Regra T4 (sem navegação): SnackBar → invalidar. O ecrã fica aberto
       // e passa a mostrar o estado novo.
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          isPending ? 'Candidatura retirada.' : 'Desististe desta ajuda.',
-        ),
-      ));
+      toast.show(isPending ? 'Candidatura retirada.' : 'Desististe desta ajuda.');
       invalidateWorkerLists(ref, jobId: acceptance.jobId);
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(helpActionErrorMessage(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(helpActionErrorMessage(e));
     } finally {
       if (mounted) setState(() => _withdrawing = false);
     }

@@ -36,6 +36,7 @@ import '../../ratings/presentation/submit_rating_sheet.dart';
 import '../../client/application/client_create_job_wizard_provider.dart';
 import '../../client/application/job_request_form.dart';
 import 'client_scheduled_job_detail_screen.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class ClientJobDetailScreen extends ConsumerStatefulWidget {
   const ClientJobDetailScreen({super.key, required this.jobId});
@@ -80,7 +81,7 @@ class _ClientJobDetailScreenState
       );
       if (confirmed != true || !mounted) return;
       setState(() => _saving = true);
-      final scaffold = ScaffoldMessenger.of(context);
+      final toast = AppToast.of(context);
       final router = GoRouter.of(context);
       var navigatedAway = false;
       try {
@@ -91,15 +92,12 @@ class _ClientJobDetailScreenState
             );
         navigatedAway = true;
         router.go('/client/jobs');
-        scaffold.showSnackBar(
-            const SnackBar(content: Text('Pedido cancelado.')));
+        toast.show('Pedido cancelado.');
         ref.invalidate(clientJobsProvider);
         ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
         ref.invalidate(jobByIdProvider(widget.jobId));
       } catch (e) {
-        scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        toast.error(friendlyError(e));
       } finally {
         if (!navigatedAway && mounted) setState(() => _saving = false);
       }
@@ -137,17 +135,14 @@ class _ClientJobDetailScreenState
     if (confirmed != true || !mounted) return false;
 
     setState(() => _confirming = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
           .confirmJobCompletion(widget.jobId);
       return true;
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(
-            content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
       return false;
     } finally {
       if (mounted) setState(() => _confirming = false);
@@ -162,7 +157,7 @@ class _ClientJobDetailScreenState
     if (!mounted || !success) return;
 
     setState(() => _showCompletedFeedback = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
@@ -172,9 +167,7 @@ class _ClientJobDetailScreenState
     if (!mounted) return;
 
     setState(() => _showCompletedFeedback = false);
-    scaffold.showSnackBar(
-      const SnackBar(content: Text('Trabalho confirmado! Obrigado.')),
-    );
+    toast.show('Trabalho confirmado! Obrigado.');
     // Sem navegação: o ecrã fica e passa a mostrar o ramo `completed`.
     ref.invalidate(clientJobsProvider);
     ref.invalidate(jobByIdProvider(widget.jobId));
@@ -261,7 +254,7 @@ class _ClientJobDetailScreenState
     final formKey = GlobalKey<FormState>();
     final descController = TextEditingController(text: prefillText)
       ..selection = TextSelection.collapsed(offset: prefillText.length);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
 
     bool submitting = false;
     String? errorText;
@@ -358,10 +351,7 @@ class _ClientJobDetailScreenState
     descController.dispose();
     if (submitted != true || !mounted) return;
 
-    scaffold.showSnackBar(
-      const SnackBar(
-          content: Text('Relato enviado. A nossa equipa vai analisar.')),
-    );
+    toast.show('Relato enviado. A nossa equipa vai analisar.');
 
     if (!mounted) return;
     final confirmAnyway = await AppConfirmDialog.show(

@@ -35,6 +35,7 @@ import '../../../core/widgets/app_bar_title.dart';
 import '../data/job_model.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Ecrã dedicado ao pedido `confirmed` — extraído de
 /// `client_job_detail_screen.dart` (doc.txt, "7b. Detalhe do pedido
@@ -75,7 +76,7 @@ class _ClientScheduledJobDetailScreenState
     if (wantsReopen == null || !mounted) return;
 
     setState(() => _saving = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     var navigatedAway = false;
     try {
@@ -88,17 +89,14 @@ class _ClientScheduledJobDetailScreenState
       navigatedAway = true;
       router.go('/client/jobs');
       if (newJobId != null) {
-        scaffold.showSnackBar(const SnackBar(
-            content: Text('Pedido cancelado e reaberto para encontrar outro jardineiro.')));
+        toast.show('Pedido cancelado e reaberto para encontrar outro jardineiro.');
       } else {
-        scaffold.showSnackBar(const SnackBar(content: Text('Pedido cancelado.')));
+        toast.show('Pedido cancelado.');
       }
       ref.invalidate(clientJobsProvider);
       ref.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (!navigatedAway && mounted) setState(() => _saving = false);
     }
@@ -109,7 +107,7 @@ class _ClientScheduledJobDetailScreenState
     if (result == null || !mounted) return;
 
     setState(() => _proposingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
             jobId: widget.jobId,
@@ -119,11 +117,9 @@ class _ClientScheduledJobDetailScreenState
           );
       ref.invalidate(clientJobsProvider);
       ref.invalidate(jobByIdProvider(widget.jobId));
-      scaffold.showSnackBar(const SnackBar(content: Text('Remarcação enviada.')));
+      toast.show('Remarcação enviada.');
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
     }
@@ -132,16 +128,14 @@ class _ClientScheduledJobDetailScreenState
   Future<void> _acceptReschedule() async {
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
       ref.invalidate(clientJobsProvider);
       ref.invalidate(jobByIdProvider(widget.jobId));
-      scaffold.showSnackBar(const SnackBar(content: Text('Nova data aceite.')));
+      toast.show('Nova data aceite.');
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
     }
@@ -150,16 +144,14 @@ class _ClientScheduledJobDetailScreenState
   Future<void> _rejectReschedule() async {
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
       ref.invalidate(clientJobsProvider);
       ref.invalidate(jobByIdProvider(widget.jobId));
-      scaffold.showSnackBar(const SnackBar(content: Text('Remarcação recusada.')));
+      toast.show('Remarcação recusada.');
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _respondingReschedule = false);
     }
@@ -167,17 +159,13 @@ class _ClientScheduledJobDetailScreenState
 
   Future<void> _approveHelpRequest(String helpRequestId) async {
     setState(() => _approvingHelp.add(helpRequestId));
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(helpRequestRepositoryProvider).approveHelpRequest(helpRequestId);
       ref.invalidate(helpRequestsForJobProvider(widget.jobId));
-      scaffold.showSnackBar(const SnackBar(
-        content: Text('Equipa aprovada! O jardineiro responsável pode agora procurar ajudantes.'),
-      ));
+      toast.show('Equipa aprovada! O jardineiro responsável pode agora procurar ajudantes.');
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _approvingHelp.remove(helpRequestId));
     }

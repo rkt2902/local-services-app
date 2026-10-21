@@ -20,6 +20,7 @@ import '../../../core/router/app_back_navigation.dart';
 import '../../worker/application/worker_list_invalidation.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/help_request_providers.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Dados já resolvidos para preencher o formulário — montados a partir de
 /// [helpRequestSummaryByIdProvider] + [serviceTypesProvider].
@@ -148,7 +149,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
     if (data == null || !_availabilityConfirmed || _submitting) return;
 
     setState(() => _submitting = true);
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(helpRequestRepositoryProvider).applyToHelpRequest(
             helpRequestId: data.helpRequestId,
@@ -192,10 +193,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(friendlyError(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(friendlyError(e));
     }
   }
 

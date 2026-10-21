@@ -7,7 +7,7 @@ const publicRoutes = {
   '/signup',
   '/onboarding',
   '/forgot-password/request',
-  '/forgot-password/reset',
+  passwordResetRoute,
   '/verify-email',
 };
 
@@ -15,6 +15,11 @@ const publicRoutes = {
 /// (`pt.projardim.app://login-callback`). O Supabase lê a sessão do link;
 /// o router só tem de sair daqui, senão mostrava "página não encontrada".
 const oauthCallbackRoute = '/login-callback';
+
+/// Passos 2 a 4 da recuperação de senha. Depois de validar o código o
+/// Supabase abre uma sessão de recuperação, mas o utilizador ainda tem de
+/// escolher a senha nova: com sessão, esta rota nunca redireciona.
+const passwordResetRoute = '/forgot-password/reset';
 
 /// Ecrã de erro quando há sessão mas o perfil não se conseguiu ler.
 const sessionErrorRoute = '/session-error';
@@ -102,6 +107,11 @@ String? resolveRedirect({
     }
     return '/';
   }
+
+  // Sessão de recuperação aberta pelo código do email: fica no fluxo até a
+  // senha nova estar gravada (o fim do fluxo termina a sessão e vai para
+  // /login).
+  if (loc == passwordResetRoute) return null;
 
   // Com sessão mas o perfil não carregou (rede): ecrã de erro com "Tentar
   // novamente", nunca /choose-role (reescreveria o perfil).

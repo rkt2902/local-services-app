@@ -70,9 +70,12 @@ import '../data/notification_types.dart';
           icon: Icons.yard_outlined,
           tone: AppStatusColor.info,
         ),
-      NotificationType.helpRequestReopened => (
-          icon: Icons.group_add_outlined,
-          tone: AppStatusColor.info,
+      NotificationType.helpRequestReopened ||
+      NotificationType.newHelpRequestInRadius =>
+        (icon: Icons.group_add_outlined, tone: AppStatusColor.info),
+      NotificationType.helpRequestClosed => (
+          icon: Icons.groups_outlined,
+          tone: AppStatusColor.neutral,
         ),
       NotificationType.jobReopened => (
           icon: Icons.replay_rounded,
@@ -109,6 +112,7 @@ import '../data/notification_types.dart';
 /// propostas, equipas). Ficam de fora as oportunidades novas na zona.
 bool isJobNotification(String type) =>
     type != NotificationType.newJobInRadius &&
+    type != NotificationType.newHelpRequestInRadius &&
     type != NotificationType.helpRequestReopened;
 
 /// A migration 0049 acrescenta " (Serviço, DD/MM)" ao fim do corpo; o design

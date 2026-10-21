@@ -70,6 +70,7 @@ class WorkerMyJobDetailViewData {
     this.completed,
     this.helpTeamLoaded = false,
     this.helpTeam,
+    this.canRequestHelpers = true,
     this.titleSubtitle,
     this.sizeLabel,
     this.estimatedHoursLabel,
@@ -142,6 +143,10 @@ class WorkerMyJobDetailViewData {
   /// Cartão "Equipa"; `null` = sem pedido de ajudantes ativo.
   final WorkerJobTeamViewData? helpTeam;
 
+  /// "Preciso de ajudantes" só até à véspera do trabalho (0054). No dia,
+  /// sem equipa, não aparece nada.
+  final bool canRequestHelpers;
+
   final List<AcceptedHelper> helpersForRating;
 
   /// Taxa e intervalo total acordados ("25,00 €/h · ≈ 50 a 100 €").
@@ -178,6 +183,7 @@ class WorkerMyJobDetailViewData {
 class WorkerJobTeamViewData {
   const WorkerJobTeamViewData({
     required this.memberNames,
+    this.memberAvatarUrls = const [],
     required this.emptySlots,
     this.filledLabel,
     this.pendingLabel,
@@ -186,6 +192,9 @@ class WorkerJobTeamViewData {
 
   /// Ajudantes já na equipa, por ordem (dão as iniciais dos círculos).
   final List<String> memberNames;
+
+  /// Fotos pela mesma ordem de [memberNames]; sem foto, ficam as iniciais.
+  final List<String?> memberAvatarUrls;
 
   /// Vagas ainda por preencher (círculos vazios).
   final int emptySlots;
@@ -513,7 +522,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                         : widget.onCallClientPressed,
                   ),
                 ),
-                if (data.helpTeamLoaded) ...[
+                if (data.helpTeamLoaded &&
+                    (data.helpTeam != null || data.canRequestHelpers)) ...[
                   const SizedBox(height: AppSpacing.sm),
                   AppStaggeredEntrance(
                     index: 4,
@@ -1107,8 +1117,14 @@ class _TeamCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final pillColor = AppStatusColor.waiting;
     final slots = [
-      for (final name in team.memberNames)
-        _InitialsAvatar(name: name, size: AppSizes.teamSlot),
+      for (var i = 0; i < team.memberNames.length; i++)
+        _InitialsAvatar(
+          name: team.memberNames[i],
+          avatarUrl: i < team.memberAvatarUrls.length
+              ? team.memberAvatarUrls[i]
+              : null,
+          size: AppSizes.teamSlot,
+        ),
       for (var i = 0; i < team.emptySlots; i++)
         Container(
           width: AppSizes.teamSlot,

@@ -129,7 +129,16 @@ async function sendToToken(
             related_id: n.related_id ?? "",
             related_type: n.related_type ?? "",
           },
-          android: { priority: "high", notification: { sound: "default" } },
+          // Ícone e cor da app (res/drawable/ic_stat_projardim e
+          // AppColors.primary); o AndroidManifest tem os mesmos por omissão.
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              icon: "ic_stat_projardim",
+              color: "#2E7D32",
+            },
+          },
           apns: { payload: { aps: { sound: "default" } } },
         },
       }),

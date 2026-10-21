@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
@@ -19,6 +18,7 @@ import '../application/help_request_providers.dart';
 import '../application/helper_job_state.dart';
 import '../data/help_request_model.dart';
 import 'widgets/worker_help_requests_lobby_view.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// "Equipa" — lobby de ajudantes do worker responsável por um job.
 ///
@@ -90,9 +90,7 @@ class _WorkerHelpRequestsLobbyScreenState
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        AppToast.of(context).error(friendlyError(e));
       }
       return false;
     }
@@ -105,9 +103,7 @@ class _WorkerHelpRequestsLobbyScreenState
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        AppToast.of(context).error(friendlyError(e));
       }
       return false;
     }
@@ -134,12 +130,7 @@ class _WorkerHelpRequestsLobbyScreenState
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(helpActionErrorMessage(e)),
-            backgroundColor: AppStatusColor.cancelled.foreground,
-          ),
-        );
+        AppToast.of(context).error(helpActionErrorMessage(e));
       }
       return false;
     }

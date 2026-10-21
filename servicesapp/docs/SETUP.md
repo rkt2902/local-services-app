@@ -116,6 +116,25 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0053 aplicada".
 
+### 0.7 Migration por aplicar: 0054 (depois da 0053)
+
+- [ ] SQL Editor: colar `supabase/migrations/0054_help_requests_job_day_and_alerts.sql` e
+      correr. Pode correr-se mais do que uma vez. Cria o cron
+      `close-help-requests-on-job-day` (de hora a hora).
+- [ ] Se o push já estiver configurado (passo do FCM mais abaixo), voltar a fazer deploy da
+      função para as notificações usarem o ícone e a cor da app:
+      `supabase functions deploy send-push --no-verify-jwt` (de dentro de `servicesapp/`).
+- [ ] Testar:
+  - Jardineiro com o serviço do pedido, dentro do raio, recebe "Novo pedido perto de ti";
+    um que só faz outros serviços não recebe.
+  - Pedido de ajuda aprovado pelo cliente: os jardineiros da zona recebem "Pedido de ajuda
+    perto de ti" e o toque abre a candidatura.
+  - No dia do trabalho o pedido de ajuda desaparece da descoberta e o responsável já não vê
+    "Preciso de ajudantes".
+  - O cartão "Equipa" mostra a foto dos ajudantes aceites.
+
+**Diz ao Claude:** "0054 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático
