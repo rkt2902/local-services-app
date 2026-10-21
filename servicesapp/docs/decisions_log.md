@@ -3,6 +3,30 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-21 — Pedidos de ajuda no dia do trabalho, avisos novos, logo e splash
+
+- **Pedidos de ajuda fecham no dia do trabalho (0054).** A partir da data confirmada (dia em
+  Portugal) deixam de aparecer na descoberta e de aceitar candidaturas, o responsável já não
+  pede ajudantes e não aceita candidatos, e o cliente já não aprova. O cron de hora a hora
+  fecha os que ficaram abertos: pendentes recusados e avisados, equipa fica com os aceites
+  (`filled`, vagas = aceites) ou o pedido é cancelado; aviso `help_request_closed` ao
+  responsável. Os pedidos que nascem abertos em `accept_proposal` não fazem falhar a
+  aceitação no próprio dia: ficam escondidos e o cron fecha-os. Triggers em vez de reescrever
+  `approve_help_request`/`accept_help_candidate`.
+- **Avisos só a quem faz o serviço.** `new_job_in_radius` e o novo
+  `new_help_request_in_radius` vão para jardineiros no raio que oferecem o serviço, ou que
+  ainda não escolheram serviços (para não ficarem sem avisos). Texto em "tu".
+- **Foto dos ajudantes no cartão "Equipa"**: `get_accepted_helpers_for_job` devolve
+  `avatar_url` (DROP + CREATE, a forma muda).
+- **Ícone e splash com o logo** (pedido do Henrique, substitui a decisão antiga "sem
+  splash"): `flutter_launcher_icons` (ícone adaptativo verde com a folha branca) e
+  `flutter_native_splash` (fundo branco, logo a 128 dp; Android 12 com o círculo verde). O
+  ecrã `/loading` mostra o mesmo logo (`AppLaunchScreen`) em vez de um spinner. Para mudar o
+  logo: trocar os PNG em `assets/branding/` e correr `dart run flutter_launcher_icons` e
+  `dart run flutter_native_splash:create`.
+- **Push com o estilo da app**: ícone pequeno `ic_stat_projardim` (folha branca) e cor
+  `#2E7D32`, no AndroidManifest (por omissão) e no `send-push` (precisa de novo deploy).
+
 ## 2026-10-21 — Bugs: avisos no topo, OTP, login e recuperação de senha
 
 - **Avisos no topo (`AppToast`)** em vez da SnackBar do Material, que fica sempre em baixo,

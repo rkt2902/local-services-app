@@ -16,6 +16,7 @@ WorkerMyJobDetailViewData _data({
   WorkerCompletedJobViewData? completed,
   WorkerJobTeamViewData? team,
   List<AcceptedHelper> helpers = const [],
+  bool canRequestHelpers = true,
 }) {
   return WorkerMyJobDetailViewData(
     jobId: 'job-1',
@@ -52,6 +53,7 @@ WorkerMyJobDetailViewData _data({
     startHint: 'Disponível a partir das 8:00 de qui, 23/10',
     helpTeamLoaded: true,
     helpTeam: team,
+    canRequestHelpers: canRequestHelpers,
     inactive: inactive,
     completed: completed,
   );
@@ -266,5 +268,37 @@ void main() {
     expect(find.text('"Muito cuidadoso, recomendo."'), findsOneWidget);
     // Sem fotos guardadas não aparecem os quadrados de antes e depois.
     expect(find.text('Antes'), findsNothing);
+  });
+
+  testWidgets('ajudantes: botão até à véspera, nada no dia sem equipa',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_screen(_data()));
+    await tester.pumpAndSettle();
+    expect(find.text('Preciso de ajudantes'), findsOneWidget);
+
+    await tester.pumpWidget(_screen(_data(canRequestHelpers: false)));
+    await tester.pumpAndSettle();
+    expect(find.text('Preciso de ajudantes'), findsNothing);
+  });
+
+  testWidgets('equipa: ajudante com foto não mostra as iniciais',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_screen(_data(
+      team: const WorkerJobTeamViewData(
+        memberNames: ['Rui Costa', 'Ana Silva'],
+        memberAvatarUrls: ['https://example.com/rui.jpg', null],
+        emptySlots: 0,
+        filledLabel: '2 de 2 vagas',
+      ),
+    )));
+    await tester.pump();
+    expect(find.text('RC'), findsNothing);
+    expect(find.text('AS'), findsOneWidget);
   });
 }

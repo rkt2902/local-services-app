@@ -700,6 +700,8 @@ class _WorkerMyJobDetailScreenState
       inactive: inactive,
       completed: completed,
       helpTeamLoaded: team.loaded,
+      // Mesma regra da BD (0054): pedir ajudantes só até à véspera.
+      canRequestHelpers: confirmedDay == null || confirmedDay.isAfter(today),
       helpTeam: _teamViewData(
         team.summary,
         helpersForRatingAsync.asData?.value ?? const [],
@@ -794,7 +796,9 @@ view.WorkerJobTeamViewData? _teamViewData(
     );
   }
   final filled = summary.filled;
-  final names = helpers.map((h) => h.fullName).take(summary.slots).toList();
+  final members = helpers.take(summary.slots).toList();
+  final names = members.map((h) => h.fullName).toList();
+  final avatars = members.map((h) => h.avatarUrl).toList();
   // Nomes ainda a carregar: círculos com "?" em vez de vagas vazias.
   while (filled != null && names.length < filled) {
     names.add('');
@@ -802,6 +806,7 @@ view.WorkerJobTeamViewData? _teamViewData(
   final undecided = summary.undecided ?? 0;
   return view.WorkerJobTeamViewData(
     memberNames: names,
+    memberAvatarUrls: avatars,
     emptySlots: (summary.slots - (filled ?? names.length)).clamp(0, summary.slots),
     filledLabel: filled == null
         ? null

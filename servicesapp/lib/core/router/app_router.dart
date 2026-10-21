@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'app_page_transitions.dart';
 import 'route_guard.dart';
-import '../theme/app_colors.dart';
 import '../widgets/app_content_width.dart';
 import '../../features/auth/application/session_provider.dart';
 import '../../features/auth/presentation/landing_screen.dart';
@@ -50,6 +49,7 @@ import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../widgets/app_launch_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
@@ -64,13 +64,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/loading',
-        builder: (_, _) => const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(
-              color: AppColors.primary,
-            ),
-          ),
-        ),
+        builder: (_, _) => const AppLaunchScreen(),
       ),
       // Fade-through, não shared-axis: chega sempre de /loading (só um
       // spinner, sem conteúdo real a "avançar de"), nunca de um passo

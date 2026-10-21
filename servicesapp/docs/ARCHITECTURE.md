@@ -396,7 +396,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`; `15 * * * *` desde a 0052: lembrete às 24h e confirmação às 48h), sem caller Dart |
 | `auto_expire_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
 | `cancel_job` | `p_job_id, p_reason, p_reason_detail?, p_client_wants_reopen?` | `uuid` (novo job se reaberto) | `JobRepository.cancelJob` |
-| `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name)` | `RatingRepository` |
+| `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name, avatar_url)` (foto desde a 0054) | `RatingRepository` (avaliações e cartão "Equipa") |
 | `get_help_requests_in_radius` | `worker_lat, worker_lng, radius_km` | `TABLE(... principal_name, principal_avatar_url, payment_per_helper, confirmed_date/time)` — shape atual é a soma de 0034+0039, ver nota | `HelpRequestRepository` |
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
@@ -419,6 +419,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `register_device_token` / `unregister_device_token` (0041) | `p_token, p_platform` / `p_token` | `void` | `PushNotificationService` |
 | `send_job_reminders` (0046) | — | `void` | **pg_cron só** (`job-reminders`), só `service_role` |
 | `cleanup_old_notifications` (0042) | — | `void` | **pg_cron só** (`cleanup-old-notifications`) |
+| `close_help_requests_on_job_day` (0054) | — | `void` | **pg_cron só** (`close-help-requests-on-job-day`, `5 * * * *`) |
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -437,7 +438,9 @@ muda (ver secção 13).
 
 | Trigger | Tabela | Evento | Função |
 |---|---|---|---|
-| `on_job_created` (ficheiro define-o como `trigger_notify_workers_new_job`, ver secção 16) | `job_requests` | AFTER INSERT | `notify_workers_new_job()` — insere `new_job_in_radius` para cada worker no raio Haversine |
+| `on_job_created` (ficheiro define-o como `trigger_notify_workers_new_job`, ver secção 16) | `job_requests` | AFTER INSERT | `notify_workers_new_job()` — insere `new_job_in_radius` para cada worker no raio Haversine que faz o serviço (ou sem serviços escolhidos), desde a 0054 |
+| `trg_notify_workers_new_help_request` (0054) | `help_requests` | AFTER INSERT / UPDATE OF status | `notify_workers_new_help_request()` — `new_help_request_in_radius` quando o pedido abre (criado aberto ou aprovado), mesmo filtro de raio e serviço |
+| `trg_help_request_before_update_job_day` / `trg_help_acceptance_before_update_job_day` (0054) | `help_requests` / `help_acceptances` | BEFORE UPDATE OF status | recusam aprovar o pedido e aceitar candidatos a partir do dia do trabalho |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
 
 ### Storage
@@ -448,7 +451,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data.
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron.
 
 ### Estado das migrations
 
@@ -543,6 +546,8 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `help_job_cancelled` | `cancel_job` (cascade) | `/worker/help-requests` (tab 1) | go |
 | `help_request_reopened` | `withdraw_help_acceptance` | `/worker/help-requests` | **push** |
 | `help_withdrew` | `withdraw_help_acceptance` | `/worker/job/:id/help-requests` | **push** |
+| `new_help_request_in_radius` (0054) | trigger em `help_requests` | `/worker/help-requests/:id/apply` | **push** |
+| `help_request_closed` (0054) | `close_help_requests_on_job_day` (cron) | `/worker/job/:id/help-requests` | **push** |
 
 ---
 
@@ -568,6 +573,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppTextField` | `controller`, `label`; opcionais `hintText`, `keyboardType`, `obscureText`, `validator`, `maxLines` |
 | `AppSearchField` | `controller`, `hintText`; `onChanged`, `onClear` |
 | `AppOtpInput` | `onCompleted`; `length=6`, `onChanged`, `autofocus=true`, `hasError` (caixas até 48, encolhem em ecrãs estreitos) |
+| `AppLaunchScreen` | ecrã de `/loading` com o logo (`assets/branding/`), igual ao splash nativo (`flutter_native_splash`, config no `pubspec.yaml`) |
 | `AppToast` | `AppToast.of(context)` / `maybeOf` → `.show(msg)` (verde) ou `.error(msg)` (vermelho). Aviso no topo, no Overlay raiz, sobrevive a `go`/`pop`. Substitui a SnackBar em toda a app (2026-10-21): não usar `ScaffoldMessenger` |
 | `AppPasswordStrengthMeter` | `password` |
 | `AppDatePicker` (`showAppDatePicker`, função) | `context`, `initialDate`, `firstDate`, `lastDate` — wrapper do `showDatePicker` nativo só com tema |
