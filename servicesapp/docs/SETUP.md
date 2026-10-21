@@ -498,9 +498,21 @@ Supabase > Authentication > Sign In / Providers, dentro do Google ou do Facebook
 6. [ ] Supabase > Authentication > Sign In / Providers > **Facebook**: ligar, App ID
        no campo Client ID, App Secret no Client Secret, guardar.
 
-Nota: a Meta pede uma página de Política de Privacidade real para a app ficar em Live.
-Se ainda não a tiveres, deixa o Facebook em Development (só tu e os testers) e liga só
-o Google por agora.
+Nota: para pôr a app em Live a Meta pede uma página de Política de Privacidade real e a
+verificação de negócio, que não aceita `netlify.app` e precisa de empresa ou atividade
+registada com domínio próprio. Até lá deixa o Facebook em Development (só tu e os
+testers em App roles) e liga só o Google.
+
+### 7.4 Mostrar o botão do Facebook
+
+O botão "Continuar com Facebook" está **escondido por omissão**, porque com a app da Meta
+em Development quem não é tester recebe um erro. Quando a app estiver em Live:
+
+- [ ] GitHub > Settings > Secrets and variables > Actions > **Variables** > New
+      repository variable: `FACEBOOK_LOGIN_ENABLED` = `true`. Correr Actions > Deploy
+      web > Run workflow.
+- [ ] Nas apps (e para testares como tester antes do Live), juntar
+      `--dart-define=FACEBOOK_LOGIN_ENABLED=true` aos `args` do `.vscode/launch.json`.
 
 ### Testar
 
@@ -508,7 +520,7 @@ o Google por agora.
       para "Como quer usar a ProJardim?", com o nome já escrito e o campo do
       telemóvel vazio. Escolher papel, escrever o telemóvel, Continuar. Entra no início
       do papel e a foto da conta Google aparece no perfil.
-- [ ] Repetir com o Facebook (na web e no Android).
+- [ ] Repetir com o Facebook (na web e no Android), com o botão ligado (7.4).
 - [ ] Android: Continuar com Google abre o browser e, depois de escolher a conta, volta
       sozinho à app já com sessão.
 - [ ] Sair e voltar a entrar com o mesmo Google: vai direto para o início, sem pedir o

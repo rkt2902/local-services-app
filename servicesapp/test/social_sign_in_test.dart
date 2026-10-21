@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/features/auth/application/pending_signup_provider.dart';
 import 'package:servicesapp/features/auth/data/auth_repository.dart';
 import 'package:servicesapp/features/auth/presentation/choose_role_screen.dart';
+import 'package:servicesapp/features/auth/presentation/widgets/social_sign_in_buttons.dart';
 
 void main() {
   group('RegistrationIdentity', () {
@@ -81,6 +83,34 @@ void main() {
     test('outros URLs ficam iguais', () {
       const fb = 'https://graph.facebook.com/1/picture?type=large';
       expect(socialAvatarSourceUrl(fb), fb);
+    });
+  });
+
+  group('SocialSignInButtons', () {
+    Widget app({bool? showFacebook}) => MaterialApp(
+          home: Scaffold(
+            body: showFacebook == null
+                ? SocialSignInButtons(enabled: true, onPressed: (_) {})
+                : SocialSignInButtons(
+                    enabled: true,
+                    onPressed: (_) {},
+                    showFacebook: showFacebook,
+                  ),
+          ),
+        );
+
+    testWidgets('sem FACEBOOK_LOGIN_ENABLED: só o Google', (tester) async {
+      await tester.pumpWidget(app());
+      expect(find.text('Continuar com Google'), findsOneWidget);
+      expect(find.text('Continuar com Facebook'), findsNothing);
+      expect(find.textContaining('Google ou Facebook'), findsNothing);
+    });
+
+    testWidgets('com o Facebook ligado: os dois botões', (tester) async {
+      await tester.pumpWidget(app(showFacebook: true));
+      expect(find.text('Continuar com Google'), findsOneWidget);
+      expect(find.text('Continuar com Facebook'), findsOneWidget);
+      expect(find.textContaining('Google ou Facebook'), findsOneWidget);
     });
   });
 }
