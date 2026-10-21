@@ -31,7 +31,8 @@ relevantes para a tarefa em concreto, não todos de cada vez:
   (migration 0032) — nunca reintroduzir a classe.
 - **`DROP FUNCTION` explícito antes de recriar** quando o `RETURNS TABLE` de uma RPC
   muda de forma. `CREATE OR REPLACE` não é suficiente nesse caso.
-- **Regra T4**: numa ação com navegação, a ordem é sempre navegar (go/pop) → SnackBar
+- **Regra T4**: numa ação com navegação, a ordem é sempre navegar (go/pop) → aviso
+  (`AppToast`, nunca SnackBar)
   → `ref.invalidate(...)`. Invalidar antes de navegar pode rebentar o ecrã atual.
 - **"worker" no código, nunca "provider"** (colisão com Riverpod). Na UI é sempre
   "Jardineiro".

@@ -154,6 +154,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(myHelpAcceptancesProvider);
           _invalidateWorkerJobBoard(ref);
         case NotificationType.helpRequestReopened:
+        case NotificationType.newHelpRequestInRadius:
           // A slot reopened for a help_request the candidate was rejected from.
           // Refresh the discovery screen so they can see and re-apply to it.
           ref.invalidate(helpRequestSummariesInRadiusProvider);
@@ -164,7 +165,9 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(helpRequestsForJobProvider);
           ref.invalidate(candidatesForHelpRequestProvider);
         case NotificationType.helpCandidateApplied:
-          // 0048: novo candidato na equipa do responsável.
+        case NotificationType.helpRequestClosed:
+          // 0048: novo candidato na equipa do responsável. 0054: o pedido
+          // fechou no dia do trabalho.
           ref.invalidate(helpRequestsForJobProvider);
           ref.invalidate(candidatesForHelpRequestProvider);
         case NotificationType.helpRequestPendingApproval:

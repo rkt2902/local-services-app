@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_date_picker.dart';
@@ -13,6 +12,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../application/worker_list_invalidation.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_submit_proposal_view.dart' as view;
+import '../../../core/widgets/app_toast.dart';
 
 /// Mapeamento fixo de período do dia → hora gravada em `scheduled_time`.
 /// Não existe conceito de "período" na BD — só time/flexible — por isso o
@@ -75,7 +75,7 @@ class _WorkerSubmitProposalScreenState
     if (userId == null) return;
 
     setState(() => _submitting = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final router = GoRouter.of(context);
 
     // "Quantos ajudantes?" conta só os ajudantes — people_needed inclui o
@@ -104,13 +104,11 @@ class _WorkerSubmitProposalScreenState
       } else {
         router.go('/worker/job/${widget.jobId}');
       }
-      scaffold.showSnackBar(const SnackBar(content: Text('Proposta enviada!')));
+      toast.show('Proposta enviada!');
       invalidateWorkerLists(ref, jobId: widget.jobId);
     } catch (e) {
       if (!mounted) return;
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

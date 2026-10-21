@@ -48,4 +48,12 @@ abstract class NotificationType {
 
   /// Para o ajudante: o trabalho ficou concluído (pode avaliar).
   static const helpJobCompleted = 'help_job_completed';
+
+  /// 0054: pedido de ajuda novo na zona, a jardineiros que fazem o serviço.
+  /// relatedId = help_request_id.
+  static const newHelpRequestInRadius = 'new_help_request_in_radius';
+
+  /// 0054: o pedido de ajudantes fechou porque chegou o dia do trabalho.
+  /// Só para o responsável. relatedId = help_request_id.
+  static const helpRequestClosed = 'help_request_closed';
 }

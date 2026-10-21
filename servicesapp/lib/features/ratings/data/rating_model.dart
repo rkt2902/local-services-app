@@ -91,10 +91,18 @@ class AcceptedHelper {
   final String workerId;
   final String fullName;
 
-  const AcceptedHelper({required this.workerId, required this.fullName});
+  /// Foto do ajudante (0054); `null` antes da migration ou sem foto.
+  final String? avatarUrl;
+
+  const AcceptedHelper({
+    required this.workerId,
+    required this.fullName,
+    this.avatarUrl,
+  });
 
   factory AcceptedHelper.fromJson(Map<String, dynamic> json) => AcceptedHelper(
         workerId: json['worker_id'] as String,
         fullName: json['full_name'] as String? ?? '—',
+        avatarUrl: StorageUrls.trustedOrNull(json['avatar_url'] as String?),
       );
 }

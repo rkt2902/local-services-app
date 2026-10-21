@@ -10,6 +10,7 @@ import '../application/notification_handler.dart';
 import '../application/notification_presentation.dart';
 import '../application/notification_providers.dart';
 import '../data/notification_model.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// "Notificações" (design A4), o mesmo ecrã para cliente e jardineiro. Liga
 /// `allNotificationsProvider` ao [AppNotificationsView], que só desenha.
@@ -27,14 +28,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Future<void> _markAllAsRead() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(notificationRepositoryProvider).markAllAsRead(user.id);
       if (!mounted) return;
       ref.invalidate(allNotificationsProvider);
       await ref.read(allNotificationsProvider.future);
     } catch (e) {
-      scaffold.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      toast.error(friendlyError(e));
     }
   }
 

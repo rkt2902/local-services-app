@@ -35,6 +35,7 @@ import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
 import 'widgets/start_job_sheet.dart';
 import 'widgets/worker_my_job_detail_view.dart' as view;
+import '../../../core/widgets/app_toast.dart';
 
 class WorkerMyJobDetailScreen extends ConsumerStatefulWidget {
   const WorkerMyJobDetailScreen({
@@ -71,7 +72,7 @@ class _WorkerMyJobDetailScreenState
     if (result == null || !mounted) return;
 
     setState(() => _cancellingJob = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
@@ -81,16 +82,12 @@ class _WorkerMyJobDetailScreenState
           );
       // Regra T4: navegar → SnackBar → invalidar.
       router.go('/worker/home');
-      scaffold.showSnackBar(SnackBar(
-        content: Text(newJobId != null
+      toast.show(newJobId != null
             ? 'Pedido cancelado. O cliente foi notificado e o pedido foi reaberto.'
-            : 'Pedido cancelado.'),
-      ));
+            : 'Pedido cancelado.');
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _cancellingJob = false);
     }
@@ -101,7 +98,7 @@ class _WorkerMyJobDetailScreenState
     if (result == null || !mounted) return;
 
     setState(() => _proposingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
             jobId: _jobId,
@@ -111,13 +108,10 @@ class _WorkerMyJobDetailScreenState
           );
       // Fica neste ecrã (sem pop: aberto por notificação não há nada para
       // fazer pop). SnackBar → invalidar.
-      scaffold.showSnackBar(
-          const SnackBar(content: Text('Remarcação enviada.')));
+      toast.show('Remarcação enviada.');
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _proposingReschedule = false);
     }
@@ -125,16 +119,13 @@ class _WorkerMyJobDetailScreenState
 
   Future<void> _acceptReschedule() async {
     setState(() => _acceptingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(_jobId);
-      scaffold.showSnackBar(
-          const SnackBar(content: Text('Nova data aceite.')));
+      toast.show('Nova data aceite.');
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _acceptingReschedule = false);
     }
@@ -142,16 +133,13 @@ class _WorkerMyJobDetailScreenState
 
   Future<void> _rejectReschedule() async {
     setState(() => _rejectingReschedule = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(_jobId);
-      scaffold.showSnackBar(
-          const SnackBar(content: Text('Remarcação recusada.')));
+      toast.show('Remarcação recusada.');
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _rejectingReschedule = false);
     }
@@ -168,7 +156,7 @@ class _WorkerMyJobDetailScreenState
     );
     if (confirmed != true || !mounted) return;
     setState(() => _withdrawing = true);
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
@@ -178,13 +166,10 @@ class _WorkerMyJobDetailScreenState
       // notificação) → SnackBar → invalidar.
       final jobId = _jobId;
       goBackOrToRoleHome(context);
-      scaffold.showSnackBar(
-          const SnackBar(content: Text('Proposta retirada.')));
+      toast.show('Proposta retirada.');
       invalidateWorkerLists(ref, jobId: jobId);
     } catch (e) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      toast.error(friendlyError(e));
       if (mounted) setState(() => _withdrawing = false);
     }
   }
@@ -259,7 +244,7 @@ class _WorkerMyJobDetailScreenState
                       ? null
                       : () async {
                           setSheetState(() => loading = true);
-                          final scaffold = ScaffoldMessenger.of(context);
+                          final toast = AppToast.of(context);
                           try {
                             await ref
                                 .read(helpRequestRepositoryProvider)
@@ -272,19 +257,13 @@ class _WorkerMyJobDetailScreenState
                                 );
                             // Regra T4: fechar a sheet → SnackBar → invalidar.
                             if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                            scaffold.showSnackBar(const SnackBar(
-                              content: Text(
-                                  'Pedido de ajuda enviado para aprovação do cliente.'),
-                            ));
+                            toast.show('Pedido de ajuda enviado para aprovação do cliente.');
                             if (mounted) {
                               ref.invalidate(
                                   helpRequestsForJobProvider(_jobId));
                             }
                           } catch (e) {
-                            scaffold.showSnackBar(SnackBar(
-                              content: Text(friendlyError(e)),
-                              backgroundColor: AppStatusColor.cancelled.foreground,
-                            ));
+                            toast.error(friendlyError(e));
                             setSheetState(() => loading = false);
                           }
                         },
@@ -310,7 +289,7 @@ class _WorkerMyJobDetailScreenState
   /// `start_job` (migration 0052). Fica no ecrã: o provider do pedido é
   /// invalidado e o ecrã passa a "Em curso".
   Future<void> _startJob(String clientName) async {
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final started = await StartJobSheet.show(
       context,
       clientName: clientName,
@@ -325,18 +304,14 @@ class _WorkerMyJobDetailScreenState
           await repo.startJob(_jobId, photoPaths: paths);
           return true;
         } catch (e) {
-          scaffold.showSnackBar(SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: AppStatusColor.cancelled.foreground,
-          ));
+          toast.error(friendlyError(e));
           return false;
         }
       },
     );
     if (!started || !mounted) return;
     // Regra T4: sem navegação aqui (fica no ecrã); SnackBar → invalidar.
-    scaffold.showSnackBar(
-        const SnackBar(content: Text('Trabalho iniciado. O cliente foi avisado.')));
+    toast.show('Trabalho iniciado. O cliente foi avisado.');
     invalidateWorkerLists(ref, jobId: _jobId);
   }
 
@@ -349,7 +324,7 @@ class _WorkerMyJobDetailScreenState
     required DateTime? startedAt,
     required String priceLabel,
   }) async {
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     final worked = startedAt == null
         ? 'Sem registo'
         : durationLabel(DateTime.now().difference(startedAt));
@@ -370,10 +345,7 @@ class _WorkerMyJobDetailScreenState
               .markJobCompleted(_jobId, photoPaths: paths);
           return true;
         } catch (e) {
-          scaffold.showSnackBar(SnackBar(
-            content: Text(friendlyError(e)),
-            backgroundColor: AppStatusColor.cancelled.foreground,
-          ));
+          toast.error(friendlyError(e));
           return false;
         }
       },
@@ -421,18 +393,14 @@ class _WorkerMyJobDetailScreenState
     );
     controller.dispose();
     if (description == null || !mounted) return;
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
           .reportJobProblem(jobId: _jobId, description: description);
-      scaffold.showSnackBar(const SnackBar(
-          content: Text('Relato enviado. A nossa equipa vai analisar.')));
+      toast.show('Relato enviado. A nossa equipa vai analisar.');
     } catch (e) {
-      scaffold.showSnackBar(SnackBar(
-        content: Text(friendlyError(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(friendlyError(e));
     }
   }
 
@@ -732,6 +700,8 @@ class _WorkerMyJobDetailScreenState
       inactive: inactive,
       completed: completed,
       helpTeamLoaded: team.loaded,
+      // Mesma regra da BD (0054): pedir ajudantes só até à véspera.
+      canRequestHelpers: confirmedDay == null || confirmedDay.isAfter(today),
       helpTeam: _teamViewData(
         team.summary,
         helpersForRatingAsync.asData?.value ?? const [],
@@ -826,7 +796,9 @@ view.WorkerJobTeamViewData? _teamViewData(
     );
   }
   final filled = summary.filled;
-  final names = helpers.map((h) => h.fullName).take(summary.slots).toList();
+  final members = helpers.take(summary.slots).toList();
+  final names = members.map((h) => h.fullName).toList();
+  final avatars = members.map((h) => h.avatarUrl).toList();
   // Nomes ainda a carregar: círculos com "?" em vez de vagas vazias.
   while (filled != null && names.length < filled) {
     names.add('');
@@ -834,6 +806,7 @@ view.WorkerJobTeamViewData? _teamViewData(
   final undecided = summary.undecided ?? 0;
   return view.WorkerJobTeamViewData(
     memberNames: names,
+    memberAvatarUrls: avatars,
     emptySlots: (summary.slots - (filled ?? names.length)).clamp(0, summary.slots),
     filledLabel: filled == null
         ? null

@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/rating_stars_input.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Shows a modal bottom sheet for star rating + optional comment.
 /// Returns `true` if the user submitted, `null`/`false` if dismissed.
@@ -22,7 +23,7 @@ Future<bool?> showSubmitRatingSheet({
   String? subtitle,
   required Future<void> Function(int stars, String? comment) onSubmit,
 }) async {
-  final scaffold = ScaffoldMessenger.of(context);
+  final toast = AppToast.of(context);
   int selectedStars = 0;
   final commentController = TextEditingController();
 
@@ -146,7 +147,7 @@ Future<bool?> showSubmitRatingSheet({
   commentController.dispose();
 
   if (result == true && context.mounted) {
-    scaffold.showSnackBar(SnackBar(content: Text(successMessage)));
+    toast.show(successMessage);
   }
 
   return result;

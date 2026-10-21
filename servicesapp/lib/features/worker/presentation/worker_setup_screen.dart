@@ -20,6 +20,7 @@ import '../../auth/application/session_provider.dart';
 import '../application/worker_providers.dart';
 import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class WorkerSetupScreen extends ConsumerStatefulWidget {
   const WorkerSetupScreen({super.key});
@@ -99,8 +100,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
       if (found == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Morada não encontrada.')));
+        AppToast.of(context).error('Morada não encontrada.');
         return;
       }
       final lat = found.lat;
@@ -118,8 +118,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao pesquisar morada.')));
+      AppToast.of(context).error('Erro ao pesquisar morada.');
     } finally {
       if (mounted) setState(() => _geocoding = false);
     }
@@ -218,9 +217,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     } catch (e) {
       debugPrint('[WorkerSetup] ${e.runtimeType}: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-      );
+      AppToast.of(context).error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

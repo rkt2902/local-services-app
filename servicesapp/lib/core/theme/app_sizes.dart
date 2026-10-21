@@ -80,6 +80,9 @@ abstract final class AppSizes {
 
   // Detalhe do trabalho do jardineiro (A1).
   static const double teamSlot = 32.0;
+
+  /// Logo do ecrã de arranque (`/loading`), a seguir ao splash nativo.
+  static const double launchLogo = 128.0;
   static const double heroIcon = 28.0;
   static const double infoRowIcon = 20.0;
 

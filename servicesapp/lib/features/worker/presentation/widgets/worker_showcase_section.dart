@@ -6,6 +6,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../data/worker_showcase.dart';
+import '../../../../core/widgets/app_toast.dart';
 
 /// Apresentação, destaques e links que o worker escolheu mostrar (0051).
 /// Usado no perfil que o cliente abre a partir das propostas (folha de
@@ -168,7 +169,7 @@ class _SocialLinkButton extends StatelessWidget {
     final uri = Uri.tryParse(link.url);
     // Só https: o link vem de outra pessoa e abre fora da app.
     if (uri == null || uri.scheme != 'https') return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
+    final toast = AppToast.maybeOf(context);
     var opened = false;
     try {
       opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -176,9 +177,7 @@ class _SocialLinkButton extends StatelessWidget {
       opened = false;
     }
     if (!opened) {
-      messenger?.showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o link.')),
-      );
+      toast?.error('Não foi possível abrir o link.');
     }
   }
 
