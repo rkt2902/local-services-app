@@ -282,6 +282,14 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 - **Registo**: `AuthRepository.signUp` (`auth.signUp` com `data: {full_name, phone}`)
   → `createProfile` (`profiles.upsert`, não uma RPC; a antiga `create_user_profile` foi apagada na 0042) → `/choose-role`
   escreve `role` → `/worker/setup` ou `/client/home`.
+- **Login com Google/Facebook (2026-10-18)**: `AuthRepository.signInWithSocial` →
+  `signInWithOAuth` do Supabase. Web: redirect para `<origem>/` (com `?from=`). Apps: deep
+  link `pt.projardim.app://login-callback` (intent-filter Android, `CFBundleURLTypes` iOS);
+  o `supabase_flutter` troca o código pela sessão e `resolveRedirect` manda
+  `/login-callback` para `/`. Conta nova cai em `/choose-role` (sem perfil), que pede nome e
+  telemóvel quando os metadados não trazem telemóvel (`RegistrationIdentity`) e copia a foto
+  da conta (`avatar_url`/`picture`) para `avatars/<id>.jpg` (`importSocialAvatar`, melhor
+  esforço). Configuração: `SETUP.md` passo 7.
 - **Login**: `signInWithPassword`. Conta com email por confirmar (`email_not_confirmed`)
   → `AuthEmailNotConfirmed`: reenvia o código e vai para `/verify-email`.
 - **Confirmação de email por código (2026-10-17)**: funciona com "Confirm email" ligado

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_brand_badge.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
+import 'widgets/social_sign_in_buttons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -44,9 +45,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (currentState is! AuthSuccess) return;
     // O router decide o destino pelo papel: o início do papel ou, se veio
     // de uma rota privada, essa rota (resolveRedirect/safeReturnTarget).
-    context.go(returnTo == null || returnTo.isEmpty
-        ? '/'
-        : '/?$returnToParam=${Uri.encodeComponent(returnTo)}');
+    context.go(
+      returnTo == null || returnTo.isEmpty
+          ? '/'
+          : '/?$returnToParam=${Uri.encodeComponent(returnTo)}',
+    );
+  }
+
+  Future<void> _signInWithSocial(OAuthProvider provider) async {
+    final returnTo = GoRouterState.of(
+      context,
+    ).uri.queryParameters[returnToParam];
+    await ref
+        .read(authControllerProvider.notifier)
+        .signInWithSocial(provider, returnTo: returnTo);
   }
 
   @override
@@ -188,47 +200,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 18),
-                      // Google Sign-In shown disabled — not yet implemented
-                      OutlinedButton(
-                        onPressed: null,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(52),
-                          backgroundColor: AppColors.surface,
-                          disabledBackgroundColor: AppColors.surface,
-                          side: const BorderSide(color: AppColors.divider),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.card),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 18,
-                              height: 18,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF4285F4),
-                                    Color(0xFF34A853),
-                                    Color(0xFFFBBC05),
-                                    Color(0xFFEA4335),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Continuar com Google',
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
+                      SocialSignInButtons(
+                        enabled: !isLoading,
+                        onPressed: _signInWithSocial,
                       ),
                     ],
                   ),
