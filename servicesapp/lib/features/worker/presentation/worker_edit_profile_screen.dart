@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
@@ -17,6 +16,7 @@ import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
 import '../data/worker_showcase.dart';
 import 'widgets/worker_edit_profile_view.dart' as view;
+import '../../../core/widgets/app_toast.dart';
 
 /// Formulário de edição do perfil do worker — extraído do antigo
 /// `WorkerProfileScreen` quando este passou a ser um ecrã de resumo
@@ -151,8 +151,8 @@ class _WorkerEditProfileScreenState
       final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
       if (found == null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Morada não encontrada.')));
+        AppToast.of(context)
+            .error('Morada não encontrada.');
         return;
       }
       final lat = found.lat;
@@ -167,8 +167,8 @@ class _WorkerEditProfileScreenState
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Erro ao pesquisar morada.')));
+      AppToast.of(context)
+          .error('Erro ao pesquisar morada.');
     } finally {
       if (mounted) setState(() => _geocoding = false);
     }
@@ -397,7 +397,7 @@ class _WorkerEditProfileScreenState
   Future<bool> _persist({bool uploadAvatarIfNeeded = false}) async {
     final profile = ref.read(workerProfileProvider).value;
     if (profile == null) return false;
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       final repo = ref.read(workerRepositoryProvider);
       var draft = _currentDraft(profile);
@@ -412,9 +412,7 @@ class _WorkerEditProfileScreenState
       return true;
     } catch (e) {
       if (mounted) {
-        scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        toast.error(friendlyError(e));
       }
       return false;
     }
@@ -424,10 +422,7 @@ class _WorkerEditProfileScreenState
 
   Future<bool> _saveBaseLocation() async {
     if (_baseLat == null || _baseLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Localização em falta.'),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      AppToast.of(context).error('Localização em falta.');
       return false;
     }
     return _persist();

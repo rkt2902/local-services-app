@@ -3,6 +3,23 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-21 — Bugs: avisos no topo, OTP, login e recuperação de senha
+
+- **Avisos no topo (`AppToast`)** em vez da SnackBar do Material, que fica sempre em baixo,
+  por cima dos botões de ação. Vive no Overlay do navigator raiz (sobrevive a `go`/`pop`,
+  regra T4 igual: guardar `AppToast.of(context)` antes de navegar). Dois tons, `show`
+  (verde) e `error` (vermelho); um aviso novo substitui o anterior; fecha sozinho em 4 s,
+  com toque ou a arrastar para cima. As 76 chamadas a `showSnackBar` foram migradas.
+- **Recuperação de senha mandava para o início** logo depois do código: o passo 1 abria o
+  passo 2 com `push`, e quando a sessão de recuperação aparece o go_router reavalia o
+  redirect com o URI da BASE da pilha (`/login`), que com sessão vai para o início do papel.
+  Agora é `go`, e `resolveRedirect` nunca redireciona `/forgot-password/reset` com sessão
+  (cobre também jardineiro com perfil incompleto e conta sem papel).
+- **OTP:** as 6 caixas tinham 48 de largura fixa e transbordavam em ecrãs estreitos ou com
+  o tamanho de ecrã/letra aumentado; agora encolhem.
+- **Login e confirmar email:** o rodapé ("Não tens conta?", "Já tens conta com este email?")
+  esconde-se com o teclado aberto, em vez de subir colado a ele por cima do "Entrar".
+
 ## 2026-10-19 — Notificações (A4)
 
 - **Uma vista para os dois papéis:** `core/widgets/app_notifications_view.dart` só desenha;

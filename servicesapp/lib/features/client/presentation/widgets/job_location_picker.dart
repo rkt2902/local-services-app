@@ -10,6 +10,7 @@ import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/app_toast.dart';
 
 /// Localização escolhida em [JobLocationPicker].
 class JobLocationValue {
@@ -143,9 +144,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
       final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
       if (found == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Morada não encontrada. Tenta ser mais específico.'),
-        ));
+        AppToast.of(context).error('Morada não encontrada. Tenta ser mais específico.');
         return;
       }
       final latlng = LatLng(found.lat, found.lng);
@@ -156,9 +155,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
       _reverseGeocodePin(latlng.latitude, latlng.longitude);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao pesquisar morada.'),
-      ));
+      AppToast.of(context).error('Erro ao pesquisar morada.');
     } finally {
       if (mounted) setState(() => _geocoding = false);
     }

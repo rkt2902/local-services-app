@@ -13,6 +13,7 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/fleet_card_providers.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Passo de confirmação — recebe os 3 campos já extraídos por OCR
 /// (`fleet_card_scan_screen.dart`) via query params, deixa o worker
@@ -97,7 +98,7 @@ class _FleetCardConfirmDataScreenState
       _successVisible = false;
     });
 
-    final messenger = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       await ref.read(fleetCardRepositoryProvider).createFleetCard(
             workerId: user.id,
@@ -131,10 +132,7 @@ class _FleetCardConfirmDataScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(friendlyError(e)),
-        backgroundColor: AppStatusColor.cancelled.foreground,
-      ));
+      toast.error(friendlyError(e));
     }
   }
 

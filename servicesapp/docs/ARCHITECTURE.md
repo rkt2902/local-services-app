@@ -567,7 +567,8 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 |---|---|
 | `AppTextField` | `controller`, `label`; opcionais `hintText`, `keyboardType`, `obscureText`, `validator`, `maxLines` |
 | `AppSearchField` | `controller`, `hintText`; `onChanged`, `onClear` |
-| `AppOtpInput` | `onCompleted`; `length=6`, `onChanged`, `autofocus=true`, `hasError` |
+| `AppOtpInput` | `onCompleted`; `length=6`, `onChanged`, `autofocus=true`, `hasError` (caixas até 48, encolhem em ecrãs estreitos) |
+| `AppToast` | `AppToast.of(context)` / `maybeOf` → `.show(msg)` (verde) ou `.error(msg)` (vermelho). Aviso no topo, no Overlay raiz, sobrevive a `go`/`pop`. Substitui a SnackBar em toda a app (2026-10-21): não usar `ScaffoldMessenger` |
 | `AppPasswordStrengthMeter` | `password` |
 | `AppDatePicker` (`showAppDatePicker`, função) | `context`, `initialDate`, `firstDate`, `lastDate` — wrapper do `showDatePicker` nativo só com tema |
 | `PrimaryActionButton` | `label`, `onPressed`; `isLoading=false`, `height=52` |
@@ -644,7 +645,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
   circular pela app — só os `*_repository.dart` convertem de/para o `text` da BD.
 - **Correr `flutter analyze` depois de cada alteração relevante.**
 - **Regra T4** — ordem obrigatória numa ação com navegação: **navegar (go/pop) →
-  SnackBar → `ref.invalidate(...)`**. Invalidar antes de navegar pode fazer um provider
+  aviso (`AppToast`, guardado antes de navegar) → `ref.invalidate(...)`**. Invalidar antes de navegar pode fazer um provider
   que o ecrã atual observa disparar um rebuild a meio da navegação/dispose — crash
   `'_dependents.isEmpty': is not true` já visto em produção (ver `decisions_log.md`,
   T4/2026-06-29). 6 anti-patterns de ordem errada ficaram documentados como "Low" porque

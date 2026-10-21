@@ -9,6 +9,7 @@ import '../../help_requests/data/help_request_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
+import '../../../core/widgets/app_toast.dart';
 
 class NotificationHandler {
   static Future<void> _openHelperJob(
@@ -85,13 +86,7 @@ class NotificationHandler {
           );
         } else {
           context.go('/worker/home');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Não foi possível abrir o job. Verifica a lista de jobs.',
-              ),
-            ),
-          );
+          AppToast.of(context).error('Não foi possível abrir o job. Verifica a lista de jobs.');
         }
 
       case NotificationType.proposalRejected:

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/router/app_back_navigation.dart';
-import '../../../core/theme/app_status_color.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
@@ -11,6 +10,7 @@ import '../../../core/utils/picked_photo.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import 'widgets/client_edit_profile_view.dart' as view;
+import '../../../core/widgets/app_toast.dart';
 
 /// Formulário de edição de nome/telefone/avatar do cliente — extraído do
 /// antigo `ClientProfileScreen` quando este passou a ser um ecrã de resumo
@@ -67,7 +67,7 @@ class _ClientEditProfileScreenState
   /// `ClientEditProfileScreen` (view) só mostra o `AppSuccessFeedback`
   /// quando recebe `true`.
   Future<bool> _save(ClientProfile profile, String fullName, String phone) async {
-    final scaffold = ScaffoldMessenger.of(context);
+    final toast = AppToast.of(context);
     try {
       final repo = ref.read(clientRepositoryProvider);
       final user = ref.read(currentUserProvider)!;
@@ -88,9 +88,7 @@ class _ClientEditProfileScreenState
       return true;
     } catch (e) {
       if (mounted) {
-        scaffold.showSnackBar(
-          SnackBar(content: Text(friendlyError(e)), backgroundColor: AppStatusColor.cancelled.foreground),
-        );
+        toast.error(friendlyError(e));
       }
       return false;
     }

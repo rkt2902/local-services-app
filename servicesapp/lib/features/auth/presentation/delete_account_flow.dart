@@ -11,6 +11,7 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../notifications/application/push_notification_service.dart';
 import '../application/auth_providers.dart';
 import '../application/session_provider.dart';
+import '../../../core/widgets/app_toast.dart';
 
 /// Mensagem quando a base de dados ainda não tem `delete_my_account`
 /// (migration 0049 por aplicar).
@@ -46,7 +47,7 @@ Future<void> confirmAndDeleteAccount(
 
   // Tudo lido antes dos awaits: ao fechar a sessão o router sai deste ecrã
   // e o `ref` do widget deixa de poder ser usado.
-  final messenger = ScaffoldMessenger.of(context);
+  final toast = AppToast.of(context);
   final router = GoRouter.of(context);
   final pushService = ref.read(pushNotificationServiceProvider);
   final authRepository = ref.read(authRepositoryProvider);
@@ -67,9 +68,7 @@ Future<void> confirmAndDeleteAccount(
   // T4: navegar, depois SnackBar (os providers dependem do utilizador e
   // reconstroem-se sozinhos com o fim da sessão).
   router.go('/');
-  messenger.showSnackBar(
-    const SnackBar(content: Text('A tua conta foi eliminada.')),
-  );
+  toast.show('A tua conta foi eliminada.');
 }
 
 class _ExplainDialog extends StatelessWidget {

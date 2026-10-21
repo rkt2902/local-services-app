@@ -69,7 +69,11 @@ class _RequestPasswordResetScreenState
     await ref.read(passwordResetControllerProvider.notifier).requestReset(email);
     if (!mounted) return;
     if (ref.read(passwordResetControllerProvider) is PasswordResetSuccess) {
-      context.push('/forgot-password/reset?email=${Uri.encodeComponent(email)}');
+      // `go`, não `push`: o código abre uma sessão de recuperação e o router
+      // reavalia o redirect. Com `push`, o go_router reavalia a rota de BASE
+      // da pilha (`/login`), e com sessão isso mandava para o início do
+      // papel a meio do fluxo, antes de se escolher a senha nova.
+      context.go('/forgot-password/reset?email=${Uri.encodeComponent(email)}');
     }
   }
 

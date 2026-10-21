@@ -9,6 +9,7 @@ import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
 import 'app_motion.dart';
 import 'app_sheet.dart';
+import 'app_toast.dart';
 
 /// "Contacto e suporte" (design U7): email de suporte da ProJardim com
 /// "Copiar email" e "Escrever". "Escrever" abre a app de email do telemóvel
@@ -16,7 +17,7 @@ import 'app_sheet.dart';
 /// entre cliente e jardineiro (esse é só por WhatsApp). Partilhado pela
 /// conta do cliente e pela do jardineiro.
 Future<void> showSupportContactSheet(BuildContext context) {
-  final messenger = ScaffoldMessenger.of(context);
+  final toast = AppToast.of(context);
   return AppSheet.show<void>(
     context,
     builder: (sheetCtx) => AppSupportSheet(
@@ -28,9 +29,7 @@ Future<void> showSupportContactSheet(BuildContext context) {
           const ClipboardData(text: AppLinks.supportEmail),
         );
         if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Email copiado.')),
-        );
+        toast.show('Email copiado.');
       },
       onComposeEmail: () async {
         var opened = false;
@@ -43,14 +42,8 @@ Future<void> showSupportContactSheet(BuildContext context) {
           if (sheetCtx.mounted) Navigator.pop(sheetCtx);
           return;
         }
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não encontrámos uma app de email. Copia o endereço e '
-              'escreve-nos.',
-            ),
-          ),
-        );
+        toast.error('Não encontrámos uma app de email. Copia o endereço e '
+              'escreve-nos.');
       },
     ),
   );
