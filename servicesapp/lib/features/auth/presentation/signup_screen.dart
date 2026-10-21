@@ -6,6 +6,7 @@ import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_legal_links.dart';
 import '../../../core/widgets/app_password_strength_meter.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -194,31 +195,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           Expanded(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 11),
-                              child: RichText(
-                                text: TextSpan(
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    height: 1.4,
-                                  ),
-                                  children: [
-                                    const TextSpan(text: 'Aceito os '),
-                                    TextSpan(
-                                      text: 'Termos',
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: AppColors.primaryPressed,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const TextSpan(text: ' e a '),
-                                    TextSpan(
-                                      text: 'Política de Privacidade',
-                                      style: textTheme.bodySmall?.copyWith(
-                                        color: AppColors.primaryPressed,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const TextSpan(text: '.'),
-                                  ],
+                              child: AppLegalConsentText(
+                                prefix: 'Aceito os ',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
                                 ),
                               ),
                             ),

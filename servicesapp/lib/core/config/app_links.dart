@@ -8,6 +8,9 @@ import 'package:flutter/foundation.dart';
 /// - `APP_PUBLIC_URL`: endereço público da app, sem `/` no fim (por exemplo
 ///   `https://projardim.pt` ou `https://projardim.netlify.app`).
 /// - `SUPPORT_EMAIL`: email de suporte mostrado em "Contacto e suporte".
+/// - `TERMS_URL` / `PRIVACY_POLICY_URL`: páginas dos Termos de utilização e
+///   da Política de Privacidade. Por omissão, as versões publicadas no
+///   Google Docs (Ficheiro > Partilhar > Publicar na Web), até haver site.
 abstract final class AppLinks {
   const AppLinks._();
 
@@ -18,7 +21,19 @@ abstract final class AppLinks {
 
   static const String supportEmail = String.fromEnvironment(
     'SUPPORT_EMAIL',
-    defaultValue: 'suporte@projardim.pt',
+    defaultValue: 'projardim26@gmail.com',
+  );
+
+  static const String termsUrl = String.fromEnvironment(
+    'TERMS_URL',
+    defaultValue:
+        'https://docs.google.com/document/d/e/2PACX-1vQx4699Fwms8QQLfSnTuCcOwZhOb4eN1pmnGieUpSBTtjq39fHT7EyhL7GrOqxf9gUJF1Rh4-8nS2T2/pub',
+  );
+
+  static const String privacyPolicyUrl = String.fromEnvironment(
+    'PRIVACY_POLICY_URL',
+    defaultValue:
+        'https://docs.google.com/document/d/e/2PACX-1vSY35a6xqwQaW5AOlkrgPlz5T_1XjW6kER5GQhZZbS_enFCXbSLThh1QSfpyqKcsPyTU-tugs_O0cBq/pub',
   );
 
   /// "Continuar com Facebook" só aparece com

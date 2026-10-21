@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-21 — Termos e Política de Privacidade no Google Docs
+
+- **Porquê:** a Meta e o Google pedem os URLs no ecrã de consentimento e ainda não há site.
+- **Como:** `AppLinks.termsUrl`/`privacyPolicyUrl` com os Google Docs publicados por
+  omissão (`--dart-define=TERMS_URL`/`PRIVACY_POLICY_URL` para mudar), abertos no browser
+  por `app_legal_links.dart`. `AppLegalConsentText` é a frase com toque, partilhada pelo
+  registo e pelo login social. Email de suporte por omissão passa a `projardim26@gmail.com`.
+
 ## 2026-10-21 — Botão do Facebook escondido por omissão
 
 - **Porquê:** a verificação de negócio da Meta não aceita `netlify.app` e pede empresa ou

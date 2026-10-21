@@ -631,7 +631,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | OCR (ML Kit) | `fleet_card_text_extractor.dart` | `google_mlkit_text_recognition`, local, a foto é apagada logo depois de extrair os 3 campos — nunca vai a Storage |
 | QR | `qr_flutter` | cartão partilhável do worker (`worker_profile_screen.dart`) e estado ativo do cartão frota (`fleet_card_screen.dart`) |
 | Partilhar | `share_plus` | partilhar o link do cartão do worker |
-| Domínio e suporte | `core/config/app_links.dart` | `APP_PUBLIC_URL` e `SUPPORT_EMAIL` por `--dart-define` (opcionais; sem eles: na web o próprio site, nas apps `projardim.pt`). Usados no link `/w/:id`, no `User-Agent` do Nominatim e em "Contacto e suporte" |
+| Domínio e suporte | `core/config/app_links.dart` | `APP_PUBLIC_URL`, `SUPPORT_EMAIL` (por omissão `projardim26@gmail.com`), `TERMS_URL` e `PRIVACY_POLICY_URL` (por omissão os Google Docs publicados) por `--dart-define`, todos opcionais; sem domínio: na web o próprio site, nas apps `projardim.pt`. Usados no link `/w/:id`, no `User-Agent` do Nominatim, em "Contacto e suporte" e nos links legais (`core/widgets/app_legal_links.dart`: frase do registo, do login social e duas entradas na conta) |
 | Fotos | `image_picker` (seleção) + `flutter_image_compress` (`job_repository.dart`: `minWidth/minHeight: 800`, `quality: 60`, JPEG) antes do upload para Storage |
 
 ---
