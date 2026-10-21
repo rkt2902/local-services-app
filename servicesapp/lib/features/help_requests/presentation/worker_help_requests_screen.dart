@@ -1048,7 +1048,19 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                   );
                 },
               )
-            else if (helperCanWithdraw(widget.acceptance.jobStatus))
+            else if (helperGiveUpClosedByJobDay(
+              widget.acceptance.jobStatus,
+              confirmedDate: widget.acceptance.confirmedDate,
+            ))
+              Text(
+                helperGiveUpClosedMessage,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              )
+            else if (helperCanWithdraw(
+              widget.acceptance.jobStatus,
+              confirmedDate: widget.acceptance.confirmedDate,
+            ))
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -1239,6 +1251,17 @@ class _HelpRequestCard extends StatelessWidget {
                       style: theme.textTheme.labelMedium
                           ?.copyWith(color: AppColors.textSecondary),
                     ),
+                    if (helpApplicationsDeadlineLabel(summary.confirmedDate)
+                        case final deadline?) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        deadline,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: AppStatusColor.waiting.foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

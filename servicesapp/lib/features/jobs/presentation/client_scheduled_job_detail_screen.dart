@@ -21,6 +21,7 @@ import '../../../core/widgets/bottom_actions_bar.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/status_timeline.dart';
+import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
@@ -214,6 +215,10 @@ class _ClientScheduledJobDetailScreenState
             const [])
             .where((hr) => hr.status == HelpRequestStatus.pendingApproval)
             .toList();
+        // 0055: o cliente vê quem vem ajudar (nome e foto).
+        final team =
+            ref.watch(acceptedHelpersForJobProvider(widget.jobId)).asData?.value ??
+                const <AcceptedHelper>[];
 
         final serviceLabel = serviceTypes
                 .where((s) => s.id == job.serviceTypeId)
@@ -448,6 +453,13 @@ class _ClientScheduledJobDetailScreenState
                           onOpenWhatsApp: () => _openWhatsApp(workerPhone),
                         ),
                       ),
+                      if (team.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        AppStaggeredEntrance(
+                          index: 1,
+                          child: _ClientTeamCard(helpers: team),
+                        ),
+                      ],
                       if (pendingHelpRequests.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.sm),
                         ...pendingHelpRequests.map((hr) => _PendingHelpRequestCard(
@@ -682,6 +694,63 @@ class _WorkerContactCard extends StatelessWidget {
   }
 }
 
+/// Quem vem com o jardineiro responsável: ajudantes aceites, com nome e
+/// foto. O contacto continua a ser só com o responsável (WhatsApp).
+class _ClientTeamCard extends StatelessWidget {
+  const _ClientTeamCard({required this.helpers});
+
+  final List<AcceptedHelper> helpers;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.groups_outlined, color: AppColors.primary, size: 20),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                'Equipa · ${helpers.length} '
+                'ajudante${helpers.length == 1 ? '' : 's'}',
+                style: textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
+              ),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'Vêm com o jardineiro responsável. Qualquer dúvida, fala com ele.',
+            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          for (final helper in helpers) ...[
+            const SizedBox(height: AppSpacing.sm),
+            UserAvatarWithName(
+              name: helper.fullName == '—' ? '' : helper.fullName,
+              avatarUrl: helper.avatarUrl,
+              radius: 18,
+              fallbackLabel: 'Ajudante',
+              nameStyle: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _PendingHelpRequestCard extends StatelessWidget {
   const _PendingHelpRequestCard({
     required this.helpRequest,
@@ -724,6 +793,14 @@ class _PendingHelpRequestCard extends StatelessWidget {
             '${helpRequest.slotsNeeded} '
             'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
             '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppStatusColor.waiting.foreground),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            'Sem resposta, fica aprovado automaticamente 24 horas depois do pedido.',
             style: Theme.of(context)
                 .textTheme
                 .bodySmall

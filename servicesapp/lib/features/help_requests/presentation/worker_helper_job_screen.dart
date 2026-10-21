@@ -20,6 +20,7 @@ import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/worker_ratings_sheet.dart';
+import '../../worker/application/worker_job_rules.dart';
 import '../../worker/application/worker_list_invalidation.dart';
 import '../application/help_request_providers.dart';
 import '../application/helper_job_state.dart';
@@ -159,6 +160,20 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
             AppStaggeredEntrance(
               index: index++,
               child: _RatePrincipalSection(acceptance: acceptance),
+            ),
+          ],
+          if (actions.giveUpClosedByJobDay) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppStaggeredEntrance(
+              index: index++,
+              child: Text(
+                helperGiveUpClosedMessage,
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
             ),
           ],
           if (actions.canWithdrawApplication || actions.canGiveUp) ...[

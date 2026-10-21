@@ -235,6 +235,7 @@ class NotificationHandler {
       case NotificationType.helpRemoved:
       case NotificationType.helpJobRescheduled:
       case NotificationType.helpJobDone:
+      case NotificationType.helpJobStarted:
       case NotificationType.helpJobCompleted:
         // Para o ajudante. relatedId = id do pedido (0049) ou do pedido de
         // ajuda (tipos antigos): abre o ecrã da candidatura quando a
@@ -271,13 +272,15 @@ class NotificationHandler {
         }
 
       case NotificationType.helpRequestPendingApproval:
-        // Só o cliente recebe (0048). relatedId = job_id.
+      case NotificationType.helpRequestAutoApproved:
+        // Só o cliente recebe (0048, 0055). relatedId = job_id.
         if (notification.relatedId == null) break;
         context.go('/client/job/${notification.relatedId}');
 
       case NotificationType.helpCandidateApplied:
       case NotificationType.helpWithdrew:
       case NotificationType.helpRequestClosed:
+      case NotificationType.helpRequestClosingSoon:
         // Principal is told a helper applied (0048) or withdrew. relatedId = help_request_id.
         // Resolve job_id via fetch, then push to the lobby. Fallback to home.
         if (notification.relatedId == null) break;

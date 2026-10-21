@@ -135,6 +135,22 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0054 aplicada".
 
+### 0.8 Migration por aplicar: 0055 (depois da 0054)
+
+- [ ] SQL Editor: colar `supabase/migrations/0055_team_flow_improvements.sql` e correr. Pode
+      correr-se mais do que uma vez. Junta a coluna `help_requests.eve_reminder_sent_at` e cria
+      o cron `process-help-request-deadlines` (de hora a hora).
+- [ ] Testar:
+  - O cliente vê no pedido agendado o cartão "Equipa" com o nome e a foto dos ajudantes.
+  - No dia do trabalho o ajudante já não vê "Desistir"; o responsável retira-o e a vaga não
+    volta a abrir.
+  - Pedido de ajudantes sem resposta do cliente fica aprovado 24h depois.
+  - Na véspera, depois das 18h, o responsável com vagas ou candidatos recebe "O pedido de
+    ajudantes fecha hoje".
+  - Ao iniciar o trabalho, os ajudantes recebem "O trabalho começou".
+
+**Diz ao Claude:** "0055 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

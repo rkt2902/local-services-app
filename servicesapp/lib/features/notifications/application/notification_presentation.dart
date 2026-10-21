@@ -34,10 +34,9 @@ import '../data/notification_types.dart';
           icon: Icons.how_to_reg_outlined,
           tone: AppStatusColor.success,
         ),
-      NotificationType.helpRequestApproved => (
-          icon: Icons.groups_outlined,
-          tone: AppStatusColor.success,
-        ),
+      NotificationType.helpRequestApproved ||
+      NotificationType.helpRequestAutoApproved =>
+        (icon: Icons.groups_outlined, tone: AppStatusColor.success),
       NotificationType.helpCandidateApplied => (
           icon: Icons.person_search_outlined,
           tone: AppStatusColor.waiting,
@@ -46,6 +45,10 @@ import '../data/notification_types.dart';
       NotificationType.rescheduleAccepted ||
       NotificationType.helpJobRescheduled =>
         (icon: Icons.edit_calendar_outlined, tone: AppStatusColor.waiting),
+      NotificationType.helpRequestClosingSoon => (
+          icon: Icons.schedule_rounded,
+          tone: AppStatusColor.waiting,
+        ),
       NotificationType.helpWithdrew => (
           icon: Icons.person_remove_outlined,
           tone: AppStatusColor.waiting,
@@ -62,7 +65,7 @@ import '../data/notification_types.dart';
           icon: Icons.group_add_outlined,
           tone: AppStatusColor.info,
         ),
-      NotificationType.jobStarted => (
+      NotificationType.jobStarted || NotificationType.helpJobStarted => (
           icon: Icons.play_circle_outline_rounded,
           tone: AppStatusColor.info,
         ),
@@ -123,6 +126,16 @@ final _trailingContext = RegExp(r'\s*\(([^()]+)\)\s*$');
   AppNotification n, {
   required DateTime now,
 }) {
+  final texts = notificationBannerTexts(n);
+  var body = texts.body;
+  final ago = relativeTimeToday(n.createdAt, now);
+  if (ago != null) body = body.isEmpty ? ago : '$body $ago';
+  return (title: texts.title, body: body);
+}
+
+/// Como [notificationTexts], sem o "Há 10 min": para o aviso no topo de
+/// uma notificação que acabou de chegar.
+({String title, String body}) notificationBannerTexts(AppNotification n) {
   var title = n.title.trim();
   var body = n.body.trim();
   final match = _trailingContext.firstMatch(body);
@@ -130,9 +143,25 @@ final _trailingContext = RegExp(r'\s*\(([^()]+)\)\s*$');
     body = body.substring(0, match.start).trim();
     title = '$title (${match.group(1)})';
   }
-  final ago = relativeTimeToday(n.createdAt, now);
-  if (ago != null) body = body.isEmpty ? ago : '$body $ago';
   return (title: title, body: body);
+}
+
+/// Notificação a mostrar no aviso do topo quando a lista de não lidas
+/// muda com a app aberta: a mais recente das que não estavam em [before].
+/// `null` no primeiro carregamento ([before] null), para não mostrar as
+/// antigas ao abrir a app, ou quando nada chegou.
+AppNotification? notificationForBanner(
+  List<AppNotification>? before,
+  List<AppNotification> after,
+) {
+  if (before == null) return null;
+  final known = {for (final n in before) n.id};
+  AppNotification? newest;
+  for (final n in after) {
+    if (n.read || known.contains(n.id)) continue;
+    if (newest == null || n.createdAt.isAfter(newest.createdAt)) newest = n;
+  }
+  return newest;
 }
 
 /// "Há 10 min" / "Há 1h" para as de hoje; `null` para as de outros dias

@@ -24,6 +24,9 @@ import '../theme/app_status_color.dart';
 ///
 /// Vive no `Overlay` do navigator raiz, por isso sobrevive a `go`/`pop` e
 /// fica por cima de diálogos e folhas. Um aviso novo substitui o anterior.
+///
+/// [notification] é a mesma peça com título, para as notificações que
+/// chegam com a app aberta (o push do sistema não aparece nesse caso).
 class AppToast {
   AppToast._(this._overlay);
 
@@ -40,20 +43,54 @@ class AppToast {
   }
 
   /// Confirmação ou informação (verde).
-  void show(String message) => _show(message, _ToastTone.success);
+  void show(String message) => _show(
+        message: message,
+        icon: Icons.check_circle_outline_rounded,
+        color: AppStatusColor.success,
+      );
 
   /// Falha (vermelho).
-  void error(String message) => _show(message, _ToastTone.error);
+  void error(String message) => _show(
+        message: message,
+        icon: Icons.error_outline_rounded,
+        color: AppStatusColor.cancelled,
+      );
 
-  void _show(String message, _ToastTone tone) {
+  /// Notificação que chega com a app aberta: título, texto e o ícone/tom
+  /// do tipo (`notificationLook`). Tocar chama [onTap] e fecha o aviso.
+  void notification({
+    required String title,
+    required String body,
+    required IconData icon,
+    required AppStatusColor color,
+    VoidCallback? onTap,
+  }) =>
+      _show(
+        title: title,
+        message: body,
+        icon: icon,
+        color: color,
+        onTap: onTap,
+      );
+
+  void _show({
+    String? title,
+    required String message,
+    required IconData icon,
+    required AppStatusColor color,
+    VoidCallback? onTap,
+  }) {
     if (!_overlay.mounted) return;
     _removeCurrent();
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => _ToastHost(
         key: UniqueKey(),
+        title: title,
         message: message,
-        tone: tone,
+        icon: icon,
+        color: color,
+        onTap: onTap,
         onDismissed: () {
           if (_current == entry) _removeCurrent();
         },
@@ -70,29 +107,25 @@ class AppToast {
   }
 }
 
-enum _ToastTone {
-  success(Icons.check_circle_outline_rounded, AppStatusColor.success),
-  error(Icons.error_outline_rounded, AppStatusColor.cancelled);
-
-  const _ToastTone(this.icon, this.color);
-
-  final IconData icon;
-  final AppStatusColor color;
-}
-
 /// Tempo visível, igual ao default da SnackBar que substitui.
 const _visibleFor = Duration(seconds: 4);
 
 class _ToastHost extends StatefulWidget {
   const _ToastHost({
     super.key,
+    this.title,
     required this.message,
-    required this.tone,
+    required this.icon,
+    required this.color,
+    this.onTap,
     required this.onDismissed,
   });
 
+  final String? title;
   final String message;
-  final _ToastTone tone;
+  final IconData icon;
+  final AppStatusColor color;
+  final VoidCallback? onTap;
   final VoidCallback onDismissed;
 
   @override
@@ -186,7 +219,10 @@ class _ToastHostState extends State<_ToastHost>
                       child: Material(
                         type: MaterialType.transparency,
                         child: InkWell(
-                          onTap: _close,
+                          onTap: () {
+                            widget.onTap?.call();
+                            _close();
+                          },
                           borderRadius:
                               BorderRadius.circular(AppRadius.card),
                           child: Ink(
@@ -211,18 +247,56 @@ class _ToastHostState extends State<_ToastHost>
                             child: Row(
                               children: [
                                 Icon(
-                                  widget.tone.icon,
-                                  color: widget.tone.color.foreground,
+                                  widget.icon,
+                                  color: widget.color.foreground,
                                 ),
                                 const SizedBox(width: AppSpacing.sm),
                                 Expanded(
-                                  child: Text(
-                                    widget.message,
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
+                                  child: widget.title == null
+                                      ? Text(
+                                          widget.message,
+                                          style: textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        )
+                                      : Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              widget.title!,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: textTheme.titleSmall
+                                                  ?.copyWith(
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                              height: AppSpacing.xxs,
+                                            ),
+                                            Text(
+                                              widget.message,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: textTheme.bodySmall
+                                                  ?.copyWith(
+                                                color:
+                                                    AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                 ),
+                                if (widget.onTap != null) ...[
+                                  const SizedBox(width: AppSpacing.xs),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
                               ],
                             ),
                           ),
