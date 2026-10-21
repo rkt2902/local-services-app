@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_back_navigation.dart';
+import '../../../core/widgets/app_back_button.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -72,7 +75,7 @@ class _ClientCreateJobServiceScreenState
     if (id == null) return;
     ref.read(clientCreateJobWizardProvider.notifier).setService(id);
     if (widget.fromReview) {
-      context.pop();
+      goBackOr(context, '/client/create-job/review');
     } else {
       context.push('/client/create-job/schedule');
     }
@@ -114,14 +117,7 @@ class _ClientCreateJobServiceScreenState
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        leading: const AppBackButton(),
         titleSpacing: 0,
         title: Text(
           'Criar pedido',

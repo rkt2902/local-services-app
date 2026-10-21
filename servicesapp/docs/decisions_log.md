@@ -3,6 +3,135 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-18 — Decisões pendentes, todas feitas (defaults escolhidos pelo Claude)
+
+O Henrique pediu para fazer tudo o que estava por decidir. Defaults escolhidos:
+- **Mensagens:** sem chat na app (regra do projeto); rotas `/client/messages` e
+  `/worker/messages` removidas.
+- **Disponibilidade em texto livre:** quarta opção no passo 2 do pedido ("Indicar
+  disponibilidade", até 200 caracteres), mostrada no lugar da data dos dois lados.
+- **Editar pedido:** enquanto está aberto, tudo menos as fotos; quem já propôs é avisado.
+- **Eliminar conta:** anonimiza (perfil "Conta eliminada", dados pessoais limpos, login
+  bloqueado) em vez de apagar, porque avaliações e histórico de outras pessoas
+  referenciam o perfil. Recusa com trabalho em curso. Fotos no Storage ficam (o Supabase
+  não deixa apagar por SQL).
+- **Propostas sem fim:** pedido sem data fixa com propostas e sem escolha fecha aos 14 dias.
+- **Remarcar atrasado:** permitido depois da data; continua bloqueado no próprio dia.
+- **Report de problema:** suspende a confirmação automática daquele trabalho.
+- **Avaliação do cliente:** deixa de ser copiada para os ajudantes.
+- **Avisos:** levam o serviço e a data; ajudantes avisados de nova data, trabalho feito,
+  concluído e lembrete do dia.
+- **Equipa:** o responsável pode alterar vagas, fechar o pedido de ajuda e retirar
+  ajudantes. Ecrã próprio do ajudante em `/worker/help/:id`. Cartão "O que falta fazer"
+  no Início do jardineiro. Botão central do jardineiro abre atalhos.
+- **Outros:** publicar de novo, voltar ao destino depois do login, puxar para atualizar,
+  telefone gravado como `+351…`, preços com vírgula também no jardineiro.
+
+## 2026-10-18 — Revisão de todos os fluxos (cliente, jardineiro, ajudantes)
+
+- Pedida pelo Henrique ("para o worker e ajudantes depois não fica muito claro").
+  Duas auditorias de leitura, depois correções só na app e a migration 0048.
+- Início do cliente: uma só lista de pedidos em curso, o que precisa do cliente
+  primeiro, com uma linha de próximo passo (igual na aba Pedidos).
+- Jardineiro: cartão "Equipa" no trabalho (o lobby não tinha entrada na app), sem
+  `pop` depois de ações abertas por notificação, listas invalidadas num só sítio
+  (`invalidateWorkerLists`), pedidos já tomados só de leitura, regras de
+  cancelar/remarcar por dias como na BD, aba "Concluídos" passa a "Histórico".
+- Cliente: avaliação do jardineiro só por `submit_client_rating` (o botão antigo
+  chamava a RPC do responsável e falhava sempre), falha de rede no arranque vai para
+  `/session-error` em vez de `/choose-role`, voltar seguro na web, rascunho do pedido
+  preservado e limpo ao trocar de conta, terminar sessão com confirmação.
+- 0048 (por aplicar): candidatura por RPC (`apply_to_help_request`, permite voltar a
+  candidatar-se), retirar candidatura pendente, triggers de avisos (proposta de pedido
+  cancelado/expirado, candidaturas fechadas quando o trabalho é feito, novo candidato,
+  pedido de ajudantes ao cliente), um pedido de ajuda ativo por trabalho, telefone dos
+  ajudantes aceites, `job_status` no board.
+
+## 2026-10-17 — Mais testes automáticos e redirect do router testável
+
+- A decisão de redirect saiu de `RouterNotifier.redirect` para a função pura
+  `resolveRedirect` (`core/router/route_guard.dart`), sem mudar o comportamento: o
+  notifier lê os providers e delega. Assim as regras de acesso (sem sessão, sem papel,
+  cliente/jardineiro, setup incompleto, cartão público `/w/`) têm testes.
+- Testes novos: router, preços, datas, força da password, `friendlyError`, enums da BD,
+  `HelpAcceptance.message` e um teste de widget do lobby de ajudantes. Total 67, no CI.
+
+## 2026-10-17 — Mensagem do candidato visível ao jardineiro principal
+
+- Antes: `help_acceptances.message` (0034) era gravada pelo ecrã de candidatura mas a
+  RPC `get_candidates_for_help_request` (0040) não a devolvia, por isso ninguém a via.
+- Agora: migration 0047 (DROP + CREATE, porque o `RETURNS TABLE` muda de forma) junta a
+  coluna `message`; mesma autorização (`is_principal_worker_for_help_request`, por
+  `auth.uid()`) e o REVOKE/GRANT da regra da 0042. A app lê-a (vazia ou só espaços
+  conta como sem mensagem) e mostra-a num bloco "Mensagem" no cartão do candidato.
+- Compatível nos dois sentidos: a app nova sem a 0047 aplicada simplesmente não mostra
+  o bloco; a app antiga ignora a coluna nova.
+
+## 2026-10-17 — Confirmação de email por código de 6 dígitos
+
+- Antes: ligar "Confirm email" no Supabase partia o registo (o `signUp` deixa de abrir
+  sessão e `choose_role_screen` cria o perfil com `currentUser`). O ecrã
+  `/verify-email` era cosmético e `/email-confirmed` esperava um deep link nunca feito.
+- Agora (escolhido pelo Henrique entre as tarefas sem configuração): mesmo padrão da
+  recuperação de senha, código no email e `verifyOTP(type: signup)`, sem deep links nem
+  app_links. `signUp` devolve se precisa de confirmação; o registo vai para
+  `/verify-email` (OTP + reenviar com 60s) e, com a sessão aberta, para `/choose-role`.
+  Login de conta por confirmar reenvia o código e vai para o mesmo ecrã. Com a opção
+  desligada no Supabase o fluxo é o de sempre, sem o ecrã cosmético depois do papel.
+- Removidos `email_confirmed_screen.dart`, a rota `/email-confirmed`,
+  `emailConfirmationModeProvider` (atalho de debug) e os TODOs de deep link no
+  AndroidManifest e no Info.plist. O nome e o telefone vêm de `userMetadata` se a app
+  fechar entre o registo e o código.
+- Configuração (template "Confirm signup" com `{{ .Token }}`, ligar a opção): `SETUP.md`
+  passo 3.3.
+
+## 2026-10-17 — Validação de telefone e link de WhatsApp com indicativo
+
+- Bug encontrado: os 5 sítios que abrem o WhatsApp faziam `wa.me/<número sem espaços>`.
+  Um número português escrito sem `+351` (o normal) abria `wa.me/912345678`, que o
+  WhatsApp não reconhece. Agora há um helper único, `openWhatsAppOrWarn`
+  (`core/utils/phone_utils.dart`), que normaliza para `351912345678` e mostra uma
+  SnackBar se o número for inválido. Cobre também os números já gravados.
+- Validação no registo e nos dois ecrãs de editar perfil: 9 dígitos portugueses (2, 3 ou
+  9 à frente), com ou sem `+351`/`00351`, ou número estrangeiro com indicativo.
+  Espaços, hífenes, pontos e parênteses são aceites. O número continua a ser gravado como
+  foi escrito.
+- Sem migration: os limites na BD que estavam na lista (`people_needed >= 1`,
+  `slots_needed >= 1`) já existem na baseline, e `hourly_rate > 0` é validado por
+  `create_proposal`, a única forma de criar propostas desde a 0042. Um CHECK no telefone
+  na BD bloquearia qualquer UPDATE de perfil de quem já tem um número antigo inválido.
+
+## 2026-10-17 — Limpeza sem decisões, CI e guia de configuração
+
+- **CI** (`.github/workflows/ci.yml`): `flutter analyze` e `flutter test` em cada PR e
+  push para `main` que mexa em `servicesapp/`. Falha também com `info`, para o analyze
+  ficar a zero.
+- **Avisos do analyze corrigidos (5 para 0):** `control_flow_in_finally` no lobby de
+  ajudantes (o `return` dentro do `finally` passou a `if (mounted)`; os callbacks já
+  apanham os erros, por isso não muda comportamento) e os 3 `unused_field` de
+  `_NotificationCategory` (ficou só `job`; os outros valores voltam quando houver
+  notificações dessas).
+- **Rating sheets renomeados:** `submit_rating_sheet.dart` / `showSubmitRatingSheet` e
+  `worker_ratings_sheet.dart` / `showWorkerRatingsSheet`.
+- **Domínio e email de suporte por `--dart-define`** (`APP_PUBLIC_URL`, `SUPPORT_EMAIL`,
+  em `AppLinks`). Opcionais: sem eles a web usa o próprio site e as apps o placeholder.
+  O deploy web lê-os das Variables do GitHub, se existirem.
+- **`avatar_url` sem migration:** a app só aceita fotos de perfil do Storage do próprio
+  projeto (`StorageUrls`, prefixo derivado de `SUPABASE_URL`), aplicado nos modelos e
+  repositórios que leem `avatar_url`. Fecha o risco do review (um URL externo revelava o
+  IP de quem abre o perfil) sem depender do domínio final. A coluna continua texto livre
+  na BD; um CHECK por migration ficaria preso ao ref do projeto e não acrescenta proteção
+  a quem vê, que é onde estava o risco.
+- **Overflow de 3px nas abas:** não reproduzido (bottom nav testada a 320/360/411 de
+  largura e texto até 1,3x sem overflow). Fica na lista de testes manuais do `SETUP.md`.
+- **Confirmação de email:** não pode ser ligada só no dashboard. O registo cria o perfil
+  logo a seguir ao `signUp` e precisa de sessão; com a confirmação ligada o registo
+  parte. Fica documentado no `SETUP.md` como tarefa de código (código de 6 dígitos, como
+  a recuperação).
+- Docs alinhados com a BD (todas as migrations até à 0046 aplicadas): `database_schema.md`,
+  `ARCHITECTURE.md` secções 7, 9, 12, 14 e 16, `STATUS.md`, README das migrations.
+  Guia novo `docs/SETUP.md`.
+
 ## 2026-10-17 — Versão web (Flutter web) e PWA para iPhone
 
 Pedido do Henrique: sem Mac nem conta Apple, os utilizadores de iPhone usam a app pelo browser. Guia completo em `docs/web.md`.

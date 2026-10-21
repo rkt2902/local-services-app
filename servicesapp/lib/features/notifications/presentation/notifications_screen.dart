@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_filter_chip.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
@@ -15,16 +17,15 @@ import '../application/notification_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
 
-/// Categoria de alto nível de uma notificação. Hoje todos os 19 tipos reais
-/// mapeiam para `job` — a app não envia notificações de mensagem (sem chat
-/// in-app, só WhatsApp externo) nem de avaliação recebida. `message` e
-/// `system` ficam preparados no enum para quando essas notificações
-/// existirem; sem conteúdo real hoje, não têm filtro próprio na UI.
-enum _NotificationCategory { job, message, review, system }
+/// Categoria de alto nível de uma notificação. Hoje todos os tipos reais
+/// mapeiam para `job`: a app não envia notificações de mensagem (sem chat
+/// in-app, só WhatsApp externo) nem de avaliação recebida. Quando essas
+/// notificações existirem, acrescenta-se aqui o valor (`message`, `review`,
+/// `system`) e o filtro correspondente na UI.
+enum _NotificationCategory { job }
 
-// `type` são consts String (não enum) — sem exaustividade de compilador
-// possível. Todos os 19 tipos reais (ver notification_types.dart) caem em
-// `job` hoje; `message`/`review`/`system` ficam sem produtores.
+// `type` são consts String (não enum), sem exaustividade de compilador
+// possível. Todos os tipos reais (ver notification_types.dart) caem em `job`.
 _NotificationCategory _categoryForType(String type) => _NotificationCategory.job;
 
 enum _NotificationFilter { all, jobs }
@@ -59,10 +60,23 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  /// Marca como lida ANTES de navegar: `NotificationHandler` faz
+  /// `context.go()` e este ecrã é desmontado, e usar `ref` depois disso
+  /// lançava StateError (e a notificação ficava por ler). O contentor é
+  /// capturado antes, para invalidar depois da navegação (regra T4).
   Future<void> _onNotificationPressed(AppNotification notification) async {
+    final repo = ref.read(notificationRepositoryProvider);
+    final container = ProviderScope.containerOf(context, listen: false);
+    if (!notification.read) {
+      try {
+        await repo.markAsRead(notification.id);
+      } catch (_) {
+        // Sem rede: abre na mesma, fica por ler.
+      }
+    }
+    if (!mounted) return;
     await NotificationHandler.handle(context, ref, notification);
-    await ref.read(notificationRepositoryProvider).markAsRead(notification.id);
-    ref.invalidate(allNotificationsProvider);
+    container.invalidate(allNotificationsProvider);
   }
 
   @override
@@ -71,14 +85,48 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     if (allAsync.isLoading) {
-      return const Scaffold(body: AppScreenLoadingSkeleton());
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          elevation: 0,
+          leading: const AppBackButton(),
+          title: const Text('Notificações'),
+        ),
+        body: const AppScreenLoadingSkeleton(),
+      );
     }
 
     if (allAsync.hasError) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Notificações')),
-        body: Center(child: Text(friendlyError(allAsync.error!))),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          surfaceTintColor: AppColors.background,
+          elevation: 0,
+          leading: const AppBackButton(),
+          title: const Text('Notificações'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  friendlyError(allAsync.error!),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton(
+                  onPressed: () => ref.invalidate(allNotificationsProvider),
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -109,6 +157,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        leading: const AppBackButton(),
         title: Text(
           'Notificações',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
@@ -117,7 +166,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           if (hasUnread)
             TextButton(
               onPressed: () => _clearAll(all),
-              child: const Text('Limpar'),
+              child: const Text('Marcar todas como lidas'),
             ),
           const SizedBox(width: AppSpacing.xs),
         ],
@@ -389,6 +438,18 @@ class _NotificationsEmptyState extends StatelessWidget {
         (Icons.person_remove_alt_1, Colors.orange.shade700),
       NotificationType.jobReminder =>
         (Icons.alarm_rounded, AppColors.primary),
+      NotificationType.jobUpdated =>
+        (Icons.edit_note_rounded, AppStatusColor.info.foreground),
+      NotificationType.helpRemoved =>
+        (Icons.person_remove_outlined, AppStatusColor.cancelled.foreground),
+      NotificationType.helpJobRescheduled =>
+        (Icons.event_repeat_rounded, AppStatusColor.waiting.foreground),
+      NotificationType.helpJobDone =>
+        (Icons.task_alt_rounded, AppStatusColor.info.foreground),
+      NotificationType.helpJobCompleted =>
+        (Icons.verified_outlined, AppStatusColor.success.foreground),
+      NotificationType.helpCandidateApplied =>
+        (Icons.person_search_outlined, AppStatusColor.waiting.foreground),
       // Restantes 9 tipos (jobCancelled, jobReopened, reschedule*,
       // jobMarkedDone, jobCompleted, jobNoResponse): sem ícone dedicado,
       // caem no genérico de "trabalho" — todos são eventos de job.

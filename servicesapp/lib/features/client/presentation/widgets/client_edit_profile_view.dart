@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/phone_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -144,9 +145,7 @@ class _ClientEditProfileScreenState extends State<ClientEditProfileScreen> {
   String? _fullNameValidator(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
 
-  String? _phoneValidator(String? value) => (value == null || value.trim().isEmpty)
-      ? 'Introduz o teu telefone.'
-      : null;
+  String? _phoneValidator(String? value) => phoneValidator(value);
 
   @override
   Widget build(BuildContext context) {

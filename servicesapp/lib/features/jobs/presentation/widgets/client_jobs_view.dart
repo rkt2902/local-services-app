@@ -48,6 +48,8 @@ class ClientJobListItemViewData {
     this.secondaryStatusPresentation,
     this.workerName,
     this.workerAvatarUrl,
+    this.nextStepLabel,
+    this.needsAction = false,
   });
 
   final String jobId;
@@ -60,9 +62,9 @@ class ClientJobListItemViewData {
   final double locationLat;
   final double locationLng;
 
-  /// "Hoje"/"Amanhã"/data formatada/"Flexível"/"Ver disponibilidade" —
-  /// já convertido de `DateMode`/`preferredDate` pela integração
-  /// (`jobDeadlineLabel`, `core/utils/date_labels.dart`).
+  /// "Hoje"/"Amanhã"/data formatada/"Flexível"/texto de disponibilidade,
+  /// já convertido de `DateMode`/`preferredDate`/`availabilityText` pela
+  /// integração (`jobDeadlineLabel`, `core/utils/date_labels.dart`).
   final String dateLabel;
 
   final IconData serviceIcon;
@@ -80,6 +82,13 @@ class ClientJobListItemViewData {
   /// `cancelled`, onde não há ninguém para mostrar.
   final String? workerName;
   final String? workerAvatarUrl;
+
+  /// O que acontece a seguir (só pedidos em curso). Ex.: "Tens 2 propostas
+  /// para ver." Igual ao que o Início mostra.
+  final String? nextStepLabel;
+
+  /// Realça [nextStepLabel] quando o pedido espera por uma ação do cliente.
+  final bool needsAction;
 }
 
 class ClientJobsScreen extends StatefulWidget {
@@ -89,6 +98,7 @@ class ClientJobsScreen extends StatefulWidget {
     required this.onOpenJob,
     required this.onCreateJob,
     this.onRetry,
+    this.onRefresh,
   });
 
   final AsyncValue<ClientJobsViewData> dataAsync;
@@ -97,6 +107,9 @@ class ClientJobsScreen extends StatefulWidget {
   final VoidCallback onCreateJob;
 
   final VoidCallback? onRetry;
+
+  /// Pull-to-refresh: o indicador roda até o `Future` terminar.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<ClientJobsScreen> createState() => _ClientJobsScreenState();
@@ -124,6 +137,7 @@ class _ClientJobsScreenState extends State<ClientJobsScreen> {
             onSelectTab: _selectTab,
             onOpenJob: widget.onOpenJob,
             onCreateJob: widget.onCreateJob,
+            onRefresh: widget.onRefresh,
           ),
         ),
       ),
@@ -138,6 +152,7 @@ class _ClientJobsContent extends StatelessWidget {
     required this.onSelectTab,
     required this.onOpenJob,
     required this.onCreateJob,
+    this.onRefresh,
   });
 
   final ClientJobsViewData data;
@@ -146,6 +161,7 @@ class _ClientJobsContent extends StatelessWidget {
   final ValueChanged<ClientJobsTab> onSelectTab;
   final ValueChanged<String> onOpenJob;
   final VoidCallback onCreateJob;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -166,12 +182,40 @@ class _ClientJobsContent extends StatelessWidget {
           // (mesmo raciocínio já usado no ecrã de pedidos de ajuda).
           child: AppFadeThroughSwitcher(
             switchKey: selectedTab,
-            child: jobs.isEmpty
-                ? _EmptyState(tab: selectedTab, onCreateJob: onCreateJob)
-                : _JobsList(jobs: jobs, tab: selectedTab, onOpenJob: onOpenJob),
+            child: _Refreshable(
+              onRefresh: onRefresh,
+              child: jobs.isEmpty
+                  ? _EmptyState(tab: selectedTab, onCreateJob: onCreateJob)
+                  : _JobsList(
+                      jobs: jobs,
+                      tab: selectedTab,
+                      onOpenJob: onOpenJob,
+                    ),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// [RefreshIndicator] só quando há `onRefresh`. O filho tem de ser
+/// sempre rolável (`AlwaysScrollableScrollPhysics`), mesmo com pouco
+/// conteúdo, para o gesto funcionar.
+class _Refreshable extends StatelessWidget {
+  const _Refreshable({required this.onRefresh, required this.child});
+
+  final Future<void> Function()? onRefresh;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final refresh = onRefresh;
+    if (refresh == null) return child;
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: refresh,
+      child: child,
     );
   }
 }
@@ -322,6 +366,7 @@ class _JobsList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       key: PageStorageKey<String>('client_jobs_${tab.name}'),
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.xxs,
@@ -394,6 +439,18 @@ class _JobCard extends StatelessWidget {
                   AppStatusBadge.fromPresentation(presentation: job.statusPresentation),
                 ],
               ),
+              if (job.nextStepLabel != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  job.nextStepLabel!,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: job.needsAction
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    fontWeight: job.needsAction ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+              ],
               if (job.workerName != null) ...[
                 const SizedBox(height: AppSpacing.sm),
                 UserAvatarWithName(
@@ -499,14 +556,24 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
+    // Rolável mesmo vazio, para o pull-to-refresh funcionar aqui também.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: AppStaggeredEntrance(
-          index: 0,
-          child: tab == ClientJobsTab.active
-              ? _ActiveEmpty(onCreateJob: onCreateJob)
-              : const _HistoryEmpty(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: (constraints.maxHeight - AppSpacing.lg * 2)
+                .clamp(0, double.infinity),
+          ),
+          child: Center(
+            child: AppStaggeredEntrance(
+              index: 0,
+              child: tab == ClientJobsTab.active
+                  ? _ActiveEmpty(onCreateJob: onCreateJob)
+                  : const _HistoryEmpty(),
+            ),
+          ),
         ),
       ),
     );
@@ -543,7 +610,7 @@ class _ActiveEmpty extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Crie um pedido e receba propostas de jardineiros perto de si.',
+          'Cria um pedido e recebe propostas de jardineiros perto de ti.',
           textAlign: TextAlign.center,
           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
@@ -689,13 +756,13 @@ class _ClientJobsError extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Não foi possível carregar os seus pedidos.',
+                'Não foi possível carregar os teus pedidos.',
                 textAlign: TextAlign.center,
                 style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Verifique a ligação e tente novamente.',
+                'Verifica a ligação e tenta novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
               ),

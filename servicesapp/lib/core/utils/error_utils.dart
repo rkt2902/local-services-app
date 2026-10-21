@@ -31,7 +31,9 @@ String friendlyError(Object e) {
 
   // Autenticação (antes em AuthController._mapError)
   if (msg.contains('invalid login')) return 'Email ou password incorretos.';
-  if (msg.contains('email already')) return 'Este email já está registado.';
+  if (msg.contains('email already') || msg.contains('user already registered')) {
+    return 'Este email já está registado.';
+  }
   if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
     return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
   }
@@ -57,6 +59,25 @@ String friendlyError(Object e) {
   }
   if (msg.contains('maior que zero')) {
     return 'O valor tem de ser maior que zero.';
+  }
+
+  // Regra da véspera de `cancel_job` e `propose_reschedule`: a mensagem
+  // do servidor diz "24h de antecedência" mas compara datas (só até ao dia
+  // anterior ao trabalho).
+  if (msg.contains('antecedência')) {
+    if (msg.contains('remarcar')) {
+      return 'Só podes remarcar até à véspera do trabalho.';
+    }
+    if (msg.contains('cancelamento')) {
+      return 'Só podes cancelar até à véspera do trabalho.';
+    }
+    return 'Esta ação só é possível até à véspera do trabalho.';
+  }
+  if (msg.contains('remarcação pendente')) {
+    if (msg.contains('sem remarcação')) {
+      return 'Esta remarcação já foi respondida. Atualiza o pedido.';
+    }
+    return 'Já existe uma remarcação pendente. Aguarda a resposta.';
   }
 
   // Genéricos
@@ -89,4 +110,26 @@ String friendlyError(Object e) {
   }
 
   return 'Ocorreu um erro inesperado. Tenta novamente.';
+}
+
+/// `true` quando a RPC chamada não existe na base de dados (o PostgREST
+/// responde `PGRST202`): a app já conhece uma função cuja migration ainda
+/// não foi aplicada.
+bool isMissingRpcError(Object e) =>
+    e is PostgrestException && e.code == 'PGRST202';
+
+/// Mensagem para o erro de uma RPC recente (ex.: `delete_my_account`,
+/// `update_job_request`, migration 0049):
+/// - função em falta (migration por aplicar) → [unavailableMessage];
+/// - recusa levantada pela própria função (`RAISE EXCEPTION`, código
+///   `P0001`) → a mensagem dela, que já vem escrita em português para o
+///   utilizador;
+/// - o resto → [friendlyError].
+String rpcErrorMessage(Object e, {required String unavailableMessage}) {
+  if (isMissingRpcError(e)) return unavailableMessage;
+  if (e is PostgrestException && e.code == 'P0001') {
+    final message = e.message.trim();
+    if (message.isNotEmpty) return message;
+  }
+  return friendlyError(e);
 }

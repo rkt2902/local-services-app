@@ -77,7 +77,7 @@ DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
 A morada exata fica para o cliente, o worker aceite e os ajudantes aceites.
 Os workers deixam de ler `job_requests` diretamente (exceto o aceite).
 
-**PENDENTE — `0044_rpc_identity_and_policy_perf.sql`** — NÃO aplicada ainda.
+**APLICADA — `0044_rpc_identity_and_policy_perf.sql`** — aplicada (confirmado pelo Henrique a 2026-10-17).
 Aplicar junto com a app nova: `create_proposal`, `get_jobs_in_radius` e
 `sync_worker_service_types` deixam de receber `p_worker_id` (DROP das versões
 antigas), por isso a app antiga deixa de conseguir enviar propostas, ver
@@ -87,14 +87,14 @@ recursão), pré-filtra o raio por uma caixa de lat/lng com um índice parcial, 
 no fim verifica que nenhuma policy ficou com recursão; se ficar, falha inteira
 e não aplica nada.
 
-**PENDENTE — `0045_service_catalog.sql`** — NÃO aplicada ainda. Aplicar ANTES
+**APLICADA — `0045_service_catalog.sql`** — aplicada (confirmado a 2026-10-17). Aplicar ANTES
 da app nova (a app nova lê `service_categories.sort_order`). Junta as
 categorias Agricultura e Floresta, 33 tipos de serviço no total, e as colunas
 `service_types.icon` e `sort_order`. Os 3 tipos que já existiam mantêm o id e
 o nome. Um ícone novo na BD tem de ser acrescentado ao mapa de
 `lib/core/widgets/service_icon.dart`, senão aparece o ícone genérico.
 
-**PENDENTE — `0046_job_day_rules.sql`** — NÃO aplicada ainda. Aplicar DEPOIS
+**APLICADA — `0046_job_day_rules.sql`** — aplicada (confirmado a 2026-10-17). Aplicar DEPOIS
 da 0044 (redefine `get_jobs_in_radius` de 3 parâmetros). Concluir só a partir
 do dia, foto de conclusão, expiração de pedidos com data passada, lembretes
 (cron novo `job-reminders`). Compatível com a app antiga (`p_photo_path` tem
@@ -123,3 +123,17 @@ o ficheiro, e depois correr de novo só essas 4 policies.
 
 **Note:** `snapshot_a.csv` and `snapshot_b.csv` do not exist in this repo.
 All snapshot data came from a single `snapshot_tables.csv` file.
+
+**`0048_worker_helper_flow_fixes.sql`: criada, NÃO aplicada** (aplicar depois da
+0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
+Ver o cabeçalho do ficheiro.
+
+**`0049_pending_decisions.sql`: criada, NÃO aplicada** (aplicar depois da 0048).
+Eliminar conta, editar pedido, gestão da equipa, avisos com o trabalho e a data, avisos
+aos ajudantes, remarcar trabalho atrasado, fecho ao fim de 14 dias sem escolha, report
+trava a confirmação automática, avaliação do cliente deixa de ser copiada para os
+ajudantes. **Próxima migration: `0050`.**
+
+**`0047_candidate_message.sql`: criada, NÃO aplicada.** Aplicar no SQL Editor (pode
+ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viva
+(2026-10-17). **Próxima migration: `0048`.**

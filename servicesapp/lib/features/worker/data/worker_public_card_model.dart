@@ -1,3 +1,5 @@
+import '../../../core/config/storage_urls.dart';
+
 /// Perfil público mínimo do worker — fonte: view `worker_public_card`
 /// (migration 0033, definer-style, GRANT a `anon`). Sem telefone nem
 /// localização exata.
@@ -26,7 +28,7 @@ class WorkerPublicCard {
       WorkerPublicCard(
         workerId: json['worker_id'] as String,
         fullName: json['full_name'] as String? ?? '',
-        avatarUrl: json['avatar_url'] as String?,
+        avatarUrl: StorageUrls.trustedOrNull(json['avatar_url'] as String?),
         bio: json['bio'] as String?,
         locationName: json['location_name'] as String? ?? '',
         serviceNames: List<String>.from(json['service_names'] as List? ?? []),

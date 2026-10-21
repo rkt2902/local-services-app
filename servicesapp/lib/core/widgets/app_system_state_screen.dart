@@ -35,6 +35,8 @@ class AppSystemStateScreen extends StatelessWidget {
     required VoidCallback onRetry,
     bool isRetrying = false,
     String? message,
+    String? secondaryActionLabel,
+    VoidCallback? onSecondaryAction,
   }) =>
       AppSystemStateScreen(
         key: key,
@@ -47,6 +49,8 @@ class AppSystemStateScreen extends StatelessWidget {
         primaryActionLabel: 'Tentar novamente',
         onPrimaryAction: onRetry,
         isPrimaryActionLoading: isRetrying,
+        secondaryActionLabel: secondaryActionLabel,
+        onSecondaryAction: onSecondaryAction,
       );
 
   factory AppSystemStateScreen.genericError({

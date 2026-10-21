@@ -1,0 +1,63 @@
+import '../../../core/constants/enums.dart';
+import '../data/job_model.dart';
+
+// Próximo passo de um pedido, do ponto de vista do cliente. Partilhado pelo
+// Início (client_home_screen.dart) e pela aba Pedidos (client_jobs_screen.dart)
+// para os dois dizerem o mesmo.
+
+/// Pedidos que aparecem no Início: tudo o que ainda está em curso, numa só
+/// lista, com o que precisa do cliente primeiro.
+List<JobRequest> clientHomeActiveJobs(List<JobRequest> jobs) {
+  final active = jobs
+      .where((j) =>
+          j.status == JobStatus.open ||
+          j.status == JobStatus.confirmed ||
+          j.status == JobStatus.awaitingConfirmation)
+      .toList();
+  int rank(JobRequest j) {
+    if (j.status == JobStatus.awaitingConfirmation) return 0;
+    if (_rescheduleAwaitsClient(j)) return 1;
+    if (j.status == JobStatus.open && j.proposalCount > 0) return 2;
+    if (j.status == JobStatus.confirmed) return 3;
+    return 4;
+  }
+
+  active.sort((a, b) {
+    final byRank = rank(a).compareTo(rank(b));
+    if (byRank != 0) return byRank;
+    return b.createdAt.compareTo(a.createdAt);
+  });
+  return active;
+}
+
+/// Nova data proposta pelo jardineiro, à espera da resposta do cliente.
+bool _rescheduleAwaitsClient(JobRequest job) =>
+    job.rescheduleStatus == RescheduleStatus.pending &&
+    job.rescheduleProposedBy != null &&
+    job.rescheduleProposedBy != job.clientId;
+
+/// `true` quando o pedido está à espera de uma ação do cliente.
+bool clientJobNeedsAction(JobRequest job) =>
+    job.status == JobStatus.awaitingConfirmation ||
+    _rescheduleAwaitsClient(job) ||
+    (job.status == JobStatus.open && job.proposalCount > 0);
+
+/// Uma linha a dizer o que acontece a seguir com o pedido.
+String clientJobNextStepLabel(JobRequest job) {
+  if (job.status == JobStatus.awaitingConfirmation) {
+    return 'O jardineiro deu o trabalho por concluído. Confirma.';
+  }
+  if (_rescheduleAwaitsClient(job)) {
+    return 'O jardineiro propôs uma nova data. Responde.';
+  }
+  if (job.rescheduleStatus == RescheduleStatus.pending) {
+    return 'Propuseste uma nova data. À espera do jardineiro.';
+  }
+  if (job.status == JobStatus.open) {
+    final n = job.proposalCount;
+    if (n <= 0) return 'À espera de propostas dos jardineiros.';
+    return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
+  }
+  return 'Trabalho marcado. Fala com o jardineiro por WhatsApp.';
+}
+

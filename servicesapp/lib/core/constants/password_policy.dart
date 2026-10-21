@@ -66,7 +66,7 @@ PasswordPolicyResult evaluatePasswordPolicy(String password) {
 /// divergirem. `null` = válido.
 String? passwordPolicyValidator(String? value) {
   final text = value ?? '';
-  if (text.isEmpty) return 'Introduza uma password.';
+  if (text.isEmpty) return 'Introduz uma password.';
   if (!evaluatePasswordPolicy(text).meetsAllRules) {
     return weakPasswordMessage;
   }

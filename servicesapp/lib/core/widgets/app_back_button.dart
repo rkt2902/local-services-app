@@ -13,15 +13,22 @@ class AppBackButton extends StatelessWidget {
     super.key,
     this.color = AppColors.textPrimary,
     this.tooltip = 'Voltar',
+    this.fallbackLocation,
   });
 
   final Color color;
   final String tooltip;
 
+  /// Destino quando não há stack para desfazer. `null` = home do papel
+  /// ([goBackOrToRoleHome]); ex.: `'/login'` nos ecrãs de autenticação.
+  final String? fallbackLocation;
+
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      onPressed: () => goBackOrToRoleHome(context),
+      onPressed: () => fallbackLocation == null
+          ? goBackOrToRoleHome(context)
+          : goBackOr(context, fallbackLocation!),
       tooltip: tooltip,
       icon: Icon(Icons.arrow_back_rounded, color: color),
     );

@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart' as native;
 import 'package:http/http.dart' as http;
 
+import '../config/app_links.dart';
+
 class GeocodingService {
   static const String _nominatimUrl =
       'https://nominatim.openstreetmap.org/reverse';
@@ -13,7 +15,7 @@ class GeocodingService {
   /// a um preflight CORS); o Nominatim identifica a app pelo `Referer`.
   static Map<String, String> get _headers => kIsWeb
       ? const {}
-      : const {'User-Agent': 'ProJardim/1.0 (https://projardim.pt)'};
+      : {'User-Agent': 'ProJardim/1.0 (${AppLinks.publicDomain})'};
 
   /// Morada escrita → coordenadas. `null` se não houver resultado; lança em
   /// erro de rede para o ecrã mostrar "Erro ao pesquisar morada".

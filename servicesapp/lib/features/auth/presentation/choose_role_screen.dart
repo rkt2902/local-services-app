@@ -5,10 +5,12 @@ import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
 import '../application/pending_signup_provider.dart';
+import 'sign_out_flow.dart';
 
 class ChooseRoleScreen extends ConsumerStatefulWidget {
   const ChooseRoleScreen({super.key});
@@ -26,22 +28,25 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
     final pending = ref.read(pendingSignupProvider);
+    // Com confirmação de email a app pode ter sido fechada entre o registo
+    // e o código: aí o nome e o telefone vêm dos metadados do signUp.
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
     setState(() => _submitting = true);
     try {
       await ref.read(authControllerProvider.notifier).createProfile(
         userId: user.id,
-        fullName: pending.fullName ?? '',
-        phone: pending.phone ?? '',
+        fullName: pending.fullName ?? metadata['full_name'] as String? ?? '',
+        phone: pending.phone ?? metadata['phone'] as String? ?? '',
         role: _selectedRole!,
       );
       if (!mounted) return;
       final currentState = ref.read(authControllerProvider);
       if (currentState is AuthError) return;
       ref.read(pendingSignupProvider.notifier).clear();
-      // Preparação para confirmação de email (ver verify_email_screen.dart)
-      // — sessão continua ativa (sem signOut), o utilizador entra na app
-      // normalmente a partir dali; nada aqui bloqueia o acesso.
-      context.go('/verify-email?email=${Uri.encodeComponent(user.email ?? '')}');
+      // O email já está confirmado neste ponto (código em /verify-email, ou
+      // confirmação desligada no Supabase). O router leva ao início do papel
+      // (ou a /worker/setup) assim que sessionStatusProvider recarregar.
+      context.go('/');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -78,9 +83,11 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              // Sem "podes mudar mais tarde": o papel não se muda depois de
+              // escolhido (trigger prevent_profile_role_change).
+              const SizedBox(height: AppSpacing.xs),
               Text(
-                'Pode mudar mais tarde nas definições.',
+                'Escolhe com cuidado: não é possível mudar depois.',
                 style: textTheme.bodyMedium
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -107,6 +114,17 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                 label: 'Continuar',
                 isLoading: _submitting || isLoading,
                 onPressed: _selectedRole == null ? null : _submit,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              // Saída para quem entrou na conta errada (sem isto, só
+              // desinstalando ou limpando os dados do browser).
+              Center(
+                child: TextButton(
+                  onPressed: _submitting || isLoading
+                      ? null
+                      : () => confirmAndSignOut(context, ref),
+                  child: const Text('Não és tu? Terminar sessão'),
+                ),
               ),
             ],
           ),

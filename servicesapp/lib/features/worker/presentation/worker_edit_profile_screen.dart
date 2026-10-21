@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/services/geocoding_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import '../../../core/widgets/service_icon.dart';
-import '../../auth/application/auth_controller.dart';
+import '../../auth/presentation/sign_out_flow.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
@@ -278,12 +279,8 @@ class _WorkerEditProfileScreenState
     context.push('/worker/ratings');
   }
 
-  Future<void> _signOut() async {
-    final router = GoRouter.of(context);
-    await ref.read(authControllerProvider.notifier).signOut();
-    if (!mounted) return;
-    router.go('/');
-  }
+  // Mesmo fluxo do cliente: confirmação e erro visível se falhar.
+  Future<void> _signOut() => confirmAndSignOut(context, ref);
 
   // ── Guardar ────────────────────────────────────────────────────────────────
 
@@ -292,7 +289,8 @@ class _WorkerEditProfileScreenState
   /// noutro sítio se perder (ver doc comment da classe).
   WorkerProfile _currentDraft(WorkerProfile loaded) => loaded.copyWith(
         fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        // Formato único na BD: +351912345678 (ver phoneForStorage).
+        phone: phoneForStorage(_phoneController.text),
         bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
         defaultHourlyRate: double.tryParse(_hourlyRateController.text.trim()),
         baseLat: _baseLat,
@@ -346,8 +344,7 @@ class _WorkerEditProfileScreenState
   String? _fullNameValidator(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
 
-  String? _phoneValidator(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Introduz o teu telefone.' : null;
+  String? _phoneValidator(String? value) => phoneValidator(value);
 
   // ── Resumos formatados ───────────────────────────────────────────────────
 

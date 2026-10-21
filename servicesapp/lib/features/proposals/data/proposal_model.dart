@@ -1,4 +1,5 @@
 import '../../../core/constants/enums.dart';
+import '../../../core/config/storage_urls.dart';
 
 class JobProposal {
   final String id;
@@ -62,7 +63,9 @@ class JobProposal {
         // mantido como fallback do embedded join antigo (hoje sem call sites).
         workerName: json['worker_name'] as String? ??
             (json['profiles'] as Map<String, dynamic>?)?['full_name'] as String?,
-        workerAvatarUrl: json['worker_avatar_url'] as String? ??
-            (json['profiles'] as Map<String, dynamic>?)?['avatar_url'] as String?,
+        workerAvatarUrl: StorageUrls.trustedOrNull(
+            json['worker_avatar_url'] as String? ??
+                (json['profiles'] as Map<String, dynamic>?)?['avatar_url']
+                    as String?),
       );
 }

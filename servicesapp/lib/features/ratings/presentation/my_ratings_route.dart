@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/router/app_back_navigation.dart';
+import '../../../core/utils/price_labels.dart';
 
 import '../../auth/application/auth_providers.dart';
 import '../application/rating_providers.dart';
@@ -52,7 +54,7 @@ class MyRatingsRoute extends ConsumerWidget {
       ),
       receivedTabLabel: receivedTabLabel,
       givenTabLabel: givenTabLabel,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onRetrySummary: userId == null
           ? null
           : () => ref.invalidate(ratingSummaryProvider(userId)),
@@ -65,7 +67,7 @@ class MyRatingsRoute extends ConsumerWidget {
 MyRatingsSummaryViewData _summaryViewData(RatingSummary summary) {
   return MyRatingsSummaryViewData(
     averageRatingLabel:
-        summary.ratingCount == 0 ? '—' : summary.avgRating.toStringAsFixed(1),
+        summary.ratingCount == 0 ? '—' : decimalLabel(summary.avgRating, 1),
     receivedReviewsLabel: '${summary.ratingCount} avaliações',
     filledSummaryStars: summary.avgRating.round(),
     maxSummaryStars: 5,

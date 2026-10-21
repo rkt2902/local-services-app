@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../auth/application/auth_controller.dart';
+import '../../../core/router/app_back_navigation.dart';
+import '../../auth/presentation/sign_out_flow.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
@@ -75,7 +76,12 @@ class _ClientEditProfileScreenState
       }
       await repo.updateProfile(
         user.id,
-        profile.copyWith(fullName: fullName, phone: phone, avatarUrl: avatarUrl),
+        profile.copyWith(
+          fullName: fullName,
+          // Formato único na BD: +351912345678 (ver phoneForStorage).
+          phone: phoneForStorage(phone),
+          avatarUrl: avatarUrl,
+        ),
       );
       ref.invalidate(clientProfileProvider);
       return true;
@@ -89,12 +95,7 @@ class _ClientEditProfileScreenState
     }
   }
 
-  Future<void> _signOut() async {
-    final router = GoRouter.of(context);
-    await ref.read(authControllerProvider.notifier).signOut();
-    if (!mounted) return;
-    router.go('/');
-  }
+  Future<void> _signOut() => confirmAndSignOut(context, ref);
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +121,7 @@ class _ClientEditProfileScreenState
 
     return view.ClientEditProfileScreen(
       dataAsync: dataAsync,
-      onBack: () => context.pop(),
+      onBack: () => goBackOrToRoleHome(context),
       onChangePhoto: _pickAvatar,
       onSignOut: _signOut,
       onRetry: () => ref.invalidate(clientProfileProvider),

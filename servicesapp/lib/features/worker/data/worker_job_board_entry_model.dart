@@ -43,6 +43,10 @@ class WorkerJobBoardEntry {
   final String status;
   final DateTime createdAt;
 
+  /// Estado do pedido (`job_requests.status`), devolvido desde a 0048.
+  /// `null` com a BD antiga: o ecrã usa então só [status].
+  final String? jobStatus;
+
   /// `COUNT(*) OVER()` sobre o filtro da tab — igual em todas as linhas da
   /// mesma página/tab; usado para o badge de contagem e para saber se há
   /// mais páginas, sem precisar de uma query de contagem à parte.
@@ -65,6 +69,7 @@ class WorkerJobBoardEntry {
     this.agreedRate,
     required this.status,
     required this.createdAt,
+    this.jobStatus,
     this.totalCount = 0,
   });
 
@@ -90,6 +95,7 @@ class WorkerJobBoardEntry {
         agreedRate: (json['agreed_rate'] as num?)?.toDouble(),
         status: json['status'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
+        jobStatus: json['job_status'] as String?,
         totalCount: (json['total_count'] as num?)?.toInt() ?? 0,
       );
 }

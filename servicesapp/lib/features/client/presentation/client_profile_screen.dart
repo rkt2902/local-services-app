@@ -3,9 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/delete_account_flow.dart';
+import '../../auth/presentation/sign_out_flow.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/client_providers.dart';
@@ -24,24 +30,35 @@ String _memberSinceLabel(DateTime? createdAt) {
 class ClientProfileScreen extends ConsumerWidget {
   const ClientProfileScreen({super.key});
 
-  void _showSupportSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
+  /// Erro ou perfil em falta, com "Tentar novamente" e saída da conta.
+  Widget _errorState(BuildContext context, WidgetRef ref, String message) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        elevation: 0,
+        title: const Text('A minha conta'),
+      ),
+      body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Contacto & suporte',
-                style: Theme.of(context).textTheme.titleLarge,
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton(
+                onPressed: () {
+                  ref.invalidate(clientProfileProvider);
+                  ref.invalidate(clientJobsProvider);
+                },
+                child: const Text('Tentar novamente'),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Precisas de ajuda? Escreve-nos para '
-                'suporte@projardim.pt e respondemos o mais depressa possível.',
+              const SizedBox(height: AppSpacing.xs),
+              TextButton(
+                onPressed: () => confirmAndSignOut(context, ref),
+                child: const Text('Terminar sessão'),
               ),
             ],
           ),
@@ -66,12 +83,12 @@ class ClientProfileScreen extends ConsumerWidget {
         ? profileAsync.error
         : (jobsAsync.hasError ? jobsAsync.error : null);
     if (error != null) {
-      return Scaffold(body: Center(child: Text(friendlyError(error))));
+      return _errorState(context, ref, friendlyError(error));
     }
 
     final profile = profileAsync.asData?.value;
     if (profile == null) {
-      return const Scaffold(body: Center(child: Text('Perfil não encontrado.')));
+      return _errorState(context, ref, 'Perfil não encontrado.');
     }
 
     final jobs = jobsAsync.asData?.value ?? [];
@@ -86,7 +103,7 @@ class ClientProfileScreen extends ConsumerWidget {
     final ratingSummary = ratingSummaryAsync?.asData?.value;
     final ratingLabel = ratingSummary == null
         ? '—'
-        : ratingSummary.avgRating.toStringAsFixed(1);
+        : decimalLabel(ratingSummary.avgRating, 1);
     final reviewsLabel = ratingSummary == null
         ? '0 avaliações'
         : '${ratingSummary.ratingCount} avaliações';
@@ -108,7 +125,9 @@ class ClientProfileScreen extends ConsumerWidget {
       onDefinitionsPressed: () => context.push('/client/profile/edit'),
       onJobsPressed: () => context.go('/client/jobs'),
       onReviewsPressed: () => context.push('/client/ratings'),
-      onSupportPressed: () => _showSupportSheet(context),
+      onSupportPressed: () => showSupportContactSheet(context),
+      onSignOutPressed: () => confirmAndSignOut(context, ref),
+      onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAboutDialog(
         context: context,
         applicationName: 'ProJardim',

@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/worker_job_board_providers.dart';
 import '../data/worker_job_board_entry_model.dart';
@@ -36,14 +38,7 @@ String _formatDate(DateTime? date) {
 
 String _formatEstimate(double rate, double? min, double? max) {
   if (rate <= 0) return 'Preço a definir';
-  if (min != null && max != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
-  } else if (min != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)}';
-  } else if (max != null) {
-    return '≈ €${(rate * max).toStringAsFixed(0)}';
-  }
-  return '';
+  return estimatedTotalLabel(rate, min, max);
 }
 
 /// Data/hora do card. Fallback para a data preferida do pedido original só
@@ -69,7 +64,7 @@ String _scheduleLabelFor(WorkerJobBoardEntry e) {
 String _secondaryLabelFor(WorkerJobBoardEntry e, view.WorkerJobsTab tab) {
   if (e.role == WorkerJobBoardRole.helper &&
       tab == view.WorkerJobsTab.pending) {
-    return 'Trabalho já confirmado — a aguardar decisão do responsável';
+    return 'Trabalho já confirmado. À espera da decisão do responsável.';
   }
   return e.addressText.isNotEmpty
       ? e.addressText
@@ -79,19 +74,59 @@ String _secondaryLabelFor(WorkerJobBoardEntry e, view.WorkerJobsTab tab) {
 String _priceLabelFor(WorkerJobBoardEntry e) {
   if (e.role == WorkerJobBoardRole.helper) {
     final rate = e.agreedRate ?? 0;
-    return rate > 0 ? '€${rate.toStringAsFixed(2)}/h' : 'A combinar';
+    return rate > 0 ? hourlyRateLabel(rate) : 'A combinar';
   }
   return _formatEstimate(
       e.hourlyRate ?? 0, e.estimatedHoursMin, e.estimatedHoursMax);
 }
 
-/// `status` guarda o valor bruto do enum específico do papel — resolve-se
-/// com `ProposalStatus` (responsável) ou `HelpAcceptanceStatus` (ajudante).
+/// Badge do cartão. Com `jobStatus` (0048) diz em que ponto está o
+/// trabalho ("Agendado", "À espera do cliente", "Cancelado"); sem ele cai
+/// no estado da proposta ou candidatura, como antes.
 AppStatusPresentation _statusPresentationFor(WorkerJobBoardEntry e) {
+  final fromJob = workerBoardJobPresentation(e.status, e.jobStatus);
+  if (fromJob != null) return fromJob;
   if (e.role == WorkerJobBoardRole.helper) {
     return HelpAcceptanceStatus.fromValue(e.status).presentation;
   }
   return ProposalStatus.fromValue(e.status).presentation;
+}
+
+/// Estado do trabalho para uma proposta ou candidatura, ou `null` quando o
+/// estado da própria proposta/candidatura diz mais (ainda pendente, ou BD
+/// sem `job_status`).
+@visibleForTesting
+AppStatusPresentation? workerBoardJobPresentation(
+  String entryStatus,
+  String? jobStatus,
+) {
+  if (jobStatus == null) return null;
+  final isMine = entryStatus == 'accepted';
+  if (jobStatus == 'cancelled' || jobStatus == 'no_response') {
+    if (!isMine && entryStatus != 'pending' && entryStatus != 'rejected') {
+      return null;
+    }
+    return AppStatusPresentation(
+      label: jobStatus == 'cancelled' ? 'Cancelado' : 'Expirado',
+      color: AppStatusColor.neutral,
+    );
+  }
+  if (!isMine) return null;
+  return switch (jobStatus) {
+    'confirmed' => const AppStatusPresentation(
+        label: 'Agendado',
+        color: AppStatusColor.success,
+      ),
+    'awaiting_confirmation' => const AppStatusPresentation(
+        label: 'À espera do cliente',
+        color: AppStatusColor.info,
+      ),
+    'completed' => const AppStatusPresentation(
+        label: 'Concluído',
+        color: AppStatusColor.success,
+      ),
+    _ => null,
+  };
 }
 
 view.WorkerJobListItemViewData _toViewData(
@@ -270,14 +305,13 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       onLoadMore: hasMore ? _loadMore : null,
       loadingMore: _loadingMoreByTab[_selectedTab] ?? false,
       onTabSelected: (tab) => setState(() => _selectedTab = tab),
+      onFindJobsPressed: () => context.go('/worker/available-jobs'),
       onJobPressed: (id) {
         final entry = entries.where((e) => e.entryId == id).firstOrNull;
         if (entry == null) return;
         if (entry.role == WorkerJobBoardRole.helper) {
-          // Ainda não existe um ecrã de detalhe próprio para o papel de
-          // ajudante — reaproveita a tab "As minhas candidaturas", onde já
-          // vivem as ações (Desistir, WhatsApp, avaliação).
-          context.push('/worker/help-requests', extra: {'initialTabIndex': 1});
+          // `entry_id` de uma linha de ajudante é o id da candidatura.
+          context.push('/worker/help/${entry.entryId}');
           return;
         }
         context.push('/worker/my-job/$id?jobId=${entry.jobId}');

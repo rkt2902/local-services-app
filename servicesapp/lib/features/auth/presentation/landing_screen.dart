@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_brand_badge.dart';
@@ -11,6 +12,13 @@ class LandingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    // Destino guardado pelo router (rota privada aberta sem sessão): segue
+    // para o login, que volta para lá depois de entrar.
+    final returnTo =
+        GoRouterState.of(context).uri.queryParameters[returnToParam];
+    final loginPath = returnTo == null || returnTo.isEmpty
+        ? '/login'
+        : '/login?$returnToParam=${Uri.encodeComponent(returnTo)}';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -43,7 +51,7 @@ class LandingScreen extends StatelessWidget {
               const Spacer(),
               PrimaryActionButton(
                 label: 'Entrar',
-                onPressed: () => context.push('/login'),
+                onPressed: () => context.push(loginPath),
               ),
               const SizedBox(height: 12),
               OutlinedButton(

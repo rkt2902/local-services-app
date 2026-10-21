@@ -126,7 +126,7 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
-                            'Fotografe o seu cartão frota',
+                            'Fotografa o teu cartão frota',
                             textAlign: TextAlign.center,
                             style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                           ),

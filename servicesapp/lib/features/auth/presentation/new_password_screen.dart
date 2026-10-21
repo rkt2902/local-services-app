@@ -100,7 +100,7 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                     AppStaggeredEntrance(
                       index: 0,
                       child: Text(
-                        'Crie uma nova senha para a sua conta.',
+                        'Cria uma nova senha para a tua conta.',
                         style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                       ),
                     ),

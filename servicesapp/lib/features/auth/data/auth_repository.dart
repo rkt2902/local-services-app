@@ -21,17 +21,21 @@ class AuthRepository {
   User? get currentUser => _client.auth.currentUser;
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
-  Future<void> signUp({
+  /// Devolve `true` quando o Supabase tem "Confirm email" ligado: o registo
+  /// não abre sessão e o utilizador tem de escrever o código que recebeu
+  /// por email (`verifySignupCode`) antes de escolher o papel.
+  Future<bool> signUp({
     required String email,
     required String password,
     required String fullName,
     required String phone,
   }) async {
-    await _client.auth.signUp(
+    final response = await _client.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': fullName, 'phone': phone},
     );
+    return response.session == null;
   }
 
   Future<void> createProfile({
@@ -84,6 +88,21 @@ class AuthRepository {
 
   Future<void> signOut() async {
     await _client.auth.signOut();
+  }
+
+  /// Eliminar a própria conta (RPC `delete_my_account`, migration 0049):
+  /// o servidor recusa (com mensagem em português) se houver trabalho em
+  /// curso; senão anonimiza o perfil e bloqueia o login. A identidade vem
+  /// de `auth.uid()` dentro da função. Depois chamar [signOutLocally].
+  Future<void> deleteMyAccount() async {
+    await _client.rpc('delete_my_account');
+  }
+
+  /// Fecha a sessão só neste dispositivo, sem pedir nada ao servidor. Usado
+  /// depois de eliminar a conta: o login já está bloqueado e um logout
+  /// global podia falhar e deixar a app presa numa sessão morta.
+  Future<void> signOutLocally() async {
+    await _client.auth.signOut(scope: SignOutScope.local);
   }
 
   // ── Recuperação de senha ───────────────────────────────────────────────
@@ -144,8 +163,8 @@ class AuthRepository {
     }
   }
 
-  // ── Confirmação de email (preparação — Confirm email ainda desativado
-  // no dashboard, ver decisions_log.md 2026-06-05) ───────────────────────
+  // ── Confirmação de email por código (funciona com "Confirm email" ligado
+  // ou desligado no Supabase, ver docs/SETUP.md) ─────────────────────────
   //
   // Reutiliza o mesmo `_throwClassified` do fluxo de recuperação — a
   // classificação (rede / código inválido-expirado / inesperado) não é
@@ -159,25 +178,17 @@ class AuthRepository {
     }
   }
 
-  /// Verificação via deep link — usada por `email_confirmed_screen.dart`
-  /// quando (no futuro, com app_links instalado) a rota `/email-confirmed`
-  /// receber os parâmetros reais do template de confirmação. Aceita tanto
-  /// o padrão recomendado pelo Supabase (`token_hash` + `type`, que por si
-  /// só já satisfaz os asserts internos de `verifyOTP`) como `token` +
-  /// `email` explícitos, para cobrir uma customização diferente do
-  /// template — confirmar exatamente qual dos dois quando o deep link for
-  /// configurado a sério (ver TODO em `email_confirmed_screen.dart`).
-  Future<void> verifySignupEmail({
-    String? tokenHash,
-    String? token,
-    String? email,
+  /// Confirma o registo com o código de 6 dígitos do email "Confirm
+  /// signup" (template com `{{ .Token }}`, ver docs/SETUP.md). Abre a sessão.
+  Future<void> verifySignupCode({
+    required String email,
+    required String code,
   }) async {
     try {
       await _client.auth.verifyOTP(
         type: OtpType.signup,
-        tokenHash: tokenHash,
-        token: token,
         email: email,
+        token: code,
       );
     } catch (e) {
       _throwClassified(e);

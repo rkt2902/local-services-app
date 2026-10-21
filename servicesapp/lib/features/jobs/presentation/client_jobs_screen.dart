@@ -8,6 +8,8 @@ import '../../../core/utils/date_labels.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
+import '../application/client_job_next_step.dart';
+import '../application/client_jobs_refresh.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
 import 'widgets/client_jobs_view.dart' as view;
@@ -46,20 +48,17 @@ class ClientJobsScreen extends ConsumerWidget {
         }
         final serviceTypes = serviceTypesAsync.value ?? const <ServiceType>[];
 
-        // Condições exatas de sempre — P-8-8 (jobs cancelados sem proposta
-        // aceite ficam invisíveis nas duas tabs) é uma decisão de produto
-        // pendente, não corrigida aqui.
-        final activeJobs = jobs
-            .where((j) =>
-                j.status == JobStatus.open ||
-                j.status == JobStatus.confirmed ||
-                j.status == JobStatus.awaitingConfirmation)
-            .toList();
+        // Mesma ordem do Início: o que precisa do cliente primeiro.
+        final activeJobs = clientHomeActiveJobs(jobs);
+        // Histórico = tudo o que já acabou, incluindo os pedidos cancelados
+        // ainda abertos (sem proposta aceite). Antes ficavam invisíveis nas
+        // duas tabs (P-8-8); agora aparecem aqui, com "Publicar de novo"
+        // no detalhe.
         final historyJobs = jobs
             .where((j) =>
                 j.status == JobStatus.completed ||
                 j.status == JobStatus.noResponse ||
-                (j.status == JobStatus.cancelled && j.acceptedProposalId != null))
+                j.status == JobStatus.cancelled)
             .toList();
 
         // Nome/foto do worker aceite — só existe depois de haver uma
@@ -67,6 +66,11 @@ class ClientJobsScreen extends ConsumerWidget {
         // Mesmo par de providers já usado (e já correto) em
         // client_job_detail_screen.dart/client_scheduled_job_detail_screen.dart;
         // esta lista simplesmente nunca os tinha chamado.
+        const activeStatuses = {
+          JobStatus.open,
+          JobStatus.confirmed,
+          JobStatus.awaitingConfirmation,
+        };
         const statusesWithWorker = {
           JobStatus.confirmed,
           JobStatus.awaitingConfirmation,
@@ -109,7 +113,11 @@ class ClientJobsScreen extends ConsumerWidget {
             addressText: job.addressText,
             locationLat: job.locationLat,
             locationLng: job.locationLng,
-            dateLabel: jobDeadlineLabel(job.dateMode, job.preferredDate),
+            dateLabel: jobDeadlineLabel(
+              job.dateMode,
+              job.preferredDate,
+              availabilityText: job.availabilityText,
+            ),
             serviceIcon: serviceTypeIconFor(serviceTypes, job.serviceTypeId),
             statusPresentation:
                 job.status.presentation(proposalCount: job.proposalCount),
@@ -118,6 +126,10 @@ class ClientJobsScreen extends ConsumerWidget {
                 : null,
             workerName: workerName,
             workerAvatarUrl: workerAvatarUrl,
+            nextStepLabel: activeStatuses.contains(job.status)
+                ? clientJobNextStepLabel(job)
+                : null,
+            needsAction: clientJobNeedsAction(job),
           );
         }
 
@@ -138,6 +150,7 @@ class ClientJobsScreen extends ConsumerWidget {
         ref.invalidate(clientJobsProvider);
         ref.invalidate(serviceTypesProvider);
       },
+      onRefresh: () => refreshClientJobs(ref),
     );
   }
 }

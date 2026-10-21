@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/route_guard.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_brand_badge.dart';
@@ -30,6 +31,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    // Destino original (rota privada aberta sem sessão), se houver.
+    final returnTo =
+        GoRouterState.of(context).uri.queryParameters[returnToParam];
     await ref.read(authControllerProvider.notifier).signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -37,8 +41,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
-    // Router will redirect based on role — just go to root and let redirect handle it
-    context.go('/');
+    // O router decide o destino pelo papel: o início do papel ou, se veio
+    // de uma rota privada, essa rota (resolveRedirect/safeReturnTarget).
+    context.go(returnTo == null || returnTo.isEmpty
+        ? '/'
+        : '/?$returnToParam=${Uri.encodeComponent(returnTo)}');
   }
 
   @override
@@ -48,6 +55,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = authState is AuthLoading;
 
     ref.listen(authControllerProvider, (_, next) {
+      if (next is AuthEmailNotConfirmed) {
+        context.go('/verify-email?email=${Uri.encodeComponent(next.email)}');
+        return;
+      }
       if (next is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.message), backgroundColor: Colors.red),
@@ -80,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Entre na sua conta ProJardim',
+                        'Entra na tua conta ProJardim',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium
                             ?.copyWith(color: AppColors.textSecondary),
@@ -93,7 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         autofillHints: const [AutofillHints.email],
                         validator: (value) {
                           final text = value?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduza o email.';
+                          if (text.isEmpty) return 'Introduz o email.';
                           if (!text.contains('@')) return 'Email inválido.';
                           return null;
                         },
@@ -116,7 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         validator: (value) {
                           if ((value ?? '').isEmpty) {
-                            return 'Introduza a password.';
+                            return 'Introduz a password.';
                           }
                           if ((value ?? '').length < 6) {
                             return 'Mínimo 6 caracteres.';
@@ -227,7 +238,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      'Não tem conta? ',
+                      'Não tens conta? ',
                       style: textTheme.bodyMedium
                           ?.copyWith(color: AppColors.textSecondary),
                     ),

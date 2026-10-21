@@ -17,7 +17,8 @@ import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/status_timeline.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
 import '../../../ratings/application/rating_providers.dart';
-import '../../../ratings/presentation/rating_sheet.dart';
+import '../../application/worker_job_rules.dart';
+import '../../../ratings/presentation/submit_rating_sheet.dart';
 
 /// Dados de apresentação do ecrã "O meu trabalho" (Flow 6 + estados
 /// preservados de sessões anteriores).
@@ -59,6 +60,12 @@ class WorkerMyJobDetailViewData {
     required this.agreedPriceLabel,
     required this.canMarkCompleted,
     this.markCompletedHint,
+    this.rescheduleBlocked = false,
+    this.overdueMessage,
+    this.cancelledMessage,
+    this.helpTeamLoaded = false,
+    this.helpTeamLabel,
+    this.helpTeamAwaitingApproval = false,
     this.titleSubtitle,
     this.sizeLabel,
     this.estimatedHoursLabel,
@@ -106,7 +113,25 @@ class WorkerMyJobDetailViewData {
   final bool rescheduleProposedByMe;
   final String proposedRescheduleLabel;
 
+  /// Cancelar bloqueado: a BD só deixa até ao dia anterior ao trabalho.
   final bool cancelBlockedBy24h;
+
+  /// Remarcar bloqueado pela mesma regra (propose_reschedule).
+  final bool rescheduleBlocked;
+
+  /// "A data já passou..." quando o trabalho confirmado está atrasado.
+  final String? overdueMessage;
+
+  /// Banner de trabalho cancelado/expirado (sem contacto com o cliente).
+  final String? cancelledMessage;
+
+  /// `false` enquanto os pedidos de ajuda carregam: não mostra nem o cartão
+  /// "Equipa" nem o botão "Preciso de ajudantes".
+  final bool helpTeamLoaded;
+
+  /// Resumo da equipa; `null` = sem pedido de ajudantes ativo.
+  final String? helpTeamLabel;
+  final bool helpTeamAwaitingApproval;
 
   final List<AcceptedHelper> helpersForRating;
 
@@ -135,6 +160,7 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
     required this.onBack,
     required this.onCallClientPressed,
     required this.onRequestHelpersPressed,
+    required this.onViewTeamPressed,
     required this.onMarkCompleted,
     required this.onProposeReschedule,
     required this.onAcceptReschedule,
@@ -151,6 +177,7 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onCallClientPressed;
   final VoidCallback onRequestHelpersPressed;
+  final VoidCallback onViewTeamPressed;
 
   /// Deve devolver true apenas depois da RPC (mark_job_done) confirmar
   /// sucesso — o AlertDialog de confirmação já vive dentro deste callback,
@@ -282,6 +309,17 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                   index: 0,
                   child: StatusTimelineCard(steps: data.timelineSteps),
                 ),
+                if (data.overdueMessage != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppStaggeredEntrance(
+                    index: 0,
+                    child: _InfoBanner(
+                      icon: Icons.event_busy_rounded,
+                      color: AppStatusColor.waiting,
+                      message: data.overdueMessage!,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 AppStaggeredEntrance(
                   index: 1,
@@ -334,13 +372,21 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 4,
-                  child: _HelpersActionButton(
-                    onPressed: widget.onRequestHelpersPressed,
+                if (data.helpTeamLoaded) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppStaggeredEntrance(
+                    index: 4,
+                    child: data.helpTeamLabel != null
+                        ? _HelpTeamCard(
+                            label: data.helpTeamLabel!,
+                            awaitingApproval: data.helpTeamAwaitingApproval,
+                            onViewTeam: widget.onViewTeamPressed,
+                          )
+                        : _HelpersActionButton(
+                            onPressed: widget.onRequestHelpersPressed,
+                          ),
                   ),
-                ),
+                ],
                 if (data.description.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
@@ -361,6 +407,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     proposingReschedule: data.proposingReschedule,
                     cancelling: data.cancellingJob,
                     cancelBlockedBy24h: data.cancelBlockedBy24h,
+                    rescheduleBlocked: data.rescheduleBlocked,
                     onProposeReschedule: widget.onProposeReschedule,
                     onCancelJob: widget.onCancelJob,
                   ),
@@ -473,7 +520,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (data.rescheduleStatus == RescheduleStatus.pending) ...[
+          if (data.rescheduleStatus == RescheduleStatus.pending &&
+              data.cancelledMessage == null) ...[
             _RescheduleBanner(
               proposedByMe: data.rescheduleProposedByMe,
               label: data.proposedRescheduleLabel,
@@ -484,24 +532,33 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          Text('Cliente', style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
-          const SizedBox(height: AppSpacing.sm),
-          _ClientContactCard(
-            name: data.clientName,
-            avatarUrl: data.clientAvatarUrl,
-            phone: data.clientPhone,
-            onCallPressed: widget.onCallClientPressed,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // jobStatus == confirmed nunca chega aqui — esse caso é servido
-          // por _buildConfirmedBody (Flow 6). Só awaitingConfirmation e
-          // completed restam dentro deste ramo "accepted".
-          if (data.jobStatus == JobStatus.awaitingConfirmation)
+          // Trabalho cancelado/expirado: só o motivo, sem contacto (já não
+          // há nada a combinar com o cliente).
+          if (data.cancelledMessage != null)
             _InfoBanner(
+              icon: Icons.cancel_outlined,
+              color: AppStatusColor.cancelled,
+              message: data.cancelledMessage!,
+            )
+          else ...[
+            Text('Cliente', style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
+            const SizedBox(height: AppSpacing.sm),
+            _ClientContactCard(
+              name: data.clientName,
+              avatarUrl: data.clientAvatarUrl,
+              phone: data.clientPhone,
+              onCallPressed: widget.onCallClientPressed,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          // jobStatus == confirmed nunca chega aqui — esse caso é servido
+          // por _buildConfirmedBody (Flow 6). Só awaitingConfirmation,
+          // completed e cancelled restam dentro deste ramo "accepted".
+          if (data.jobStatus == JobStatus.awaitingConfirmation)
+            const _InfoBanner(
               icon: Icons.hourglass_top_rounded,
               color: AppStatusColor.info,
-              message:
-                  'Aguarda confirmação do cliente. Já marcaste este trabalho como concluído.',
+              message: WorkerJobDayRules.awaitingConfirmationMessage,
             )
           else if (data.jobStatus == JobStatus.completed)
             _CompletedSection(
@@ -745,12 +802,79 @@ class _HelpersActionButton extends StatelessWidget {
   }
 }
 
+/// Cartão "Equipa": estado do pedido de ajudantes + "Ver equipa" (lobby).
+class _HelpTeamCard extends StatelessWidget {
+  const _HelpTeamCard({
+    required this.label,
+    required this.awaitingApproval,
+    required this.onViewTeam,
+  });
+
+  final String label;
+  final bool awaitingApproval;
+  final VoidCallback onViewTeam;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final statusColor =
+        awaitingApproval ? AppStatusColor.waiting : AppStatusColor.info;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.groups_outlined, color: statusColor.foreground),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  'Equipa',
+                  style: textTheme.titleMedium
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            label,
+            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: onViewTeam,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+            ),
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text('Ver equipa'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RescheduleCancelRow extends StatelessWidget {
   const _RescheduleCancelRow({
     required this.reschedulePending,
     required this.proposingReschedule,
     required this.cancelling,
     required this.cancelBlockedBy24h,
+    required this.rescheduleBlocked,
     required this.onProposeReschedule,
     required this.onCancelJob,
   });
@@ -759,6 +883,7 @@ class _RescheduleCancelRow extends StatelessWidget {
   final bool proposingReschedule;
   final bool cancelling;
   final bool cancelBlockedBy24h;
+  final bool rescheduleBlocked;
   final VoidCallback onProposeReschedule;
   final VoidCallback onCancelJob;
 
@@ -773,9 +898,10 @@ class _RescheduleCancelRow extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: (reschedulePending || proposingReschedule)
-                    ? null
-                    : onProposeReschedule,
+                onPressed:
+                    (reschedulePending || proposingReschedule || rescheduleBlocked)
+                        ? null
+                        : onProposeReschedule,
                 icon: const Icon(Icons.event_repeat),
                 label: const Text('Remarcar'),
               ),
@@ -795,10 +921,10 @@ class _RescheduleCancelRow extends StatelessWidget {
             ),
           ],
         ),
-        if (cancelBlockedBy24h) ...[
+        if (cancelBlockedBy24h || rescheduleBlocked) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Cancelamento disponível até 24h antes da data confirmada.',
+            'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
@@ -1289,7 +1415,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
   }
 
   Future<void> _showSheet() async {
-    final submitted = await showRatingSheet(
+    final submitted = await showSubmitRatingSheet(
       context: context,
       title: widget.title,
       successMessage: 'Avaliação enviada!',
@@ -1306,5 +1432,7 @@ class _PrincipalRatingCardState extends ConsumerState<_PrincipalRatingCard> {
     ref.invalidate(
       myRatingForJobAndRateeProvider((widget.jobId, widget.rateeId)),
     );
+    // "O que falta fazer" do dashboard conta as avaliações dadas.
+    ref.invalidate(myRatingsGivenProvider);
   }
 }

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/phone_utils.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
@@ -20,6 +23,9 @@ import '../../jobs/data/job_model.dart';
 import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../help_requests/application/help_request_providers.dart';
+import '../../help_requests/data/help_request_model.dart';
+import '../application/worker_job_rules.dart';
+import '../application/worker_list_invalidation.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
@@ -48,6 +54,13 @@ class _WorkerMyJobDetailScreenState
   bool _acceptingReschedule = false;
   bool _rejectingReschedule = false;
 
+  /// Id do pedido: o da rota ou, se a rota veio sem `?jobId=` (link
+  /// antigo/incompleto), o da própria proposta. Resolvido em [build].
+  String _resolvedJobId = '';
+
+  String get _jobId =>
+      widget.jobId.isNotEmpty ? widget.jobId : _resolvedJobId;
+
   Future<void> _cancelJob() async {
     final result = await CancelJobDialog.show(context, isClient: false);
     if (result == null || !mounted) return;
@@ -57,18 +70,18 @@ class _WorkerMyJobDetailScreenState
     final router = GoRouter.of(context);
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
-            jobId: widget.jobId,
+            jobId: _jobId,
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
           );
-      invalidateAllWorkerProposalProviders(ref);
-      ref.invalidate(jobsInRadiusProvider);
+      // Regra T4: navegar → SnackBar → invalidar.
+      router.go('/worker/home');
       scaffold.showSnackBar(SnackBar(
         content: Text(newJobId != null
             ? 'Pedido cancelado. O cliente foi notificado e o pedido foi reaberto.'
             : 'Pedido cancelado.'),
       ));
-      router.go('/worker/home');
+      invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -84,19 +97,18 @@ class _WorkerMyJobDetailScreenState
 
     setState(() => _proposingReschedule = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
-            jobId: widget.jobId,
+            jobId: _jobId,
             newDate: result['date'] as DateTime,
             newTime: result['time'] as String?,
             newFlexible: result['flexible'] as bool,
           );
-      ref.invalidate(scheduledWorkerProposalsProvider);
+      // Fica neste ecrã (sem pop: aberto por notificação não há nada para
+      // fazer pop). SnackBar → invalidar.
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação enviada.')));
-      router.pop();
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -109,14 +121,11 @@ class _WorkerMyJobDetailScreenState
   Future<void> _acceptReschedule() async {
     setState(() => _acceptingReschedule = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
-      await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
-      ref.invalidate(scheduledWorkerProposalsProvider);
+      await ref.read(jobRepositoryProvider).acceptReschedule(_jobId);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Nova data aceite.')));
-      router.pop();
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -129,14 +138,11 @@ class _WorkerMyJobDetailScreenState
   Future<void> _rejectReschedule() async {
     setState(() => _rejectingReschedule = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
-      await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
-      ref.invalidate(scheduledWorkerProposalsProvider);
+      await ref.read(jobRepositoryProvider).rejectReschedule(_jobId);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Remarcação recusada.')));
-      router.pop();
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -169,15 +175,18 @@ class _WorkerMyJobDetailScreenState
     if (confirmed != true || !mounted) return;
     setState(() => _withdrawing = true);
     final scaffold = ScaffoldMessenger.of(context);
-    final router = GoRouter.of(context);
     try {
       await ref
           .read(proposalRepositoryProvider)
-          .withdrawProposal(widget.proposalId, widget.jobId);
-      ref.invalidate(pendingWorkerProposalsProvider);
-      router.pop();
+          .withdrawProposal(widget.proposalId, _jobId);
+      if (!mounted) return;
+      // Regra T4: voltar (com fallback para a home quando aberto por
+      // notificação) → SnackBar → invalidar.
+      final jobId = _jobId;
+      goBackOrToRoleHome(context);
       scaffold.showSnackBar(
           const SnackBar(content: Text('Proposta retirada.')));
+      invalidateWorkerLists(ref, jobId: jobId);
     } catch (e) {
       scaffold.showSnackBar(
         SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red),
@@ -186,12 +195,8 @@ class _WorkerMyJobDetailScreenState
     }
   }
 
-  Future<void> _openWhatsApp(String phone) async {
-    if (phone.isEmpty) return;
-    final clean = phone.replaceAll(RegExp(r'[\s\-()]'), '');
-    final uri = Uri.parse('https://wa.me/$clean');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _openWhatsApp(String phone) =>
+      openWhatsAppOrWarn(context, phone);
 
   Future<void> _showAddHelperSheet() async {
     int slotsNeeded = 1;
@@ -263,19 +268,22 @@ class _WorkerMyJobDetailScreenState
                             await ref
                                 .read(helpRequestRepositoryProvider)
                                 .createHelpRequest(
-                                  jobId: widget.jobId,
+                                  jobId: _jobId,
                                   proposalId: widget.proposalId,
                                   slotsNeeded: slotsNeeded,
                                   equipmentRequired: equipmentRequired,
                                   createdPostConfirmation: true,
                                 );
-                            ref.invalidate(
-                                helpRequestsForJobProvider(widget.jobId));
-                            if (mounted) Navigator.of(context).pop();
+                            // Regra T4: fechar a sheet → SnackBar → invalidar.
+                            if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
                             scaffold.showSnackBar(const SnackBar(
                               content: Text(
                                   'Pedido de ajuda enviado para aprovação do cliente.'),
                             ));
+                            if (mounted) {
+                              ref.invalidate(
+                                  helpRequestsForJobProvider(_jobId));
+                            }
                           } catch (e) {
                             scaffold.showSnackBar(SnackBar(
                               content: Text(friendlyError(e)),
@@ -317,11 +325,11 @@ class _WorkerMyJobDetailScreenState
       if (photo != null) {
         photoPath = await ref
             .read(jobRepositoryProvider)
-            .uploadCompletionPhoto(jobId: widget.jobId, file: photo);
+            .uploadCompletionPhoto(jobId: _jobId, file: photo);
       }
       await ref
           .read(proposalRepositoryProvider)
-          .markJobCompleted(widget.jobId, photoPath: photoPath);
+          .markJobCompleted(_jobId, photoPath: photoPath);
       return true;
     } catch (e) {
       if (mounted) {
@@ -335,38 +343,101 @@ class _WorkerMyJobDetailScreenState
 
   void _onCompletionFeedbackFinished() {
     if (!mounted) return;
+    final jobId = _jobId;
     GoRouter.of(context).go('/worker/home');
-    ref.invalidate(scheduledWorkerProposalsProvider);
-    ref.invalidate(completedWorkerProposalsProvider);
-    ref.invalidate(jobsInRadiusProvider);
+    invalidateWorkerLists(ref, jobId: jobId);
+  }
+
+  void _openTeam() {
+    context.push(
+      '/worker/job/$_jobId/help-requests',
+      extra: const {'fromMyJob': true},
+    );
+  }
+
+  Widget _notFound(String message) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        elevation: 0,
+        leading: const AppBackButton(),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Cartão "Equipa": `null` enquanto os pedidos de ajuda carregam (nem
+  /// cartão nem botão, para não deixar criar um segundo pedido por engano).
+  ({bool loaded, HelpTeamSummary? summary}) _helpTeam() {
+    final helpRequestsAsync = ref.watch(helpRequestsForJobProvider(_jobId));
+    if (helpRequestsAsync.isLoading && !helpRequestsAsync.hasValue) {
+      return (loaded: false, summary: null);
+    }
+    final helpRequests = helpRequestsAsync.asData?.value ?? const [];
+    final candidates = <String, List<HelpAcceptance>?>{};
+    for (final hr in helpRequests) {
+      if (hr.status == HelpRequestStatus.cancelled ||
+          hr.status == HelpRequestStatus.pendingApproval) {
+        continue;
+      }
+      candidates[hr.id] =
+          ref.watch(candidatesForHelpRequestProvider(hr.id)).asData?.value;
+    }
+    return (loaded: true, summary: helpTeamSummary(helpRequests, candidates));
   }
 
   @override
   Widget build(BuildContext context) {
     final proposalAsync = ref.watch(proposalByIdProvider(widget.proposalId));
-    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
+    // Com o id na rota, o pedido carrega em paralelo com a proposta.
+    if (widget.jobId.isNotEmpty) ref.watch(jobByIdProvider(widget.jobId));
 
-    if (proposalAsync.isLoading || jobAsync.isLoading) {
+    if (proposalAsync.isLoading) {
       return const Scaffold(body: AppScreenLoadingSkeleton());
     }
-    if (proposalAsync.hasError || jobAsync.hasError) {
-      final e = proposalAsync.error ?? jobAsync.error!;
-      return Scaffold(body: Center(child: Text(friendlyError(e))));
+    if (proposalAsync.hasError) {
+      return _notFound(friendlyError(proposalAsync.error!));
     }
-
     final proposal = proposalAsync.value;
-    final job = jobAsync.value;
-    if (proposal == null || job == null) {
-      return const Scaffold(
-          body: Center(child: Text('Não encontrado.')));
+    if (proposal == null) return _notFound('Trabalho não encontrado.');
+    if (widget.jobId.isEmpty) _resolvedJobId = proposal.jobId;
+    if (_jobId.isEmpty) return _notFound('Trabalho não encontrado.');
+
+    final jobAsync = ref.watch(jobByIdProvider(_jobId));
+    if (jobAsync.isLoading) {
+      return const Scaffold(body: AppScreenLoadingSkeleton());
     }
+    if (jobAsync.hasError) return _notFound(friendlyError(jobAsync.error!));
+    final job = jobAsync.value;
+    if (job == null) return _notFound('Trabalho não encontrado.');
 
     final currentUserId = ref.watch(currentUserIdProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
-    final photosAsync = ref.watch(jobPhotosProvider(widget.jobId));
+    final photosAsync = ref.watch(jobPhotosProvider(_jobId));
     final clientInfoAsync = ref.watch(clientBasicInfoProvider(job.clientId));
     final helpersForRatingAsync =
-        ref.watch(acceptedHelpersForJobProvider(widget.jobId));
+        ref.watch(acceptedHelpersForJobProvider(_jobId));
+
+    final isConfirmed = proposal.status == ProposalStatus.accepted &&
+        job.status == JobStatus.confirmed;
+    final ({bool loaded, HelpTeamSummary? summary}) team =
+        isConfirmed ? _helpTeam() : (loaded: false, summary: null);
 
     final serviceType = serviceTypesAsync.value
         ?.where((s) => s.id == job.serviceTypeId)
@@ -390,8 +461,19 @@ class _WorkerMyJobDetailScreenState
     final canMarkCompleted =
         confirmedDay == null || !confirmedDay.isAfter(today);
 
-    final cancelBlockedBy24h = job.confirmedDate != null &&
-        job.confirmedDate!.difference(DateTime.now()).inHours < 24;
+    // Mesma regra da BD (cancel_job/propose_reschedule): só até ao dia
+    // anterior ao trabalho, contado em dias e não em horas.
+    final dayActionsBlocked = !WorkerJobDayRules.canCancelOrReschedule(
+      confirmedDate: job.confirmedDate,
+      today: today,
+    );
+    final overdue = WorkerJobDayRules.isOverdue(
+      confirmedDate: job.confirmedDate,
+      today: today,
+    );
+
+    final isCancelled = job.status == JobStatus.cancelled ||
+        job.status == JobStatus.noResponse;
 
     final data = view.WorkerMyJobDetailViewData(
       jobId: job.id,
@@ -412,9 +494,7 @@ class _WorkerMyJobDetailScreenState
       sizeLabel: job.sizeEstimate?.label,
       description: job.description,
       photoUrls: photos,
-      hourlyRateLabel: proposal.hourlyRate > 0
-          ? '${proposal.hourlyRate.toStringAsFixed(2)} €/h'
-          : 'Preço a definir',
+      hourlyRateLabel: hourlyRateLabel(proposal.hourlyRate),
       estimatedHoursLabel: (proposal.estimatedHoursMin != null ||
               proposal.estimatedHoursMax != null)
           ? _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax)
@@ -431,7 +511,8 @@ class _WorkerMyJobDetailScreenState
       rescheduleStatus: job.rescheduleStatus,
       rescheduleProposedByMe: job.rescheduleProposedBy == currentUserId,
       proposedRescheduleLabel: _proposedRescheduleLabel(job),
-      cancelBlockedBy24h: cancelBlockedBy24h,
+      cancelBlockedBy24h: dayActionsBlocked,
+      rescheduleBlocked: dayActionsBlocked,
       helpersForRating: helpersForRatingAsync.asData?.value ?? const [],
       agreedPriceLabel: agreedPriceLabel(
         proposal.hourlyRate,
@@ -442,6 +523,21 @@ class _WorkerMyJobDetailScreenState
       markCompletedHint: confirmedDay == null
           ? null
           : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
+      overdueMessage: (overdue && job.confirmedDate != null)
+          ? WorkerJobDayRules.overdueMessage(job.confirmedDate!)
+          : null,
+      cancelledMessage: isCancelled && proposal.status == ProposalStatus.accepted
+          ? (job.status == JobStatus.noResponse
+              ? 'Este pedido expirou.'
+              : cancelledJobBannerMessage(
+                  cancelReason: job.cancelReason,
+                  cancelledByMe: job.cancelledBy != null &&
+                      job.cancelledBy == currentUserId,
+                ))
+          : null,
+      helpTeamLoaded: team.loaded,
+      helpTeamLabel: team.summary?.label,
+      helpTeamAwaitingApproval: team.summary?.awaitingApproval ?? false,
       titleSubtitle: jobDistinguisherLabel(job),
       proposingReschedule: _proposingReschedule,
       acceptingReschedule: _acceptingReschedule,
@@ -455,6 +551,7 @@ class _WorkerMyJobDetailScreenState
       onBack: () => goBackOrToRoleHome(context),
       onCallClientPressed: () => _openWhatsApp(data.clientPhone),
       onRequestHelpersPressed: _showAddHelperSheet,
+      onViewTeamPressed: _openTeam,
       onMarkCompleted: _markCompleted,
       onCompletionFeedbackFinished: _onCompletionFeedbackFinished,
       onProposeReschedule: _proposeReschedule,
@@ -499,24 +596,7 @@ String _formatDate(DateTime? date) {
   return DateFormat('dd/MM/yyyy').format(date);
 }
 
-String _formatEstimate(double rate, double? min, double? max) {
-  if (min != null && max != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)} - €${(rate * max).toStringAsFixed(0)}';
-  } else if (min != null) {
-    return '≈ €${(rate * min).toStringAsFixed(0)}';
-  } else if (max != null) {
-    return '≈ €${(rate * max).toStringAsFixed(0)}';
-  }
-  return '';
-}
+String _formatEstimate(double rate, double? min, double? max) =>
+    estimatedTotalLabel(rate, min, max);
 
-String _hoursLabel(double? min, double? max) {
-  if (min != null && max != null) {
-    return '${min.toStringAsFixed(1)} - ${max.toStringAsFixed(1)} h';
-  } else if (min != null) {
-    return '${min.toStringAsFixed(1)} h';
-  } else if (max != null) {
-    return '${max.toStringAsFixed(1)} h';
-  }
-  return '';
-}
+String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);

@@ -135,7 +135,11 @@ class ProposalRepository {
       String workerId) async {
     final data = await _client
         .from('job_proposals')
-        .select('*, job_requests!job_proposals_job_id_fkey(*)')
+        // `!inner`: sem ele o filtro sobre a tabela embebida só esvazia o
+        // `job_requests` embebido (fica null) em vez de excluir a proposta,
+        // e voltavam todas as propostas aceites de sempre (cancelados e
+        // concluídos incluídos).
+        .select('*, job_requests!job_proposals_job_id_fkey!inner(*)')
         .eq('worker_id', workerId)
         .eq('status', 'accepted')
         .filter('job_requests.status', 'in', '(confirmed,awaiting_confirmation)')
@@ -161,7 +165,8 @@ class ProposalRepository {
   }) async {
     final data = await _client
         .from('job_proposals')
-        .select('*, job_requests!job_proposals_job_id_fkey(*)')
+        // `!inner` pelo mesmo motivo que em fetchScheduledWorkerProposals.
+        .select('*, job_requests!job_proposals_job_id_fkey!inner(*)')
         .eq('worker_id', workerId)
         .eq('status', 'accepted')
         .filter('job_requests.status', 'eq', 'completed')

@@ -18,6 +18,8 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 - `decisions_log.md` — histórico de decisões técnicas, por data.
 - `improvements.md` — dívida técnica e ideias futuras conhecidas.
 - `motion_spec.md` — especificação de movimento.
+- `SETUP.md` — configuração que só o Henrique faz (Netlify, Supabase, email, Firebase,
+  domínio), por ordem.
 
 ## Regras que nunca se quebram
 
@@ -51,7 +53,7 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 cd servicesapp
 flutter run                 # correr a app (ver .vscode/launch.json para --dart-define)
 flutter analyze              # obrigatório depois de qualquer alteração relevante
-flutter test                  # só 1 smoke test hoje (test/widget_test.dart)
+flutter test                  # testes de lógica e de alguns widgets, sem rede (corre no CI)
 ```
 
 ## Formato do relatório no fim de cada tarefa

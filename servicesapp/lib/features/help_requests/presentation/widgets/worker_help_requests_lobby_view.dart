@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
@@ -9,6 +10,7 @@ import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
+import '../../../../core/utils/phone_utils.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
 
 /// Estado puramente visual de UMA secção (um `HelpRequest`) do lobby — não
@@ -44,9 +46,19 @@ class HelpRequestSectionViewData {
     required this.filledProgress,
     required this.acceptedHelpers,
     required this.pendingCandidates,
+    this.slotsNeeded = 0,
+    this.canManage = false,
   });
 
   final String helpRequestId;
+
+  /// Vagas pedidas. O mínimo ao alterar é o número de aceites.
+  final int slotsNeeded;
+
+  /// `true` quando o responsável ainda pode mexer na equipa: alterar vagas,
+  /// fechar o pedido e retirar ajudantes (pedido de ajuda ativo e trabalho
+  /// ainda por fazer).
+  final bool canManage;
   final WorkerHelpSectionDisplayMode displayMode;
 
   /// Presenter real de `HelpRequestStatus` (app_status_presenters.dart).
@@ -64,6 +76,7 @@ class HelpRequestSectionViewData {
 
 class WorkerAcceptedHelperViewData {
   const WorkerAcceptedHelperViewData({
+    this.applicationId,
     required this.workerId,
     required this.name,
     required this.equipmentLabel,
@@ -71,8 +84,11 @@ class WorkerAcceptedHelperViewData {
     this.avatarUrl,
     this.ratingLabel,
     this.rateLabel,
+    this.phone,
   });
 
+  /// Id da candidatura (`help_acceptances.id`), para "Retirar da equipa".
+  final String? applicationId;
   final String workerId;
   final String name;
   final String? avatarUrl;
@@ -84,6 +100,9 @@ class WorkerAcceptedHelperViewData {
   /// `null` = taxa acordada ainda não definida (não deve acontecer para um
   /// aceite, mas o ecrã não assume).
   final String? rateLabel;
+
+  /// Telefone para WhatsApp (só a partir da 0048); `null` esconde o botão.
+  final String? phone;
 
   /// Presenter real de `HelpAcceptanceStatus.accepted`.
   final AppStatusPresentation statusPresentation;
@@ -101,6 +120,7 @@ class WorkerHelpCandidateViewData {
     this.avatarUrl,
     this.ratingLabel,
     this.blockedReasonLabel,
+    this.message,
   });
 
   final String applicationId;
@@ -109,6 +129,9 @@ class WorkerHelpCandidateViewData {
   final String? avatarUrl;
   final String? ratingLabel;
   final String equipmentLabel;
+
+  /// O que o candidato escreveu ao candidatar-se, se escreveu alguma coisa.
+  final String? message;
 
   /// Presenter real de `HelpAcceptanceStatus.pending`.
   final AppStatusPresentation statusPresentation;
@@ -153,6 +176,9 @@ class WorkerHelpRequestsLobbyView extends StatefulWidget {
     required this.onViewRatings,
     this.rateValidator,
     this.onRetry,
+    this.onChangeSlots,
+    this.onCloseHelpRequest,
+    this.onRemoveHelper,
   });
 
   final AsyncValue<WorkerHelpLobbyViewData> dataAsync;
@@ -166,13 +192,19 @@ class WorkerHelpRequestsLobbyView extends StatefulWidget {
   /// Deve devolver `true` apenas depois de `accept_help_candidate`
   /// confirmar sucesso.
   final Future<bool> Function(String applicationId, String rateInput)
-      onAcceptCandidate;
+  onAcceptCandidate;
 
   /// Deve devolver `true` apenas depois de `reject_help_candidate`
   /// confirmar sucesso.
   final Future<bool> Function(String applicationId) onRejectCandidate;
 
   final String? Function(String?)? rateValidator;
+
+  /// Gestão da equipa (0049). Cada um devolve `true` só depois de a RPC
+  /// confirmar; `null` esconde a ação.
+  final Future<bool> Function(String helpRequestId, int slots)? onChangeSlots;
+  final Future<bool> Function(String helpRequestId)? onCloseHelpRequest;
+  final Future<bool> Function(String applicationId)? onRemoveHelper;
 
   @override
   State<WorkerHelpRequestsLobbyView> createState() =>
@@ -194,7 +226,9 @@ class _WorkerHelpRequestsLobbyViewState
       useSafeArea: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.card),
+        ),
       ),
       builder: (_) => _AcceptHelperBottomSheet(
         candidate: candidate,
@@ -223,15 +257,121 @@ class _WorkerHelpRequestsLobbyViewState
     try {
       confirmed = await widget.onRejectCandidate(candidate.applicationId);
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _processingApplications.remove(candidate.applicationId);
-        if (confirmed) {
-          _successMessage = 'Candidatura recusada.';
-          _successVisible = true;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _processingApplications.remove(candidate.applicationId);
+          if (confirmed) {
+            _successMessage = 'Candidatura recusada.';
+            _successVisible = true;
+          }
+        });
+      }
     }
+  }
+
+  /// Corre uma ação de gestão com o id em "a processar" e mostra o
+  /// feedback de sucesso quando a RPC confirma.
+  Future<void> _runTeamAction(
+    String key,
+    Future<bool> Function() action,
+    String successMessage,
+  ) async {
+    if (_processingApplications.contains(key)) return;
+    setState(() {
+      _processingApplications.add(key);
+      _successVisible = false;
+    });
+    var ok = false;
+    try {
+      ok = await action();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingApplications.remove(key);
+          if (ok) {
+            _successMessage = successMessage;
+            _successVisible = true;
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _changeSlots(HelpRequestSectionViewData section) async {
+    final callback = widget.onChangeSlots;
+    if (callback == null) return;
+    final slots = await showDialog<int>(
+      context: context,
+      builder: (_) => _SlotsDialog(
+        initialSlots: section.slotsNeeded,
+        minimumSlots: section.acceptedHelpers.length,
+      ),
+    );
+    if (!mounted || slots == null || slots == section.slotsNeeded) return;
+    await _runTeamAction(
+      section.helpRequestId,
+      () => callback(section.helpRequestId, slots),
+      'Vagas atualizadas.',
+    );
+  }
+
+  Future<void> _closeHelpRequest(HelpRequestSectionViewData section) async {
+    final callback = widget.onCloseHelpRequest;
+    if (callback == null) return;
+    final confirmed = await _confirm(
+      title: 'Fechar pedido de ajuda',
+      message: section.acceptedHelpers.isEmpty
+          ? 'O pedido deixa de aparecer aos outros jardineiros e as '
+              'candidaturas por decidir são recusadas.'
+          : 'O pedido deixa de aparecer aos outros jardineiros. Os ajudantes '
+              'aceites e os candidatos são avisados de que já não são precisos.',
+      confirmLabel: 'Fechar pedido',
+    );
+    if (!confirmed) return;
+    await _runTeamAction(
+      section.helpRequestId,
+      () => callback(section.helpRequestId),
+      'Pedido de ajuda fechado.',
+    );
+  }
+
+  Future<void> _removeHelper(WorkerAcceptedHelperViewData helper) async {
+    final callback = widget.onRemoveHelper;
+    final id = helper.applicationId;
+    if (callback == null || id == null) return;
+    final confirmed = await _confirm(
+      title: 'Retirar da equipa',
+      message: '${helper.name} deixa de fazer parte da equipa e é avisado. '
+          'A vaga volta a ficar aberta.',
+      confirmLabel: 'Retirar',
+    );
+    if (!confirmed) return;
+    await _runTeamAction(id, () => callback(id), 'Ajudante retirado da equipa.');
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    return mounted && confirmed == true;
   }
 
   @override
@@ -253,6 +393,12 @@ class _WorkerHelpRequestsLobbyViewState
                 onViewRatings: widget.onViewRatings,
                 onAccept: _openAcceptSheet,
                 onReject: _reject,
+                onChangeSlots:
+                    widget.onChangeSlots == null ? null : _changeSlots,
+                onCloseHelpRequest:
+                    widget.onCloseHelpRequest == null ? null : _closeHelpRequest,
+                onRemoveHelper:
+                    widget.onRemoveHelper == null ? null : _removeHelper,
               ),
             ),
             Positioned.fill(
@@ -277,6 +423,9 @@ class _LobbyContent extends StatelessWidget {
     required this.onViewRatings,
     required this.onAccept,
     required this.onReject,
+    this.onChangeSlots,
+    this.onCloseHelpRequest,
+    this.onRemoveHelper,
   });
 
   final WorkerHelpLobbyViewData data;
@@ -288,6 +437,9 @@ class _LobbyContent extends StatelessWidget {
 
   final ValueChanged<WorkerHelpCandidateViewData> onAccept;
   final ValueChanged<WorkerHelpCandidateViewData> onReject;
+  final ValueChanged<HelpRequestSectionViewData>? onChangeSlots;
+  final ValueChanged<HelpRequestSectionViewData>? onCloseHelpRequest;
+  final ValueChanged<WorkerAcceptedHelperViewData>? onRemoveHelper;
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +467,9 @@ class _LobbyContent extends StatelessWidget {
               if (data.sections.isEmpty)
                 AppStaggeredEntrance(
                   index: nextIndex(),
-                  child: _NoHelpRequestState(onRequestHelpers: onRequestHelpers),
+                  child: _NoHelpRequestState(
+                    onRequestHelpers: onRequestHelpers,
+                  ),
                 )
               else
                 for (final section in data.sections) ...[
@@ -336,6 +490,20 @@ class _LobbyContent extends StatelessWidget {
                         statusPresentation: section.statusPresentation,
                       ),
                     ),
+                  if (section.canManage &&
+                      (onChangeSlots != null || onCloseHelpRequest != null)) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    _TeamManagementActions(
+                      busy: processingApplications
+                          .contains(section.helpRequestId),
+                      onChangeSlots: onChangeSlots == null
+                          ? null
+                          : () => onChangeSlots!(section),
+                      onClose: onCloseHelpRequest == null
+                          ? null
+                          : () => onCloseHelpRequest!(section),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   if (section.acceptedHelpers.isNotEmpty) ...[
                     const _SectionLabel(label: 'Aceites'),
@@ -347,9 +515,20 @@ class _LobbyContent extends StatelessWidget {
                           index: nextIndex(),
                           child: _AcceptedHelperCard(
                             helper: helper,
+                            removing: helper.applicationId != null &&
+                                processingApplications
+                                    .contains(helper.applicationId),
+                            onRemove: section.canManage &&
+                                    helper.applicationId != null &&
+                                    onRemoveHelper != null
+                                ? () => onRemoveHelper!(helper)
+                                : null,
                             onViewRatings: helper.ratingLabel == null
                                 ? null
-                                : () => onViewRatings(helper.workerId, helper.name),
+                                : () => onViewRatings(
+                                    helper.workerId,
+                                    helper.name,
+                                  ),
                           ),
                         ),
                       ),
@@ -365,12 +544,15 @@ class _LobbyContent extends StatelessWidget {
                           index: nextIndex(),
                           child: _CandidateCard(
                             candidate: candidate,
-                            processing: processingApplications
-                                .contains(candidate.applicationId),
+                            processing: processingApplications.contains(
+                              candidate.applicationId,
+                            ),
                             onViewRatings: candidate.ratingLabel == null
                                 ? null
-                                : () =>
-                                    onViewRatings(candidate.workerId, candidate.name),
+                                : () => onViewRatings(
+                                    candidate.workerId,
+                                    candidate.name,
+                                  ),
                             onAccept: () => onAccept(candidate),
                             onReject: () => onReject(candidate),
                           ),
@@ -382,13 +564,14 @@ class _LobbyContent extends StatelessWidget {
                       section.displayMode !=
                           WorkerHelpSectionDisplayMode.awaitingClientApproval)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm,
+                      ),
                       child: Text(
                         'Sem candidatos ainda.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   const SizedBox(height: AppSpacing.md),
@@ -430,7 +613,9 @@ class _LobbyHeader extends StatelessWidget {
           Expanded(
             child: Text(
               'Equipa',
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+              style: textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],
@@ -462,19 +647,24 @@ class _ResponsibleCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UserAvatarWithName(
-                  name: data.responsibleName.isNotEmpty ? data.responsibleName : 'Tu',
+                  name: data.responsibleName.isNotEmpty
+                      ? data.responsibleName
+                      : 'Tu',
                   avatarUrl: data.responsibleAvatarUrl,
                   radius: 20,
-                  nameStyle:
-                      textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+                  nameStyle: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 Padding(
-                  padding:
-                      const EdgeInsets.only(left: AppSpacing.xl + AppSpacing.md),
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.xl + AppSpacing.md,
+                  ),
                   child: Text(
                     'Responsável · ${data.jobReferenceLabel}',
-                    style: textTheme.labelMedium
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -530,7 +720,9 @@ class _CapacityCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   filledPlacesLabel,
-                  style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               AppStatusBadge.fromPresentation(presentation: statusPresentation),
@@ -543,7 +735,9 @@ class _CapacityCard extends StatelessWidget {
               value: progress.clamp(0.0, 1.0),
               minHeight: 8,
               backgroundColor: AppColors.divider,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
             ),
           ),
         ],
@@ -572,7 +766,10 @@ class _AwaitingApprovalCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.hourglass_bottom_rounded, color: presentation.color.foreground),
+          Icon(
+            Icons.hourglass_bottom_rounded,
+            color: presentation.color.foreground,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -613,10 +810,19 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _AcceptedHelperCard extends StatelessWidget {
-  const _AcceptedHelperCard({required this.helper, required this.onViewRatings});
+  const _AcceptedHelperCard({
+    required this.helper,
+    required this.onViewRatings,
+    this.onRemove,
+    this.removing = false,
+  });
 
   final WorkerAcceptedHelperViewData helper;
   final VoidCallback? onViewRatings;
+
+  /// "Retirar da equipa"; `null` esconde o botão.
+  final VoidCallback? onRemove;
+  final bool removing;
 
   @override
   Widget build(BuildContext context) {
@@ -629,31 +835,64 @@ class _AcceptedHelperCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppStatusColor.success.foreground),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(
-            child: _WorkerSummary(
-              name: helper.name,
-              avatarUrl: helper.avatarUrl,
-              ratingLabel: helper.ratingLabel,
-              equipmentLabel: helper.equipmentLabel,
-              statusPresentation: helper.statusPresentation,
-              onViewRatings: onViewRatings,
-            ),
-          ),
-          if (helper.rateLabel != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                AppStatusBadge.fromPresentation(presentation: helper.statusPresentation),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  helper.rateLabel!,
-                  style: textTheme.titleMedium?.copyWith(color: AppColors.primary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _WorkerSummary(
+                  name: helper.name,
+                  avatarUrl: helper.avatarUrl,
+                  ratingLabel: helper.ratingLabel,
+                  equipmentLabel: helper.equipmentLabel,
+                  statusPresentation: helper.statusPresentation,
+                  onViewRatings: onViewRatings,
+                ),
+              ),
+              if (helper.rateLabel != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    AppStatusBadge.fromPresentation(
+                      presentation: helper.statusPresentation,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      helper.rateLabel!,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
+            ],
+          ),
+          if (helper.phone != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => openWhatsAppOrWarn(context, helper.phone!),
+                icon: const Icon(Icons.chat_outlined),
+                label: const Text('Falar por WhatsApp'),
+              ),
+            ),
+          ],
+          if (onRemove != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: removing ? null : onRemove,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppStatusColor.cancelled.foreground,
+                ),
+                icon: const Icon(Icons.person_remove_outlined),
+                label: Text(removing ? 'A retirar...' : 'Retirar da equipa'),
+              ),
             ),
           ],
         ],
@@ -700,9 +939,14 @@ class _CandidateCard extends StatelessWidget {
               equipmentLabel: candidate.equipmentLabel,
               statusPresentation: candidate.statusPresentation,
               onViewRatings: onViewRatings,
-              trailing:
-                  AppStatusBadge.fromPresentation(presentation: candidate.statusPresentation),
+              trailing: AppStatusBadge.fromPresentation(
+                presentation: candidate.statusPresentation,
+              ),
             ),
+            if (candidate.message != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _CandidateMessage(message: candidate.message!),
+            ],
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
@@ -738,17 +982,180 @@ class _CandidateCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (candidate.actionsBlocked && candidate.blockedReasonLabel != null) ...[
+            if (candidate.actionsBlocked &&
+                candidate.blockedReasonLabel != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 candidate.blockedReasonLabel!,
                 textAlign: TextAlign.center,
-                style:
-                    textTheme.labelMedium?.copyWith(color: AppStatusColor.neutral.foreground),
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppStatusColor.neutral.foreground,
+                ),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Alterar vagas" e "Fechar pedido de ajuda" de uma secção.
+class _TeamManagementActions extends StatelessWidget {
+  const _TeamManagementActions({
+    required this.busy,
+    required this.onChangeSlots,
+    required this.onClose,
+  });
+
+  final bool busy;
+  final VoidCallback? onChangeSlots;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xxs,
+      children: [
+        if (onChangeSlots != null)
+          TextButton.icon(
+            onPressed: busy ? null : onChangeSlots,
+            icon: const Icon(Icons.tune_rounded),
+            label: const Text('Alterar vagas'),
+          ),
+        if (onClose != null)
+          TextButton.icon(
+            onPressed: busy ? null : onClose,
+            style: TextButton.styleFrom(
+              foregroundColor: AppStatusColor.cancelled.foreground,
+            ),
+            icon: const Icon(Icons.block_rounded),
+            label: const Text('Fechar pedido de ajuda'),
+          ),
+      ],
+    );
+  }
+}
+
+/// Escolher o número de vagas (1 a 10, nunca abaixo dos aceites).
+class _SlotsDialog extends StatefulWidget {
+  const _SlotsDialog({required this.initialSlots, required this.minimumSlots});
+
+  final int initialSlots;
+  final int minimumSlots;
+
+  @override
+  State<_SlotsDialog> createState() => _SlotsDialogState();
+}
+
+class _SlotsDialogState extends State<_SlotsDialog> {
+  late final int _min = lobbySlotsMinimum(widget.minimumSlots);
+  late int _slots = widget.initialSlots.clamp(_min, lobbyMaxSlots);
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return AlertDialog(
+      title: const Text('Alterar vagas'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.outlined(
+                onPressed: _slots > _min ? () => setState(() => _slots--) : null,
+                tooltip: 'Menos uma vaga',
+                icon: const Icon(Icons.remove_rounded),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: AnimatedSwitcher(
+                  duration: MediaQuery.of(context).disableAnimations
+                      ? Duration.zero
+                      : AppMotionDuration.fast,
+                  child: Text(
+                    '$_slots',
+                    key: ValueKey(_slots),
+                    style: textTheme.displaySmall
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+              ),
+              IconButton.outlined(
+                onPressed: _slots < lobbyMaxSlots
+                    ? () => setState(() => _slots++)
+                    : null,
+                tooltip: 'Mais uma vaga',
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            widget.minimumSlots > 0
+                ? 'Já tens ${widget.minimumSlots} '
+                    '${widget.minimumSlots == 1 ? 'ajudante aceite' : 'ajudantes aceites'}, '
+                    'por isso não podes ter menos vagas do que isso.'
+                : 'Entre 1 e $lobbyMaxSlots vagas.',
+            textAlign: TextAlign.center,
+            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _slots),
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Máximo de vagas num pedido de ajuda (`update_help_request_slots`, 0049).
+const lobbyMaxSlots = 10;
+
+/// Mínimo de vagas ao alterar: os aceites, e nunca menos de 1.
+int lobbySlotsMinimum(int acceptedCount) =>
+    acceptedCount < 1 ? 1 : (acceptedCount > lobbyMaxSlots ? lobbyMaxSlots : acceptedCount);
+
+/// Mensagem do candidato (`help_acceptances.message`), em bloco citado.
+class _CandidateMessage extends StatelessWidget {
+  const _CandidateMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Mensagem',
+            style: textTheme.labelMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            message,
+            style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
+          ),
+        ],
       ),
     );
   }
@@ -798,8 +1205,9 @@ class _WorkerSummary extends StatelessWidget {
               ? null
               : Text(
                   initial,
-                  style: textTheme.titleMedium
-                      ?.copyWith(color: statusPresentation.color.foreground),
+                  style: textTheme.titleMedium?.copyWith(
+                    color: statusPresentation.color.foreground,
+                  ),
                 ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -809,8 +1217,10 @@ class _WorkerSummary extends StatelessWidget {
             children: [
               Text(
                 displayName,
-                style: textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               if (ratingLabel != null)
                 GestureDetector(
@@ -818,11 +1228,17 @@ class _WorkerSummary extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 12,
+                        color: Colors.amber,
+                      ),
                       const SizedBox(width: 2),
                       Text(
                         ratingLabel!,
-                        style: textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -830,7 +1246,9 @@ class _WorkerSummary extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 equipmentLabel,
-                style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -860,7 +1278,8 @@ class _AcceptHelperBottomSheet extends StatefulWidget {
   final String? Function(String?)? rateValidator;
 
   @override
-  State<_AcceptHelperBottomSheet> createState() => _AcceptHelperBottomSheetState();
+  State<_AcceptHelperBottomSheet> createState() =>
+      _AcceptHelperBottomSheetState();
 }
 
 class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
@@ -871,7 +1290,9 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _rateController = TextEditingController(text: widget.candidate.acceptance.initialRateInput);
+    _rateController = TextEditingController(
+      text: widget.candidate.acceptance.initialRateInput,
+    );
   }
 
   @override
@@ -889,8 +1310,7 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
     try {
       confirmed = await widget.onConfirm(_rateController.text.trim());
     } finally {
-      if (!mounted) return;
-      setState(() => _submitting = false);
+      if (mounted) setState(() => _submitting = false);
     }
 
     if (!mounted || !confirmed) return;
@@ -927,13 +1347,17 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
               const SizedBox(height: AppSpacing.lg),
               Text(
                 'Aceitar candidato',
-                style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 'Confirma a taxa acordada com ${widget.candidate.name}.',
                 textAlign: TextAlign.center,
-                style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Container(
@@ -957,7 +1381,9 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Taxa acordada (€/hora)',
-                  style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -972,21 +1398,29 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     acceptance.estimateLabel!,
-                    style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
               PrimaryActionButton(
-                label: _submitting ? 'A confirmar...' : 'Confirmar e adicionar à equipa',
+                label: _submitting
+                    ? 'A confirmar...'
+                    : 'Confirmar e adicionar à equipa',
                 onPressed: _submitting ? null : _confirm,
               ),
               const SizedBox(height: AppSpacing.xs),
               TextButton(
-                onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
+                onPressed: _submitting
+                    ? null
+                    : () => Navigator.of(context).pop(false),
                 child: Text(
                   'Cancelar',
-                  style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -1021,16 +1455,26 @@ class _RateField extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('€', style: textTheme.titleLarge?.copyWith(color: AppColors.primary)),
+          Text(
+            '€',
+            style: textTheme.titleLarge?.copyWith(color: AppColors.primary),
+          ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: TextFormField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               textInputAction: TextInputAction.done,
               validator: validator,
-              style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+              style: textTheme.titleLarge?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+              ),
             ),
           ),
           Container(
@@ -1044,7 +1488,9 @@ class _RateField extends StatelessWidget {
             ),
             child: Text(
               suggestedRateLabel,
-              style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+              style: textTheme.labelMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -1078,8 +1524,11 @@ class _NoHelpRequestState extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Icon(Icons.group_off_outlined,
-                color: AppStatusColor.neutral.foreground, size: 32),
+            child: Icon(
+              Icons.group_off_outlined,
+              color: AppStatusColor.neutral.foreground,
+              size: 32,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -1091,16 +1540,23 @@ class _NoHelpRequestState extends StatelessWidget {
           Text(
             'Ainda não pediste ajudantes para este pedido.',
             textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton.icon(
             onPressed: onRequestHelpers,
-            icon: const Icon(Icons.group_add_outlined, color: AppColors.primary),
+            icon: const Icon(
+              Icons.group_add_outlined,
+              color: AppColors.primary,
+            ),
             label: Text(
               'Pedir ajudantes',
-              style: textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppColors.divider),
@@ -1174,14 +1630,18 @@ class _LobbyError extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
-                    child: Icon(Icons.cloud_off_outlined,
-                        color: AppStatusColor.cancelled.foreground),
+                    child: Icon(
+                      Icons.cloud_off_outlined,
+                      color: AppStatusColor.cancelled.foreground,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     'Não foi possível carregar a equipa.',
                     textAlign: TextAlign.center,
-                    style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   if (onRetry != null) ...[
                     const SizedBox(height: AppSpacing.md),
@@ -1195,8 +1655,10 @@ class _LobbyError extends StatelessWidget {
                       ),
                       child: Text(
                         'Tentar novamente',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],

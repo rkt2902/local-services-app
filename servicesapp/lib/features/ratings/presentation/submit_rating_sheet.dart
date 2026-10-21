@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_motion_tokens.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/rating_stars_input.dart';
 
@@ -10,10 +12,10 @@ import '../../../core/widgets/rating_stars_input.dart';
 /// Segue o padrão T4 já estabelecido no projeto para submissões (ver
 /// decisions_log.md, "pop → go → snackBar → invalidate"): a sheet fecha-se
 /// a si própria e mostra a confirmação — o caller só invalida os
-/// providers relevantes depois de `showRatingSheet` devolver `true`, nunca
+/// providers relevantes depois de `showSubmitRatingSheet` devolver `true`, nunca
 /// antes. Isto também evita invalidar um provider que o ecrã por trás da
 /// sheet ainda esteja a observar em pleno fecho da modal.
-Future<bool?> showRatingSheet({
+Future<bool?> showSubmitRatingSheet({
   required BuildContext context,
   required String title,
   required String successMessage,
@@ -29,6 +31,7 @@ Future<bool?> showRatingSheet({
     isScrollControlled: true,
     builder: (sheetCtx) {
       bool submitting = false;
+      String? errorText;
       return StatefulBuilder(
         builder: (ctx, setSheetState) {
           final inset = MediaQuery.viewInsetsOf(ctx).bottom;
@@ -86,12 +89,24 @@ Future<bool?> showRatingSheet({
                       alignLabelWithHint: true,
                     ),
                   ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      errorText!,
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: AppStatusColor.cancelled.foreground,
+                          ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: (submitting || selectedStars == 0)
                         ? null
                         : () async {
-                            setSheetState(() => submitting = true);
+                            setSheetState(() {
+                              submitting = true;
+                              errorText = null;
+                            });
                             try {
                               final raw =
                                   commentController.text.trim();
@@ -101,15 +116,13 @@ Future<bool?> showRatingSheet({
                                 Navigator.pop(ctx, true);
                               }
                             } catch (e) {
-                              setSheetState(
-                                  () => submitting = false);
-                              if (ctx.mounted) {
-                                scaffold.showSnackBar(SnackBar(
-                                  content: Text(friendlyError(e)),
-                                  backgroundColor:
-                                      Theme.of(ctx).colorScheme.error,
-                                ));
-                              }
+                              // Erro dentro da sheet: um SnackBar ficava
+                              // escondido por trás dela.
+                              if (!ctx.mounted) return;
+                              setSheetState(() {
+                                submitting = false;
+                                errorText = friendlyError(e);
+                              });
                             }
                           },
                     child: submitting

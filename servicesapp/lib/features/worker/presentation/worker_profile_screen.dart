@@ -12,7 +12,10 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/delete_account_flow.dart';
+import '../../auth/presentation/sign_out_flow.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
@@ -20,32 +23,6 @@ import 'widgets/worker_account_view.dart';
 
 class WorkerProfileScreen extends ConsumerWidget {
   const WorkerProfileScreen({super.key});
-
-  void _showSupportSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Contacto & suporte',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Precisas de ajuda? Escreve-nos para '
-                'suporte@projardim.pt e respondemos o mais depressa possível.',
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showQrDialog(BuildContext context, String url) {
     showDialog(
@@ -158,7 +135,9 @@ class WorkerProfileScreen extends ConsumerWidget {
       onJobsPressed: () => context.go('/worker/jobs'),
       onReviewsPressed: () => context.push('/worker/ratings'),
       onFleetCardPressed: () => context.push('/worker/fleet-card'),
-      onSupportPressed: () => _showSupportSheet(context),
+      onSupportPressed: () => showSupportContactSheet(context),
+      onSignOutPressed: () => confirmAndSignOut(context, ref),
+      onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAboutDialog(
         context: context,
         applicationName: 'ProJardim',

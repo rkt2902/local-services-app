@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'app_page_transitions.dart';
+import 'route_guard.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_content_width.dart';
 import '../../features/auth/application/session_provider.dart';
@@ -12,7 +13,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/auth/presentation/request_password_reset_screen.dart';
 import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
-import '../../features/auth/presentation/email_confirmed_screen.dart';
+import '../../features/auth/presentation/session_error_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
@@ -31,6 +32,7 @@ import '../../features/jobs/presentation/client_job_detail_screen.dart';
 import '../../features/jobs/presentation/client_proposals_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
 import '../../features/jobs/presentation/client_rate_worker_screen.dart';
+import '../../features/jobs/presentation/client_edit_job_screen.dart';
 import '../../features/worker/presentation/worker_profile_screen.dart';
 import '../../features/worker/presentation/worker_edit_profile_screen.dart';
 import '../../features/worker/presentation/worker_public_profile_screen.dart';
@@ -42,6 +44,7 @@ import '../../features/fleet_card/presentation/fleet_card_confirm_data_screen.da
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_screen.dart';
 import '../../features/help_requests/presentation/apply_as_helper_screen.dart';
+import '../../features/help_requests/presentation/worker_helper_job_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
@@ -103,6 +106,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             buildSharedAxisPage(context, state, const ChooseRoleScreen()),
       ),
+      // Sessão aberta mas o perfil não carregou (sem rede): ver
+      // resolveRedirect em route_guard.dart.
+      GoRoute(
+        path: sessionErrorRoute,
+        builder: (_, _) => const SessionErrorScreen(),
+      ),
       // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
       // /forgot-password/reset. Os passos 2-4 (verificar código, nova
       // senha, confirmação) trocam-se dentro de PasswordResetScreen sem
@@ -140,21 +149,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             context,
             state,
             VerifyEmailScreen(email: email),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/email-confirmed',
-        pageBuilder: (context, state) {
-          final params = state.uri.queryParameters;
-          return buildSharedAxisPage(
-            context,
-            state,
-            EmailConfirmedScreen(
-              email: params['email'],
-              tokenHash: params['token_hash'],
-              token: params['token'],
-            ),
           );
         },
       ),
@@ -266,6 +260,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               : buildContainerTransformPage(context, state, child);
         },
       ),
+      // "Editar pedido": só a partir do botão no detalhe de um pedido
+      // `open` (client_job_detail_screen). Passo de um fluxo: shared-axis.
+      GoRoute(
+        path: '/client/job/:id/edit',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          ClientEditJobScreen(jobId: state.pathParameters['id']!),
+        ),
+      ),
       // Só alcançado a partir de client_job_detail_screen (botão "Ver
       // propostas" no fundo do ecrã, ramo `open`) — sem card de lista nem
       // notificação envolvidos.
@@ -284,9 +288,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // proposta) — sem card de lista nem notificação envolvidos.
       GoRoute(
         path: '/client/job/:id/confirmed',
+        // Sem `?workerId=` (link incompleto) vai para o detalhe do pedido,
+        // que mostra o mesmo conteúdo, em vez de rebentar no `!`.
+        redirect: _redirectWithoutWorkerId,
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          final workerId = state.uri.queryParameters['workerId']!;
+          final workerId = state.uri.queryParameters['workerId'] ?? '';
           return buildSharedAxisPage(
             context,
             state,
@@ -296,9 +303,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/client/job/:id/rate-worker',
+        redirect: _redirectWithoutWorkerId,
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
-          final workerId = state.uri.queryParameters['workerId']!;
+          final workerId = state.uri.queryParameters['workerId'] ?? '';
           return buildSharedAxisPage(
             context,
             state,
@@ -319,16 +327,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // Só alcançado a partir de notificações (helpRequestApproved,
-      // helpWithdrew) — sem card in-app que abra este lobby diretamente.
+      // Alcançado pelo cartão "Equipa" de worker_my_job_detail_screen
+      // (extra `fromMyJob`) e por notificações (helpRequestApproved,
+      // helpWithdrew).
       GoRoute(
         path: '/worker/job/:id/help-requests',
         pageBuilder: (context, state) {
           final jobId = state.pathParameters['id']!;
+          final extra = state.extra;
+          final fromMyJob = extra is Map && extra['fromMyJob'] == true;
           return buildSharedAxisPage(
             context,
             state,
-            WorkerHelpRequestsLobbyScreen(jobId: jobId),
+            WorkerHelpRequestsLobbyScreen(jobId: jobId, fromMyJob: fromMyJob),
           );
         },
       ),
@@ -351,7 +362,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/worker/my-job/:id',
         pageBuilder: (context, state) {
           final proposalId = state.pathParameters['id']!;
-          final jobId = state.uri.queryParameters['jobId']!;
+          // Sem `?jobId=` (link antigo/incompleto) o ecrã resolve o pedido a
+          // partir da própria proposta, em vez de rebentar aqui.
+          final jobId = state.uri.queryParameters['jobId'] ?? '';
           final child = WorkerMyJobDetailScreen(
             proposalId: proposalId,
             jobId: jobId,
@@ -390,6 +403,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      // Detalhe de uma candidatura vista pelo ajudante. Origem ambígua:
+      // cartão (board, "As minhas candidaturas") OU notificação.
+      GoRoute(
+        path: '/worker/help/:acceptanceId',
+        pageBuilder: (context, state) {
+          final child = WorkerHelperJobScreen(
+            acceptanceId: state.pathParameters['acceptanceId']!,
+          );
+          return _entryTransitionHint(state) == 'sharedAxis'
+              ? buildSharedAxisPage(context, state, child)
+              : buildContainerTransformPage(context, state, child);
+        },
+      ),
       // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
       // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
       // Cadeia sequencial de fluxo único: shared-axis.
@@ -425,10 +451,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
           GoRoute(path: '/client/jobs', builder: (_, _) => const ClientJobsScreen()),
           GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
-          GoRoute(
-            path: '/client/messages',
-            builder: (_, _) => const _PlaceholderScreen('Mensagens'),
-          ),
+          // Sem /client/messages: não há mensagens dentro da app, o
+          // contacto é só por WhatsApp.
         ],
       ),
       ShellRoute(
@@ -450,10 +474,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          GoRoute(
-            path: '/worker/messages',
-            builder: (_, _) => const _PlaceholderScreen('Mensagens'),
-          ),
+          // Sem /worker/messages: contacto só por WhatsApp.
         ],
       ),
     ],
@@ -471,96 +492,28 @@ class RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, GoRouterState state) {
     final sessionAsync = _ref.read(sessionStatusProvider);
-    final loc = state.matchedLocation;
-
-    if (sessionAsync.isLoading) {
-      // Return null unconditionally — stay on the current route.
-      // Cold start: loc is '/loading', spinner stays while session resolves.
-      // Mid-session: any token-refresh tick leaves the user exactly where they are.
-      // Redirecting to /loading on a transient tick tears down the current widget
-      // tree mid-flight (e.g. while ImagePicker or a network request is awaiting),
-      // causing silent data loss with no error shown. An allowlist (loadingExempt)
-      // is the wrong fix because it must be grown every time a new route adds an
-      // OS async interaction — this unconditional null eliminates the class of bug.
-      return null;
-    }
-
-    final session = sessionAsync.asData?.value;
-    final isAuthenticated = session?.isAuthenticated ?? false;
-    final role = session?.role;
-    final workerProfileComplete = session?.workerProfileComplete ?? false;
-
-    // Onboarding gate: only for unauthenticated visitors, shown at most once.
-    // Authenticated users (with or without role) bypass this entirely — they
-    // have already committed to the app; onboarding is for first-time visitors.
-    if (!isAuthenticated && !loc.startsWith('/w/')) {
-      final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
-      if (onboardingAsync.isLoading) return null;
-      final hasSeen = onboardingAsync.asData?.value ?? false;
-      if (!hasSeen && loc != '/onboarding') return '/onboarding';
-    }
-
-    if (!isAuthenticated) {
-      const publicRoutes = [
-        '/',
-        '/login',
-        '/signup',
-        '/onboarding',
-        '/forgot-password/request',
-        '/forgot-password/reset',
-        '/verify-email',
-        '/email-confirmed',
-      ];
-      if (publicRoutes.contains(loc)) return null;
-      // Cartão digital do worker — visível sem sessão (link/QR partilhado).
-      if (loc.startsWith('/w/')) return null;
-      return '/';
-    }
-
-    // Authenticated but no profile yet (fresh signup, role not chosen)
-    if (role == null) {
-      return loc == '/choose-role' ? null : '/choose-role';
-    }
-
-    // Cross-role guard: prevent client accessing worker routes and vice versa.
-    // P6 (state.extra! crash on direct nav) means cross-role access currently
-    // crashes before rendering — after P6 is fixed (ID-based routing) this
-    // guard becomes the primary protection against silent wrong-role data.
-    if (role.value == 'client' && loc.startsWith('/worker/')) {
-      return '/client/home';
-    }
-    if (role.value == 'worker' && loc.startsWith('/client/')) {
-      return '/worker/home';
-    }
-
-    if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||
-        loc == '/choose-role') {
-      if (role.value == 'worker') {
-        if (workerProfileComplete) return '/worker/home';
-        return '/worker/setup';
-      }
-      return '/client/home';
-    }
-
-    if (role.value == 'worker' && !workerProfileComplete) {
-      // Isenções de sub-fluxo: um worker recém-registado com perfil ainda
-      // incompleto passa por /verify-email antes de chegar a
-      // /worker/setup — sem esta isenção o guard empurrava-o para
-      // /worker/setup assim que sessionStatusProvider terminava de
-      // recarregar (ver verify_email_screen.dart), fazendo o ecrã piscar
-      // e desaparecer sozinho. /email-confirmed fica isento pela mesma
-      // razão (alvo do deep link futuro, também alcançável nesta janela).
-      const workerSetupExemptRoutes = [
-        '/worker/setup',
-        '/verify-email',
-        '/email-confirmed',
-      ];
-      if (workerSetupExemptRoutes.contains(loc)) return null;
-      return '/worker/setup';
-    }
-
-    return null;
+    final session = sessionAsync.isLoading
+        ? null
+        : (sessionAsync.asData?.value ?? SessionStatus.unauthenticated);
+    final onboardingAsync = _ref.read(hasSeenOnboardingProvider);
+    final hasSeenOnboarding = onboardingAsync.isLoading
+        ? null
+        : (onboardingAsync.asData?.value ?? false);
+    return resolveRedirect(
+      location: state.matchedLocation,
+      session: session,
+      hasSeenOnboarding: hasSeenOnboarding,
+      uri: state.uri,
+    );
   }
+}
+
+/// Rotas de cliente que precisam de `?workerId=`: sem ele, vão para o
+/// detalhe do próprio pedido.
+String? _redirectWithoutWorkerId(BuildContext context, GoRouterState state) {
+  final workerId = state.uri.queryParameters['workerId'] ?? '';
+  if (workerId.isNotEmpty) return null;
+  return '/client/job/${state.pathParameters['id']}';
 }
 
 /// Hint opcional em `extra` para escolher a transição de entrada nas
@@ -572,16 +525,4 @@ String? _entryTransitionHint(GoRouterState state) {
   final extra = state.extra;
   if (extra is Map) return extra['entryTransition'] as String?;
   return null;
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Em breve.')),
-      );
 }

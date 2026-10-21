@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/router/app_back_navigation.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../auth/application/auth_providers.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../application/worker_providers.dart';
 
 /// Perfil público mínimo do worker — acessível via link/QR partilhado a
@@ -22,6 +28,13 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cardAsync = ref.watch(workerPublicCardProvider(workerId));
     final textTheme = Theme.of(context).textTheme;
+    // Visitante sem conta (link/QR partilhado): voltar leva ao início
+    // público e há um convite para criar conta.
+    final isVisitor = ref.watch(currentUserIdProvider) == null;
+
+    void back() => isVisitor
+        ? goBackOr(context, '/')
+        : goBackOrToRoleHome(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -29,11 +42,35 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          onPressed: back,
+          tooltip: 'Voltar',
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
+        ),
         title: Text(
           'Perfil',
           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         ),
       ),
+      bottomNavigationBar: isVisitor
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
+                child: PrimaryActionButton(
+                  label: 'Criar conta',
+                  onPressed: () => context.go('/signup'),
+                ),
+              ),
+            )
+          : null,
       body: cardAsync.when(
         loading: () => const AppScreenLoadingSkeleton(),
         error: (e, _) => Center(child: Text(friendlyError(e))),
@@ -96,7 +133,7 @@ class WorkerPublicProfileScreen extends ConsumerWidget {
                       const SizedBox(width: AppSpacing.xxs),
                       Text(
                         card.ratingCount > 0
-                            ? '${card.avgRating.toStringAsFixed(1)} (${card.ratingCount})'
+                            ? '${decimalLabel(card.avgRating, 1)} (${card.ratingCount})'
                             : 'Sem avaliações ainda',
                         style: textTheme.bodyMedium
                             ?.copyWith(color: AppColors.textSecondary),

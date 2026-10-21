@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/phone_utils.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_password_strength_meter.dart';
@@ -49,15 +50,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       fullName: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
+      phone: phoneForStorage(_phoneController.text),
     );
     if (!mounted) return;
     final currentState = ref.read(authControllerProvider);
     if (currentState is! AuthSuccess) return;
     ref.read(pendingSignupProvider.notifier).set(
       _nameController.text.trim(),
-      _phoneController.text.trim(),
+      phoneForStorage(_phoneController.text),
     );
+    if (currentState.needsEmailConfirmation) {
+      final email = Uri.encodeComponent(_emailController.text.trim());
+      context.go('/verify-email?email=$email');
+      return;
+    }
     context.go('/choose-role');
   }
 
@@ -111,7 +117,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         label: 'Nome completo',
                         autofillHints: const [AutofillHints.name],
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Introduza o nome completo.'
+                            ? 'Introduz o nome completo.'
                             : null,
                       ),
                       const SizedBox(height: 14),
@@ -122,7 +128,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         autofillHints: const [AutofillHints.email],
                         validator: (v) {
                           final text = v?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduza o email.';
+                          if (text.isEmpty) return 'Introduz o email.';
                           if (!text.contains('@')) return 'Email inválido.';
                           return null;
                         },
@@ -131,11 +137,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       AppTextField(
                         controller: _phoneController,
                         label: 'Telemóvel',
+                        hintText: '912 345 678',
                         keyboardType: TextInputType.phone,
                         autofillHints: const [AutofillHints.telephoneNumber],
-                        validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Introduza o telemóvel.'
-                            : null,
+                        validator: (v) => phoneValidator(
+                          v,
+                          emptyMessage: 'Introduz o telemóvel.',
+                        ),
                       ),
                       const SizedBox(height: 14),
                       AppTextField(

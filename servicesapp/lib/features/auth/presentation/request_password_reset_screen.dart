@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_back_navigation.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -49,16 +51,26 @@ class _RequestPasswordResetScreenState
 
   String? _validateEmail(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Introduza o email.';
+    if (text.isEmpty) return 'Introduz o email.';
     if (!text.contains('@')) return 'Email inválido.';
     return null;
   }
 
-  void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    ref
-        .read(passwordResetControllerProvider.notifier)
-        .requestReset(_emailController.text.trim());
+  /// Navega uma só vez, aqui, depois do pedido. Antes um `ref.listen` no
+  /// `build` reagia a QUALQUER `PasswordResetSuccess`, incluindo o da
+  /// verificação do código no passo seguinte (mesmo controller), e
+  /// empilhava um segundo `/forgot-password/reset`.
+  Future<void> _submit() async {
+    // No ecrã de erro o formulário não está montado (currentState null):
+    // "Tentar novamente" reenvia o email que já estava escrito.
+    final form = _formKey.currentState;
+    if (form != null && !form.validate()) return;
+    final email = _emailController.text.trim();
+    await ref.read(passwordResetControllerProvider.notifier).requestReset(email);
+    if (!mounted) return;
+    if (ref.read(passwordResetControllerProvider) is PasswordResetSuccess) {
+      context.push('/forgot-password/reset?email=${Uri.encodeComponent(email)}');
+    }
   }
 
   @override
@@ -67,17 +79,21 @@ class _RequestPasswordResetScreenState
     final resetState = ref.watch(passwordResetControllerProvider);
     final isSubmitting = resetState is PasswordResetLoading;
 
-    ref.listen<PasswordResetState>(passwordResetControllerProvider, (prev, next) {
-      if (next is PasswordResetSuccess) {
-        final email = _emailController.text.trim();
-        context.push('/forgot-password/reset?email=${Uri.encodeComponent(email)}');
-      }
-    });
-
     if (resetState is PasswordResetError) {
+      // Com saída: "Voltar" limpa o erro e regressa ao formulário.
+      void backToForm() =>
+          ref.read(passwordResetControllerProvider.notifier).reset();
       return resetState.kind == PasswordResetErrorKind.network
-          ? AppSystemStateScreen.noInternet(onRetry: _submit)
-          : AppSystemStateScreen.genericError(onRetry: _submit);
+          ? AppSystemStateScreen.noInternet(
+              onRetry: _submit,
+              secondaryActionLabel: 'Voltar',
+              onSecondaryAction: backToForm,
+            )
+          : AppSystemStateScreen.genericError(
+              onRetry: _submit,
+              secondaryActionLabel: 'Voltar',
+              onSecondaryAction: backToForm,
+            );
     }
 
     return Scaffold(
@@ -85,7 +101,10 @@ class _RequestPasswordResetScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _Header(title: 'Recuperar senha', onBack: () => context.pop()),
+            _Header(
+              title: 'Recuperar senha',
+              onBack: () => goBackOr(context, '/login'),
+            ),
             Expanded(
               child: Form(
                 key: _formKey,
@@ -110,7 +129,7 @@ class _RequestPasswordResetScreenState
                       AppStaggeredEntrance(
                         index: 1,
                         child: Text(
-                          'Esqueceu-se da senha?',
+                          'Esqueceste-te da senha?',
                           textAlign: TextAlign.center,
                           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                         ),
@@ -119,7 +138,7 @@ class _RequestPasswordResetScreenState
                       AppStaggeredEntrance(
                         index: 2,
                         child: Text(
-                          'Indique o email da sua conta. Se estiver registado, '
+                          'Indica o email da tua conta. Se estiver registado, '
                           'enviamos um código para confirmar.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),

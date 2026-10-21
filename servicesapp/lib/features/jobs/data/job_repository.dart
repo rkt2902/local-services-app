@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/picked_photo.dart';
 import 'job_model.dart';
+import '../../../core/config/storage_urls.dart';
 
 class JobRepository {
   const JobRepository(this._client);
@@ -148,6 +149,38 @@ class JobRepository {
     return result as String?;
   }
 
+  /// Editar um pedido ainda `open` (RPC `update_job_request`, migration
+  /// 0049). Só o próprio cliente: a identidade vem de `auth.uid()` dentro
+  /// da função, nunca daqui. Os jardineiros com proposta pendente são
+  /// avisados pelo servidor. As fotos não mudam.
+  Future<void> updateJobRequest({
+    required String jobId,
+    required String description,
+    required DateMode dateMode,
+    DateTime? preferredDate,
+    String? availabilityText,
+    required String addressText,
+    required double locationLat,
+    required double locationLng,
+    String? locationArea,
+  }) async {
+    await _client.rpc('update_job_request', params: {
+      'p_job_id': jobId,
+      'p_description': description,
+      'p_date_mode': dateMode.value,
+      'p_preferred_date': dateMode == DateMode.fixed && preferredDate != null
+          ? preferredDate.toIso8601String().substring(0, 10)
+          : null,
+      'p_availability_text':
+          dateMode == DateMode.availability ? availabilityText : null,
+      'p_address_text': addressText,
+      'p_location_lat': locationLat,
+      'p_location_lng': locationLng,
+      'p_location_area':
+          locationArea == null || locationArea.isEmpty ? null : locationArea,
+    });
+  }
+
   Future<void> proposeReschedule({
     required String jobId,
     required DateTime newDate,
@@ -207,7 +240,8 @@ class JobRepository {
     if (data == null) return {'full_name': '', 'avatar_url': ''};
     return {
       'full_name': data['client_name'] as String? ?? '',
-      'avatar_url': data['client_avatar_url'] as String? ?? '',
+      'avatar_url':
+          StorageUrls.trustedOrEmpty(data['client_avatar_url'] as String?),
     };
   }
 }

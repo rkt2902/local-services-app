@@ -41,6 +41,9 @@ final ratingRepositoryProvider = Provider<RatingRepository>(
 /// rating action exists per job.
 final myRatingForJobProvider =
     FutureProvider.family<Rating?, String>((ref, jobId) {
+  // Sem autoDispose: ligado ao utilizador para não mostrar a avaliação de
+  // outra conta depois de terminar sessão.
+  ref.watch(currentUserIdProvider);
   return ref.read(ratingRepositoryProvider).fetchMyRatingForJob(jobId);
 });
 
@@ -48,6 +51,7 @@ final myRatingForJobProvider =
 /// current user. Used by the principal, who rates each participant separately.
 final myRatingForJobAndRateeProvider =
     FutureProvider.family<Rating?, (String, String)>((ref, args) {
+  ref.watch(currentUserIdProvider);
   final (jobId, rateeId) = args;
   return ref
       .read(ratingRepositoryProvider)

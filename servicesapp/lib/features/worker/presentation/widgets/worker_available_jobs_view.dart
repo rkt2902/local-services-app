@@ -87,7 +87,6 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
     required this.serviceTypeIconOf,
     required this.onJobPressed,
     required this.onSearchChanged,
-    required this.onFiltersPressed,
     required this.onFiltersChanged,
     required this.onDistancePressed,
     super.key,
@@ -101,6 +100,7 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
     this.jobsErrorMessage,
     this.onRetryJobs,
     this.appBarActions,
+    this.onFiltersPressed,
   });
 
   final List<WorkerAvailableJobViewData> jobs;
@@ -117,7 +117,9 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
 
   final ValueChanged<String> onJobPressed;
   final ValueChanged<String> onSearchChanged;
-  final VoidCallback onFiltersPressed;
+  /// Botão "Filtros" (filtros extra). `null` esconde o botão: hoje os
+  /// filtros úteis já estão nos chips ao lado.
+  final VoidCallback? onFiltersPressed;
   final ValueChanged<WorkerAvailableJobsFilters> onFiltersChanged;
   final VoidCallback onDistancePressed;
 
@@ -301,47 +303,49 @@ class _WorkerAvailableJobsScreenState<TServiceType>
                   horizontal: AppSpacing.lg,
                 ),
                 children: [
-                  FilledButton.icon(
-                    onPressed: widget.onFiltersPressed,
-                    style: ButtonStyle(
-                      elevation: const WidgetStatePropertyAll(0),
-                      backgroundColor:
-                          WidgetStateProperty.resolveWith<Color>(
-                        (states) {
-                          if (states.contains(WidgetState.pressed)) {
-                            return AppColors.primaryPressed;
-                          }
+                  if (widget.onFiltersPressed != null) ...[
+                    FilledButton.icon(
+                      onPressed: widget.onFiltersPressed,
+                      style: ButtonStyle(
+                        elevation: const WidgetStatePropertyAll(0),
+                        backgroundColor:
+                            WidgetStateProperty.resolveWith<Color>(
+                          (states) {
+                            if (states.contains(WidgetState.pressed)) {
+                              return AppColors.primaryPressed;
+                            }
 
-                          return AppColors.primary;
-                        },
-                      ),
-                      foregroundColor:
-                          const WidgetStatePropertyAll(
-                        AppColors.surface,
-                      ),
-                      padding: const WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
+                            return AppColors.primary;
+                          },
                         ),
-                      ),
-                      shape: WidgetStatePropertyAll(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.pill,
+                        foregroundColor:
+                            const WidgetStatePropertyAll(
+                          AppColors.surface,
+                        ),
+                        padding: const WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
                           ),
                         ),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.pill,
+                            ),
+                          ),
+                        ),
+                        textStyle: WidgetStatePropertyAll(
+                          textTheme.labelMedium,
+                        ),
                       ),
-                      textStyle: WidgetStatePropertyAll(
-                        textTheme.labelMedium,
+                      icon: const Icon(
+                        Icons.tune_rounded,
+                        size: 18,
                       ),
+                      label: const Text('Filtros'),
                     ),
-                    icon: const Icon(
-                      Icons.tune_rounded,
-                      size: 18,
-                    ),
-                    label: const Text('Filtros'),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
                   AppFilterChip(
                     label: categoryLabel,
                     trailingIcon: Icons.keyboard_arrow_down_rounded,
