@@ -7,6 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_legal_links.dart';
 import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/delete_account_flow.dart';
@@ -105,6 +106,8 @@ class ClientProfileScreen extends ConsumerWidget {
       onJobsPressed: () => context.go('/client/jobs'),
       onReviewsPressed: () => context.push('/client/ratings'),
       onSupportPressed: () => showSupportContactSheet(context),
+      onTermsPressed: () => openTermsOfUse(context),
+      onPrivacyPressed: () => openPrivacyPolicy(context),
       onSignOutPressed: () => confirmAndSignOut(context, ref),
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAboutDialog(

@@ -3,46 +3,13 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-10-21 — Pedidos de ajuda no dia do trabalho, avisos novos, logo e splash
+## 2026-10-21 — Termos e Política de Privacidade no Google Docs
 
-- **Pedidos de ajuda fecham no dia do trabalho (0054).** A partir da data confirmada (dia em
-  Portugal) deixam de aparecer na descoberta e de aceitar candidaturas, o responsável já não
-  pede ajudantes e não aceita candidatos, e o cliente já não aprova. O cron de hora a hora
-  fecha os que ficaram abertos: pendentes recusados e avisados, equipa fica com os aceites
-  (`filled`, vagas = aceites) ou o pedido é cancelado; aviso `help_request_closed` ao
-  responsável. Os pedidos que nascem abertos em `accept_proposal` não fazem falhar a
-  aceitação no próprio dia: ficam escondidos e o cron fecha-os. Triggers em vez de reescrever
-  `approve_help_request`/`accept_help_candidate`.
-- **Avisos só a quem faz o serviço.** `new_job_in_radius` e o novo
-  `new_help_request_in_radius` vão para jardineiros no raio que oferecem o serviço, ou que
-  ainda não escolheram serviços (para não ficarem sem avisos). Texto em "tu".
-- **Foto dos ajudantes no cartão "Equipa"**: `get_accepted_helpers_for_job` devolve
-  `avatar_url` (DROP + CREATE, a forma muda).
-- **Ícone e splash com o logo** (pedido do Henrique, substitui a decisão antiga "sem
-  splash"): `flutter_launcher_icons` (ícone adaptativo verde com a folha branca) e
-  `flutter_native_splash` (fundo branco, logo a 128 dp; Android 12 com o círculo verde). O
-  ecrã `/loading` mostra o mesmo logo (`AppLaunchScreen`) em vez de um spinner. Para mudar o
-  logo: trocar os PNG em `assets/branding/` e correr `dart run flutter_launcher_icons` e
-  `dart run flutter_native_splash:create`.
-- **Push com o estilo da app**: ícone pequeno `ic_stat_projardim` (folha branca) e cor
-  `#2E7D32`, no AndroidManifest (por omissão) e no `send-push` (precisa de novo deploy).
-
-## 2026-10-21 — Bugs: avisos no topo, OTP, login e recuperação de senha
-
-- **Avisos no topo (`AppToast`)** em vez da SnackBar do Material, que fica sempre em baixo,
-  por cima dos botões de ação. Vive no Overlay do navigator raiz (sobrevive a `go`/`pop`,
-  regra T4 igual: guardar `AppToast.of(context)` antes de navegar). Dois tons, `show`
-  (verde) e `error` (vermelho); um aviso novo substitui o anterior; fecha sozinho em 4 s,
-  com toque ou a arrastar para cima. As 76 chamadas a `showSnackBar` foram migradas.
-- **Recuperação de senha mandava para o início** logo depois do código: o passo 1 abria o
-  passo 2 com `push`, e quando a sessão de recuperação aparece o go_router reavalia o
-  redirect com o URI da BASE da pilha (`/login`), que com sessão vai para o início do papel.
-  Agora é `go`, e `resolveRedirect` nunca redireciona `/forgot-password/reset` com sessão
-  (cobre também jardineiro com perfil incompleto e conta sem papel).
-- **OTP:** as 6 caixas tinham 48 de largura fixa e transbordavam em ecrãs estreitos ou com
-  o tamanho de ecrã/letra aumentado; agora encolhem.
-- **Login e confirmar email:** o rodapé ("Não tens conta?", "Já tens conta com este email?")
-  esconde-se com o teclado aberto, em vez de subir colado a ele por cima do "Entrar".
+- **Porquê:** a Meta e o Google pedem os URLs no ecrã de consentimento e ainda não há site.
+- **Como:** `AppLinks.termsUrl`/`privacyPolicyUrl` com os Google Docs publicados por
+  omissão (`--dart-define=TERMS_URL`/`PRIVACY_POLICY_URL` para mudar), abertos no browser
+  por `app_legal_links.dart`. `AppLegalConsentText` é a frase com toque, partilhada pelo
+  registo e pelo login social. Email de suporte por omissão passa a `projardim26@gmail.com`.
 
 ## 2026-10-21 — Botão do Facebook escondido por omissão
 

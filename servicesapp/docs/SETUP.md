@@ -166,7 +166,11 @@ Detalhe extra em `docs/web.md`, secção 2.
   - [ ] `SUPABASE_ANON_KEY`
 - [ ] Opcional, no mesmo sítio mas no separador **Variables** (não são secretas):
   - `SUPPORT_EMAIL`: o email que aparece em "Contacto e suporte". Sem ela fica
-    `suporte@projardim.pt`. Só a cries quando esse email existir de verdade (passo 5).
+    `projardim26@gmail.com`. Só a mudes quando houver um email no domínio (passo 5).
+  - Os Termos e a Política de Privacidade abrem as versões publicadas no Google Docs.
+    Quando houver site, mudam com `--dart-define=TERMS_URL=...` e
+    `--dart-define=PRIVACY_POLICY_URL=...` (ou o valor por omissão em
+    `core/config/app_links.dart`).
   - `APP_PUBLIC_URL`: deixa vazia por agora. Na web a app já usa o próprio endereço.
     Só se define no passo 5.
 

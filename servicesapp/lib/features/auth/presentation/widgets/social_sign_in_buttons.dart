@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_legal_links.dart';
 
 /// "Continuar com Google" e "Continuar com Facebook", no login e no
 /// registo. Quem entra pela primeira vez assim não passa pela caixa dos
@@ -56,7 +57,7 @@ class SocialSignInButtons extends StatelessWidget {
 }
 
 /// "Ao continuar com Google ou Facebook aceitas os Termos e a Política de
-/// Privacidade.", com os dois nomes a verde (design U5).
+/// Privacidade.", com os dois nomes a verde e com toque (design U5).
 class _LegalNotice extends StatelessWidget {
   const _LegalNotice({required this.withFacebook});
 
@@ -64,25 +65,14 @@ class _LegalNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final small = Theme.of(context).textTheme.bodySmall;
-    final link = small?.copyWith(
-      color: AppColors.primaryPressed,
-      fontWeight: FontWeight.w700,
-    );
-    return Text.rich(
-      TextSpan(
-        style: small?.copyWith(color: AppColors.textSecondary),
-        children: [
-          TextSpan(
-              text: withFacebook
-                  ? 'Ao continuar com Google ou Facebook aceitas os '
-                  : 'Ao continuar com Google aceitas os '),
-          TextSpan(text: 'Termos', style: link),
-          const TextSpan(text: ' e a '),
-          TextSpan(text: 'Política de Privacidade', style: link),
-          const TextSpan(text: '.'),
-        ],
-      ),
+    return AppLegalConsentText(
+      prefix: withFacebook
+          ? 'Ao continuar com Google ou Facebook aceitas os '
+          : 'Ao continuar com Google aceitas os ',
+      style: Theme.of(context)
+          .textTheme
+          .bodySmall
+          ?.copyWith(color: AppColors.textSecondary),
       textAlign: TextAlign.center,
     );
   }

@@ -8,6 +8,12 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-21, Termos e Política de Privacidade:** publicados no Google Docs e ligados na
+app: "Termos" e "Política de Privacidade" têm toque na caixa do registo e na frase do login
+social, e a conta dos dois papéis tem as entradas "Termos de utilização" e "Política de
+Privacidade" (abrem no browser). Email de suporte por omissão: `projardim26@gmail.com`.
+Os textos são um rascunho sem dados da empresa (falta revisão jurídica). Sem migration.
+
 **2026-10-18, login com Google e Facebook:** botões "Continuar com Google/Facebook" no
 login e no registo, pelo OAuth do Supabase (`signInWithOAuth`), na web e nas apps (deep
 link `pt.projardim.app://login-callback`). Conta nova escolhe o papel e escreve só o

@@ -37,6 +37,8 @@ class ClientAccountScreen extends StatelessWidget {
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
+    required this.onTermsPressed,
+    required this.onPrivacyPressed,
     required this.onSignOutPressed,
     required this.onDeleteAccountPressed,
     super.key,
@@ -50,6 +52,8 @@ class ClientAccountScreen extends StatelessWidget {
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
+  final VoidCallback onTermsPressed;
+  final VoidCallback onPrivacyPressed;
   final VoidCallback onSignOutPressed;
   final VoidCallback onDeleteAccountPressed;
 
@@ -120,6 +124,16 @@ class ClientAccountScreen extends StatelessWidget {
                     label: 'Sobre a ProJardim',
                     icon: Icons.info_outline_rounded,
                   ),
+                  const AppAccountMenuItem(
+                    id: 'terms',
+                    label: 'Termos de utilização',
+                    icon: Icons.description_outlined,
+                  ),
+                  const AppAccountMenuItem(
+                    id: 'privacy',
+                    label: 'Política de Privacidade',
+                    icon: Icons.privacy_tip_outlined,
+                  ),
                 ],
                 onItemPressed: (id) {
                   switch (id) {
@@ -133,6 +147,10 @@ class ClientAccountScreen extends StatelessWidget {
                       onSupportPressed();
                     case 'about':
                       onAboutPressed();
+                    case 'terms':
+                      onTermsPressed();
+                    case 'privacy':
+                      onPrivacyPressed();
                   }
                 },
               ),
