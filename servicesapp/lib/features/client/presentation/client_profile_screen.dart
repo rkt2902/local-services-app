@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
+import '../../../core/widgets/app_about_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_legal_links.dart';
 import '../../../core/widgets/app_support_sheet.dart';
@@ -110,17 +111,7 @@ class ClientProfileScreen extends ConsumerWidget {
       onPrivacyPressed: () => openPrivacyPolicy(context),
       onSignOutPressed: () => confirmAndSignOut(context, ref),
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
-      onAboutPressed: () => showAboutDialog(
-        context: context,
-        applicationName: 'ProJardim',
-        applicationVersion: '1.0.0',
-        children: const [
-          Text(
-            'Marketplace de serviços de jardinagem. Liga clientes a '
-            'jardineiros na tua zona.',
-          ),
-        ],
-      ),
+      onAboutPressed: () => showAppAboutDialog(context),
     );
   }
 }

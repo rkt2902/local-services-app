@@ -12,6 +12,7 @@
   app); o controlador do comentário vive no estado da folha.
 - **Perfil do jardineiro nas propostas**: fundo cinzento da app em vez do verde do Material,
   cartão do topo com foto, zona, nota e serviços.
+- **"Sobre a ProJardim"** com o logo, a versão, Termos, Privacidade e licenças (`AppAboutDialog`), em vez do `showAboutDialog` do Material em inglês.
 - **Email de suporte**: um `SUPPORT_EMAIL` que não é um email (o site mostrava "Noth") cai no
   email por omissão.
 

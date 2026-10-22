@@ -83,6 +83,9 @@ abstract final class AppSizes {
 
   /// Logo do ecrã de arranque (`/loading`), a seguir ao splash nativo.
   static const double launchLogo = 128.0;
+
+  /// Logo no diálogo "Sobre a ProJardim".
+  static const double aboutLogo = 72.0;
   static const double heroIcon = 28.0;
   static const double infoRowIcon = 20.0;
 

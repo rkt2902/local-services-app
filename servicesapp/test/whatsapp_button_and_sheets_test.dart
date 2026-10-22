@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servicesapp/core/widgets/app_about_dialog.dart';
 import 'package:servicesapp/core/widgets/app_whatsapp_button.dart';
 import 'package:servicesapp/features/ratings/presentation/submit_rating_sheet.dart';
 
@@ -62,5 +63,31 @@ void main() {
     expect(sent, 5);
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('Sobre a ProJardim em português, com logo e links',
+      (tester) async {
+    var licenses = 0;
+    var closed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppAboutDialog(
+            onClose: () => closed++,
+            onTerms: () {},
+            onPrivacy: () {},
+            onLicenses: () => licenses++,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Versão $appVersionLabel'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('View licenses'), findsNothing);
+    await tester.tap(find.text('Licenças de software'));
+    await tester.tap(find.text('Fechar'));
+    expect(licenses, 1);
+    expect(closed, 1);
   });
 }
