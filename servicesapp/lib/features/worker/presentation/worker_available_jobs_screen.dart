@@ -11,6 +11,8 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../auth/application/auth_providers.dart';
+import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -93,6 +95,15 @@ class _WorkerAvailableJobsScreenState
     });
   }
 
+  /// Pedido direto (0057) ainda reservado a este jardineiro. O servidor só
+  /// manda `direct_worker_id` ao próprio.
+  bool _isDirectForMe(JobRequest job) {
+    final myId = ref.read(currentUserIdProvider);
+    return job.isDirectWaiting &&
+        myId != null &&
+        job.directWorkerId == myId;
+  }
+
   List<view.WorkerAvailableJobViewData> _visibleJobs(
     List<JobRequest> allJobs,
     List<ServiceType> serviceTypes,
@@ -131,6 +142,8 @@ class _WorkerAvailableJobsScreenState
     if (_radiusOverrideKm != null && workerProfile != null) {
       final radiusMeters = _radiusOverrideKm! * 1000;
       filtered = filtered.where((job) {
+        // O pedido só para mim aparece sempre, venha de onde vier.
+        if (_isDirectForMe(job)) return true;
         final distanceMeters = Geolocator.distanceBetween(
           workerProfile.baseLat,
           workerProfile.baseLng,
@@ -181,8 +194,13 @@ class _WorkerAvailableJobsScreenState
       );
     }
 
+    final directUntil = job.directUntil;
     return view.WorkerAvailableJobViewData(
       id: job.id,
+      directTagLabel: _isDirectForMe(job) && directUntil != null
+          ? 'Pedido só para ti · '
+              '${directTimeLeftLabel(directUntil, DateTime.now())}'
+          : null,
       title: serviceType?.name ?? '',
       locationLabel: locationLabel,
       scheduleLabel: scheduleLabel,

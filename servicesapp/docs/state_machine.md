@@ -80,6 +80,20 @@
 | 16 | Marcado concluído, 3 dias sem confirmação | Sistema | `auto_confirm_completed_jobs` (cron) | Os dois → `job_completed` | `completed` | `accepted` |
 | — | Lembretes (0046): manhã do dia, data passada, conclusão por confirmar | Sistema | `send_job_reminders` (cron) | `job_reminder` | inalterado | inalterado |
 
+## Pedido direto (0057, `direct_status`)
+
+O pedido continua `open` em `job_status`; a reserva vive em `direct_status`. Enquanto
+`waiting` e antes de `direct_until`, só o jardineiro escolhido vê o pedido e pode propor.
+
+| # | Transição | Quem | RPC | Notifica | direct_status |
+|---|---|---|---|---|---|
+| D1 | "Pedir de novo" (INSERT com `direct_source_job_id`) | Cliente | — (trigger valida e reserva 24h) | Escolhido → `direct_job_request` | `waiting` |
+| D2 | "Não posso desta vez" (ou retirar a proposta) | Jardineiro escolhido | `decline_direct_job_request` | Workers no raio → `new_job_in_radius`; cliente → `direct_request_released` | `declined` (fica em `excluded_worker_ids`) |
+| D3 | 24h sem proposta | Sistema | `expire_direct_job_requests` (cron 5 min) | Workers no raio; cliente → `direct_request_released` | `expired` |
+| D4 | "Mostrar já a todos" ou recusar a proposta do escolhido | Cliente | `release_direct_job_request` / `reject_proposal` | Workers no raio | `released` |
+
+Ao abrir a todos, `expires_at` passa a pelo menos agora + 48h.
+
 ## Transições de equipa de ajudantes (Fase 9)
 
 | # | Transição | Quem | RPC | Notifica | help_request_status | help_acceptance_status |
@@ -150,6 +164,8 @@
 | `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider`, `myHelpAcceptancesProvider` |
 | `help_request_reopened` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
 | `help_withdrew` | `helpRequestsForJobProvider` |
+| `direct_job_request` (0057) | igual a `new_job_in_radius` |
+| `direct_request_released` (0057) | igual a `job_no_response` |
 
 > **`myHelpAcceptancesProvider` — invalidação:** invalidado por `notificationSyncProvider`
 > para `help_accepted`, `help_rejected` e `help_job_cancelled` (ver tabela acima).

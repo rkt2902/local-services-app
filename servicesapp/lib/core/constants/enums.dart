@@ -230,3 +230,30 @@ enum SizeEstimate {
 
   static SizeEstimate fromString(String value) => fromValue(value);
 }
+
+/// Pedido direto ("Pedir de novo", migration 0057): estado da reserva do
+/// pedido para o jardineiro escolhido. Não é um estado do pedido (esse
+/// continua a ser [JobStatus.open]); `null` num pedido normal.
+enum DirectRequestStatus {
+  /// Só o jardineiro escolhido vê o pedido, até `direct_until`.
+  waiting,
+
+  /// O jardineiro disse "Não posso desta vez" (ou retirou a proposta).
+  declined,
+
+  /// Passaram as 24 horas sem acabar de outra forma.
+  expired,
+
+  /// O cliente abriu a todos ("Mostrar já a todos" ou recusou a proposta).
+  released;
+
+  String get value => name;
+
+  static DirectRequestStatus? fromString(String? value) => switch (value) {
+        'waiting' => DirectRequestStatus.waiting,
+        'declined' => DirectRequestStatus.declined,
+        'expired' => DirectRequestStatus.expired,
+        'released' => DirectRequestStatus.released,
+        _ => null,
+      };
+}

@@ -8,6 +8,15 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-22, Pedir de novo ao mesmo jardineiro (design A5, migration 0057 por aplicar):**
+no trabalho concluído o cliente tem "Pedir de novo a {nome}" (cartão só sem avaliação ou
+com 4 ou 5 estrelas); o pedido vem preenchido e só pede a data. Durante 24h só esse
+jardineiro o vê ("Pedido só para ti · faltam X h", cartão com o histórico, "Não posso
+desta vez"); depois, se recusar, não responder ou o cliente tocar em "Mostrar já a todos",
+abre a todos na zona. Início do cliente com "Os teus jardineiros". Antes da 0057 aplicada
+estas entradas dão erro ou não aparecem. O "Não voltar a mostrar" da explicação fica só
+no aparelho.
+
 **2026-10-21, Termos e Política de Privacidade:** publicados no Google Docs e ligados na
 app: "Termos" e "Política de Privacidade" têm toque na caixa do registo e na frase do login
 social, e a conta dos dois papéis tem as entradas "Termos de utilização" e "Política de

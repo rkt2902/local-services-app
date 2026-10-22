@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../worker/application/worker_providers.dart' show workerProfileProvider;
+import '../data/direct_request_models.dart';
 import '../data/job_model.dart';
 import '../data/job_repository.dart';
 
@@ -67,4 +68,28 @@ final openJobClientIdentityProvider =
     FutureProvider.autoDispose.family<Map<String, String>, String>((ref, jobId) {
   cacheFor(ref, _jobDetailCacheTtl);
   return ref.read(jobRepositoryProvider).fetchOpenJobClientIdentity(jobId);
+});
+
+// ── Pedido direto ("Pedir de novo", migration 0057) ───────────────────────
+
+/// Cartão "Precisas outra vez?" no detalhe de um trabalho concluído.
+final repeatHireForJobProvider =
+    FutureProvider.autoDispose.family<RepeatHireInfo?, String>((ref, jobId) {
+  cacheFor(ref, _jobDetailCacheTtl);
+  return ref.read(jobRepositoryProvider).fetchRepeatHireForJob(jobId);
+});
+
+/// "Os teus jardineiros" no Início do cliente. Muda quando um trabalho
+/// fica concluído ou avaliado, por isso não fica em cache além do Início.
+final myPreviousWorkersProvider =
+    FutureProvider.autoDispose<List<PreviousWorker>>((ref) {
+  ref.watch(currentUserIdProvider);
+  return ref.read(jobRepositoryProvider).fetchMyPreviousWorkers();
+});
+
+/// "Já trabalhaste com..." no detalhe da oportunidade do jardineiro.
+final directRequestContextProvider = FutureProvider.autoDispose
+    .family<DirectRequestContext?, String>((ref, jobId) {
+  cacheFor(ref, _jobDetailCacheTtl);
+  return ref.read(jobRepositoryProvider).fetchDirectRequestContext(jobId);
 });

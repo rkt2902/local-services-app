@@ -28,6 +28,9 @@ class ClientCreateJobWizardState {
     this.locationLng,
     this.description = '',
     this.photos = const [],
+    this.directSourceJobId,
+    this.directWorkerName = '',
+    this.directWorkerAvatarUrl = '',
   });
 
   final String? serviceTypeId;
@@ -52,6 +55,17 @@ class ClientCreateJobWizardState {
 
   final String description;
   final List<XFile> photos;
+
+  /// "Pedir de novo" (migration 0057): trabalho concluído de onde vem o
+  /// pedido. Com isto, o servidor reserva o pedido ao jardineiro desse
+  /// trabalho durante 24 horas. `null` num pedido normal.
+  final String? directSourceJobId;
+
+  /// Nome e foto do jardineiro escolhido, só para a faixa da revisão.
+  final String directWorkerName;
+  final String directWorkerAvatarUrl;
+
+  bool get isDirectRequest => directSourceJobId != null;
 
   ClientCreateJobWizardState copyWith({
     String? serviceTypeId,
@@ -86,8 +100,28 @@ class ClientCreateJobWizardState {
       locationLng: locationLng ?? this.locationLng,
       description: description ?? this.description,
       photos: photos ?? this.photos,
+      directSourceJobId: directSourceJobId,
+      directWorkerName: directWorkerName,
+      directWorkerAvatarUrl: directWorkerAvatarUrl,
     );
   }
+
+  /// O mesmo rascunho como pedido normal, para todos os jardineiros.
+  ClientCreateJobWizardState withoutDirectWorker() => ClientCreateJobWizardState(
+        serviceTypeId: serviceTypeId,
+        dateMode: dateMode,
+        preferredDate: preferredDate,
+        availabilityText: availabilityText,
+        urgency: urgency,
+        sizeEstimate: sizeEstimate,
+        addressText: addressText,
+        addressAutoFilled: addressAutoFilled,
+        locationArea: locationArea,
+        locationLat: locationLat,
+        locationLng: locationLng,
+        description: description,
+        photos: photos,
+      );
 }
 
 class ClientCreateJobWizardNotifier
@@ -125,6 +159,9 @@ class ClientCreateJobWizardNotifier
       locationLng: state.locationLng,
       description: state.description,
       photos: state.photos,
+      directSourceJobId: state.directSourceJobId,
+      directWorkerName: state.directWorkerName,
+      directWorkerAvatarUrl: state.directWorkerAvatarUrl,
     );
   }
 
@@ -154,6 +191,13 @@ class ClientCreateJobWizardNotifier
   /// Começa o wizard já preenchido (ex.: "Publicar de novo" a partir de um
   /// pedido antigo, ver `republishWizardState`).
   void startFrom(ClientCreateJobWizardState draft) => state = draft;
+
+  /// "Criar pedido" a partir do Início, da aba Pedidos ou do botão central:
+  /// mantém o rascunho, mas um "Pedir de novo" abandonado deixa de ir só
+  /// para aquele jardineiro.
+  void clearDirectWorker() {
+    if (state.isDirectRequest) state = state.withoutDirectWorker();
+  }
 
   void reset() => state = const ClientCreateJobWizardState();
 }

@@ -139,6 +139,13 @@ da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quan
 iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
 alteração, para os cartões de "Os meus trabalhos" (design A2).
 
+**`0057_direct_requests.sql`: criada, NÃO aplicada** (aplicar depois da 0056). Pedido
+direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em
+`job_requests`, reserva de 24h só para o jardineiro escolhido, recusa, "Mostrar já a
+todos", cron `expire-direct-job-requests` de 5 em 5 minutos, avisos `direct_job_request` e
+`direct_request_released`, e as RPCs de leitura do cartão, de "Os teus jardineiros" e do
+histórico do jardineiro. Pode correr-se mais do que uma vez. **Próxima migration: `0058`.**
+
 **`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
 Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
 `worker_profiles`, com CHECK na BD (só `https://`), e as duas colunas no fim de

@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_filter_chip.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import 'worker_direct_request_card.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 
 /// Dados visuais de um pedido disponível.
@@ -25,6 +26,7 @@ class WorkerAvailableJobViewData {
     required this.priceLabel,
     required this.icon,
     this.badge,
+    this.directTagLabel,
   });
 
   final String id;
@@ -42,6 +44,10 @@ class WorkerAvailableJobViewData {
   /// Urgente:
   /// urgentStatusPresentation
   final AppStatusPresentation? badge;
+
+  /// "Pedido só para ti · faltam 18 h" (pedido direto, design A5 5a).
+  /// `null` numa oportunidade normal.
+  final String? directTagLabel;
 }
 
 class WorkerAvailableJobsFilters {
@@ -482,7 +488,12 @@ class _AvailableJobCard extends StatelessWidget {
             ),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (job.directTagLabel != null) ...[
+                WorkerDirectRequestTag(label: job.directTagLabel!),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

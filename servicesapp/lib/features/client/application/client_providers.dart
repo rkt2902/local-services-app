@@ -3,6 +3,7 @@ import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/client_repository.dart';
 import '../data/client_profile_model.dart';
+import '../data/direct_request_prefs.dart';
 
 final clientRepositoryProvider = Provider<ClientRepository>(
   (ref) => ClientRepository(ref.watch(supabaseClientProvider)),
@@ -24,3 +25,7 @@ final clientBasicInfoProvider =
   cacheFor(ref, _clientInfoCacheTtl);
   return ref.read(clientRepositoryProvider).fetchClientBasicInfo(clientId);
 });
+
+final directRequestPrefsProvider = Provider<DirectRequestPrefs>(
+  (_) => const DirectRequestPrefs(),
+);

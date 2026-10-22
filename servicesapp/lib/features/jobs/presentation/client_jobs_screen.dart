@@ -12,6 +12,7 @@ import '../application/client_job_next_step.dart';
 import '../application/client_jobs_refresh.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
+import '../../client/application/client_create_job_wizard_provider.dart';
 import 'widgets/client_jobs_view.dart' as view;
 
 /// "Os meus pedidos" (cliente).
@@ -145,7 +146,10 @@ class ClientJobsScreen extends ConsumerWidget {
     return view.ClientJobsScreen(
       dataAsync: dataAsync,
       onOpenJob: (jobId) => context.push('/client/job/$jobId'),
-      onCreateJob: () => context.push('/client/create-job'),
+      onCreateJob: () {
+        ref.read(clientCreateJobWizardProvider.notifier).clearDirectWorker();
+        context.push('/client/create-job');
+      },
       onRetry: () {
         ref.invalidate(clientJobsProvider);
         ref.invalidate(serviceTypesProvider);

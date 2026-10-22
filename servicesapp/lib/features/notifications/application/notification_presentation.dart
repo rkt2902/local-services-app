@@ -73,6 +73,14 @@ import '../data/notification_types.dart';
           icon: Icons.yard_outlined,
           tone: AppStatusColor.info,
         ),
+      NotificationType.directJobRequest => (
+          icon: Icons.assignment_ind_outlined,
+          tone: AppStatusColor.info,
+        ),
+      NotificationType.directRequestReleased => (
+          icon: Icons.groups_outlined,
+          tone: AppStatusColor.neutral,
+        ),
       NotificationType.helpRequestReopened ||
       NotificationType.newHelpRequestInRadius =>
         (icon: Icons.group_add_outlined, tone: AppStatusColor.info),

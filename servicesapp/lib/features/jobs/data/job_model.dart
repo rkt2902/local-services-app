@@ -60,6 +60,18 @@ class JobRequest {
   /// na prática, quando isso aconteceu (não há `cancelled_at`).
   final DateTime? updatedAt;
 
+  /// Pedido direto ("Pedir de novo", migration 0057). O jardineiro
+  /// escolhido; para os outros jardineiros chega sempre `null`.
+  final String? directWorkerId;
+
+  /// Trabalho concluído de onde veio o pedido direto.
+  final String? directSourceJobId;
+
+  /// Até quando só o jardineiro escolhido vê o pedido (decidido pelo
+  /// servidor: a app só o mostra).
+  final DateTime? directUntil;
+  final DirectRequestStatus? directStatus;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -101,7 +113,15 @@ class JobRequest {
     this.updatedAt,
     this.afterPhotoPaths = const [],
     this.markedDoneAt,
+    this.directWorkerId,
+    this.directSourceJobId,
+    this.directUntil,
+    this.directStatus,
   });
+
+  /// Reservado ao jardineiro escolhido (o servidor decide quando acaba).
+  bool get isDirectWaiting =>
+      status == JobStatus.open && directStatus == DirectRequestStatus.waiting;
 
   /// `confirmed` com início marcado: o trabalho está a decorrer.
   bool get isInProgress => status == JobStatus.confirmed && startedAt != null;
@@ -174,6 +194,13 @@ class JobRequest {
         updatedAt: json['updated_at'] != null
             ? DateTime.parse(json['updated_at'] as String)
             : null,
+        directWorkerId: json['direct_worker_id'] as String?,
+        directSourceJobId: json['direct_source_job_id'] as String?,
+        directUntil: json['direct_until'] != null
+            ? DateTime.parse(json['direct_until'] as String)
+            : null,
+        directStatus:
+            DirectRequestStatus.fromString(json['direct_status'] as String?),
       );
 
   JobRequest copyWith({
@@ -217,6 +244,10 @@ class JobRequest {
     List<String>? afterPhotoPaths,
     DateTime? markedDoneAt,
     DateTime? updatedAt,
+    String? directWorkerId,
+    String? directSourceJobId,
+    DateTime? directUntil,
+    DirectRequestStatus? directStatus,
   }) =>
       JobRequest(
         id: id ?? this.id,
@@ -262,5 +293,9 @@ class JobRequest {
         afterPhotoPaths: afterPhotoPaths ?? this.afterPhotoPaths,
         markedDoneAt: markedDoneAt ?? this.markedDoneAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        directWorkerId: directWorkerId ?? this.directWorkerId,
+        directSourceJobId: directSourceJobId ?? this.directSourceJobId,
+        directUntil: directUntil ?? this.directUntil,
+        directStatus: directStatus ?? this.directStatus,
       );
 }

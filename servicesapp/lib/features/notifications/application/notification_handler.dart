@@ -49,6 +49,7 @@ class NotificationHandler {
     switch (notification.type) {
       // ── Job discovery ─────────────────────────────────────────────────────
       case NotificationType.newJobInRadius:
+      case NotificationType.directJobRequest:
         // relatedId = job_id — go (not push) to avoid keyReservation crash on
         // duplicate push when the worker is already viewing this job.
         if (notification.relatedId == null) break;
@@ -205,6 +206,9 @@ class NotificationHandler {
         }
 
       case NotificationType.jobNoResponse:
+      case NotificationType.directRequestReleased:
+        // directRequestReleased (0057): o jardineiro escolhido não pode ou
+        // não respondeu; o pedido abriu a todos.
         // Sent to client only — job expired without proposals. relatedId = job_id.
         if (notification.relatedId == null) break;
         context.go(

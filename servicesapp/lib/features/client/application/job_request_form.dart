@@ -106,3 +106,46 @@ String wizardFirstIncompleteRoute(ClientCreateJobWizardState state) {
   }
   return '/client/create-job/review';
 }
+
+/// "Pedir de novo" (migration 0057): o mesmo rascunho de "Publicar de
+/// novo", sem data fixa (o cliente escolhe a nova), e com o trabalho
+/// concluído de onde vem, para o servidor reservar o pedido ao jardineiro.
+ClientCreateJobWizardState repeatHireWizardState(
+  JobRequest sourceJob, {
+  required String workerName,
+  String workerAvatarUrl = '',
+  required DateTime now,
+  bool serviceStillOffered = true,
+}) {
+  final base = republishWizardState(
+    sourceJob,
+    now: now,
+    serviceStillOffered: serviceStillOffered,
+  );
+  return ClientCreateJobWizardState(
+    serviceTypeId: base.serviceTypeId,
+    dateMode: base.dateMode,
+    availabilityText: base.availabilityText,
+    urgency: Urgency.normal,
+    sizeEstimate: base.sizeEstimate,
+    addressText: base.addressText,
+    addressAutoFilled: base.addressAutoFilled,
+    locationArea: base.locationArea,
+    locationLat: base.locationLat,
+    locationLng: base.locationLng,
+    description: base.description,
+    directSourceJobId: sourceJob.id,
+    directWorkerName: workerName,
+    directWorkerAvatarUrl: workerAvatarUrl,
+  );
+}
+
+/// Primeiro ecrã do "Pedir de novo": o agendamento ("só escolhe a data"),
+/// ou um passo anterior se faltar alguma coisa.
+String repeatHireFirstRoute(ClientCreateJobWizardState state) {
+  final route = wizardFirstIncompleteRoute(state);
+  return route == '/client/create-job/description' ||
+          route == '/client/create-job/review'
+      ? '/client/create-job/schedule'
+      : route;
+}

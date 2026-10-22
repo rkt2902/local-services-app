@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Pedir de novo ao mesmo jardineiro (0057, design A5)
+
+- **A app nunca manda o id do jardineiro**: manda `direct_source_job_id` (o trabalho concluído)
+  e um trigger BEFORE INSERT tira o jardineiro da proposta aceite, depois de validar que o
+  trabalho é do cliente e está concluído.
+- **Estado à parte** (`direct_status`), com o pedido sempre `open`: não mexe na máquina de
+  estados nem nos ecrãs que leem `status`.
+- **Visibilidade pela hora** (`job_reserved_for_other`), não pelo cron: o cron de 5 minutos só
+  serve para os avisos e para marcar `expired`.
+- **Ao abrir a todos**, `expires_at` passa a pelo menos agora + 48h, para os outros
+  jardineiros terem tempo de propor.
+- **Retirar a proposta conta como recusa**; recusar a proposta do escolhido abre a todos
+  sem aviso ao cliente (foi ele que recusou).
+- **Cartão só com 4 ou 5 estrelas ou sem avaliação**, e "Os teus jardineiros" sem os
+  avaliados abaixo de 4.
+- **Texto em "tu"** ("Os teus jardineiros", "Precisas outra vez?") em vez do "si" dos mockups,
+  como o resto da app, e nomes sem artigo ("de Rui") para não adivinhar o género.
+- **Um só botão** "Pedir de novo a {nome}" no fundo do trabalho concluído; o cartão é só
+  contexto.
+- **"Não voltar a mostrar"** da folha de explicação guardado no aparelho
+  (`SharedPreferences`, por utilizador), sem coluna na BD.
+
 ## 2026-10-22 — Total estimado com a equipa em todos os ecrãs (0056)
 
 - **Uma só conta** (`teamHourlyRate` em `core/utils/price_labels.dart`): preço por hora ×

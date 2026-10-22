@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/picked_photo.dart';
+import 'direct_request_models.dart';
 import 'job_model.dart';
 import '../../../core/config/storage_urls.dart';
 
@@ -24,6 +25,7 @@ class JobRepository {
     Urgency? urgency,
     SizeEstimate? sizeEstimate,
     required String description,
+    String? directSourceJobId,
   }) async {
     final payload = <String, dynamic>{
       'client_id': clientId,
@@ -42,6 +44,9 @@ class JobRepository {
         'availability_text': availabilityText,
       if (urgency != null) 'urgency': urgency.value,
       if (sizeEstimate != null) 'size_estimate': sizeEstimate.value,
+      // Pedido direto (0057): o servidor tira o jardineiro deste trabalho
+      // concluído e reserva-lhe o pedido durante 24 horas.
+      'direct_source_job_id': ?directSourceJobId,
     };
 
     final result = await _client
@@ -250,5 +255,45 @@ class JobRepository {
       'avatar_url':
           StorageUrls.trustedOrEmpty(data['client_avatar_url'] as String?),
     };
+  }
+
+  // ── Pedido direto ("Pedir de novo", migration 0057) ─────────────────────
+
+  /// "Mostrar já a todos" (cliente). Só o dono do pedido; o servidor ignora
+  /// pedidos que já estavam abertos a todos.
+  Future<void> releaseDirectJobRequest(String jobId) async {
+    await _client.rpc('release_direct_job_request', params: {'p_job_id': jobId});
+  }
+
+  /// "Não posso desta vez" (jardineiro escolhido).
+  Future<void> declineDirectJobRequest(String jobId) async {
+    await _client.rpc('decline_direct_job_request', params: {'p_job_id': jobId});
+  }
+
+  /// Cartão "Precisas outra vez?" de um trabalho concluído do cliente.
+  /// `null` quando o trabalho não é dele ou não está concluído.
+  Future<RepeatHireInfo?> fetchRepeatHireForJob(String jobId) async {
+    final data = await _client
+        .rpc('get_repeat_hire_for_job', params: {'p_job_id': jobId})
+        .maybeSingle();
+    if (data == null) return null;
+    return RepeatHireInfo.fromJson(data);
+  }
+
+  /// "Os teus jardineiros" no Início do cliente.
+  Future<List<PreviousWorker>> fetchMyPreviousWorkers() async {
+    final data = await _client.rpc('get_my_previous_workers');
+    return (data as List)
+        .map((e) => PreviousWorker.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Trabalho anterior com este cliente, para o jardineiro escolhido.
+  Future<DirectRequestContext?> fetchDirectRequestContext(String jobId) async {
+    final data = await _client
+        .rpc('get_direct_request_context', params: {'p_job_id': jobId})
+        .maybeSingle();
+    if (data == null) return null;
+    return DirectRequestContext.fromJson(data);
   }
 }
