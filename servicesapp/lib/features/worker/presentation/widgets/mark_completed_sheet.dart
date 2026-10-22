@@ -19,6 +19,8 @@ class MarkCompletedSheet extends StatefulWidget {
     required this.workedTimeLabel,
     required this.priceLabel,
     required this.onSend,
+    this.workDaysLabel,
+    this.fixedValue = false,
   });
 
   final String clientName;
@@ -26,12 +28,20 @@ class MarkCompletedSheet extends StatefulWidget {
   final String priceLabel;
   final Future<bool> Function(List<XFile> photos) onSend;
 
+  /// "3" quando o trabalho correu em vários dias (design A6, G).
+  final String? workDaysLabel;
+
+  /// Valor total fechado: o tempo fica registado mas não muda o valor.
+  final bool fixedValue;
+
   static Future<bool> show(
     BuildContext context, {
     required String clientName,
     required String workedTimeLabel,
     required String priceLabel,
     required Future<bool> Function(List<XFile> photos) onSend,
+    String? workDaysLabel,
+    bool fixedValue = false,
   }) async {
     final sent = await AppSheet.show<bool>(
       context,
@@ -40,6 +50,8 @@ class MarkCompletedSheet extends StatefulWidget {
         workedTimeLabel: workedTimeLabel,
         priceLabel: priceLabel,
         onSend: onSend,
+        workDaysLabel: workDaysLabel,
+        fixedValue: fixedValue,
       ),
     );
     return sent ?? false;
@@ -119,16 +131,31 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
             ),
             child: Column(
               children: [
+                if (widget.workDaysLabel != null) ...[
+                  _SummaryRow(
+                    label: 'Dias de trabalho',
+                    value: widget.workDaysLabel!,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                ],
                 _SummaryRow(
                   label: 'Tempo registado',
                   value: widget.workedTimeLabel,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 _SummaryRow(
-                  label: 'Valor acordado',
+                  label: widget.fixedValue ? 'Valor fechado' : 'Valor acordado',
                   value: widget.priceLabel,
                   highlighted: true,
                 ),
+                if (widget.fixedValue) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'O tempo fica registado, mas não muda o valor.',
+                    style: textTheme.labelSmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
               ],
             ),
           ),

@@ -28,6 +28,7 @@ import '../../features/client/presentation/client_create_job_description_screen.
 import '../../features/client/presentation/client_create_job_review_screen.dart';
 import '../../features/jobs/presentation/client_jobs_screen.dart';
 import '../../features/jobs/presentation/client_job_detail_screen.dart';
+import '../../features/jobs/presentation/client_proposal_detail_screen.dart';
 import '../../features/jobs/presentation/client_proposals_screen.dart';
 import '../../features/jobs/presentation/client_job_confirmed_screen.dart';
 import '../../features/jobs/presentation/client_rate_worker_screen.dart';
@@ -275,6 +276,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             context,
             state,
             ClientProposalsScreen(jobId: jobId),
+          );
+        },
+      ),
+      // Detalhe de uma proposta e aceitação (design A6), a partir de
+      // "Propostas recebidas".
+      GoRoute(
+        path: '/client/job/:id/proposals/:proposalId',
+        pageBuilder: (context, state) {
+          return buildSharedAxisPage(
+            context,
+            state,
+            ClientProposalDetailScreen(
+              jobId: state.pathParameters['id']!,
+              proposalId: state.pathParameters['proposalId']!,
+            ),
           );
         },
       ),

@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Valor total ou preço por hora em cada proposta (0058, design A6)
+
+- **O formato do preço não é um estado**: coluna `pricing_mode` à parte, o `status` da
+  proposta não muda.
+- **Nunca comparar formatos pelo preço**: a lista de propostas ordena por recomendada,
+  avaliação e chegada; as expiradas vão para o fim.
+- **Taxa de referência no valor total**: `hourly_rate` continua preenchido (o pagamento dos
+  ajudantes depende dele), com o preço por hora do jardineiro ou o total a dividir pelas
+  horas da equipa (8 h por dia). O cliente nunca a vê.
+- **Validade decidida no servidor**: `is_expired` vem da RPC e um trigger recusa aceitar
+  uma proposta expirada. A app não usa o relógio do telemóvel para isso.
+- **Dias de trabalho na BD** (`job_work_days`), não no ecrã: o relógio conta a partir do
+  início do dia aberto, por isso sobrevive a fechar a app ou mudar de telemóvel.
+- **O valor fechado não muda com as horas**: o tempo fica registado e aparece na conclusão,
+  com a nota "O tempo fica registado, mas não muda o valor."
+- **Formato da última proposta por omissão**, com a frase "Escolhemos o valor total porque
+  o usaste da última vez."
+- **Visita ao local ("Ver o local primeiro") fica para a fase 2**, por escolha do Henrique.
+- **Selo "Pro"** continua sem dados (`null`), não se inventa.
+
 ## 2026-10-22 — Pedir de novo ao mesmo jardineiro (0057, design A5)
 
 - **A app nunca manda o id do jardineiro**: manda `direct_source_job_id` (o trabalho concluído)

@@ -5,6 +5,9 @@ class JobProposal {
   final String id;
   final String jobId;
   final String workerId;
+
+  /// No valor total é só uma hora de referência para a sugestão aos
+  /// ajudantes (migration 0058); o cliente nunca a vê.
   final double hourlyRate;
   final double? estimatedHoursMin;
   final double? estimatedHoursMax;
@@ -18,6 +21,20 @@ class JobProposal {
   final DateTime createdAt;
   final String? workerName;
   final String? workerAvatarUrl;
+
+  // Design A6 (migration 0058). Sem a migration vêm os valores por omissão.
+  final ProposalPricingMode pricingMode;
+  final double? totalPrice;
+
+  /// Slugs de `proposal_include_options`.
+  final List<String> includes;
+  final int? estimatedDaysMin;
+  final int? estimatedDaysMax;
+  final DateTime? validUntil;
+
+  /// Calculado no servidor (get_pending_proposals_for_job); nas leituras
+  /// diretas da tabela vem sempre false.
+  final bool isExpired;
 
   const JobProposal({
     required this.id,
@@ -36,7 +53,18 @@ class JobProposal {
     required this.createdAt,
     this.workerName,
     this.workerAvatarUrl,
+    this.pricingMode = ProposalPricingMode.hourly,
+    this.totalPrice,
+    this.includes = const [],
+    this.estimatedDaysMin,
+    this.estimatedDaysMax,
+    this.validUntil,
+    this.isExpired = false,
   });
+
+  bool get isFixedTotal =>
+      pricingMode == ProposalPricingMode.fixedTotal &&
+      (totalPrice ?? 0) > 0;
 
   factory JobProposal.fromJson(Map<String, dynamic> json) => JobProposal(
         id: json['id'] as String,
@@ -67,5 +95,53 @@ class JobProposal {
             json['worker_avatar_url'] as String? ??
                 (json['profiles'] as Map<String, dynamic>?)?['avatar_url']
                     as String?),
+        pricingMode:
+            ProposalPricingMode.fromString(json['pricing_mode'] as String?),
+        totalPrice: (json['total_price'] as num?)?.toDouble(),
+        includes: (json['includes'] as List?)?.cast<String>() ?? const [],
+        estimatedDaysMin: (json['estimated_days_min'] as num?)?.toInt(),
+        estimatedDaysMax: (json['estimated_days_max'] as num?)?.toInt(),
+        validUntil: json['valid_until'] != null
+            ? DateTime.parse(json['valid_until'] as String)
+            : null,
+        isExpired: json['is_expired'] as bool? ?? false,
+      );
+}
+
+/// Opção de "O que inclui" (tabela `proposal_include_options`, 0058).
+class ProposalIncludeOption {
+  const ProposalIncludeOption({required this.slug, required this.label});
+
+  final String slug;
+  final String label;
+
+  factory ProposalIncludeOption.fromJson(Map<String, dynamic> json) =>
+      ProposalIncludeOption(
+        slug: json['slug'] as String,
+        label: json['label'] as String,
+      );
+}
+
+/// Um dia de trabalho (tabela `job_work_days`, 0058). `endedAt` null é o
+/// dia em curso.
+class JobWorkDay {
+  const JobWorkDay({
+    required this.dayNumber,
+    required this.startedAt,
+    this.endedAt,
+  });
+
+  final int dayNumber;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+
+  bool get isOpen => endedAt == null;
+
+  factory JobWorkDay.fromJson(Map<String, dynamic> json) => JobWorkDay(
+        dayNumber: (json['day_number'] as num).toInt(),
+        startedAt: DateTime.parse(json['started_at'] as String),
+        endedAt: json['ended_at'] != null
+            ? DateTime.parse(json['ended_at'] as String)
+            : null,
       );
 }

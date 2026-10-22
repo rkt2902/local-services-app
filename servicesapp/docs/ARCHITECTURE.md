@@ -219,7 +219,7 @@ Os 3 builders também envolvem a página num `PopScope` interno (`_wrapWithBackF
 que cobre o botão/gesto de voltar do sistema para TODAS as rotas de uma vez — ver
 secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 
-### Tabela de rotas (42 no total: 33 fora dos shells + 4 + 5)
+### Tabela de rotas (43 no total: 34 fora dos shells + 4 + 5)
 
 | Path | Ecrã | Shell | Transição |
 |---|---|---|---|
@@ -248,6 +248,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/client/create-job/review` | `ClientCreateJobReviewScreen` | fora | shared-axis |
 | `/client/job/:id` | `ClientJobDetailScreen` | fora | container-transform (default) / shared-axis se `entryTransition` |
 | `/client/job/:id/proposals` | `ClientProposalsScreen` | fora | shared-axis |
+| `/client/job/:id/proposals/:proposalId` (A6) | `ClientProposalDetailScreen` (detalhe e "Aceitar por X") | fora | shared-axis |
 | `/client/job/:id/confirmed` | `ClientJobConfirmedScreen` | fora | shared-axis |
 | `/client/job/:id/rate-worker` | `ClientRateWorkerScreen` | fora | shared-axis |
 | `/worker/job/:id/propose` | `WorkerSubmitProposalScreen` | fora | shared-axis |
@@ -343,7 +344,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_service_types` | N:N worker↔serviço | PK composta |
 | `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057) |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
-| `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required` |
+| `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required`; desde a 0058 `pricing_mode` (`hourly`/`fixed_total`), `total_price`, `includes[]`, `estimated_days_min/max`, `valid_until`. No valor total, `hourly_rate` é uma taxa de referência calculada no servidor (só para o pagamento dos ajudantes) |
+| `proposal_include_options` (0058) | opções do "O que inclui" | `slug`, `label`, `sort_order`, `active`; leitura por autenticados |
+| `job_work_days` (0058) | dias de um trabalho em vários dias | `job_id`, `day_number`, `started_at`, `ended_at` (no máximo um aberto); só por RPC |
 | `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
 | `device_tokens` (0041) | tokens FCM | `token` PK, `user_id`, `platform`; escrita só por RPC |
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
@@ -410,7 +413,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
-| `get_worker_job_board` (0035, última 0056) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
+| `get_worker_job_board` (0035, última 0058: `pricing_mode`, `total_price` no fim) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
@@ -427,6 +430,10 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
 | `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
 | `expire_direct_job_requests` (0057) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`) |
+| `create_proposal` (última 0058) | os de 0044 e, no fim, todos com omissão: `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until` (`p_hourly_rate` passa a opcional) | `uuid` | `ProposalRepository.createProposal` |
+| `get_pending_proposals_for_job` (última 0058) | `p_job_id` | colunas de 0040 + `pricing_mode`, `total_price`, `includes`, `estimated_days_min/max`, `valid_until`, `is_expired` | `ProposalRepository.fetchPendingProposalsForJob` |
+| `finish_work_day` / `start_work_day` (0058) | `p_job_id` (jardineiro responsável, trabalho iniciado) | `void` (fecha o dia aberto / abre o seguinte) | `ProposalRepository.finishWorkDay` / `startWorkDay` |
+| `get_job_work_days` (0058) | `p_job_id` (cliente, responsável ou ajudante aceite) | `TABLE(day_number, started_at, ended_at)`; sem linhas usa `started_at`/`marked_done_at` | `ProposalRepository.fetchWorkDays` |
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -450,6 +457,8 @@ muda (ver secção 13).
 | `trg_help_request_before_update_job_day` / `trg_help_acceptance_before_update_job_day` (0054) | `help_requests` / `help_acceptances` | BEFORE UPDATE OF status | recusam aprovar o pedido e aceitar candidatos a partir do dia do trabalho |
 | `trg_job_request_direct_before_insert` (0057) | `job_requests` | BEFORE INSERT | limpa os campos diretos e, com `direct_source_job_id`, valida que o pedido de origem é do cliente e está concluído, tira o jardineiro da proposta aceite e reserva 24h (`direct_status = 'waiting'`). A app nunca manda o id do jardineiro |
 | `trg_job_proposal_direct_before_insert` / `trg_job_proposal_direct_after_status` (0057) | `job_proposals` | BEFORE INSERT / AFTER UPDATE OF status | bloqueiam propostas de outros enquanto a reserva está ativa; proposta do escolhido recusada abre a todos (`released`), retirada conta como recusa (`declined`) |
+| `trg_job_proposal_block_expired_accept` (0058) | `job_proposals` | BEFORE UPDATE OF status | recusa aceitar uma proposta com `valid_until` passado ("Este orçamento expirou e já não pode ser aceite."). A app nunca decide a validade pelo relógio do telemóvel |
+| `trg_job_requests_sync_work_days` (0058) | `job_requests` | AFTER UPDATE OF started_at, status | cria o dia 1 quando o trabalho começa e fecha o dia aberto ao marcar concluído ou cancelar |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
 
 ### Storage
@@ -482,9 +491,11 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
 | `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
 | `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
-| `0057_direct_requests.sql` | **criada, NÃO aplicada**, depois da 0056 (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
+| `0057_direct_requests.sql` | aplicada (confirmado a 2026-10-22) (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
 
-Próxima migration: `0058`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+| `0058_proposal_pricing_and_work_days.sql` | **criada, NÃO aplicada**, depois da 0057 (propostas com valor total ou por hora, "O que inclui", duração em dias, validade, bloqueio de aceitar expiradas, dias de trabalho com `finish_work_day`/`start_work_day`) |
+
+Próxima migration: `0059`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

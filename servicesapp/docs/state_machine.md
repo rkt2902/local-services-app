@@ -80,6 +80,25 @@
 | 16 | Marcado concluído, 3 dias sem confirmação | Sistema | `auto_confirm_completed_jobs` (cron) | Os dois → `job_completed` | `completed` | `accepted` |
 | — | Lembretes (0046): manhã do dia, data passada, conclusão por confirmar | Sistema | `send_job_reminders` (cron) | `job_reminder` | inalterado | inalterado |
 
+## Proposta: validade e formato do preço (0058)
+
+`pricing_mode` (`hourly`/`fixed_total`) não é um estado. `valid_until` também não: a
+proposta continua `pending` depois de expirar, mas `get_pending_proposals_for_job`
+devolve `is_expired = true` e o trigger `trg_job_proposal_block_expired_accept` recusa
+passar a `accepted`.
+
+## Dias de trabalho (0058, `job_work_days`)
+
+O trabalho continua `confirmed` com `started_at` preenchido ("Em curso"). Os dias vivem à
+parte e no máximo um está aberto.
+
+| # | Transição | Quem | RPC | Dia |
+|---|---|---|---|---|
+| W1 | Iniciar trabalho | Jardineiro | `start_job` | trigger cria o dia 1 (aberto) |
+| W2 | "Terminar o dia N" | Jardineiro | `finish_work_day` | dia N fechado |
+| W3 | "Começar o dia N+1" | Jardineiro | `start_work_day` | dia N+1 aberto (falha se houver um aberto) |
+| W4 | Concluir, ou cancelar | Jardineiro / sistema | `mark_job_done` / `cancel_job` | trigger fecha o dia aberto |
+
 ## Pedido direto (0057, `direct_status`)
 
 O pedido continua `open` em `job_status`; a reserva vive em `direct_status`. Enquanto

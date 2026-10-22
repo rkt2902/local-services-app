@@ -72,6 +72,28 @@ enum ProposalStatus {
   static ProposalStatus fromString(String value) => fromValue(value);
 }
 
+/// Formato do preço de uma proposta (design A6, migration 0058). Não é
+/// estado: a proposta continua com o seu [ProposalStatus].
+enum ProposalPricingMode {
+  /// Preço por hora; o total é uma estimativa pelas horas.
+  hourly,
+
+  /// Valor total fechado: o cliente paga isto, mesmo que demore mais.
+  fixedTotal;
+
+  String get value => switch (this) {
+        ProposalPricingMode.hourly => 'hourly',
+        ProposalPricingMode.fixedTotal => 'fixed_total',
+      };
+
+  /// Linhas antigas (sem a coluna) e valores desconhecidos contam como
+  /// preço por hora, que era o único formato.
+  static ProposalPricingMode fromString(String? value) =>
+      value == 'fixed_total'
+          ? ProposalPricingMode.fixedTotal
+          : ProposalPricingMode.hourly;
+}
+
 enum UserRole {
   client,
   worker;

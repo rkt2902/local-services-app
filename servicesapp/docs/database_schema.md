@@ -223,6 +223,21 @@ Propostas de workers para jobs.
 | status                       | text        | CHECK in proposal_status                                   |
 | created_at                   | timestamptz |                                                            |
 | updated_at                   | timestamptz |                                                            |
+| pricing_mode                 | text        | 0058, default `hourly`, CHECK in (`hourly`,`fixed_total`)  |
+| total_price                  | numeric     | 0058, nullable; obrigatório e > 0 em `fixed_total`. No valor total, `hourly_rate` é a taxa de referência para os ajudantes |
+| includes                     | text[]      | 0058, default `{}`: slugs de `proposal_include_options`    |
+| estimated_days_min/max       | int         | 0058, nullable: duração em dias (max nulo = "mais de uma semana") |
+| valid_until                  | date        | 0058, nullable: último dia em que pode ser aceite          |
+
+### proposal_include_options (0058)
+Opções do "O que inclui" da proposta. `slug` PK, `label`, `sort_order`, `active`. Leitura por
+autenticados. Sementes: `material`, `waste_removal`, `travel`, `machinery`.
+
+### job_work_days (0058)
+Dias de um trabalho em vários dias. `job_id` FK → `job_requests.id`, `day_number`,
+`started_at`, `ended_at` (nulo = dia aberto; índice único parcial garante no máximo um).
+RLS ligada sem policies: só pelas RPCs `get_job_work_days`, `finish_work_day`,
+`start_work_day` e pelo trigger `trg_job_requests_sync_work_days`.
 
 > **`people_needed` e estimativa de custo:** quando `people_needed > 1`, a app exibe ao cliente a estimativa do custo total da equipa: `hourly_rate × estimated_hours × (1 + (people_needed - 1) × factor)`, onde `factor = 1.0` se `helpers_equipment_required = true`, ou `0.75` caso contrário (buffer de estimativa; o pagamento real ao ajudante sem equipamento é 70%, mas mostra-se 75% para dar margem). Custo real registado em `help_acceptance.agreed_rate` no momento da aceitação.
 
@@ -332,6 +347,8 @@ seus; a ativação é manual por SQL (service role). Ver a migration para as col
 ---
 
 ## RPC Functions (security definer)
+
+> **Propostas e dias de trabalho (0058):** `create_proposal` com `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until`; `get_pending_proposals_for_job` com `is_expired`; `finish_work_day`, `start_work_day`, `get_job_work_days`. Detalhe em `ARCHITECTURE.md` secção 7.
 
 > **Pedido direto (0057):** `release_direct_job_request`, `decline_direct_job_request`, `get_repeat_hire_for_job`, `get_my_previous_workers`, `get_direct_request_context` e o cron `expire_direct_job_requests`. Detalhe em `ARCHITECTURE.md` secção 7.
 

@@ -180,7 +180,25 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 Antes de aplicar, o "Pedir de novo" e "Os teus jardineiros" dão erro ou não aparecem; o
 resto da app funciona como antes.
 
-**Diz ao Claude:** "0057 aplicada".
+**Diz ao Claude:** "0057 aplicada". (Feito a 2026-10-22.)
+
+### 0.11 Migration por aplicar: 0058 (depois da 0057)
+
+- [ ] SQL Editor: colar `supabase/migrations/0058_proposal_pricing_and_work_days.sql` e
+      correr. Pode correr-se mais do que uma vez. As consultas comentadas no fim mostram
+      as colunas e as tabelas novas.
+- [ ] Testar:
+  - "Enviar proposta" com "Valor total": escolher o que inclui, a duração em dias e a
+    validade, e enviar.
+  - O cliente vê a proposta por hora e a de valor total lado a lado, abre o detalhe e
+    aceita com "Aceitar por X".
+  - Num trabalho de 2 a 3 dias: iniciar, "Terminar o dia 1", "Começar o dia 2",
+    "Concluir trabalho". A folha de conclusão mostra os dias, o tempo e o valor fechado.
+
+Antes de aplicar, enviar proposta dá erro (a app já manda a validade). As propostas
+recebidas e o trabalho em curso continuam a funcionar, sem validade nem dias.
+
+**Diz ao Claude:** "0058 aplicada".
 
 ---
 

@@ -28,6 +28,19 @@ final pendingProposalsForJobProvider =
       .fetchPendingProposalsForJob(jobId);
 });
 
+/// Opções de "O que inclui" (migration 0058). Mudam raramente.
+final proposalIncludeOptionsProvider =
+    FutureProvider.autoDispose<List<ProposalIncludeOption>>((ref) {
+  cacheFor(ref, const Duration(minutes: 30));
+  return ref.read(proposalRepositoryProvider).fetchIncludeOptions();
+});
+
+/// Dias de trabalho de um trabalho iniciado (migration 0058).
+final jobWorkDaysProvider =
+    FutureProvider.autoDispose.family<List<JobWorkDay>, String>((ref, jobId) {
+  return ref.read(proposalRepositoryProvider).fetchWorkDays(jobId);
+});
+
 /// The accepted proposal for a confirmed job.
 final acceptedProposalForJobProvider =
     FutureProvider.autoDispose.family<JobProposal?, String>((ref, jobId) {

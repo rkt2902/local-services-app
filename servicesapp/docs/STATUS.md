@@ -8,7 +8,18 @@
 
 ## O que funciona end-to-end hoje
 
-**2026-10-22, Pedir de novo ao mesmo jardineiro (design A5, migration 0057 por aplicar):**
+**2026-10-22, Propostas com valor total ou por hora (design A6, migration 0058 por aplicar):**
+o jardineiro escolhe, em cada proposta, entre preço por hora e valor total, marca o que
+inclui (material, remoção de resíduos, deslocação, máquinas), indica a duração em horas
+ou dias e a validade (7, 15 ou 30 dias). O cliente vê os dois formatos lado a lado com a
+caixa "Total" no mesmo sítio, sem ordenar pelo preço, e abre cada proposta num detalhe
+com "Aceitar por X". Propostas expiradas ficam no fim e o servidor recusa aceitá-las.
+Trabalhos em vários dias têm "Dia 1 de 3", "Terminar o dia" e "Começar o dia", e o
+valor fechado não muda com as horas. "Ver o local primeiro" (visita) fica para a fase 2.
+Antes da 0058 aplicada, enviar proposta dá erro; o resto funciona como antes, sem
+validade nem dias de trabalho.
+
+**2026-10-22, Pedir de novo ao mesmo jardineiro (design A5, migration 0057 aplicada a 2026-10-22):**
 no trabalho concluído o cliente tem "Pedir de novo a {nome}" (cartão só sem avaliação ou
 com 4 ou 5 estrelas); o pedido vem preenchido e só pede a data. Durante 24h só esse
 jardineiro o vê ("Pedido só para ti · faltam X h", cartão com o histórico, "Não posso

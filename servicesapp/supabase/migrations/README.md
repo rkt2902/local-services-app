@@ -139,12 +139,21 @@ da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quan
 iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
 alteração, para os cartões de "Os meus trabalhos" (design A2).
 
-**`0057_direct_requests.sql`: criada, NÃO aplicada** (aplicar depois da 0056). Pedido
+**`0058_proposal_pricing_and_work_days.sql`: criada, NÃO aplicada** (aplicar depois da
+0057). Propostas com valor total ou preço por hora (design A6): `pricing_mode`,
+`total_price`, `includes`, duração em dias e `valid_until` em `job_proposals`, tabela
+`proposal_include_options`, `create_proposal` com os parâmetros novos (todos com
+omissão), trigger que recusa aceitar propostas expiradas, `get_pending_proposals_for_job`
+e `get_worker_job_board` com as colunas novas (DROP + CREATE), e os dias de trabalho
+(`job_work_days`, `finish_work_day`, `start_work_day`, `get_job_work_days`). Pode
+correr-se mais do que uma vez. **Próxima migration: `0059`.**
+
+**`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em
 `job_requests`, reserva de 24h só para o jardineiro escolhido, recusa, "Mostrar já a
 todos", cron `expire-direct-job-requests` de 5 em 5 minutos, avisos `direct_job_request` e
 `direct_request_released`, e as RPCs de leitura do cartão, de "Os teus jardineiros" e do
-histórico do jardineiro. Pode correr-se mais do que uma vez. **Próxima migration: `0058`.**
+histórico do jardineiro. Pode correr-se mais do que uma vez.
 
 **`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
 Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
