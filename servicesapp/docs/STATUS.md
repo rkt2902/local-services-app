@@ -8,7 +8,7 @@
 
 ## O que funciona end-to-end hoje
 
-**2026-10-22, painel de administração /admin e planos (migration 0058 por aplicar):**
+**2026-10-22, painel de administração /admin e planos (migration 0059 por aplicar):**
 `/admin` no mesmo site da app, só para a conta que estiver em `admin_users`, com palavra-passe
 e código de uma app autenticadora (TOTP do Supabase). Fase 1: visão geral (utilizadores,
 pedidos do período, % com proposta em 24h, tempo até à 1.ª proposta, avaliações, planos e

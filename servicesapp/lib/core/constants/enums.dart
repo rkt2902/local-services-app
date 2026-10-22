@@ -258,7 +258,7 @@ enum DirectRequestStatus {
       };
 }
 
-/// Plano do jardineiro (`worker_plans.tier`, migration 0058). O papel
+/// Plano do jardineiro (`worker_plans.tier`, migration 0059). O papel
 /// continua a ser `worker`; o plano só muda o limite mensal e o selo.
 enum WorkerPlanTier {
   free,

@@ -46,7 +46,7 @@ final workerPublicCardProvider =
   return ref.read(workerRepositoryProvider).fetchPublicCard(workerId);
 });
 
-/// Plano do jardineiro com sessão e trabalhos aceites este mês (0058).
+/// Plano do jardineiro com sessão e trabalhos aceites este mês (0059).
 /// Invalidado quando uma proposta é aceite (ver notification_providers).
 final myWorkerPlanProvider = FutureProvider.autoDispose<WorkerPlan>((ref) {
   final user = ref.watch(currentUserProvider);

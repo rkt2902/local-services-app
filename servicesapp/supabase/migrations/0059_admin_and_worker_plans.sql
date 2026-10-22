@@ -1,10 +1,11 @@
 -- ══════════════════════════════════════════════════════════════
--- 0058 — Painel de administração (/admin) e planos dos jardineiros
+-- 0059 — Painel de administração (/admin) e planos dos jardineiros
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0057
--- (usa started_at da 0052 e deleted_at da 0049). Pode correr-se mais do
--- que uma vez sem erro.
+-- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da
+-- 0058_proposal_pricing_and_work_days.sql (usa pricing_mode, total_price e
+-- job_work_days dela; também started_at da 0052 e deleted_at da 0049).
+-- Pode correr-se mais do que uma vez sem erro.
 --
 -- O que faz:
 --   1. admin_users: quem é administrador. Só se escreve pelo SQL Editor
@@ -453,17 +454,23 @@ BEGIN
   WITH principal AS (
     -- Trabalhos em que foi o responsável (proposta aceite).
     SELECT jr.*, jp.hourly_rate, jp.estimated_hours_min, jp.estimated_hours_max,
-           jp.accepted_at
+           jp.accepted_at, jp.pricing_mode, jp.total_price
     FROM   job_requests jr
     JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
     WHERE  jp.worker_id = p_worker_id
   ), completed AS (
-    SELECT *,
-           CASE WHEN started_at IS NOT NULL AND marked_done_at IS NOT NULL
-                     AND marked_done_at > started_at
-                THEN extract(epoch FROM marked_done_at - started_at) / 3600 END
-             AS tracked_hours
-    FROM   principal
+    -- Horas: soma dos dias de trabalho (0058); trabalhos antigos sem dias
+    -- registados usam o início e a conclusão.
+    SELECT pr.*,
+           COALESCE(
+             (SELECT sum(extract(epoch FROM wd.ended_at - wd.started_at)) / 3600
+              FROM job_work_days wd
+              WHERE wd.job_id = pr.id AND wd.ended_at IS NOT NULL),
+             CASE WHEN pr.started_at IS NOT NULL AND pr.marked_done_at IS NOT NULL
+                       AND pr.marked_done_at > pr.started_at
+                  THEN extract(epoch FROM pr.marked_done_at - pr.started_at) / 3600 END
+           ) AS tracked_hours
+    FROM   principal pr
     WHERE  status = 'completed'
   ), proposals AS (
     SELECT jp.*, jr.created_at AS job_created_at
@@ -496,10 +503,15 @@ BEGIN
                        (SELECT count(*) FROM job_requests jr
                         WHERE jr.cancelled_by = p_worker_id),
     'tracked_hours',   (SELECT round(COALESCE(sum(tracked_hours), 0)::numeric, 1) FROM completed),
-    'estimated_revenue', (SELECT round(COALESCE(sum(hourly_rate * COALESCE(
-                            tracked_hours,
-                            (estimated_hours_min + COALESCE(estimated_hours_max, estimated_hours_min)) / 2,
-                            0)), 0)::numeric, 0)
+    -- Valor fechado conta o total; por hora, as horas registadas (ou o
+    -- meio da estimativa).
+    'estimated_revenue', (SELECT round(COALESCE(sum(
+                            CASE WHEN pricing_mode = 'fixed_total' THEN total_price
+                                 ELSE hourly_rate * COALESCE(
+                                   tracked_hours,
+                                   (estimated_hours_min + COALESCE(estimated_hours_max, estimated_hours_min)) / 2,
+                                   0)
+                            END), 0)::numeric, 0)
                           FROM completed),
     'helper_jobs',     (SELECT count(*) FROM help_acceptances ha
                         WHERE ha.worker_id = p_worker_id AND ha.status = 'accepted'),

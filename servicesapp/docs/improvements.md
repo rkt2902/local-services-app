@@ -414,7 +414,7 @@ Modelo de dados: `worker_client_relationships`, `relationship_messages`, `recurr
 ### Alta prioridade
 
 **Painel /admin, fases 2 e 3 (2026-10-22)**
-A fase 1 (0058) tem visão geral, jardineiros e planos. Falta: mapa com camadas
+A fase 1 (0059) tem visão geral, jardineiros e planos. Falta: mapa com camadas
 (pedidos por estado, jardineiros com raio, zonas sem resposta, densidade) com
 `flutter_map`/OSM; lista de pedidos parados; moderação (reports, cartões frota,
 suspender conta); ficha de cliente; funil; exportar CSV; avisos a grupos de

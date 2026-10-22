@@ -3,7 +3,7 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-10-22 — Painel /admin e planos dos jardineiros (0058)
+## 2026-10-22 — Painel /admin e planos dos jardineiros (0059)
 
 - **No mesmo link, em `/admin`** (pedido do Henrique), não num site à parte. O código do
   painel vai no mesmo bundle; isso não abre nada porque os dados só saem de RPCs `admin_*`.

@@ -17,7 +17,7 @@ class AdminTotpEnrollment {
   final String secret;
 }
 
-/// Painel `/admin` (migration 0058). Todas as RPCs `admin_*` recusam quem
+/// Painel `/admin` (migration 0059). Todas as RPCs `admin_*` recusam quem
 /// não está em `admin_users` ou não tem o segundo fator nesta sessão: a
 /// segurança está na BD, a app só mostra o que elas devolvem.
 class AdminRepository {

@@ -110,8 +110,8 @@ class WorkerRepository {
     });
   }
 
-  /// Plano e uso do mês do próprio jardineiro (`get_my_plan`, 0058).
-  /// Sem a 0058 aplicada a RPC não existe: devolve [WorkerPlan.unavailable].
+  /// Plano e uso do mês do próprio jardineiro (`get_my_plan`, 0059).
+  /// Sem a 0059 aplicada a RPC não existe: devolve [WorkerPlan.unavailable].
   Future<WorkerPlan> fetchMyPlan() async {
     try {
       final data = await _client.rpc('get_my_plan');

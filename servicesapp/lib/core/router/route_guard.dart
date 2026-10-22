@@ -27,7 +27,7 @@ const sessionErrorRoute = '/session-error';
 /// Painel de administração (`/admin` e `/admin/...`). Fica fora de todas as
 /// regras de papel: a conta de admin não tem papel de cliente nem de
 /// jardineiro, e o próprio ecrã decide o passo (login, segundo fator,
-/// sem acesso). Quem protege os dados são as RPCs `admin_*` (0058).
+/// sem acesso). Quem protege os dados são as RPCs `admin_*` (0059).
 const adminRoutePrefix = '/admin';
 
 bool isAdminLocation(String location) =>
