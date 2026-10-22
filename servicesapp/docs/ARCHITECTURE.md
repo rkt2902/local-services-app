@@ -219,7 +219,7 @@ Os 3 builders também envolvem a página num `PopScope` interno (`_wrapWithBackF
 que cobre o botão/gesto de voltar do sistema para TODAS as rotas de uma vez — ver
 secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 
-### Tabela de rotas (42 no total: 33 fora dos shells + 4 + 5)
+### Tabela de rotas (44 no total: 35 fora dos shells + 4 + 5)
 
 | Path | Ecrã | Shell | Transição |
 |---|---|---|---|
@@ -230,6 +230,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/signup` | `SignupScreen` | fora | shared-axis |
 | `/choose-role` | `ChooseRoleScreen` | fora | shared-axis |
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
+| `/admin` | `AdminGateScreen` (login, segundo fator, depois `AdminHomeScreen`) | fora, sem regras de papel | default |
+| `/admin/workers/:workerId` | `AdminWorkerDetailScreen` | fora | shared-axis |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
@@ -267,7 +269,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
 | `/worker/jobs` | `WorkerJobsScreen` | **WorkerShell** | idem |
 
-Todos os ecrãs de sub-fluxo (33 fora do shell) usam `SafeArea` próprio e não mostram a
+Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.
 
 ### Botão de voltar
@@ -351,6 +353,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `ratings` | avaliações | `UNIQUE(job_id, rater_id, ratee_id)`, `CHECK(rater_id <> ratee_id)` |
 | `job_reports` | reports pós-trabalho | moderação manual, sem RLS de leitura cruzada |
 | `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
+| `admin_users` (0058) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
+| `admin_actions` (0058) | registo das mudanças feitas no painel | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
+| `worker_plans` (0058) | plano do jardineiro | `tier` free/pro/pro_plus, `starts_at`, `ends_at`, `verified_at`, `notes`; RLS sem policies (o jardineiro lê por `get_my_plan`, sem as notas). O `role` não muda |
 
 ### RLS — resumo por tabela (ver os ficheiros de migration para o texto exato das policies)
 
@@ -427,6 +432,14 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
 | `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
 | `expire_direct_job_requests` (0057) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`) |
+| `get_my_plan` (0058) | — | `TABLE(tier, ends_at, verified, jobs_this_month, monthly_job_limit)` | `WorkerRepository.fetchMyPlan` (linha "Plano" da conta) |
+| `admin_whoami` (0058) | — | `TABLE(is_admin, has_mfa)` (aal2) | `AdminRepository.fetchAccess` |
+| `admin_overview` (0058) | `p_days?` (NULL = sempre) | `jsonb` (utilizadores, coorte de pedidos do período, avaliações, planos, alertas) | `AdminRepository.fetchOverview` |
+| `admin_list_workers` (0058) | `p_search?, p_tier?, p_limit, p_offset` | `TABLE(... tier, plan_ends_at, last_sign_in_at, jobs_completed, avg_rating, total_count)` | `AdminRepository.fetchWorkers` |
+| `admin_get_worker` (0058) | `p_worker_id` (alvo, não identidade) | `jsonb` (ficha, números, 6 meses, plano e histórico) | `AdminRepository.fetchWorker` |
+| `admin_set_worker_plan` (0058) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
+
+As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`.
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -450,6 +463,7 @@ muda (ver secção 13).
 | `trg_help_request_before_update_job_day` / `trg_help_acceptance_before_update_job_day` (0054) | `help_requests` / `help_acceptances` | BEFORE UPDATE OF status | recusam aprovar o pedido e aceitar candidatos a partir do dia do trabalho |
 | `trg_job_request_direct_before_insert` (0057) | `job_requests` | BEFORE INSERT | limpa os campos diretos e, com `direct_source_job_id`, valida que o pedido de origem é do cliente e está concluído, tira o jardineiro da proposta aceite e reserva 24h (`direct_status = 'waiting'`). A app nunca manda o id do jardineiro |
 | `trg_job_proposal_direct_before_insert` / `trg_job_proposal_direct_after_status` (0057) | `job_proposals` | BEFORE INSERT / AFTER UPDATE OF status | bloqueiam propostas de outros enquanto a reserva está ativa; proposta do escolhido recusada abre a todos (`released`), retirada conta como recusa (`declined`) |
+| `trg_set_proposal_accepted_at` / `trg_enforce_free_plan_limit` (0058) | `job_proposals` | BEFORE UPDATE OF status / BEFORE INSERT | grava `accepted_at`; recusa proposta nova de um jardineiro sem Pro/Pro+ em vigor com 5 trabalhos aceites no mês (Lisboa). Limite suave: propostas já pendentes ainda podem ser aceites |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
 
 ### Storage
@@ -483,8 +497,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
 | `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
 | `0057_direct_requests.sql` | **criada, NÃO aplicada**, depois da 0056 (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
+| `0058_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da 0057 (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
 
-Próxima migration: `0058`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0059`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

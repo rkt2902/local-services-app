@@ -24,6 +24,15 @@ const passwordResetRoute = '/forgot-password/reset';
 /// Ecrã de erro quando há sessão mas o perfil não se conseguiu ler.
 const sessionErrorRoute = '/session-error';
 
+/// Painel de administração (`/admin` e `/admin/...`). Fica fora de todas as
+/// regras de papel: a conta de admin não tem papel de cliente nem de
+/// jardineiro, e o próprio ecrã decide o passo (login, segundo fator,
+/// sem acesso). Quem protege os dados são as RPCs `admin_*` (0058).
+const adminRoutePrefix = '/admin';
+
+bool isAdminLocation(String location) =>
+    location == adminRoutePrefix || location.startsWith('$adminRoutePrefix/');
+
 /// Query de `/` (e de `/login`) com o destino original de quem abriu uma
 /// rota privada sem sessão. Ex.: `/?from=%2Fclient%2Fjob%2F123`.
 const returnToParam = 'from';
@@ -82,6 +91,13 @@ String? resolveRedirect({
 }) {
   final loc = location;
   if (loc == oauthCallbackRoute) return '/';
+  if (isAdminLocation(loc)) {
+    // Sem sessão, as subpáginas voltam à entrada do painel (o login).
+    if (session != null && !session.isAuthenticated && loc != adminRoutePrefix) {
+      return adminRoutePrefix;
+    }
+    return null;
+  }
   // Sessão a carregar: ficar sempre onde está. Mandar para /loading num
   // refresh de token a meio da sessão destrói a árvore de widgets atual
   // (por exemplo com o ImagePicker aberto) e perde dados sem aviso.

@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Painel /admin e planos dos jardineiros (0058)
+
+- **No mesmo link, em `/admin`** (pedido do Henrique), não num site à parte. O código do
+  painel vai no mesmo bundle; isso não abre nada porque os dados só saem de RPCs `admin_*`.
+- **Admin = linha em `admin_users` + aal2.** A tabela só se escreve por SQL Editor e as RPCs
+  exigem o segundo fator TOTP na sessão (`auth.jwt()->>'aal'`). Uma conta normal que abra
+  `/admin` só vê "Sem acesso" (`admin_whoami` não exige aal2, para dar essa resposta sem
+  inscrever um fator).
+- **A conta de admin não tem papel**: o router deixa `/admin` fora de todas as regras de
+  papel e de onboarding.
+- **O plano não é um papel.** `profiles.role` continua `worker`; o plano vive em
+  `worker_plans` com validade, e acaba sozinho (volta a Grátis) sem cron: o plano em vigor
+  é calculado (`worker_active_tier`).
+- **Limite do Grátis: 5 trabalhos aceites por mês (hora de Lisboa), não propostas.**
+  Limitar propostas deixava os clientes com menos propostas. Trigger BEFORE INSERT em
+  `job_proposals`, para não depender da versão de `create_proposal`. Limite suave:
+  propostas já pendentes podem ser aceites, porque falhar a aceitação do cliente era pior.
+- **Sem preços nem forma de pagar na app** (regras de faturação das lojas): o plano é
+  contratado e pago fora, e atribuído no painel.
+- **Sem selo "Verificado" à parte**: "documentos verificados" é uma data no plano, e o
+  selo Pro passa a querer dizer isso (o selo em si ainda não aparece aos clientes).
+
 ## 2026-10-22 — Pedir de novo ao mesmo jardineiro (0057, design A5)
 
 - **A app nunca manda o id do jardineiro**: manda `direct_source_job_id` (o trabalho concluído)

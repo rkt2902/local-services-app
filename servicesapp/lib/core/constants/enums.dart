@@ -257,3 +257,32 @@ enum DirectRequestStatus {
         _ => null,
       };
 }
+
+/// Plano do jardineiro (`worker_plans.tier`, migration 0058). O papel
+/// continua a ser `worker`; o plano só muda o limite mensal e o selo.
+enum WorkerPlanTier {
+  free,
+  pro,
+  proPlus;
+
+  String get value => switch (this) {
+        WorkerPlanTier.free => 'free',
+        WorkerPlanTier.pro => 'pro',
+        WorkerPlanTier.proPlus => 'pro_plus',
+      };
+
+  String get label => switch (this) {
+        WorkerPlanTier.free => 'Grátis',
+        WorkerPlanTier.pro => 'Pro',
+        WorkerPlanTier.proPlus => 'Pro+',
+      };
+
+  bool get isPaid => this != WorkerPlanTier.free;
+
+  /// Valor desconhecido (BD mais nova que a app) conta como Grátis.
+  static WorkerPlanTier fromValue(String? value) => switch (value) {
+        'pro' => WorkerPlanTier.pro,
+        'pro_plus' => WorkerPlanTier.proPlus,
+        _ => WorkerPlanTier.free,
+      };
+}

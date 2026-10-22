@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import 'worker_profile_model.dart';
 import 'worker_public_card_model.dart';
+import 'worker_plan_model.dart';
 import 'service_type_model.dart';
 import '../../../core/config/storage_urls.dart';
 
@@ -106,6 +108,20 @@ class WorkerRepository {
     await _client.rpc('sync_worker_service_types', params: {
       'p_service_type_ids': serviceTypeIds,
     });
+  }
+
+  /// Plano e uso do mês do próprio jardineiro (`get_my_plan`, 0058).
+  /// Sem a 0058 aplicada a RPC não existe: devolve [WorkerPlan.unavailable].
+  Future<WorkerPlan> fetchMyPlan() async {
+    try {
+      final data = await _client.rpc('get_my_plan');
+      final rows = data as List;
+      if (rows.isEmpty) return WorkerPlan.unavailable;
+      return WorkerPlan.fromJson(rows.first as Map<String, dynamic>);
+    } catch (e) {
+      if (isMissingRpcError(e)) return WorkerPlan.unavailable;
+      rethrow;
+    }
   }
 
   Future<Map<String, String>> fetchWorkerBasicInfo(String workerId) async {

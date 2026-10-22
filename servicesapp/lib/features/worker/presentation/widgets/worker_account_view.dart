@@ -13,6 +13,7 @@ class WorkerAccountViewData {
     required this.ratingLabel,
     required this.reviewsLabel,
     required this.fleetCardStatusLabel,
+    required this.planLabel,
     this.avatarImage,
   });
 
@@ -27,6 +28,10 @@ class WorkerAccountViewData {
   /// widget: `AppAccountMenuItem.trailingLabel` só aceita `String?`.
   final String fleetCardStatusLabel;
 
+  /// "Grátis · 3 de 5 este mês", "Pro · até 22/10/2027" (ver
+  /// `worker_plan_labels.dart`).
+  final String planLabel;
+
   final ImageProvider? avatarImage;
 }
 
@@ -39,6 +44,7 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onJobsPressed,
     required this.onReviewsPressed,
     required this.onFleetCardPressed,
+    required this.onPlanPressed,
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
@@ -58,6 +64,7 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onJobsPressed;
   final VoidCallback onReviewsPressed;
   final VoidCallback onFleetCardPressed;
+  final VoidCallback onPlanPressed;
 
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
@@ -198,6 +205,12 @@ class WorkerAccountScreen extends StatelessWidget {
                         '${data.ratingLabel} · ${data.reviewsLabel}',
                   ),
                   AppAccountMenuItem(
+                    id: 'plan',
+                    label: 'Plano',
+                    icon: Icons.workspace_premium_outlined,
+                    trailingLabel: data.planLabel,
+                  ),
+                  AppAccountMenuItem(
                     id: 'fleet_card',
                     label: 'Cartão frota',
                     icon: Icons.local_gas_station_outlined,
@@ -210,6 +223,8 @@ class WorkerAccountScreen extends StatelessWidget {
                       onJobsPressed();
                     case 'reviews':
                       onReviewsPressed();
+                    case 'plan':
+                      onPlanPressed();
                     case 'fleet_card':
                       onFleetCardPressed();
                   }

@@ -50,6 +50,8 @@ import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../widgets/app_launch_screen.dart';
+import '../../features/admin/presentation/admin_gate_screen.dart';
+import '../../features/admin/presentation/admin_worker_detail_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
@@ -177,6 +179,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/client/ratings',
         pageBuilder: (context, state) =>
             buildFadeThroughPage(context, state, const MyRatingsRoute()),
+      ),
+      // Painel de administração: fora dos papéis e dos ShellRoutes. O
+      // ecrã de entrada trata do login e do segundo fator (ver
+      // admin_gate_screen.dart); os dados só saem das RPCs admin_*.
+      GoRoute(
+        path: adminRoutePrefix,
+        builder: (_, _) => const AppContentWidth(child: AdminGateScreen()),
+      ),
+      GoRoute(
+        path: '$adminRoutePrefix/workers/:workerId',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          AdminWorkerDetailScreen(
+            workerId: state.pathParameters['workerId']!,
+          ),
+        ),
       ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
       // autenticação/role (ver publicPathPrefixes no redirect abaixo).

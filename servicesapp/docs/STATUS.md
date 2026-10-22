@@ -8,6 +8,17 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-22, painel de administração /admin e planos (migration 0058 por aplicar):**
+`/admin` no mesmo site da app, só para a conta que estiver em `admin_users`, com palavra-passe
+e código de uma app autenticadora (TOTP do Supabase). Fase 1: visão geral (utilizadores,
+pedidos do período, % com proposta em 24h, tempo até à 1.ª proposta, avaliações, planos e
+alertas), lista de jardineiros com pesquisa e filtro por plano, ficha com números e trabalhos
+por mês, e "Mudar plano" (Grátis, Pro, Pro+ com início, fim, documentos verificados e notas).
+O Grátis passa a ter um limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
+depois disso); a conta do jardineiro mostra o plano e o uso em "Plano". Pagamento e contrato
+são fora da app: a app não mostra preços. Falta: mapa, pedidos, moderação, funil e exportar
+(fases 2 e 3), e o selo Pro nas propostas e no cartão público. Passos em `SETUP.md` 0.11.
+
 **2026-10-22, Pedir de novo ao mesmo jardineiro (design A5, migration 0057 por aplicar):**
 no trabalho concluído o cliente tem "Pedir de novo a {nome}" (cartão só sem avaliação ou
 com 4 ou 5 estrelas); o pedido vem preenchido e só pede a data. Durante 24h só esse
