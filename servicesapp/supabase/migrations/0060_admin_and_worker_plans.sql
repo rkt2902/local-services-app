@@ -1,10 +1,12 @@
 -- ══════════════════════════════════════════════════════════════
--- 0059 — Painel de administração (/admin) e planos dos jardineiros
+-- 0060 — Painel de administração (/admin) e planos dos jardineiros
 -- ══════════════════════════════════════════════════════════════
 --
 -- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da
--- 0058_proposal_pricing_and_work_days.sql (usa pricing_mode, total_price e
--- job_work_days dela; também started_at da 0052 e deleted_at da 0049).
+-- 0058_proposal_pricing_and_work_days.sql e da
+-- 0059_card_direct_requests_and_tracking.sql (as duas do PR das propostas e
+-- do cartão). Usa pricing_mode, total_price e job_work_days da 0058; também
+-- started_at da 0052 e deleted_at da 0049.
 -- Pode correr-se mais do que uma vez sem erro.
 --
 -- O que faz:

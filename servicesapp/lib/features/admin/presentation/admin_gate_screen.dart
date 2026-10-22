@@ -25,7 +25,7 @@ import 'admin_home_screen.dart';
 /// segundo fator → app autenticadora; tudo certo → o painel.
 ///
 /// Isto é só a interface: quem decide o acesso são as RPCs `admin_*`
-/// (migration 0059), que recusam tudo sem `admin_users` + aal2.
+/// (migration 0060), que recusam tudo sem `admin_users` + aal2.
 class AdminGateScreen extends ConsumerWidget {
   const AdminGateScreen({super.key});
 

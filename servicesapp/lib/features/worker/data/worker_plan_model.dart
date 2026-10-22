@@ -1,6 +1,6 @@
 import '../../../core/constants/enums.dart';
 
-/// Plano do próprio jardineiro, de `get_my_plan()` (migration 0059).
+/// Plano do próprio jardineiro, de `get_my_plan()` (migration 0060).
 class WorkerPlan {
   const WorkerPlan({
     required this.tier,
@@ -10,7 +10,7 @@ class WorkerPlan {
     required this.monthlyJobLimit,
   });
 
-  /// Antes da 0059 aplicada (a RPC não existe): Grátis sem limite, para a
+  /// Antes da 0060 aplicada (a RPC não existe): Grátis sem limite, para a
   /// conta não mostrar um limite que a BD ainda não aplica.
   static const unavailable = WorkerPlan(
     tier: WorkerPlanTier.free,

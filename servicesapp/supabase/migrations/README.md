@@ -139,13 +139,14 @@ da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quan
 iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
 alteração, para os cartões de "Os meus trabalhos" (design A2).
 
-**`0059_admin_and_worker_plans.sql`: criada, NÃO aplicada** (aplicar depois da
-`0058_proposal_pricing_and_work_days.sql`, que vem no PR das propostas por valor total).
+**`0060_admin_and_worker_plans.sql`: criada, NÃO aplicada** (aplicar depois da
+`0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql`,
+que vêm no PR das propostas por valor total e do cartão).
 Painel `/admin`: `admin_users` (quem é admin, só por SQL), `admin_actions` (registo),
 `worker_plans` (Grátis, Pro, Pro+ com validade, verificação e notas), `job_proposals.accepted_at`,
 limite de 5 trabalhos aceites por mês no Grátis (trigger BEFORE INSERT em
 `job_proposals`), `get_my_plan()` e as RPCs `admin_*` (exigem `admin_users` + aal2).
-Pode correr-se mais do que uma vez. **Próxima migration: `0060`.**
+Pode correr-se mais do que uma vez. **Próxima migration: `0061`.**
 
 **`0057_direct_requests.sql`: criada, NÃO aplicada** (aplicar depois da 0056). Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em

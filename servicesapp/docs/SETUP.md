@@ -182,16 +182,17 @@ resto da app funciona como antes.
 
 **Diz ao Claude:** "0057 aplicada".
 
-### 0.12 Migration por aplicar: 0059 (depois da 0058 das propostas por valor total) e acesso ao painel /admin
+### 0.13 Migration por aplicar: 0060 (depois da 0058 e da 0059 do passo 0.12) e acesso ao painel /admin
 
-A 0059 usa colunas e tabelas que a `0058_proposal_pricing_and_work_days.sql` cria
-(PR das propostas por hora ou valor total). Aplica primeiro essa 0058, depois esta.
+A 0060 usa colunas e tabelas que a `0058_proposal_pricing_and_work_days.sql` cria
+(PR das propostas por hora ou valor total e do cartão). Aplica primeiro a 0058 e a
+`0059_card_direct_requests_and_tracking.sql` desse PR, por esta ordem, e só depois esta.
 
 Painel de administração em `https://<o teu site>/admin` (o mesmo link da app). A
 segurança está toda na BD: só entra uma conta que esteja na tabela `admin_users` e que
 tenha confirmado o código de uma app autenticadora nesta sessão.
 
-- [ ] SQL Editor: colar `supabase/migrations/0059_admin_and_worker_plans.sql` e correr.
+- [ ] SQL Editor: colar `supabase/migrations/0060_admin_and_worker_plans.sql` e correr.
       Pode correr-se mais do que uma vez.
 - [ ] Supabase > Authentication > Users > **Add user > Create new user**: cria uma conta
       só para administrar (um email teu que não uses como cliente nem como jardineiro),
@@ -222,10 +223,10 @@ QR novo.
 
 Para tirar o acesso a uma conta: `delete from public.admin_users where user_id = ...`.
 
-Antes de aplicar a 0059, `/admin` dá erro ao confirmar o acesso e a linha "Plano" da conta
+Antes de aplicar a 0060, `/admin` dá erro ao confirmar o acesso e a linha "Plano" da conta
 do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
 
-**Diz ao Claude:** "0059 aplicada".
+**Diz ao Claude:** "0060 aplicada".
 
 ---
 
