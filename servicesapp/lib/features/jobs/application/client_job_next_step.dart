@@ -1,6 +1,7 @@
 import '../../../core/constants/enums.dart';
 import '../../worker/application/worker_job_rules.dart';
 import '../data/job_model.dart';
+import 'direct_request_labels.dart';
 
 // Próximo passo de um pedido, do ponto de vista do cliente. Partilhado pelo
 // Início (client_home_screen.dart) e pela aba Pedidos (client_jobs_screen.dart)
@@ -69,6 +70,11 @@ String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
   }
   if (job.status == JobStatus.open) {
     final n = job.proposalCount;
+    final directUntil = job.directUntil;
+    if (n <= 0 && job.isDirectWaiting && directUntil != null) {
+      return 'Só o teu jardineiro vê o pedido até '
+          '${directDeadlineLabel(directUntil)}.';
+    }
     if (n <= 0) return 'À espera de propostas dos jardineiros.';
     return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
   }

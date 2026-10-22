@@ -14,16 +14,20 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../application/worker_job_rules.dart';
 import '../application/worker_providers.dart';
+import 'widgets/worker_direct_request_card.dart' as view;
 import 'widgets/worker_job_detail_view.dart' as view;
 import 'worker_my_job_detail_screen.dart' as my_job;
 
@@ -31,13 +35,67 @@ import 'worker_my_job_detail_screen.dart' as my_job;
 ///
 /// Wrapper que liga os providers reais ao componente apresentacional em
 /// widgets/worker_job_detail_view.dart.
-class WorkerJobDetailScreen extends ConsumerWidget {
+class WorkerJobDetailScreen extends ConsumerStatefulWidget {
   const WorkerJobDetailScreen({super.key, required this.jobId});
 
   final String jobId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WorkerJobDetailScreen> createState() =>
+      _WorkerJobDetailScreenState();
+}
+
+class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
+  String get jobId => widget.jobId;
+
+  /// "Não posso desta vez" (pedido direto, 0057) a correr.
+  bool _decliningDirect = false;
+
+  /// Depois de recusar, o servidor deixa de mostrar o pedido a este
+  /// jardineiro: o ecrã fica com o painel "Avisámos..." até sair por "Ver
+  /// outras oportunidades", sem recarregar o pedido.
+  String? _declinedMessage;
+
+  Future<void> _declineDirect(String clientName) async {
+    final name = firstNameOr(clientName, 'o cliente');
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.event_busy_outlined,
+      title: 'Não podes desta vez?',
+      message: 'Avisamos $name e o pedido fica visível para outros '
+          'jardineiros. Não dá para desfazer.',
+      confirmLabel: 'Não posso',
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _decliningDirect = true);
+    final toast = AppToast.of(context);
+    try {
+      await ref.read(jobRepositoryProvider).declineDirectJobRequest(jobId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _decliningDirect = false);
+      toast.error(friendlyError(e));
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _decliningDirect = false;
+      _declinedMessage =
+          'Avisámos $name. O pedido fica visível para os outros jardineiros.';
+    });
+    // Este ecrã não observa a lista: pode recarregar já.
+    ref.invalidate(jobsInRadiusProvider);
+  }
+
+  void _seeOtherJobs() {
+    // T4: navegar e só depois invalidar o pedido que este ecrã observa.
+    context.go('/worker/available-jobs');
+    ref.invalidate(jobByIdProvider(jobId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final jobAsync = ref.watch(jobByIdProvider(jobId));
 
     return jobAsync.when(
@@ -56,12 +114,12 @@ class WorkerJobDetailScreen extends ConsumerWidget {
         if (job == null) {
           return const _MessageScaffold(child: view.WorkerJobUnavailableBanner());
         }
-        return _buildDetail(context, ref, job);
+        return _buildDetail(context, job);
       },
     );
   }
 
-  Widget _buildDetail(BuildContext context, WidgetRef ref, JobRequest job) {
+  Widget _buildDetail(BuildContext context, JobRequest job) {
     // Pedido já confirmado com este worker (ex.: aberto por uma notificação
     // antiga de "novo pedido"): mostra o ecrã do trabalho, com morada exata,
     // mapa e valor acordado, em vez da oportunidade ("Preço a combinar").
@@ -124,6 +182,43 @@ class WorkerJobDetailScreen extends ConsumerWidget {
     }
 
     final avatarUrl = clientInfo?['avatar_url'];
+    final clientName = clientInfo?['full_name'] ?? '';
+
+    // Pedido direto para mim (0057), ainda dentro da reserva.
+    final directUntil = job.directUntil;
+    final isDirectForMe = !unavailable &&
+        job.isDirectWaiting &&
+        directUntil != null &&
+        job.directWorkerId != null &&
+        job.directWorkerId == currentUserId;
+    view.WorkerDirectRequestViewData? direct;
+    if (isDirectForMe || _declinedMessage != null) {
+      final contextAsync = ref.watch(directRequestContextProvider(jobId));
+      direct = view.WorkerDirectRequestViewData(
+        tagLabel: directUntil == null
+            ? 'Pedido só para ti'
+            : 'Pedido só para ti · '
+                '${directTimeLeftLabel(directUntil, DateTime.now())}',
+        explanationLabel: 'O cliente pediu-te este trabalho primeiro. Se não '
+            'responderes a tempo, o pedido fica visível para todos.',
+        history: contextAsync.whenData((history) {
+          if (history == null) return null;
+          final service = serviceTypes
+                  .where((s) => s.id == history.serviceTypeId)
+                  .map((s) => s.name)
+                  .firstOrNull ??
+              '';
+          final name =
+              history.clientName.isNotEmpty ? history.clientName : clientName;
+          return view.WorkerDirectHistoryViewData(
+            clientInitial: initialOf(name.isEmpty ? 'Cliente' : name),
+            clientAvatarUrl:
+                (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
+            label: directHistoryLabel(history, serviceLabel: service),
+          );
+        }),
+      );
+    }
 
     final data = view.WorkerJobDetailViewData(
       id: job.id,
@@ -145,7 +240,7 @@ class WorkerJobDetailScreen extends ConsumerWidget {
       budgetLabel: 'Preço a combinar',
       description: job.description,
       serviceIcon: serviceIconFor(serviceType?.icon),
-      clientName: clientInfo?['full_name'] ?? '',
+      clientName: clientName,
       clientAvatar: (avatarUrl != null && avatarUrl.isNotEmpty)
           ? avatarUrl
           : null,
@@ -167,6 +262,15 @@ class WorkerJobDetailScreen extends ConsumerWidget {
                 '/worker/my-job/${myPendingProposal.id}?jobId=$jobId',
               ),
       onSendProposalPressed: () => context.push('/worker/job/$jobId/propose'),
+      directRequest: direct,
+      onRetryDirectHistory: () =>
+          ref.invalidate(directRequestContextProvider(jobId)),
+      onDeclineDirectPressed: myPendingProposal == null && isDirectForMe
+          ? () => _declineDirect(clientName)
+          : null,
+      decliningDirect: _decliningDirect,
+      directDeclinedMessage: _declinedMessage,
+      onSeeOtherJobsPressed: _seeOtherJobs,
     );
   }
 }

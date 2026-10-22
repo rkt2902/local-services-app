@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show AsyncValue;
 
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
@@ -9,6 +10,8 @@ import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/home_notification_button.dart';
 import 'package:servicesapp/core/widgets/next_step_row.dart';
+
+import 'your_gardeners_section.dart';
 
 /// Dados de apresentação da Home do cliente.
 ///
@@ -74,11 +77,19 @@ class ClientHomeScreen extends StatelessWidget {
     required this.onNotificationsPressed,
     required this.onActiveJobPressed,
     required this.onViewAllJobsPressed,
+    this.gardeners = const AsyncValue.data([]),
+    this.onRepeatHireGardener,
+    this.onRetryGardeners,
     this.onRefresh,
     super.key,
   });
 
   final ClientHomeViewData data;
+
+  /// "Os teus jardineiros" (design A5). Lista vazia: a secção não aparece.
+  final AsyncValue<List<YourGardenerCardViewData>> gardeners;
+  final ValueChanged<YourGardenerCardViewData>? onRepeatHireGardener;
+  final VoidCallback? onRetryGardeners;
 
   final VoidCallback onCreateJobPressed;
   final VoidCallback onNotificationsPressed;
@@ -128,6 +139,14 @@ class ClientHomeScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 2,
+                      child: YourGardenersSection(
+                        dataAsync: gardeners,
+                        onRepeatHire: onRepeatHireGardener ?? (_) {},
+                        onRetry: onRetryGardeners,
+                      ),
+                    ),
+                    AppStaggeredEntrance(
+                      index: 3,
                       child: _SectionHeader(
                         title: data.activeJobsTotal > 0
                             ? 'Pedidos em curso · ${data.activeJobsTotal}'
@@ -157,14 +176,14 @@ class ClientHomeScreen extends StatelessWidget {
                       )
                     else if (data.activeJobs.isEmpty)
                       AppStaggeredEntrance(
-                        index: 3,
+                        index: 4,
                         child: _EmptyJobsCard(
                           onPressed: onCreateJobPressed,
                         ),
                       )
                     else
                       AppStaggeredEntrance(
-                        index: 3,
+                        index: 4,
                         child: _ActiveJobsList(
                           jobs: data.activeJobs,
                           hiddenCount:

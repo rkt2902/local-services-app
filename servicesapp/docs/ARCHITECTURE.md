@@ -341,7 +341,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
-| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046) |
+| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057) |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
 | `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required` |
 | `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
@@ -421,6 +421,12 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `cleanup_old_notifications` (0042) | — | `void` | **pg_cron só** (`cleanup-old-notifications`) |
 | `close_help_requests_on_job_day` (0054) | — | `void` | **pg_cron só** (`close-help-requests-on-job-day`, `5 * * * *`) |
 | `process_help_request_deadlines` (0055) | — | `void` | **pg_cron só** (`process-help-request-deadlines`, `10 * * * *`) |
+| `release_direct_job_request` (0057) | `p_job_id` | `void` (cliente abre já a todos o pedido reservado) | `JobRepository.releaseDirectJobRequest` |
+| `decline_direct_job_request` (0057) | `p_job_id` | `void` (jardineiro escolhido diz "Não posso desta vez"; recusa se já tem proposta pendente) | `JobRepository.declineDirectJobRequest` |
+| `get_repeat_hire_for_job` (0057) | `p_job_id` (trabalho concluído do cliente) | `TABLE(worker_id, worker_name, worker_avatar_url, service_type_id, job_date, can_request, my_stars)` | `JobRepository.fetchRepeatHireForJob` |
+| `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
+| `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
+| `expire_direct_job_requests` (0057) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`) |
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -442,6 +448,8 @@ muda (ver secção 13).
 | `on_job_created` (ficheiro define-o como `trigger_notify_workers_new_job`, ver secção 16) | `job_requests` | AFTER INSERT | `notify_workers_new_job()` — insere `new_job_in_radius` para cada worker no raio Haversine que faz o serviço (ou sem serviços escolhidos), desde a 0054 |
 | `trg_notify_workers_new_help_request` (0054) | `help_requests` | AFTER INSERT / UPDATE OF status | `notify_workers_new_help_request()` — `new_help_request_in_radius` quando o pedido abre (criado aberto ou aprovado), mesmo filtro de raio e serviço |
 | `trg_help_request_before_update_job_day` / `trg_help_acceptance_before_update_job_day` (0054) | `help_requests` / `help_acceptances` | BEFORE UPDATE OF status | recusam aprovar o pedido e aceitar candidatos a partir do dia do trabalho |
+| `trg_job_request_direct_before_insert` (0057) | `job_requests` | BEFORE INSERT | limpa os campos diretos e, com `direct_source_job_id`, valida que o pedido de origem é do cliente e está concluído, tira o jardineiro da proposta aceite e reserva 24h (`direct_status = 'waiting'`). A app nunca manda o id do jardineiro |
+| `trg_job_proposal_direct_before_insert` / `trg_job_proposal_direct_after_status` (0057) | `job_proposals` | BEFORE INSERT / AFTER UPDATE OF status | bloqueiam propostas de outros enquanto a reserva está ativa; proposta do escolhido recusada abre a todos (`released`), retirada conta como recusa (`declined`) |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
 
 ### Storage
@@ -452,7 +460,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron. Desde a 0055, `process-help-request-deadlines` (`10 * * * *`) aprova sozinho o pedido de ajudantes que está por aprovar há 24h (se o dia ainda não chegou; avisos `help_request_approved` ao responsável e `help_request_auto_approved` ao cliente) e, na véspera a partir das 18h de Portugal, avisa uma vez (`help_requests.eve_reminder_sent_at`): o responsável com candidatos por decidir ou vagas livres (`help_request_closing_soon`) e o cliente que ainda não aprovou (`help_request_pending_approval`). No dia do trabalho o ajudante aceite já não pode desistir e, se o responsável o retirar, a vaga não reabre (`remove_help_helper`).
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron. Desde a 0055, `process-help-request-deadlines` (`10 * * * *`) aprova sozinho o pedido de ajudantes que está por aprovar há 24h (se o dia ainda não chegou; avisos `help_request_approved` ao responsável e `help_request_auto_approved` ao cliente) e, na véspera a partir das 18h de Portugal, avisa uma vez (`help_requests.eve_reminder_sent_at`): o responsável com candidatos por decidir ou vagas livres (`help_request_closing_soon`) e o cliente que ainda não aprovou (`help_request_pending_approval`). No dia do trabalho o ajudante aceite já não pode desistir e, se o responsável o retirar, a vaga não reabre (`remove_help_helper`). Desde a 0057, `expire-direct-job-requests` (`*/5 * * * *`) abre a todos os pedidos diretos cuja reserva de 24h passou (`direct_status = 'expired'`, aviso `direct_request_released` ao cliente). A visibilidade já depende da hora (`job_reserved_for_other`), por isso o atraso do cron só atrasa os avisos.
 
 ### Estado das migrations
 
@@ -474,8 +482,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
 | `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
 | `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
+| `0057_direct_requests.sql` | **criada, NÃO aplicada**, depois da 0056 (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
 
-Próxima migration: `0050` se ainda estiver livre, senão `0052`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0058`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -489,6 +498,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | Transição | RPC | Notificação |
 |---|---|---|
 | criar pedido | INSERT direto | `new_job_in_radius` (trigger) |
+| pedido direto ("Pedir de novo", 0057; continua `open`, `direct_status` à parte: `waiting → declined/expired/released`) | INSERT direto com `direct_source_job_id`; `decline_direct_job_request`, `release_direct_job_request`, cron | `direct_job_request` só ao escolhido; ao abrir a todos `new_job_in_radius` e, se recusou ou expirou, `direct_request_released` ao cliente |
 | aceitar proposta → `confirmed` | `accept_proposal` | `proposal_accepted` / `proposal_rejected` (outras) |
 | worker inicia (continua `confirmed`, "Em curso" = `started_at` preenchido, 0052) | `start_job` | `job_started` |
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |
@@ -552,6 +562,8 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `help_request_closing_soon` (0055) | `process_help_request_deadlines` (cron, véspera) | `/worker/job/:id/help-requests` | **push** |
 | `help_request_auto_approved` (0055) | `process_help_request_deadlines` (cron, 24h) | `/client/job/:id` | go |
 | `help_job_started` (0055) | trigger `trg_notify_helpers_on_job_change` (`started_at`) | `/worker/help/:id` | go |
+| `direct_job_request` (0057) | trigger `notify_workers_new_job` (pedido direto) | `/worker/job/:id` | go |
+| `direct_request_released` (0057) | `open_direct_job_to_all` (recusa, retirada ou cron) | `/client/job/:id` | go |
 
 Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStreamProvider` e mostra a notificação nova no topo (`AppToast.notification`, ícone e tom de `notificationLook`); tocar abre o mesmo destino e marca como lida. Não aparece no primeiro carregamento nem no ecrã `/notifications`.
 

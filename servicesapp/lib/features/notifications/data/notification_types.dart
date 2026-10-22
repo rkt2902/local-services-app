@@ -68,4 +68,12 @@ abstract class NotificationType {
   /// 0055: ao cliente, o pedido de ajudantes ficou aprovado sozinho ao fim
   /// de 24h. relatedId = id do pedido (`job_requests.id`).
   static const helpRequestAutoApproved = 'help_request_auto_approved';
+
+  /// 0057: ao jardineiro, um cliente pediu-lhe de novo um trabalho (só ele
+  /// o vê durante 24 horas). relatedId = id do pedido.
+  static const directJobRequest = 'direct_job_request';
+
+  /// 0057: ao cliente, o jardineiro escolhido não pode ou não respondeu a
+  /// tempo; o pedido abriu a todos. relatedId = id do pedido.
+  static const directRequestReleased = 'direct_request_released';
 }

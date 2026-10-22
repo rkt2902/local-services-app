@@ -162,6 +162,26 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0056 aplicada".
 
+### 0.10 Migration por aplicar: 0057 (depois da 0056)
+
+- [ ] SQL Editor: colar `supabase/migrations/0057_direct_requests.sql` e correr. Pode
+      correr-se mais do que uma vez. Precisa do `pg_cron` (já ativo) e cria o cron
+      `expire-direct-job-requests` (de 5 em 5 minutos). As consultas do fim do ficheiro
+      mostram as colunas novas e o cron.
+- [ ] Testar:
+  - Num trabalho concluído (sem avaliação ou com 4 ou 5 estrelas), "Pedir de novo a {nome}"
+    abre o pedido já preenchido e só pede a data.
+  - Só esse jardineiro vê o pedido, com "Pedido só para ti · faltam X h"; outro jardineiro
+    da zona não o vê.
+  - "Não posso desta vez" abre o pedido a todos e o cliente recebe o aviso.
+  - "Mostrar já a todos" no pedido do cliente faz o mesmo, sem aviso ao cliente.
+  - "Os teus jardineiros" aparece no Início do cliente.
+
+Antes de aplicar, o "Pedir de novo" e "Os teus jardineiros" dão erro ou não aparecem; o
+resto da app funciona como antes.
+
+**Diz ao Claude:** "0057 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

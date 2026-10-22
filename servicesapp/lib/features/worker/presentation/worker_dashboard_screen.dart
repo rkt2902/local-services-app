@@ -187,6 +187,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
       );
     }
 
+    final myId = ref.watch(currentUserIdProvider);
     final opportunities = <WorkerDashboardOpportunitySummary>[
       for (final job in opportunitiesRaw.take(_maxOpportunities))
         WorkerDashboardOpportunitySummary(
@@ -198,6 +199,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
             ?job.sizeEstimate?.label,
           ].join(' · '),
           contextLabel: [
+            // Pedido direto (0057): o servidor manda-o primeiro.
+            if (job.isDirectWaiting && job.directWorkerId == myId)
+              'Pedido só para ti',
             ?job.locationArea,
             _distanceLabel(workerProfile, job),
             jobDeadlineLabel(

@@ -5,9 +5,11 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
+import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
+import 'worker_direct_request_card.dart';
 
 /// Dados de apresentação do detalhe de uma oportunidade.
 ///
@@ -63,9 +65,26 @@ class WorkerJobDetailScreen extends StatelessWidget {
     this.unavailable = false,
     this.unavailableReason,
     this.onViewMyProposalPressed,
+    this.directRequest,
+    this.onRetryDirectHistory,
+    this.onDeclineDirectPressed,
+    this.decliningDirect = false,
+    this.directDeclinedMessage,
+    this.onSeeOtherJobsPressed,
   });
 
   final WorkerJobDetailViewData data;
+
+  /// Pedido direto para este jardineiro (design A5, 5b): cartão no topo e,
+  /// sem proposta enviada, "Não posso desta vez" no fundo.
+  final WorkerDirectRequestViewData? directRequest;
+  final VoidCallback? onRetryDirectHistory;
+  final VoidCallback? onDeclineDirectPressed;
+  final bool decliningDirect;
+
+  /// Depois de recusar: a mensagem do painel e "Ver outras oportunidades".
+  final String? directDeclinedMessage;
+  final VoidCallback? onSeeOtherJobsPressed;
 
   final VoidCallback onBack;
   final VoidCallback onSendProposalPressed;
@@ -123,6 +142,16 @@ class WorkerJobDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (directRequest != null && !unavailable) ...[
+                      AppStaggeredEntrance(
+                        index: 0,
+                        child: WorkerDirectRequestCard(
+                          data: directRequest!,
+                          onRetryHistory: onRetryDirectHistory,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     _ServiceHeader(
                       title: data.title,
                       locationLabel: data.locationLabel,
@@ -234,6 +263,14 @@ extension on WorkerJobDetailScreen {
       return WorkerJobUnavailableBanner(reason: unavailableReason);
     }
 
+    final declinedMessage = directDeclinedMessage;
+    if (declinedMessage != null && onSeeOtherJobsPressed != null) {
+      return WorkerDirectDeclinedPanel(
+        message: declinedMessage,
+        onSeeOtherJobsPressed: onSeeOtherJobsPressed!,
+      );
+    }
+
     if (onViewMyProposalPressed != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -262,6 +299,15 @@ extension on WorkerJobDetailScreen {
             onPressed: onViewMyProposalPressed,
           ),
         ],
+      );
+    }
+
+    final onDecline = onDeclineDirectPressed;
+    if (directRequest != null && onDecline != null) {
+      return WorkerDirectRequestActions(
+        onSendProposalPressed: onSendProposalPressed,
+        onDeclinePressed: onDecline,
+        declining: decliningDirect,
       );
     }
 

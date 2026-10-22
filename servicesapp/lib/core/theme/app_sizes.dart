@@ -95,4 +95,12 @@ abstract final class AppSizes {
   // Notificações (A4).
   static const double notificationSkeletonLabel = 72.0;
   static const double notificationSkeletonSection = 168.0;
+
+  // Pedido direto, "Pedir de novo" (A5).
+  static const double directAvatarRadius = 18.0;
+  static const double gardenerAvatarRadius = 22.0;
+  static const double gardenerCardHeight = 164.0;
+  static const double gardenerSkeletonTitleWidth = 164.0;
+  static const double repeatHireSkeleton = 132.0;
+  static const double directBannerSkeleton = 116.0;
 }

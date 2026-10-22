@@ -69,6 +69,7 @@ final notificationSyncProvider = Provider<void>((ref) {
     for (final notification in newNotifications) {
       switch (notification.type) {
         case NotificationType.newJobInRadius:
+        case NotificationType.directJobRequest:
           ref.invalidate(jobsInRadiusProvider);
         case NotificationType.proposalReceived:
           ref.invalidate(clientJobsProvider);
@@ -134,6 +135,7 @@ final notificationSyncProvider = Provider<void>((ref) {
           if (notification.relatedId != null) ref.invalidate(myRatingForJobProvider(notification.relatedId!));
           ref.invalidate(myRatingForJobAndRateeProvider);
         case NotificationType.jobNoResponse:
+        case NotificationType.directRequestReleased:
           ref.invalidate(clientJobsProvider);
           // O pedido passou a `no_response`: o detalhe aberto tem de mudar.
           if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));

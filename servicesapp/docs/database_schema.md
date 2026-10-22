@@ -181,6 +181,10 @@ Pedidos criados por clientes.
 | day_reminder_sent_on      | date        | nullable (0046): controlo do lembrete da manhã do dia |
 | overdue_notified_at       | timestamptz | nullable (0046): aviso "a data passou sem concluir" |
 | confirmation_reminder_sent_at | timestamptz | nullable (0046): lembrete ao cliente para confirmar |
+| direct_worker_id          | uuid        | nullable (0057), FK → `profiles.id` ON DELETE SET NULL: jardineiro escolhido no "Pedir de novo"; tirado pelo trigger da proposta aceite do pedido de origem |
+| direct_source_job_id      | uuid        | nullable (0057), FK → `job_requests.id` ON DELETE SET NULL: trabalho concluído de onde veio; é o único campo direto que a app escreve |
+| direct_until              | timestamptz | nullable (0057): fim da reserva (criação + 24h) |
+| direct_status             | text        | nullable (0057), CHECK in (`waiting`,`declined`,`expired`,`released`); o `status` do pedido continua `open` |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
 
@@ -329,6 +333,8 @@ seus; a ativação é manual por SQL (service role). Ver a migration para as col
 
 ## RPC Functions (security definer)
 
+> **Pedido direto (0057):** `release_direct_job_request`, `decline_direct_job_request`, `get_repeat_hire_for_job`, `get_my_previous_workers`, `get_direct_request_context` e o cron `expire_direct_job_requests`. Detalhe em `ARCHITECTURE.md` secção 7.
+
 Todas as funções de transição de estado são `SECURITY DEFINER` e correm numa
 transação: validam permissões, atualizam tabelas e inserem notificação. Identidade
 sempre por `auth.uid()`, nunca um `p_worker_id`/`p_client_id` vindo da app.
@@ -388,6 +394,7 @@ A extensão `pg_cron` foi activada manualmente neste projecto em 2026-06-25.
 | `auto-expire-jobs` | `0 */3 * * *` (cada 3h) | `auto_expire_jobs()` | 48h sem proposta aceite → `no_response`; desde a 0046 também pedidos abertos com data fixa passada, e trabalhos confirmados 3 dias depois da data → `cancelled` (`cancel_reason = 'expired'`) |
 | `job-reminders` | `30 7 * * *` | `send_job_reminders()` | 0046: lembrete na manhã do dia, aviso de data passada e lembrete ao cliente para confirmar (`job_reminder`) |
 | `cleanup-old-notifications` | `30 3 * * *` | `cleanup_old_notifications()` | 0042: apaga notificações antigas |
+| `expire-direct-job-requests` | `*/5 * * * *` | `expire_direct_job_requests()` | 0057: reserva de 24h do pedido direto passou → abre a todos (`expired`) e avisa o cliente |
 
 **Verificar registo do cron após aplicar migration 0014:**
 ```sql

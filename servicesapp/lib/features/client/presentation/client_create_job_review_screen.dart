@@ -19,7 +19,9 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../jobs/application/direct_request_labels.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import 'widgets/direct_request_review_banner.dart';
 import '../../../core/widgets/app_toast.dart';
 
 /// Passo 4/4 de "Criar pedido" — rever o draft e publicar.
@@ -125,6 +127,7 @@ class _ClientCreateJobReviewScreenState
         urgency: wizard.urgency,
         sizeEstimate: wizard.sizeEstimate,
         description: wizard.description.trim(),
+        directSourceJobId: wizard.directSourceJobId,
       );
     } catch (e) {
       // O pedido não foi criado: pode repetir-se sem risco de duplicar.
@@ -223,6 +226,25 @@ class _ClientCreateJobReviewScreenState
         wizard.addressText.isEmpty ? 'Localização no mapa' : wizard.addressText;
 
     final photos = wizard.photos.map<ImageProvider>(pickedPhotoImage).toList();
+
+    // "Pedir de novo" (0057): o prazo de 24 horas é o do servidor; aqui só
+    // se explica.
+    final directName = firstNameOr(wizard.directWorkerName, 'o jardineiro');
+    final directBanner = wizard.isDirectRequest
+        ? DirectRequestReviewBannerViewData(
+            titleLabel: 'Vai primeiro para $directName',
+            descriptionLabel:
+                'Durante 24 horas, só $directName vê o pedido e pode enviar '
+                'proposta. Se não responder, mostramos o pedido a todos os '
+                'jardineiros.',
+            workerInitial: initialOf(
+              wizard.directWorkerName.isEmpty
+                  ? 'Jardineiro'
+                  : wizard.directWorkerName,
+            ),
+            workerAvatarUrl: wizard.directWorkerAvatarUrl,
+          )
+        : null;
     final overflowCount = photos.length - 2;
     final photosOverflowLabel = overflowCount > 0 ? '+$overflowCount' : null;
 
@@ -303,6 +325,13 @@ class _ClientCreateJobReviewScreenState
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
+                      if (directBanner != null) ...[
+                        DirectRequestReviewBanner(
+                          data: directBanner,
+                          entranceIndex: 1,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
                       AppStaggeredEntrance(
                         index: 1,
                         child: _ServiceCard(

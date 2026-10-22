@@ -36,6 +36,11 @@ import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/submit_rating_sheet.dart';
 import '../../client/application/client_create_job_wizard_provider.dart';
 import '../../client/application/job_request_form.dart';
+import '../../client/presentation/repeat_hire_launcher.dart';
+import '../../client/presentation/widgets/direct_request_waiting_banner.dart';
+import '../../client/presentation/widgets/repeat_hire_card.dart';
+import '../application/direct_request_labels.dart';
+import '../data/direct_request_models.dart';
 import 'client_scheduled_job_detail_screen.dart';
 import '../../../core/widgets/app_toast.dart';
 
@@ -119,6 +124,83 @@ class _ClientJobDetailScreenState
     );
     ref.read(clientCreateJobWizardProvider.notifier).startFrom(draft);
     context.push(wizardFirstIncompleteRoute(draft));
+  }
+
+  /// "Mostrar já a todos" (pedido direto, 0057). Sem passo otimista: em
+  /// sucesso recarrega o pedido e a faixa muda; em erro devolve a mensagem
+  /// para ficar dentro da faixa.
+  Future<String?> _releaseDirectRequest() async {
+    try {
+      await ref
+          .read(jobRepositoryProvider)
+          .releaseDirectJobRequest(widget.jobId);
+    } catch (e) {
+      return friendlyError(e);
+    }
+    if (!mounted) return null;
+    AppToast.of(context)
+        .show('O pedido já está visível para todos os jardineiros.');
+    ref.invalidate(jobByIdProvider(widget.jobId));
+    ref.invalidate(clientJobsProvider);
+    return null;
+  }
+
+  /// Faixa do pedido direto no pedido aberto: à espera do jardineiro
+  /// escolhido, ou já aberto a todos porque ele recusou ou o prazo passou.
+  Widget? _directBanner(JobRequest job) {
+    final workerId = job.directWorkerId;
+    if (job.status != JobStatus.open || workerId == null) return null;
+    if (directBannerTexts(job, workerName: '') == null) return null;
+
+    final infoAsync = ref.watch(workerBasicInfoProvider(workerId));
+    if (infoAsync.isLoading && !infoAsync.hasValue) {
+      return const DirectRequestWaitingBannerSkeleton();
+    }
+    final info = infoAsync.asData?.value ?? const <String, String>{};
+    final name = info['full_name'] ?? '';
+    final texts = directBannerTexts(job, workerName: name)!;
+    final waiting = texts.kind == DirectBannerKind.waiting;
+    return DirectRequestWaitingBanner(
+      data: DirectRequestWaitingBannerViewData(
+        display: waiting
+            ? DirectRequestWaitingDisplay.waiting
+            : DirectRequestWaitingDisplay.released,
+        titleLabel: texts.title,
+        descriptionLabel: texts.description,
+        workerInitial: initialOf(name.isEmpty ? 'Jardineiro' : name),
+        workerAvatarUrl: info['avatar_url'],
+        releaseActionLabel: waiting ? 'Mostrar já a todos' : null,
+      ),
+      onReleaseToAll: _releaseDirectRequest,
+    );
+  }
+
+  /// Cartão "Precisas outra vez?": só com 4 ou 5 estrelas ou sem avaliação.
+  RepeatHireCardViewData? _repeatHireViewData(
+    RepeatHireInfo? info,
+    List<ServiceType> serviceTypes,
+  ) {
+    if (info == null || !showRepeatHire(info)) return null;
+    final name = firstNameOr(info.workerName, 'o jardineiro');
+    final service = serviceTypes
+            .where((s) => s.id == info.serviceTypeId)
+            .map((s) => s.name)
+            .firstOrNull ??
+        '';
+    final date = info.jobDate == null
+        ? ''
+        : DateFormat('dd/MM/yyyy').format(info.jobDate!);
+    return RepeatHireCardViewData(
+      workerName: info.workerName,
+      workerAvatarUrl: info.workerAvatarUrl,
+      previousJobLabel:
+          [service, date].where((p) => p.isNotEmpty).join(', '),
+      descriptionLabel: info.canRequest
+          ? 'Pede de novo e o pedido vai primeiro para $name. Se não '
+              'puder, fica visível para todos.'
+          : 'Este jardineiro já não aceita pedidos. Podes criar um pedido '
+              'novo para todos os jardineiros.',
+    );
   }
 
   /// Devolve true só depois da RPC confirmar sucesso — a navegação/snackbar
@@ -651,6 +733,13 @@ class _ClientJobDetailScreenState
         // ── Open status: single scroll + "Ver propostas" no fundo ────────────────
 
         if (job.status == JobStatus.open) {
+          final directBanner = _directBanner(job);
+          if (directBanner != null) {
+            detailChildren.insertAll(0, [
+              directBanner,
+              const SizedBox(height: AppSpacing.md),
+            ]);
+          }
           final proposalsButtonLabel = job.proposalCount > 0
               ? 'Ver propostas (${job.proposalCount})'
               : 'Ver propostas';
@@ -830,6 +919,47 @@ class _ClientJobDetailScreenState
           detailChildren.add(const SizedBox(height: AppSpacing.md));
           detailChildren.add(_buildClientRatingSection(theme, ratingAsync));
 
+          // "Precisas outra vez?" (pedido direto, 0057). O botão fica na
+          // barra do fundo; sem barra quando o cartão não aparece ou falha.
+          final repeatAsync = ref.watch(repeatHireForJobProvider(job.id));
+          final repeatData = repeatAsync.whenData(
+            (info) => _repeatHireViewData(info, serviceTypesForDetail),
+          );
+          detailChildren.add(const SizedBox(height: AppSpacing.md));
+          detailChildren.add(RepeatHireCard(
+            dataAsync: repeatData,
+            entranceIndex: 6,
+            onRetry: () => ref.invalidate(repeatHireForJobProvider(job.id)),
+          ));
+
+          final repeatInfo = repeatAsync.asData?.value;
+          if (repeatAsync.isLoading && !repeatAsync.hasValue) {
+            bottomBar = const BottomActionsBar(children: [
+              PrimaryActionButton(label: 'Pedir de novo', onPressed: null),
+            ]);
+          } else if (repeatInfo != null && repeatData.asData?.value != null) {
+            final name = firstNameOr(repeatInfo.workerName, '');
+            bottomBar = BottomActionsBar(children: [
+              repeatInfo.canRequest
+                  ? PrimaryActionButton(
+                      label: name.isEmpty
+                          ? 'Pedir de novo'
+                          : 'Pedir de novo a $name',
+                      onPressed: () => startRepeatHire(
+                        context,
+                        ref,
+                        sourceJob: job,
+                        workerName: repeatInfo.workerName,
+                        workerAvatarUrl: repeatInfo.workerAvatarUrl,
+                      ),
+                    )
+                  : PrimaryActionButton(
+                      label: 'Criar novo pedido',
+                      onPressed: () => _republish(job, serviceTypesForDetail),
+                    ),
+            ]);
+          }
+
           // Entrada única para avaliar: o cartão "Avaliar agora" acima
           // (`submit_client_rating`, cobre o jardineiro e os ajudantes) e
           // que passa a "Trabalho avaliado" depois. O antigo botão
@@ -989,6 +1119,9 @@ class _ClientJobDetailScreenState
     );
     if (submitted != true || !mounted) return;
     ref.invalidate(myRatingForJobProvider(widget.jobId));
+    // A nota decide se o cartão "Precisas outra vez?" aparece.
+    ref.invalidate(repeatHireForJobProvider(widget.jobId));
+    ref.invalidate(myPreviousWorkersProvider);
   }
 }
 

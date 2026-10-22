@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
+import '../application/client_create_job_wizard_provider.dart';
 
 class ClientShell extends ConsumerWidget {
   const ClientShell({super.key, required this.child});
@@ -30,7 +31,11 @@ class ClientShell extends ConsumerWidget {
             context.go('/client/profile');
         }
       },
-      onCentralActionPressed: () => context.push('/client/create-job'),
+      onCentralActionPressed: () {
+        // Um "Pedir de novo" abandonado não segue para um pedido novo.
+        ref.read(clientCreateJobWizardProvider.notifier).clearDirectWorker();
+        context.push('/client/create-job');
+      },
       centralActionTooltip: 'Criar pedido',
       items: const [
         AppBottomNavigationItem(
