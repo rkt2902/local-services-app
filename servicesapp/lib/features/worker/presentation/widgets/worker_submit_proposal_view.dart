@@ -5,6 +5,7 @@ import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
+import '../../../../core/utils/price_labels.dart';
 import '../../../../core/widgets/app_filter_chip.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -177,17 +178,24 @@ class _WorkerSubmitProposalScreenState
       return null;
     }
 
-    final minimumTotal = price * duration.minimumHours;
+    // Total da equipa toda (o cliente vê este mesmo valor nas propostas).
+    final teamPrice = teamHourlyRate(
+      price,
+      peopleNeeded: _needsHelpers ? _helperCount + 1 : 1,
+      helpersEquipmentRequired: _needsHelpers && _equipmentRequired,
+    );
+    final teamNote = _needsHelpers ? ' com a equipa' : '';
+    final minimumTotal = teamPrice * duration.minimumHours;
     final maximumHours = duration.maximumHours;
 
     if (maximumHours == null) {
-      return '≈ ${duration.label} estimadas · total aproximado a partir de '
-          '${_formatMoney(minimumTotal)} €';
+      return '≈ ${duration.label} estimadas · total aproximado$teamNote a '
+          'partir de ${_formatMoney(minimumTotal)} €';
     }
 
-    final maximumTotal = price * maximumHours;
+    final maximumTotal = teamPrice * maximumHours;
 
-    return '≈ ${duration.label} estimadas · total aproximado '
+    return '≈ ${duration.label} estimadas · total aproximado$teamNote '
         '${_formatMoney(minimumTotal)} a ${_formatMoney(maximumTotal)} €';
   }
 

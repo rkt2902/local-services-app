@@ -151,6 +151,17 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 **Diz ao Claude:** "0055 aplicada".
 
+### 0.9 Migration por aplicar: 0056 (depois da 0053)
+
+- [ ] SQL Editor: colar `supabase/migrations/0056_worker_job_board_team_estimate.sql` e
+      correr. Pode correr-se mais do que uma vez. Só redefine `get_worker_job_board` para
+      devolver a equipa da proposta.
+- [ ] Testar: em "Os meus trabalhos", uma proposta pendente com ajudantes mostra o mesmo total
+      estimado que o cliente vê em "Propostas recebidas". Antes de aplicar, a app continua a
+      funcionar e mostra o total só do responsável.
+
+**Diz ao Claude:** "0056 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

@@ -3,6 +3,16 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Total estimado com a equipa em todos os ecrãs (0056)
+
+- **Uma só conta** (`teamHourlyRate` em `core/utils/price_labels.dart`): preço por hora ×
+  (1 + ajudantes × fator) × horas, fator 1 se os ajudantes trazem equipamento e 0,75 se não.
+  Antes só "Propostas recebidas" contava a equipa; o formulário da proposta, o trabalho
+  confirmado (cliente e jardineiro) e "Os meus trabalhos" mostravam só o responsável.
+- **0056**: `get_worker_job_board` devolve `people_needed` e `helpers_equipment_required`
+  (1 e false nas linhas de ajudante, que mostram o seu valor acordado). Sem a 0056 aplicada
+  a app assume 1 pessoa.
+
 ## 2026-10-22 — WhatsApp com logótipo, folhas de avaliação e de perfil
 
 - **Botão de WhatsApp único** (`AppWhatsAppButton`): o "Falar por WhatsApp" partia em três

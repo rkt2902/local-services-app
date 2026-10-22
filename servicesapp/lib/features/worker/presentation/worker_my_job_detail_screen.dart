@@ -544,10 +544,12 @@ class _WorkerMyJobDetailScreenState
         ?.where((s) => s.id == job.serviceTypeId)
         .firstOrNull;
 
-    final estimate = _formatEstimate(
+    final estimate = estimatedTotalLabel(
       proposal.hourlyRate,
       proposal.estimatedHoursMin,
       proposal.estimatedHoursMax,
+      peopleNeeded: proposal.peopleNeeded,
+      helpersEquipmentRequired: proposal.helpersEquipmentRequired,
     );
 
     final clientInfo = clientInfoAsync.asData?.value;
@@ -686,6 +688,8 @@ class _WorkerMyJobDetailScreenState
         proposal.hourlyRate,
         proposal.estimatedHoursMin,
         proposal.estimatedHoursMax,
+        peopleNeeded: proposal.peopleNeeded,
+        helpersEquipmentRequired: proposal.helpersEquipmentRequired,
       ),
       canMarkCompleted: canMarkCompleted,
       startedAt: job.startedAt,
@@ -774,9 +778,6 @@ String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
 }
-
-String _formatEstimate(double rate, double? min, double? max) =>
-    estimatedTotalLabel(rate, min, max);
 
 String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);
 

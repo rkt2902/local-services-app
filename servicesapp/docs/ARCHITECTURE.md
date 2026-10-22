@@ -410,7 +410,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
-| `get_worker_job_board` (0035) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, bucket, total_count)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
+| `get_worker_job_board` (0035, última 0056) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |

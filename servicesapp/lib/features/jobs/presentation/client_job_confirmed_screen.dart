@@ -96,8 +96,13 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     final workerPhone = workerInfo['phone'] ?? '';
 
     final priceLabel = proposal != null
-        ? agreedPriceLabel(proposal.hourlyRate, proposal.estimatedHoursMin,
-            proposal.estimatedHoursMax)
+        ? agreedPriceLabel(
+            proposal.hourlyRate,
+            proposal.estimatedHoursMin,
+            proposal.estimatedHoursMax,
+            peopleNeeded: proposal.peopleNeeded,
+            helpersEquipmentRequired: proposal.helpersEquipmentRequired,
+          )
         : '—';
 
     return _ClientJobConfirmedView(

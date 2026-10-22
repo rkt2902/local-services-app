@@ -379,8 +379,13 @@ class _ClientScheduledJobDetailScreenState
 
         final proposal = acceptedProposalAsync.asData?.value;
         final priceLabel = proposal != null
-            ? agreedPriceLabel(proposal.hourlyRate, proposal.estimatedHoursMin,
-                proposal.estimatedHoursMax)
+            ? agreedPriceLabel(
+            proposal.hourlyRate,
+            proposal.estimatedHoursMin,
+            proposal.estimatedHoursMax,
+            peopleNeeded: proposal.peopleNeeded,
+            helpersEquipmentRequired: proposal.helpersEquipmentRequired,
+          )
             : '—';
 
         return Scaffold(
