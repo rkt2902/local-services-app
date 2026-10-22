@@ -3,6 +3,18 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — WhatsApp com logótipo, folhas de avaliação e de perfil
+
+- **Botão de WhatsApp único** (`AppWhatsAppButton`): o "Falar por WhatsApp" partia em três
+  linhas ao lado do nome do cliente. Agora tem o logótipo do WhatsApp (pacote
+  `font_awesome_flutter`, só pela fonte de marcas) e uma versão compacta "WhatsApp".
+- **"Avaliar o trabalho"** passou para o `AppSheet` (fundo branco, fechar, campo e botão da
+  app); o controlador do comentário vive no estado da folha.
+- **Perfil do jardineiro nas propostas**: fundo cinzento da app em vez do verde do Material,
+  cartão do topo com foto, zona, nota e serviços.
+- **Email de suporte**: um `SUPPORT_EMAIL` que não é um email (o site mostrava "Noth") cai no
+  email por omissão.
+
 ## 2026-10-21 — Ligação entre cliente, jardineiro e ajudantes (0055)
 
 As 7 melhorias do documento "Fluxos e regras de tempo", todas aprovadas pelo Henrique.

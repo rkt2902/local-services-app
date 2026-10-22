@@ -18,6 +18,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
@@ -988,16 +989,9 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
             ],
             if (widget.acceptance.principalPhone.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xxs),
-              OutlinedButton.icon(
+              AppWhatsAppButton(
                 onPressed: () =>
                     _openWhatsApp(widget.acceptance.principalPhone),
-                icon: const Icon(Icons.chat_outlined, size: 18),
-                label: const Text('Falar por WhatsApp'),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.s6),
-                  textStyle: Theme.of(context).textTheme.bodySmall,
-                ),
               ),
             ],
             const SizedBox(height: AppSpacing.sm),

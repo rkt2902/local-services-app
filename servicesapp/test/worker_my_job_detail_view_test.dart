@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servicesapp/core/widgets/app_whatsapp_button.dart';
 import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
@@ -161,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Qui, 23/10 · 9:00'), findsOneWidget);
-    expect(find.text('Falar por WhatsApp'), findsOneWidget);
+    expect(find.byType(AppWhatsAppButton), findsOneWidget);
     expect(find.text('1 de 2 vagas'), findsOneWidget);
     expect(find.text('RC'), findsOneWidget);
     expect(find.text('2 candidatos por decidir'), findsOneWidget);
@@ -197,7 +198,7 @@ void main() {
     expect(find.text('O cliente cancelou este trabalho'), findsOneWidget);
     expect(find.text('Oeiras'), findsOneWidget);
     expect(find.text('Rua das Flores 12, Cascais'), findsNothing);
-    expect(find.text('Falar por WhatsApp'), findsNothing);
+    expect(find.byType(AppWhatsAppButton), findsNothing);
     expect(find.text('Remarcar'), findsNothing);
     expect(find.text('Iniciar trabalho'), findsNothing);
     expect(find.byIcon(Icons.event_busy_outlined), findsOneWidget);

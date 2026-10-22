@@ -11,6 +11,7 @@ import '../data/job_model.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
@@ -429,20 +430,10 @@ class _ClientJobDetailScreenState
                 ]),
               ],
               const SizedBox(height: AppSpacing.sm),
-              FilledButton.icon(
+              AppWhatsAppButton(
                 onPressed: phone.isEmpty
                     ? null
                     : () => openWhatsAppOrWarn(context, phone),
-                style: FilledButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor: AppColors.surface,
-                  foregroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.input),
-                  ),
-                ),
-                icon: const Icon(Icons.chat_outlined),
-                label: const Text('Falar por WhatsApp'),
               ),
             ],
           ),

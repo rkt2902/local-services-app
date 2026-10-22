@@ -581,6 +581,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppOtpInput` | `onCompleted`; `length=6`, `onChanged`, `autofocus=true`, `hasError` (caixas até 48, encolhem em ecrãs estreitos) |
 | `AppLaunchScreen` | ecrã de `/loading` com o logo (`assets/branding/`), igual ao splash nativo (`flutter_native_splash`, config no `pubspec.yaml`) |
 | `AppToast` | `AppToast.of(context)` / `maybeOf` → `.show(msg)` (verde) ou `.error(msg)` (vermelho); `.notification(title, body, icon, color, onTap)` para as notificações com a app aberta. Aviso no topo, no Overlay raiz, sobrevive a `go`/`pop`. Substitui a SnackBar em toda a app (2026-10-21): não usar `ScaffoldMessenger` |
+| `AppWhatsAppButton` | Botão de contacto por WhatsApp em toda a app: fundo branco, logótipo do WhatsApp (`appWhatsAppIcon`, fonte de marcas do `font_awesome_flutter`, cor `AppColors.whatsapp`). `compact: true` ao lado de um nome ("WhatsApp" numa linha) |
 | `AppPasswordStrengthMeter` | `password` |
 | `AppDatePicker` (`showAppDatePicker`, função) | `context`, `initialDate`, `firstDate`, `lastDate` — wrapper do `showDatePicker` nativo só com tema |
 | `PrimaryActionButton` | `label`, `onPressed`; `isLoading=false`, `height=52` |

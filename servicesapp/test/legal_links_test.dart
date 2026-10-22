@@ -11,6 +11,9 @@ void main() {
     expect(AppLinks.privacyPolicyUrl, startsWith('https://docs.google.com/'));
     expect(AppLinks.termsUrl, isNot(AppLinks.privacyPolicyUrl));
     expect(AppLinks.supportEmail, 'projardim26@gmail.com');
+    expect(AppLinks.supportEmailOrDefault('Noth'), 'projardim26@gmail.com');
+    expect(AppLinks.supportEmailOrDefault(' ajuda@projardim.pt '),
+        'ajuda@projardim.pt');
   });
 
   testWidgets('cada nome abre a sua página', (tester) async {

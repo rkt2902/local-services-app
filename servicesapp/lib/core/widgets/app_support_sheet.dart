@@ -26,7 +26,7 @@ Future<void> showSupportContactSheet(BuildContext context) {
       onClose: () => Navigator.pop(sheetCtx),
       onCopyEmail: () async {
         await Clipboard.setData(
-          const ClipboardData(text: AppLinks.supportEmail),
+          ClipboardData(text: AppLinks.supportEmail),
         );
         if (sheetCtx.mounted) Navigator.pop(sheetCtx);
         toast.show('Email copiado.');

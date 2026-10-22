@@ -14,6 +14,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
@@ -510,6 +511,7 @@ class _ClientScheduledJobDetailScreenState
                 BottomActionsBar(children: [
                   PrimaryActionButton(
                     label: 'Falar por WhatsApp',
+                    icon: appWhatsAppIcon,
                     onPressed: workerPhone.isEmpty ? null : () => _openWhatsApp(workerPhone),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -685,7 +687,7 @@ class _WorkerContactCard extends StatelessWidget {
             IconButton(
               onPressed: phone.isEmpty ? null : onOpenWhatsApp,
               tooltip: 'Falar por WhatsApp',
-              icon: const Icon(Icons.chat_outlined, color: AppColors.primary),
+              icon: const Icon(appWhatsAppIcon, color: AppColors.whatsapp),
             ),
           ],
         );

@@ -19,10 +19,23 @@ abstract final class AppLinks {
   static const String _configuredDomain =
       String.fromEnvironment('APP_PUBLIC_URL');
 
-  static const String supportEmail = String.fromEnvironment(
-    'SUPPORT_EMAIL',
-    defaultValue: 'projardim26@gmail.com',
-  );
+  static const String _defaultSupportEmail = 'projardim26@gmail.com';
+
+  static const String _configuredSupportEmail =
+      String.fromEnvironment('SUPPORT_EMAIL');
+
+  /// O `SUPPORT_EMAIL` do build quando é um email; senão o de omissão. Uma
+  /// variável do GitHub com outro texto (o site chegou a mostrar "Noth")
+  /// já não aparece em "Contacto e suporte".
+  static String get supportEmail =>
+      supportEmailOrDefault(_configuredSupportEmail);
+
+  @visibleForTesting
+  static String supportEmailOrDefault(String configured) {
+    final value = configured.trim();
+    final looksLikeEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+    return looksLikeEmail ? value : _defaultSupportEmail;
+  }
 
   static const String termsUrl = String.fromEnvironment(
     'TERMS_URL',

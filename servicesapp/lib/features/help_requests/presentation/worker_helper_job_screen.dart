@@ -14,6 +14,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/address_map_link.dart';
+import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
@@ -669,24 +670,8 @@ class _PrincipalCard extends ConsumerWidget {
           ),
           if (actions.showsContact && phone.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => openWhatsAppOrWarn(context, phone),
-                icon: const Icon(Icons.chat_outlined),
-                label: const Text('Falar por WhatsApp'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.divider),
-                  minimumSize:
-                      const Size.fromHeight(AppSizes.compactButtonHeight),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.input),
-                  ),
-                  textStyle: textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
+            AppWhatsAppButton(
+              onPressed: () => openWhatsAppOrWarn(context, phone),
             ),
           ] else if (!actions.showsContact) ...[
             const SizedBox(height: AppSpacing.xs),
