@@ -16,8 +16,8 @@ import '../data/device_token_repository.dart';
 /// notificação.
 ///
 /// Com a app em primeiro plano o sistema não mostra o push (Android) — o
-/// badge/lista in-app já é atualizado pelo stream Realtime, por isso não há
-/// notificação local duplicada.
+/// stream Realtime atualiza o badge/lista e `App` mostra a notificação nova
+/// no topo (`AppToast.notification`), por isso não há notificação local.
 ///
 /// Sem `google-services.json` / `GoogleService-Info.plist` o Firebase não
 /// inicializa e tudo isto fica desligado (a app continua a funcionar).

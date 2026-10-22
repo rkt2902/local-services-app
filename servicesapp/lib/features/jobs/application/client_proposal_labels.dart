@@ -6,20 +6,16 @@ import '../../worker/application/worker_job_rules.dart';
 /// Textos e ordem dos cartões de "Propostas recebidas" (design A3). Funções
 /// puras para o ecrã não calcular nada e para se poderem testar sem rede.
 
-/// Fator de custo de cada ajudante sobre o preço por hora do responsável:
-/// com equipamento próprio paga-se a hora inteira, sem equipamento 75%
-/// (estimativa; ver decisions_log "Factor de estimativa 0.75 vs pagamento
-/// real 0.70").
-const double _helperWithoutEquipmentFactor = 0.75;
-
-/// Total estimado da proposta, com a equipa incluída. Os dois lados ficam
-/// `null` quando não há preço ou horas.
+/// Total estimado da proposta, com a equipa incluída ([teamHourlyRate],
+/// o mesmo cálculo de todos os ecrãs). Os dois lados ficam `null` quando
+/// não há preço ou horas.
 ({double? min, double? max}) proposalEstimate(JobProposal p) {
   if (p.hourlyRate <= 0) return (min: null, max: null);
-  final factor =
-      p.helpersEquipmentRequired ? 1.0 : _helperWithoutEquipmentFactor;
-  final perHour =
-      p.hourlyRate * (1 + (p.peopleNeeded - 1).clamp(0, 99) * factor);
+  final perHour = teamHourlyRate(
+    p.hourlyRate,
+    peopleNeeded: p.peopleNeeded,
+    helpersEquipmentRequired: p.helpersEquipmentRequired,
+  );
   final min = p.estimatedHoursMin;
   final max = p.estimatedHoursMax;
   return (

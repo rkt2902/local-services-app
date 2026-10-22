@@ -70,6 +70,11 @@ class WorkerJobBoardEntry {
   /// Início do trabalho (0052, devolvido desde a 0053): badge "Em curso".
   final DateTime? startedAt;
 
+  /// Equipa da proposta (0056), para o total estimado incluir os ajudantes
+  /// como nos outros ecrãs. Nas linhas de ajudante vem 1 e false.
+  final int peopleNeeded;
+  final bool helpersEquipmentRequired;
+
   const WorkerJobBoardEntry({
     required this.entryId,
     required this.role,
@@ -97,6 +102,8 @@ class WorkerJobBoardEntry {
     this.cancelledByMe = false,
     this.jobUpdatedAt,
     this.startedAt,
+    this.peopleNeeded = 1,
+    this.helpersEquipmentRequired = false,
   });
 
   factory WorkerJobBoardEntry.fromJson(Map<String, dynamic> json) =>
@@ -137,5 +144,8 @@ class WorkerJobBoardEntry {
         startedAt: json['started_at'] != null
             ? DateTime.parse(json['started_at'] as String)
             : null,
+        peopleNeeded: (json['people_needed'] as num?)?.toInt() ?? 1,
+        helpersEquipmentRequired:
+            json['helpers_equipment_required'] as bool? ?? false,
       );
 }

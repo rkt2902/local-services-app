@@ -61,6 +61,7 @@ class HelperJobActions {
   const HelperJobActions({
     required this.canWithdrawApplication,
     required this.canGiveUp,
+    this.giveUpClosedByJobDay = false,
     required this.canRatePrincipal,
     required this.showsContact,
   });
@@ -68,9 +69,13 @@ class HelperJobActions {
   /// "Retirar candidatura": só enquanto está pendente.
   final bool canWithdrawApplication;
 
-  /// "Desistir": aceite e com o trabalho ainda confirmado
+  /// "Desistir": aceite e com o trabalho ainda confirmado, até à véspera
   /// ([helperCanWithdraw]).
   final bool canGiveUp;
+
+  /// Aceite mas já é o dia do trabalho: em vez de "Desistir", o aviso
+  /// [helperGiveUpClosedMessage].
+  final bool giveUpClosedByJobDay;
 
   /// "Avaliar o responsável": trabalho concluído.
   final bool canRatePrincipal;
@@ -85,7 +90,15 @@ HelperJobActions helperJobActions(HelpAcceptanceSummary acceptance) {
   return HelperJobActions(
     canWithdrawApplication: stage == HelperJobStage.pending,
     canGiveUp: stage == HelperJobStage.accepted &&
-        helperCanWithdraw(acceptance.jobStatus),
+        helperCanWithdraw(
+          acceptance.jobStatus,
+          confirmedDate: acceptance.confirmedDate,
+        ),
+    giveUpClosedByJobDay: stage == HelperJobStage.accepted &&
+        helperGiveUpClosedByJobDay(
+          acceptance.jobStatus,
+          confirmedDate: acceptance.confirmedDate,
+        ),
     canRatePrincipal:
         stage == HelperJobStage.completed && acceptance.jobId.isNotEmpty,
     showsContact: stage == HelperJobStage.accepted ||

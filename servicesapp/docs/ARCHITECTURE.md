@@ -396,7 +396,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `auto_confirm_completed_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`; `15 * * * *` desde a 0052: lembrete às 24h e confirmação às 48h), sem caller Dart |
 | `auto_expire_jobs` | — | `void` | **pg_cron só** (`0 */3 * * *`), sem caller Dart |
 | `cancel_job` | `p_job_id, p_reason, p_reason_detail?, p_client_wants_reopen?` | `uuid` (novo job se reaberto) | `JobRepository.cancelJob` |
-| `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name, avatar_url)` (foto desde a 0054) | `RatingRepository` (avaliações e cartão "Equipa") |
+| `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name, avatar_url)` (foto desde a 0054; desde a 0055 responde também ao cliente do trabalho) | `RatingRepository` (avaliações, cartão "Equipa" do responsável e do cliente) |
 | `get_help_requests_in_radius` | `worker_lat, worker_lng, radius_km` | `TABLE(... principal_name, principal_avatar_url, payment_per_helper, confirmed_date/time)` — shape atual é a soma de 0034+0039, ver nota | `HelpRequestRepository` |
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
 | `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
@@ -409,8 +409,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_client_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
-| `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` | `HelpRequestRepository.withdrawHelpAcceptance` |
-| `get_worker_job_board` (0035) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, bucket, total_count)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
+| `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
+| `get_worker_job_board` (0035, última 0056) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
@@ -420,6 +420,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `send_job_reminders` (0046) | — | `void` | **pg_cron só** (`job-reminders`), só `service_role` |
 | `cleanup_old_notifications` (0042) | — | `void` | **pg_cron só** (`cleanup-old-notifications`) |
 | `close_help_requests_on_job_day` (0054) | — | `void` | **pg_cron só** (`close-help-requests-on-job-day`, `5 * * * *`) |
+| `process_help_request_deadlines` (0055) | — | `void` | **pg_cron só** (`process-help-request-deadlines`, `10 * * * *`) |
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -451,7 +452,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron.
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron. Desde a 0055, `process-help-request-deadlines` (`10 * * * *`) aprova sozinho o pedido de ajudantes que está por aprovar há 24h (se o dia ainda não chegou; avisos `help_request_approved` ao responsável e `help_request_auto_approved` ao cliente) e, na véspera a partir das 18h de Portugal, avisa uma vez (`help_requests.eve_reminder_sent_at`): o responsável com candidatos por decidir ou vagas livres (`help_request_closing_soon`) e o cliente que ainda não aprovou (`help_request_pending_approval`). No dia do trabalho o ajudante aceite já não pode desistir e, se o responsável o retirar, a vaga não reabre (`remove_help_helper`).
 
 ### Estado das migrations
 
@@ -548,6 +549,11 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `help_withdrew` | `withdraw_help_acceptance` | `/worker/job/:id/help-requests` | **push** |
 | `new_help_request_in_radius` (0054) | trigger em `help_requests` | `/worker/help-requests/:id/apply` | **push** |
 | `help_request_closed` (0054) | `close_help_requests_on_job_day` (cron) | `/worker/job/:id/help-requests` | **push** |
+| `help_request_closing_soon` (0055) | `process_help_request_deadlines` (cron, véspera) | `/worker/job/:id/help-requests` | **push** |
+| `help_request_auto_approved` (0055) | `process_help_request_deadlines` (cron, 24h) | `/client/job/:id` | go |
+| `help_job_started` (0055) | trigger `trg_notify_helpers_on_job_change` (`started_at`) | `/worker/help/:id` | go |
+
+Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStreamProvider` e mostra a notificação nova no topo (`AppToast.notification`, ícone e tom de `notificationLook`); tocar abre o mesmo destino e marca como lida. Não aparece no primeiro carregamento nem no ecrã `/notifications`.
 
 ---
 
@@ -574,7 +580,8 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppSearchField` | `controller`, `hintText`; `onChanged`, `onClear` |
 | `AppOtpInput` | `onCompleted`; `length=6`, `onChanged`, `autofocus=true`, `hasError` (caixas até 48, encolhem em ecrãs estreitos) |
 | `AppLaunchScreen` | ecrã de `/loading` com o logo (`assets/branding/`), igual ao splash nativo (`flutter_native_splash`, config no `pubspec.yaml`) |
-| `AppToast` | `AppToast.of(context)` / `maybeOf` → `.show(msg)` (verde) ou `.error(msg)` (vermelho). Aviso no topo, no Overlay raiz, sobrevive a `go`/`pop`. Substitui a SnackBar em toda a app (2026-10-21): não usar `ScaffoldMessenger` |
+| `AppToast` | `AppToast.of(context)` / `maybeOf` → `.show(msg)` (verde) ou `.error(msg)` (vermelho); `.notification(title, body, icon, color, onTap)` para as notificações com a app aberta. Aviso no topo, no Overlay raiz, sobrevive a `go`/`pop`. Substitui a SnackBar em toda a app (2026-10-21): não usar `ScaffoldMessenger` |
+| `AppWhatsAppButton` | Botão de contacto por WhatsApp em toda a app: fundo branco, logótipo do WhatsApp (`appWhatsAppIcon`, fonte de marcas do `font_awesome_flutter`, cor `AppColors.whatsapp`). `compact: true` ao lado de um nome ("WhatsApp" numa linha) |
 | `AppPasswordStrengthMeter` | `password` |
 | `AppDatePicker` (`showAppDatePicker`, função) | `context`, `initialDate`, `firstDate`, `lastDate` — wrapper do `showDatePicker` nativo só com tema |
 | `PrimaryActionButton` | `label`, `onPressed`; `isLoading=false`, `height=52` |

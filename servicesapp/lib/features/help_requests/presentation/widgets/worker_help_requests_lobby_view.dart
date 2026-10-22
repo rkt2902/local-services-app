@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/app_confirm_dialog.dart';
+import '../../../../core/widgets/app_whatsapp_button.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -872,20 +873,9 @@ class _AcceptedHelperCard extends StatelessWidget {
               children: [
                 if (helper.phone != null)
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: AppWhatsAppButton(
                       onPressed: () =>
                           openWhatsAppOrWarn(context, helper.phone!),
-                      icon: const Icon(Icons.chat_outlined),
-                      label: const Text('Falar por WhatsApp'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.divider),
-                        minimumSize: const Size.fromHeight(
-                          AppSizes.compactButtonHeight,
-                        ),
-                        shape: buttonShape,
-                        textStyle: buttonText,
-                      ),
                     ),
                   )
                 else

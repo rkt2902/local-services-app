@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
+import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -95,8 +96,13 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     final workerPhone = workerInfo['phone'] ?? '';
 
     final priceLabel = proposal != null
-        ? agreedPriceLabel(proposal.hourlyRate, proposal.estimatedHoursMin,
-            proposal.estimatedHoursMax)
+        ? agreedPriceLabel(
+            proposal.hourlyRate,
+            proposal.estimatedHoursMin,
+            proposal.estimatedHoursMax,
+            peopleNeeded: proposal.peopleNeeded,
+            helpersEquipmentRequired: proposal.helpersEquipmentRequired,
+          )
         : '—';
 
     return _ClientJobConfirmedView(
@@ -314,7 +320,7 @@ class _ClientJobConfirmedView extends StatelessWidget {
                     AppStaggeredEntrance(
                       index: 1,
                       child: _ContactButton(
-                        icon: Icons.chat_outlined,
+                        icon: appWhatsAppIcon,
                         label: 'Falar por WhatsApp',
                         onPressed: onCallPressed,
                       ),

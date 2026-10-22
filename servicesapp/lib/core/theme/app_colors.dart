@@ -30,4 +30,8 @@ abstract final class AppColors {
   static const Color googleYellow = Color(0xFFFBBC05);
   static const Color googleRed = Color(0xFFEA4335);
   static const Color facebookBlue = Color(0xFF1877F2);
+
+  /// Verde do logótipo do WhatsApp, só no ícone dos botões de contacto
+  /// ([AppWhatsAppButton]).
+  static const Color whatsapp = Color(0xFF25D366);
 }

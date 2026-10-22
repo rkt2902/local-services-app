@@ -314,9 +314,33 @@ HelperCardKind helperCardKind(HelpAcceptanceStatus status, String jobStatus) {
   }
 }
 
-/// "Desistir" só enquanto o trabalho está confirmado (a RPC
-/// `withdraw_help_acceptance` não faz sentido depois disso).
-bool helperCanWithdraw(String jobStatus) => jobStatus == JobStatus.confirmed.value;
+/// "Desistir" só enquanto o trabalho está confirmado e até à véspera: a
+/// partir do dia do trabalho `withdraw_help_acceptance` recusa (0055) e só
+/// o responsável pode tirar alguém da equipa.
+bool helperCanWithdraw(
+  String jobStatus, {
+  DateTime? confirmedDate,
+  DateTime? today,
+}) =>
+    jobStatus == JobStatus.confirmed.value &&
+    WorkerJobDayRules.canCancelOrReschedule(
+      confirmedDate: confirmedDate,
+      today: today ?? DateTime.now(),
+    );
+
+/// Aceite, trabalho por fazer, mas já é o dia: "Desistir" sai e o ecrã
+/// explica porquê ([helperGiveUpClosedMessage]).
+bool helperGiveUpClosedByJobDay(
+  String jobStatus, {
+  DateTime? confirmedDate,
+  DateTime? today,
+}) =>
+    jobStatus == JobStatus.confirmed.value &&
+    !helperCanWithdraw(jobStatus, confirmedDate: confirmedDate, today: today);
+
+const helperGiveUpClosedMessage =
+    'No dia do trabalho já não podes desistir. Se tiveres um imprevisto, '
+    'fala com o jardineiro responsável pelo WhatsApp.';
 
 /// Etiqueta de histórico: as candidaturas rejeitadas em cascata pelo
 /// cancelamento do trabalho dizem "Trabalho cancelado", não "Não

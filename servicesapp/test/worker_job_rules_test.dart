@@ -194,6 +194,29 @@ void main() {
           HelperCardKind.history);
     });
 
+    test('Desistir só até à véspera do trabalho', () {
+      final today = DateTime(2026, 10, 21);
+      expect(
+        helperCanWithdraw('confirmed',
+            confirmedDate: DateTime(2026, 10, 22), today: today),
+        isTrue,
+      );
+      expect(
+        helperCanWithdraw('confirmed', confirmedDate: today, today: today),
+        isFalse,
+      );
+      expect(
+        helperGiveUpClosedByJobDay('confirmed',
+            confirmedDate: today, today: today),
+        isTrue,
+      );
+      expect(
+        helperGiveUpClosedByJobDay('completed',
+            confirmedDate: today, today: today),
+        isFalse,
+      );
+    });
+
     test('Desistir só com o trabalho confirmado', () {
       expect(helperCanWithdraw('confirmed'), isTrue);
       expect(helperCanWithdraw('awaiting_confirmation'), isFalse);

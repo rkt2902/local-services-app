@@ -11,6 +11,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
 import '../../../../core/widgets/address_map_link.dart';
+import '../../../../core/widgets/app_whatsapp_button.dart';
 import '../../../../core/widgets/app_bar_title.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
@@ -1071,33 +1072,7 @@ class _ClientWhatsAppCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          // Em ecrãs estreitos o texto parte em duas linhas (como no
-          // design) em vez de empurrar o nome para fora.
-          Flexible(
-            child: OutlinedButton.icon(
-              onPressed: onWhatsApp,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textPrimary,
-                side: const BorderSide(color: AppColors.divider),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.input),
-                ),
-              ),
-              icon: const Icon(
-                Icons.chat_outlined,
-                size: AppSizes.inlineIcon,
-                color: AppColors.primary,
-              ),
-              label: const Text(
-                'Falar por WhatsApp',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
+          AppWhatsAppButton(onPressed: onWhatsApp, compact: true),
         ],
       ),
     );
@@ -2089,10 +2064,8 @@ class _ClientContactCard extends StatelessWidget {
             fallbackLabel: 'Cliente',
           ),
           const SizedBox(height: AppSpacing.sm),
-          FilledButton.icon(
+          AppWhatsAppButton(
             onPressed: phone.isEmpty ? null : onCallPressed,
-            icon: const Icon(Icons.chat_outlined),
-            label: const Text('Falar por WhatsApp'),
           ),
         ],
       ),

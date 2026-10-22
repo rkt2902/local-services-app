@@ -3,6 +3,89 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Total estimado com a equipa em todos os ecrãs (0056)
+
+- **Uma só conta** (`teamHourlyRate` em `core/utils/price_labels.dart`): preço por hora ×
+  (1 + ajudantes × fator) × horas, fator 1 se os ajudantes trazem equipamento e 0,75 se não.
+  Antes só "Propostas recebidas" contava a equipa; o formulário da proposta, o trabalho
+  confirmado (cliente e jardineiro) e "Os meus trabalhos" mostravam só o responsável.
+- **0056**: `get_worker_job_board` devolve `people_needed` e `helpers_equipment_required`
+  (1 e false nas linhas de ajudante, que mostram o seu valor acordado). Sem a 0056 aplicada
+  a app assume 1 pessoa.
+
+## 2026-10-22 — WhatsApp com logótipo, folhas de avaliação e de perfil
+
+- **Botão de WhatsApp único** (`AppWhatsAppButton`): o "Falar por WhatsApp" partia em três
+  linhas ao lado do nome do cliente. Agora tem o logótipo do WhatsApp (pacote
+  `font_awesome_flutter`, só pela fonte de marcas) e uma versão compacta "WhatsApp".
+- **"Avaliar o trabalho"** passou para o `AppSheet` (fundo branco, fechar, campo e botão da
+  app); o controlador do comentário vive no estado da folha.
+- **Perfil do jardineiro nas propostas**: fundo cinzento da app em vez do verde do Material,
+  cartão do topo com foto, zona, nota e serviços.
+- **"Sobre a ProJardim"** com o logo, a versão, Termos, Privacidade e licenças (`AppAboutDialog`), em vez do `showAboutDialog` do Material em inglês.
+- **Email de suporte**: um `SUPPORT_EMAIL` que não é um email (o site mostrava "Noth") cai no
+  email por omissão.
+
+## 2026-10-21 — Ligação entre cliente, jardineiro e ajudantes (0055)
+
+As 7 melhorias do documento "Fluxos e regras de tempo", todas aprovadas pelo Henrique.
+
+- **O cliente vê a equipa** (decisão RC2 que estava pendente): nome e foto dos ajudantes no
+  pedido agendado. Reaproveita `get_accepted_helpers_for_job`, que passa a responder também
+  ao cliente. Sem telefone: o contacto continua a ser só com o responsável.
+- **Desistir só até à véspera.** No dia, só o responsável retira um ajudante e a vaga não
+  reabre (o pedido já fechou): a equipa fica com quem resta, ou o pedido é cancelado.
+- **Aviso da véspera** às 18h (Portugal), uma vez por pedido: responsável com vagas ou
+  candidatos por decidir, cliente com o pedido por aprovar.
+- **"Candidaturas até dd/mm"** na descoberta e na candidatura (a véspera do trabalho).
+- **"O trabalho começou" para os ajudantes**, pelo trigger que já avisava das outras mudanças
+  do trabalho (agora também em `started_at`).
+- **Aviso no topo com a app aberta**: o push do sistema não aparece em primeiro plano, por
+  isso a notificação nova aparece no `AppToast` com o ícone e o tom do tipo.
+- **Aprovação automática ao fim de 24h** sem resposta do cliente, se o dia do trabalho ainda
+  não chegou. O cliente é avisado no pedido e no aviso de aprovação.
+
+## 2026-10-21 — Pedidos de ajuda no dia do trabalho, avisos novos, logo e splash
+
+- **Pedidos de ajuda fecham no dia do trabalho (0054).** A partir da data confirmada (dia em
+  Portugal) deixam de aparecer na descoberta e de aceitar candidaturas, o responsável já não
+  pede ajudantes e não aceita candidatos, e o cliente já não aprova. O cron de hora a hora
+  fecha os que ficaram abertos: pendentes recusados e avisados, equipa fica com os aceites
+  (`filled`, vagas = aceites) ou o pedido é cancelado; aviso `help_request_closed` ao
+  responsável. Os pedidos que nascem abertos em `accept_proposal` não fazem falhar a
+  aceitação no próprio dia: ficam escondidos e o cron fecha-os. Triggers em vez de reescrever
+  `approve_help_request`/`accept_help_candidate`.
+- **Avisos só a quem faz o serviço.** `new_job_in_radius` e o novo
+  `new_help_request_in_radius` vão para jardineiros no raio que oferecem o serviço, ou que
+  ainda não escolheram serviços (para não ficarem sem avisos). Texto em "tu".
+- **Foto dos ajudantes no cartão "Equipa"**: `get_accepted_helpers_for_job` devolve
+  `avatar_url` (DROP + CREATE, a forma muda).
+- **Ícone e splash com o logo** (pedido do Henrique, substitui a decisão antiga "sem
+  splash"): `flutter_launcher_icons` (ícone adaptativo verde com a folha branca) e
+  `flutter_native_splash` (fundo branco, logo a 128 dp; Android 12 com o círculo verde). O
+  ecrã `/loading` mostra o mesmo logo (`AppLaunchScreen`) em vez de um spinner. Para mudar o
+  logo: trocar os PNG em `assets/branding/` e correr `dart run flutter_launcher_icons` e
+  `dart run flutter_native_splash:create`.
+- **Push com o estilo da app**: ícone pequeno `ic_stat_projardim` (folha branca) e cor
+  `#2E7D32`, no AndroidManifest (por omissão) e no `send-push` (precisa de novo deploy).
+
+## 2026-10-21 — Bugs: avisos no topo, OTP, login e recuperação de senha
+
+- **Avisos no topo (`AppToast`)** em vez da SnackBar do Material, que fica sempre em baixo,
+  por cima dos botões de ação. Vive no Overlay do navigator raiz (sobrevive a `go`/`pop`,
+  regra T4 igual: guardar `AppToast.of(context)` antes de navegar). Dois tons, `show`
+  (verde) e `error` (vermelho); um aviso novo substitui o anterior; fecha sozinho em 4 s,
+  com toque ou a arrastar para cima. As 76 chamadas a `showSnackBar` foram migradas.
+- **Recuperação de senha mandava para o início** logo depois do código: o passo 1 abria o
+  passo 2 com `push`, e quando a sessão de recuperação aparece o go_router reavalia o
+  redirect com o URI da BASE da pilha (`/login`), que com sessão vai para o início do papel.
+  Agora é `go`, e `resolveRedirect` nunca redireciona `/forgot-password/reset` com sessão
+  (cobre também jardineiro com perfil incompleto e conta sem papel).
+- **OTP:** as 6 caixas tinham 48 de largura fixa e transbordavam em ecrãs estreitos ou com
+  o tamanho de ecrã/letra aumentado; agora encolhem.
+- **Login e confirmar email:** o rodapé ("Não tens conta?", "Já tens conta com este email?")
+  esconde-se com o teclado aberto, em vez de subir colado a ele por cima do "Entrar".
+
 ## 2026-10-21 — Termos e Política de Privacidade no Google Docs
 
 - **Porquê:** a Meta e o Google pedem os URLs no ecrã de consentimento e ainda não há site.

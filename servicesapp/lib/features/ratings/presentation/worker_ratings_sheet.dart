@@ -23,9 +23,16 @@ Future<void> showWorkerRatingsSheet(
   required String workerId,
   required String workerName,
 }) {
+  // Fundo cinzento da app com cartões brancos, como os outros ecrãs (o
+  // fundo por omissão do Material ficava esverdeado e desencontrado).
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: AppColors.background,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+    ),
     builder: (_) => Consumer(
       builder: (ctx, ref, _) {
         final summaryAsync = ref.watch(ratingSummaryProvider(workerId));
@@ -35,7 +42,7 @@ Future<void> showWorkerRatingsSheet(
         final card = ref.watch(workerPublicCardProvider(workerId)).asData?.value;
 
         return DraggableScrollableSheet(
-          initialChildSize: 0.55,
+          initialChildSize: 0.7,
           minChildSize: 0.35,
           maxChildSize: 0.92,
           expand: false,
@@ -50,11 +57,11 @@ Future<void> showWorkerRatingsSheet(
                       SliverToBoxAdapter(
                         child: summaryAsync.when(
                           loading: () => Padding(
-                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.s20),
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
                             child: AppSkeletonShimmer(
                               child: SizedBox(
-                                width: 180,
-                                height: 56,
+                                width: double.infinity,
+                                height: 112,
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
                                     color: AppColors.surface,
@@ -68,7 +75,11 @@ Future<void> showWorkerRatingsSheet(
                           error: (_, _) => const SizedBox.shrink(),
                           data: (summary) => _RatingHeader(
                             workerName: workerName,
+                            avatarUrl: card?.avatarUrl,
+                            locationName: card?.locationName,
+                            serviceNames: card?.serviceNames ?? const [],
                             summary: summary,
+                            onClose: () => Navigator.pop(ctx),
                           ),
                         ),
                       ),
@@ -78,9 +89,9 @@ Future<void> showWorkerRatingsSheet(
                             index: 0,
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.lg,
+                                AppSpacing.md,
                                 0,
-                                AppSpacing.lg,
+                                AppSpacing.md,
                                 AppSpacing.md,
                               ),
                               child: WorkerShowcaseSection(
@@ -138,15 +149,21 @@ Future<void> showWorkerRatingsSheet(
                           return SliverPadding(
                             padding: const EdgeInsets.fromLTRB(
                               AppSpacing.md,
-                              AppSpacing.md,
+                              AppSpacing.xs,
                               AppSpacing.md,
                               0,
                             ),
                             sliver: SliverList.separated(
-                              itemCount: ratings.length,
+                              itemCount: ratings.length + 1,
                               separatorBuilder: (_, _) =>
                                   const SizedBox(height: AppSpacing.sm),
-                              itemBuilder: (ctx, i) {
+                              itemBuilder: (ctx, index) {
+                                if (index == 0) {
+                                  return _SectionLabel(
+                                    'AVALIAÇÕES · ${ratings.length}',
+                                  );
+                                }
+                                final i = index - 1;
                                 final row = _RatingRow(rating: ratings[i]);
                                 // Stagger só nos primeiros, para não atrasar
                                 // listas longas.
@@ -177,80 +194,208 @@ class _SheetHandle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Container(
-        width: 40,
-        height: 4,
+        width: AppSizes.sheetHandleWidth,
+        height: AppSizes.sheetHandleHeight,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.outlineVariant,
-          borderRadius: BorderRadius.circular(2),
+          color: AppColors.divider,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
       ),
     );
   }
 }
 
-class _RatingHeader extends StatelessWidget {
-  const _RatingHeader({required this.workerName, required this.summary});
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
 
-  final String workerName;
-  final RatingSummary summary;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.xxs),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+      ),
+    );
+  }
+}
+
+/// Cartão do topo: foto, nome, zona, nota média e serviços do jardineiro.
+class _RatingHeader extends StatelessWidget {
+  const _RatingHeader({
+    required this.workerName,
+    required this.summary,
+    required this.onClose,
+    this.avatarUrl,
+    this.locationName,
+    this.serviceNames = const [],
+  });
+
+  final String workerName;
+  final String? avatarUrl;
+  final String? locationName;
+  final List<String> serviceNames;
+  final RatingSummary summary;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final hasRatings = summary.ratingCount > 0;
+    final name = workerName.trim().isEmpty ? 'Jardineiro' : workerName.trim();
+    final location = locationName?.trim() ?? '';
+    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.s20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(workerName, style: theme.textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.md),
-          if (!hasRatings)
-            Text(
-              'Ainda sem avaliações.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  decimalLabel(summary.avgRating, 1),
-                  style: theme.textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                  ),
+                CircleAvatar(
+                  radius: AppSizes.avatarSmall / 2 + AppSpacing.xxs,
+                  backgroundColor: AppColors.primaryContainer,
+                  backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+                  child: hasAvatar
+                      ? null
+                      : Text(
+                          name.characters.first.toUpperCase(),
+                          style: textTheme.titleMedium?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: List.generate(5, (i) {
-                        final filled = i < summary.avgRating.round();
-                        return Icon(
-                          filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                          size: 20,
-                          color: AppColors.logoAccent,
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${summary.ratingCount} '
-                      'avalia${summary.ratingCount == 1 ? 'ção' : 'ções'}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleLarge
+                            ?.copyWith(color: AppColors.textPrimary),
                       ),
-                    ),
-                  ],
+                      Text(
+                        location.isEmpty ? 'Jardineiro' : 'Jardineiro · $location',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fechar',
+                  onPressed: onClose,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
-        ],
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primaryTint,
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+              child: hasRatings
+                  ? Row(
+                      children: [
+                        Text(
+                          decimalLabel(summary.avgRating, 1),
+                          style: textTheme.headlineSmall?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        ...List.generate(5, (i) {
+                          final filled = i < summary.avgRating.round();
+                          return Icon(
+                            filled
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: AppSizes.infoRowIcon,
+                            color: AppColors.logoAccent,
+                          );
+                        }),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            '${summary.ratingCount} '
+                            'avalia${summary.ratingCount == 1 ? 'ção' : 'ções'}',
+                            textAlign: TextAlign.end,
+                            style: textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Ainda sem avaliações.',
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textSecondary),
+                    ),
+            ),
+            if (serviceNames.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  for (final service in serviceNames)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        service,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.primaryPressed,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

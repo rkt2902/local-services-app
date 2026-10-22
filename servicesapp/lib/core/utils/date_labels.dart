@@ -68,3 +68,19 @@ String shortWeekdayDateLabel(DateTime date, {DateTime? now}) {
   final pattern = date.year == current.year ? 'dd/MM' : 'dd/MM/yyyy';
   return '$weekday, ${DateFormat(pattern).format(date)}';
 }
+
+/// "Candidaturas até 24/10": os pedidos de ajuda fecham à meia-noite do
+/// dia do trabalho (migration 0054), por isso o último dia é a véspera.
+/// "até hoje" / "até amanhã" quando é perto. `null` sem data combinada.
+String? helpApplicationsDeadlineLabel(DateTime? jobDate, {DateTime? now}) {
+  if (jobDate == null) return null;
+  final current = now ?? DateTime.now();
+  final today = DateTime(current.year, current.month, current.day);
+  final eve = DateTime(jobDate.year, jobDate.month, jobDate.day)
+      .subtract(const Duration(days: 1));
+  final days = eve.difference(today).inDays;
+  if (days < 0) return null;
+  if (days == 0) return 'Candidaturas até hoje';
+  if (days == 1) return 'Candidaturas até amanhã';
+  return 'Candidaturas até ${DateFormat('dd/MM').format(eve)}';
+}

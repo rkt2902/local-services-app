@@ -71,8 +71,13 @@ String _whenLabel(WorkerJobBoardEntry e, DateTime now) {
 String? _estimateOf(WorkerJobBoardEntry e) {
   final rate = e.hourlyRate ?? 0;
   if (rate <= 0) return null;
-  final total =
-      estimatedTotalLabel(rate, e.estimatedHoursMin, e.estimatedHoursMax);
+  final total = estimatedTotalLabel(
+    rate,
+    e.estimatedHoursMin,
+    e.estimatedHoursMax,
+    peopleNeeded: e.peopleNeeded,
+    helpersEquipmentRequired: e.helpersEquipmentRequired,
+  );
   return total.isNotEmpty ? total : hourlyRateLabel(rate);
 }
 

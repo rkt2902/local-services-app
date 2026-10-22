@@ -11,6 +11,7 @@ import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -39,6 +40,7 @@ class _ApplyViewData {
     required this.responsibleName,
     required this.paymentPerHelper,
     required this.scheduleLabel,
+    this.deadlineLabel,
     required this.equipmentRequired,
     required this.icon,
   });
@@ -49,6 +51,9 @@ class _ApplyViewData {
   final String responsibleName;
   final double paymentPerHelper;
   final String scheduleLabel;
+
+  /// "Candidaturas até dd/mm" ([helpApplicationsDeadlineLabel]).
+  final String? deadlineLabel;
   final bool equipmentRequired;
 }
 
@@ -139,6 +144,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
       responsibleName: summary.principalName,
       paymentPerHelper: summary.paymentPerHelper,
       scheduleLabel: _scheduleLabel(summary.confirmedDate, summary.confirmedTime),
+      deadlineLabel: helpApplicationsDeadlineLabel(summary.confirmedDate),
       equipmentRequired: summary.equipmentRequired,
       icon: serviceTypeIconFor(serviceTypes, summary.serviceTypeId),
     );
@@ -315,6 +321,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                             ? hourlyRateLabel(_displayedRate(data))
                             : 'A combinar',
                         scheduleLabel: data.scheduleLabel,
+                        deadlineLabel: data.deadlineLabel,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -470,11 +477,13 @@ class _PaymentCard extends StatelessWidget {
   const _PaymentCard({
     required this.paymentLabel,
     required this.scheduleLabel,
+    this.deadlineLabel,
   });
 
   /// Reativo à escolha de equipamento — ver `_displayedRate` no ecrã.
   final String paymentLabel;
   final String scheduleLabel;
+  final String? deadlineLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -529,6 +538,17 @@ class _PaymentCard extends StatelessWidget {
                   style: textTheme.titleMedium
                       ?.copyWith(color: AppColors.textPrimary),
                 ),
+                if (deadlineLabel != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    deadlineLabel!,
+                    textAlign: TextAlign.end,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppStatusColor.waiting.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

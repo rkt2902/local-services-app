@@ -56,4 +56,16 @@ abstract class NotificationType {
   /// 0054: o pedido de ajudantes fechou porque chegou o dia do trabalho.
   /// Só para o responsável. relatedId = help_request_id.
   static const helpRequestClosed = 'help_request_closed';
+
+  /// 0055: para os ajudantes aceites, o responsável iniciou o trabalho.
+  /// relatedId = id do pedido (`job_requests.id`).
+  static const helpJobStarted = 'help_job_started';
+
+  /// 0055: véspera do trabalho, ao responsável, quando ainda há vagas ou
+  /// candidatos por decidir. relatedId = help_request_id.
+  static const helpRequestClosingSoon = 'help_request_closing_soon';
+
+  /// 0055: ao cliente, o pedido de ajudantes ficou aprovado sozinho ao fim
+  /// de 24h. relatedId = id do pedido (`job_requests.id`).
+  static const helpRequestAutoApproved = 'help_request_auto_approved';
 }

@@ -166,11 +166,13 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(candidatesForHelpRequestProvider);
         case NotificationType.helpCandidateApplied:
         case NotificationType.helpRequestClosed:
+        case NotificationType.helpRequestClosingSoon:
           // 0048: novo candidato na equipa do responsável. 0054: o pedido
-          // fechou no dia do trabalho.
+          // fechou no dia do trabalho. 0055: fecha esta noite.
           ref.invalidate(helpRequestsForJobProvider);
           ref.invalidate(candidatesForHelpRequestProvider);
         case NotificationType.helpRequestPendingApproval:
+        case NotificationType.helpRequestAutoApproved:
           // 0048: só o cliente recebe; o detalhe do pedido mostra o pedido
           // de ajudantes por aprovar.
           ref.invalidate(clientJobsProvider);
@@ -186,6 +188,7 @@ final notificationSyncProvider = Provider<void>((ref) {
         case NotificationType.helpRemoved:
         case NotificationType.helpJobRescheduled:
         case NotificationType.helpJobDone:
+        case NotificationType.helpJobStarted:
           // 0049: avisos ao ajudante sobre o trabalho em que ajuda.
           ref.invalidate(myHelpAcceptancesProvider);
           ref.invalidate(helpRequestSummariesInRadiusProvider);
