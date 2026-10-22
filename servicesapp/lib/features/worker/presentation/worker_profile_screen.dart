@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/config/app_links.dart';
 import '../../../core/constants/enums.dart';
@@ -22,11 +21,12 @@ import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_providers.dart';
 import 'widgets/worker_account_view.dart';
+import 'worker_card_share.dart';
 
 class WorkerProfileScreen extends ConsumerWidget {
   const WorkerProfileScreen({super.key});
 
-  void _showQrDialog(BuildContext context, String url) {
+  void _showQrDialog(BuildContext context, String qrUrl, String url) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -44,7 +44,7 @@ class WorkerProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               QrImageView(
-                data: url,
+                data: qrUrl,
                 size: 220,
                 backgroundColor: AppColors.surface,
               ),
@@ -128,12 +128,9 @@ class WorkerProfileScreen extends ConsumerWidget {
       ),
       onSettingsPressed: () => context.push('/worker/profile/edit'),
       onDefinitionsPressed: () => context.push('/worker/profile/edit'),
-      onShareCardPressed: () => SharePlus.instance.share(
-        ShareParams(
-          text: 'Vê o meu perfil na ProJardim: $publicUrl',
-        ),
-      ),
-      onQrPressed: () => _showQrDialog(context, publicUrl),
+      onShareCardPressed: () => shareWorkerPublicCard(userId),
+      onQrPressed: () =>
+          _showQrDialog(context, workerPublicCardQrUrl(userId), publicUrl),
       onJobsPressed: () => context.go('/worker/jobs'),
       onReviewsPressed: () => context.push('/worker/ratings'),
       onFleetCardPressed: () => context.push('/worker/fleet-card'),

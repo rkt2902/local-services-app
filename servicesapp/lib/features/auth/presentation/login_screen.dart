@@ -11,6 +11,8 @@ import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
+import '../application/direct_request_auth_context.dart';
+import 'widgets/direct_request_auth_banner.dart';
 import 'widgets/social_sign_in_buttons.dart';
 import '../../../core/widgets/app_toast.dart';
 
@@ -82,6 +84,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final pendingCard = ref.watch(directRequestAuthProvider).asData?.value;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -132,6 +135,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                       ),
+                      if (pendingCard != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        AppStaggeredEntrance(
+                          index: 1,
+                          child: DirectRequestAuthBanner(
+                            workerName: pendingCard.workerName,
+                            workerAvatarUrl: pendingCard.workerAvatarUrl,
+                            descriptionLabel:
+                                'Entra e voltas logo ao pedido.',
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.lg),
                       AppStaggeredEntrance(
                         index: 2,

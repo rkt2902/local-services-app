@@ -184,13 +184,43 @@ Pedidos criados por clientes.
 | direct_worker_id          | uuid        | nullable (0057), FK → `profiles.id` ON DELETE SET NULL: jardineiro escolhido no "Pedir de novo"; tirado pelo trigger da proposta aceite do pedido de origem |
 | direct_source_job_id      | uuid        | nullable (0057), FK → `job_requests.id` ON DELETE SET NULL: trabalho concluído de onde veio; é o único campo direto que a app escreve |
 | direct_until              | timestamptz | nullable (0057): fim da reserva (criação + 24h) |
-| direct_status             | text        | nullable (0057), CHECK in (`waiting`,`declined`,`expired`,`released`); o `status` do pedido continua `open` |
+| direct_status             | text        | nullable (0057), CHECK in (`waiting`,`declined`,`expired`,`released`, `on_hold` desde a 0059); o `status` do pedido continua `open` |
+| direct_card_worker_id     | uuid        | nullable (0059), FK → `profiles.id`: jardineiro do cartão público a quem o pedido vai primeiro; o trigger valida-o (não pode ser o próprio cliente, tem de aceitar pedidos) |
+| direct_auto_release       | boolean     | NOT NULL DEFAULT true (0059): interruptor do passo 4; `false` deixa o pedido parado (`on_hold`) depois de recusa ou fim do prazo |
+| direct_origin             | text        | nullable (0059), CHECK in (`public_card`,`repeat_hire`,`your_gardeners`): só para estatística, o mecanismo é o mesmo |
+| direct_hold_reason        | text        | nullable (0059), CHECK in (`declined`,`expired`): porque está `on_hold` |
+| card_visit_id             | uuid        | nullable (0059), FK → `worker_card_visits.id`: visita ao cartão que trouxe o pedido; nunca vai para os jardineiros |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
 
 Desde a 0043 os workers só leem esta tabela diretamente se forem o worker aceite (ou
 ajudante aceite). Os outros leem por `get_job_by_id`, `get_jobs_in_radius` e
 `get_worker_job_board`, que devolvem a localidade e coordenadas arredondadas (cerca de 1 km).
+
+### worker_card_visits (0059)
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| worker_id | uuid | FK → `profiles.id` ON DELETE CASCADE |
+| source | text | CHECK in (`qr`,`link`,`app`) |
+| device_key | text | nullable, 8 a 64 caracteres: id aleatório do aparelho (SharedPreferences), sem dados pessoais |
+| visitor_id | uuid | nullable, FK → `profiles.id` ON DELETE SET NULL: preenchido quando há sessão ou depois do registo |
+| created_at | timestamptz | |
+
+RLS ligado sem políticas e sem GRANT a `anon`/`authenticated`: escreve-se só por `log_worker_card_visit`/`claim_worker_card_visit` e lê-se no SQL Editor.
+
+### client_referrals (0059)
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| client_id | uuid | PK, FK → `profiles.id` ON DELETE CASCADE |
+| worker_id | uuid | FK → `profiles.id` ON DELETE CASCADE: o cartão que trouxe o cliente |
+| visit_id | uuid | nullable, FK → `worker_card_visits.id` |
+| source | text | `qr`/`link`/`app` |
+| created_at | timestamptz | |
+
+Uma linha por cliente, só quando a conta de cliente nasce entre 5 min antes e 7 dias depois da visita. Mesmo acesso que `worker_card_visits`. Resumo por jardineiro na vista `worker_card_funnel`.
 
 ### job_photos
 Fotos anexadas a um pedido (Storage bucket `job-photos`). Máximo 2 por pedido.
@@ -349,6 +379,8 @@ seus; a ativação é manual por SQL (service role). Ver a migration para as col
 ## RPC Functions (security definer)
 
 > **Propostas e dias de trabalho (0058):** `create_proposal` com `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until`; `get_pending_proposals_for_job` com `is_expired`; `finish_work_day`, `start_work_day`, `get_job_work_days`. Detalhe em `ARCHITECTURE.md` secção 7.
+
+> **Pedido pelo cartão e tracking (0059):** `log_worker_card_visit` (anon e autenticados), `claim_worker_card_visit`; `release_direct_job_request` também tira o pedido de `on_hold`; `decline_direct_job_request` e o cron passam por `end_direct_reservation` (abre a todos ou deixa parado conforme `direct_auto_release`).
 
 > **Pedido direto (0057):** `release_direct_job_request`, `decline_direct_job_request`, `get_repeat_hire_for_job`, `get_my_previous_workers`, `get_direct_request_context` e o cron `expire_direct_job_requests`. Detalhe em `ARCHITECTURE.md` secção 7.
 

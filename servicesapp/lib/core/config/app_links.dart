@@ -71,8 +71,12 @@ abstract final class AppLinks {
     return _placeholderDomain;
   }
 
-  static String publicWorkerProfileUrl(String workerId) =>
-      '$publicDomain/w/$workerId';
+  /// Cartão público do jardineiro. [source] (`qr`, `link`) vai em `?src=`
+  /// para o servidor saber de onde veio a visita (A7, migration 0059).
+  static String publicWorkerProfileUrl(String workerId, {String? source}) =>
+      source == null
+          ? '$publicDomain/w/$workerId'
+          : '$publicDomain/w/$workerId?src=$source';
 
   static String _stripTrailingSlash(String value) =>
       value.endsWith('/') ? value.substring(0, value.length - 1) : value;

@@ -11,7 +11,9 @@ import '../../../../core/widgets/app_motion.dart';
 /// Faixa do pedido direto no detalhe de um pedido aberto (design A5, 3).
 /// Só explica quem vê o pedido agora: o estado do pedido continua no badge
 /// da AppBar. O enum é só de apresentação; o servidor decide tudo.
-enum DirectRequestWaitingDisplay { waiting, released }
+/// `onHold` (A7): o jardineiro não pôde ou não respondeu e o cliente
+/// desligou "mostrar a outros", por isso o pedido espera pela decisão.
+enum DirectRequestWaitingDisplay { waiting, released, onHold }
 
 class DirectRequestWaitingBannerViewData {
   const DirectRequestWaitingBannerViewData({
@@ -21,6 +23,7 @@ class DirectRequestWaitingBannerViewData {
     this.workerInitial = '',
     this.workerAvatarUrl,
     this.releaseActionLabel,
+    this.cancelActionLabel,
   });
 
   final DirectRequestWaitingDisplay display;
@@ -31,6 +34,9 @@ class DirectRequestWaitingBannerViewData {
 
   /// "Mostrar já a todos"; `null` esconde o botão.
   final String? releaseActionLabel;
+
+  /// "Cancelar pedido" no pedido parado; `null` esconde o botão.
+  final String? cancelActionLabel;
 }
 
 class DirectRequestWaitingBanner extends StatefulWidget {
@@ -38,9 +44,13 @@ class DirectRequestWaitingBanner extends StatefulWidget {
     super.key,
     required this.data,
     required this.onReleaseToAll,
+    this.onCancelRequest,
   });
 
   final DirectRequestWaitingBannerViewData data;
+
+  /// "Cancelar pedido": o ecrã pede confirmação e trata do resto.
+  final VoidCallback? onCancelRequest;
 
   /// Abre o pedido a todos. Devolve `null` em sucesso (o ecrã recarrega o
   /// pedido e a faixa muda sozinha, sem passo otimista) ou a mensagem de
@@ -92,11 +102,14 @@ class _DirectRequestWaitingBannerState
     return AppStaggeredEntrance(
       index: 0,
       child: switch (widget.data.display) {
-        DirectRequestWaitingDisplay.waiting => _WaitingCard(
+        DirectRequestWaitingDisplay.waiting ||
+        DirectRequestWaitingDisplay.onHold =>
+          _WaitingCard(
             data: widget.data,
             submitting: _submitting,
             error: _error,
             onRelease: _release,
+            onCancel: widget.onCancelRequest,
           ),
         DirectRequestWaitingDisplay.released =>
           _ReleasedCard(data: widget.data),
@@ -111,18 +124,21 @@ class _WaitingCard extends StatelessWidget {
     required this.submitting,
     required this.error,
     required this.onRelease,
+    this.onCancel,
   });
 
   final DirectRequestWaitingBannerViewData data;
   final bool submitting;
   final String? error;
   final VoidCallback onRelease;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     const tone = AppStatusColor.waiting;
     final actionLabel = data.releaseActionLabel;
+    final cancelLabel = onCancel == null ? null : data.cancelActionLabel;
 
     return Container(
       width: double.infinity,
@@ -187,6 +203,25 @@ class _WaitingCard extends StatelessWidget {
                     color: submitting
                         ? AppStatusColor.neutral.foreground
                         : AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (cancelLabel != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            SizedBox(
+              width: double.infinity,
+              height: AppSizes.linkButtonHeight,
+              child: TextButton(
+                onPressed: submitting ? null : onCancel,
+                child: Text(
+                  cancelLabel,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: submitting
+                        ? AppStatusColor.neutral.foreground
+                        : AppStatusColor.cancelled.foreground,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

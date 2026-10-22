@@ -123,7 +123,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
           ? null
           : () => openWhatsAppOrWarn(context, workerPhone),
       // Cartão público do jardineiro (`/w/:workerId`), o mesmo do link/QR.
-      onWorkerPressed: () => context.push('/w/$workerId'),
+      onWorkerPressed: () => context.push('/w/$workerId?src=app'),
       onClosePressed: () => goBackOrToRoleHome(context),
       onViewJobPressed: () {
         GoRouter.of(context).pushReplacement('/client/job/$jobId');

@@ -146,7 +146,17 @@ alteração, para os cartões de "Os meus trabalhos" (design A2).
 omissão), trigger que recusa aceitar propostas expiradas, `get_pending_proposals_for_job`
 e `get_worker_job_board` com as colunas novas (DROP + CREATE), e os dias de trabalho
 (`job_work_days`, `finish_work_day`, `start_work_day`, `get_job_work_days`). Pode
-correr-se mais do que uma vez. **Próxima migration: `0059`.**
+correr-se mais do que uma vez.
+
+**`0059_card_direct_requests_and_tracking.sql`: criada, NÃO aplicada** (aplicar depois
+da 0051 e da 0057; a ordem com a 0058 não importa). Pedido direto pelo cartão público
+(design A7): `direct_card_worker_id`, `direct_auto_release`, `direct_origin`,
+`direct_hold_reason`, `card_visit_id` e o estado `on_hold` em `job_requests`; flags
+`worker_can_use_public_card`/`worker_can_receive_direct_requests` (hoje sempre ligadas,
+lugar do futuro plano Pro); `worker_public_card` com serviços por id, flags e a última
+avaliação boa; tracking `worker_card_visits` e `client_referrals` com as RPCs
+`log_worker_card_visit` e `claim_worker_card_visit`; vista `worker_card_funnel` só para o
+SQL Editor. Pode correr-se mais do que uma vez. **Próxima migration: `0060`.**
 
 **`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em

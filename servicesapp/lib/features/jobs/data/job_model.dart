@@ -72,6 +72,16 @@ class JobRequest {
   final DateTime? directUntil;
   final DirectRequestStatus? directStatus;
 
+  /// Pedido pelo cartão do jardineiro (0059). Para outros jardineiros chega
+  /// sempre `null`.
+  final DirectRequestOrigin? directOrigin;
+
+  /// Interruptor "Se não puder, mostrar a outros jardineiros".
+  final bool directAutoRelease;
+
+  /// Com o pedido parado (`onHold`): "declined" ou "expired".
+  final String? directHoldReason;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -117,11 +127,18 @@ class JobRequest {
     this.directSourceJobId,
     this.directUntil,
     this.directStatus,
+    this.directOrigin,
+    this.directAutoRelease = true,
+    this.directHoldReason,
   });
 
   /// Reservado ao jardineiro escolhido (o servidor decide quando acaba).
   bool get isDirectWaiting =>
       status == JobStatus.open && directStatus == DirectRequestStatus.waiting;
+
+  /// Parado à espera da decisão do cliente (interruptor desligado, 0059).
+  bool get isDirectOnHold =>
+      status == JobStatus.open && directStatus == DirectRequestStatus.onHold;
 
   /// `confirmed` com início marcado: o trabalho está a decorrer.
   bool get isInProgress => status == JobStatus.confirmed && startedAt != null;
@@ -201,6 +218,10 @@ class JobRequest {
             : null,
         directStatus:
             DirectRequestStatus.fromString(json['direct_status'] as String?),
+        directOrigin:
+            DirectRequestOrigin.fromString(json['direct_origin'] as String?),
+        directAutoRelease: json['direct_auto_release'] as bool? ?? true,
+        directHoldReason: json['direct_hold_reason'] as String?,
       );
 
   JobRequest copyWith({
@@ -297,5 +318,8 @@ class JobRequest {
         directSourceJobId: directSourceJobId ?? this.directSourceJobId,
         directUntil: directUntil ?? this.directUntil,
         directStatus: directStatus ?? this.directStatus,
+        directOrigin: directOrigin,
+        directAutoRelease: directAutoRelease,
+        directHoldReason: directHoldReason,
       );
 }

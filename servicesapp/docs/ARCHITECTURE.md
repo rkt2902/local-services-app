@@ -342,11 +342,13 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
-| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057) |
+| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057); desde a 0059 `direct_card_worker_id` (pedido pelo cartão), `direct_auto_release` (interruptor do passo 4), `direct_origin` (`public_card`/`repeat_hire`/`your_gardeners`), `direct_hold_reason` e `card_visit_id`, e `direct_status` aceita `on_hold` |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
 | `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required`; desde a 0058 `pricing_mode` (`hourly`/`fixed_total`), `total_price`, `includes[]`, `estimated_days_min/max`, `valid_until`. No valor total, `hourly_rate` é uma taxa de referência calculada no servidor (só para o pagamento dos ajudantes) |
 | `proposal_include_options` (0058) | opções do "O que inclui" | `slug`, `label`, `sort_order`, `active`; leitura por autenticados |
 | `job_work_days` (0058) | dias de um trabalho em vários dias | `job_id`, `day_number`, `started_at`, `ended_at` (no máximo um aberto); só por RPC |
+| `worker_card_visits` (0059) | aberturas do cartão público `/w/:id` | `worker_id`, `source` (`qr`/`link`/`app`), `device_key` (id aleatório do aparelho), `visitor_id`; RLS sem políticas, só por RPC e SQL Editor |
+| `client_referrals` (0059) | clientes novos trazidos por um cartão | `client_id` PK, `worker_id`, `visit_id`, `source`; RLS sem políticas, só por RPC e SQL Editor |
 | `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
 | `device_tokens` (0041) | tokens FCM | `token` PK, `user_id`, `platform`; escrita só por RPC |
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
@@ -429,7 +431,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_repeat_hire_for_job` (0057) | `p_job_id` (trabalho concluído do cliente) | `TABLE(worker_id, worker_name, worker_avatar_url, service_type_id, job_date, can_request, my_stars)` | `JobRepository.fetchRepeatHireForJob` |
 | `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
 | `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
-| `expire_direct_job_requests` (0057) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`) |
+| `expire_direct_job_requests` (0057, última 0059) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`); desde a 0059 respeita o interruptor (abre a todos ou deixa parado, `on_hold`) |
+| `log_worker_card_visit` (0059) | `p_worker_id` (o cartão aberto, não a identidade), `p_source`, `p_device_key?` | `uuid` da visita, ou `null` (o próprio, cartão desligado); o mesmo aparelho no mesmo cartão em 30 min conta uma vez. `anon` e `authenticated` | `WorkerRepository.logCardVisit` |
+| `claim_worker_card_visit` (0059) | `p_visit_id` | `void`: liga a visita a `auth.uid()` e, se a conta de cliente nasceu até 7 dias depois, cria `client_referrals` | `WorkerRepository.claimCardVisit` |
 | `create_proposal` (última 0058) | os de 0044 e, no fim, todos com omissão: `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until` (`p_hourly_rate` passa a opcional) | `uuid` | `ProposalRepository.createProposal` |
 | `get_pending_proposals_for_job` (última 0058) | `p_job_id` | colunas de 0040 + `pricing_mode`, `total_price`, `includes`, `estimated_days_min/max`, `valid_until`, `is_expired` | `ProposalRepository.fetchPendingProposalsForJob` |
 | `finish_work_day` / `start_work_day` (0058) | `p_job_id` (jardineiro responsável, trabalho iniciado) | `void` (fecha o dia aberto / abre o seguinte) | `ProposalRepository.finishWorkDay` / `startWorkDay` |
@@ -446,7 +450,8 @@ muda (ver secção 13).
 |---|---|---|---|
 | `worker_profiles_public` | **não** (definer-style, deliberado) | `authenticated` | `bio, radius_km, tools, location_name, photos` — sem coordenadas |
 | `worker_rating_summary` | **sim** (deliberado — ratings já é `USING(true)`) | `authenticated` | `worker_id, avg_rating, rating_count` |
-| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio |
+| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio. Desde a 0059 também `service_type_ids`, `can_use_public_card`, `can_receive_direct_requests` e a última avaliação de 4 ou 5 estrelas com comentário (`latest_review_*`, primeiro nome) |
+| `worker_card_funnel` (0059) | não | ninguém (só SQL Editor) | por jardineiro: visitas (QR, link, app), aparelhos, visitantes com sessão, clientes novos, pedidos pelo cartão e quantos foram contratados |
 
 ### Triggers
 
@@ -457,6 +462,7 @@ muda (ver secção 13).
 | `trg_help_request_before_update_job_day` / `trg_help_acceptance_before_update_job_day` (0054) | `help_requests` / `help_acceptances` | BEFORE UPDATE OF status | recusam aprovar o pedido e aceitar candidatos a partir do dia do trabalho |
 | `trg_job_request_direct_before_insert` (0057) | `job_requests` | BEFORE INSERT | limpa os campos diretos e, com `direct_source_job_id`, valida que o pedido de origem é do cliente e está concluído, tira o jardineiro da proposta aceite e reserva 24h (`direct_status = 'waiting'`). A app nunca manda o id do jardineiro |
 | `trg_job_proposal_direct_before_insert` / `trg_job_proposal_direct_after_status` (0057) | `job_proposals` | BEFORE INSERT / AFTER UPDATE OF status | bloqueiam propostas de outros enquanto a reserva está ativa; proposta do escolhido recusada abre a todos (`released`), retirada conta como recusa (`declined`) |
+| `trg_job_request_direct_lock_update` (0059) | `job_requests` | BEFORE UPDATE | a app não muda nenhum campo do pedido direto depois de criado (só as RPCs e o cron) |
 | `trg_job_proposal_block_expired_accept` (0058) | `job_proposals` | BEFORE UPDATE OF status | recusa aceitar uma proposta com `valid_until` passado ("Este orçamento expirou e já não pode ser aceite."). A app nunca decide a validade pelo relógio do telemóvel |
 | `trg_job_requests_sync_work_days` (0058) | `job_requests` | AFTER UPDATE OF started_at, status | cria o dia 1 quando o trabalho começa e fecha o dia aberto ao marcar concluído ou cancelar |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
@@ -494,8 +500,9 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0057_direct_requests.sql` | aplicada (confirmado a 2026-10-22) (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
 
 | `0058_proposal_pricing_and_work_days.sql` | **criada, NÃO aplicada**, depois da 0057 (propostas com valor total ou por hora, "O que inclui", duração em dias, validade, bloqueio de aceitar expiradas, dias de trabalho com `finish_work_day`/`start_work_day`) |
+| `0059_card_direct_requests_and_tracking.sql` | **criada, NÃO aplicada**, depois da 0051 e da 0057 (pedido direto pelo cartão público, interruptor "mostrar a outros" com `on_hold`, origem do pedido, flags do cartão para o futuro plano Pro, tracking de visitas QR/link/app e clientes trazidos por cada jardineiro) |
 
-Próxima migration: `0059`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0060`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -509,7 +516,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | Transição | RPC | Notificação |
 |---|---|---|
 | criar pedido | INSERT direto | `new_job_in_radius` (trigger) |
-| pedido direto ("Pedir de novo", 0057; continua `open`, `direct_status` à parte: `waiting → declined/expired/released`) | INSERT direto com `direct_source_job_id`; `decline_direct_job_request`, `release_direct_job_request`, cron | `direct_job_request` só ao escolhido; ao abrir a todos `new_job_in_radius` e, se recusou ou expirou, `direct_request_released` ao cliente |
+| pedido direto ("Pedir de novo", 0057, ou pelo cartão, 0059; continua `open`, `direct_status` à parte: `waiting → declined/expired/released`, ou `on_hold` com o interruptor desligado até o cliente decidir) | INSERT direto com `direct_source_job_id` ou `direct_card_worker_id`; `decline_direct_job_request`, `release_direct_job_request`, cron | `direct_job_request` só ao escolhido; ao abrir a todos `new_job_in_radius` e, se recusou ou expirou, `direct_request_released` ao cliente |
 | aceitar proposta → `confirmed` | `accept_proposal` | `proposal_accepted` / `proposal_rejected` (outras) |
 | worker inicia (continua `confirmed`, "Em curso" = `started_at` preenchido, 0052) | `start_job` | `job_started` |
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |

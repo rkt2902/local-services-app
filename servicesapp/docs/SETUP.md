@@ -200,6 +200,28 @@ recebidas e o trabalho em curso continuam a funcionar, sem validade nem dias.
 
 **Diz ao Claude:** "0058 aplicada".
 
+### 0.12 Migration por aplicar: 0059 (depois da 0051 e da 0057)
+
+- [ ] SQL Editor: colar `supabase/migrations/0059_card_direct_requests_and_tracking.sql` e
+      correr. Pode correr-se mais do que uma vez.
+- [ ] Testar:
+  - Abrir o QR da conta de um jardineiro sem sessão: "Pedir orçamento a {nome}" leva ao
+    registo com a faixa "Vais pedir orçamento a...", a conta nasce de cliente e volta ao
+    passo 1 só com os serviços desse jardineiro.
+  - No passo 4, desligar "Se não puder, mostrar a outros jardineiros" e enviar. O
+    jardineiro vê o pedido fixo no topo, mesmo fora da área; "Não posso desta vez" deixa o
+    pedido parado e o cliente tem "Mostrar a todos" e "Cancelar pedido".
+- [ ] Ver os números (SQL Editor):
+      `select * from worker_card_funnel order by visits desc;` mostra, por jardineiro,
+      visitas por QR, link e dentro da app, aparelhos diferentes, clientes novos e pedidos
+      pelo cartão. `select * from client_referrals order by created_at desc;` lista cada
+      cliente novo e o jardineiro que o trouxe. Mais consultas no fim da migration.
+
+Antes de aplicar, o cartão abre como antes mas pedir orçamento pelo cartão dá erro; o
+"Pedir de novo" continua a funcionar.
+
+**Diz ao Claude:** "0059 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

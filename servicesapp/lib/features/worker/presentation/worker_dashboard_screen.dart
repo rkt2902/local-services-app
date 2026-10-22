@@ -199,8 +199,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
             ?job.sizeEstimate?.label,
           ].join(' · '),
           contextLabel: [
-            // Pedido direto (0057): o servidor manda-o primeiro.
-            if (job.isDirectWaiting && job.directWorkerId == myId)
+            // Pedido direto (0057, 0059): o servidor manda-o primeiro.
+            if ((job.isDirectWaiting || job.isDirectOnHold) &&
+                job.directWorkerId == myId)
               'Pedido só para ti',
             ?job.locationArea,
             _distanceLabel(workerProfile, job),

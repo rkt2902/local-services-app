@@ -5,14 +5,31 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import 'card_request_launcher.dart';
 
-class ClientShell extends ConsumerWidget {
+class ClientShell extends ConsumerStatefulWidget {
   const ClientShell({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientShell> createState() => _ClientShellState();
+}
+
+class _ClientShellState extends ConsumerState<ClientShell> {
+  @override
+  void initState() {
+    super.initState();
+    // Acabou de entrar ou criar conta a partir do cartão de um jardineiro
+    // (A7): volta ao pedido para ele, uma vez.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) resumePendingCardRequest(context, ref);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final child = widget.child;
     final location = GoRouterState.of(context).matchedLocation;
 
     final selectedIndex = _indexFromLocation(location);

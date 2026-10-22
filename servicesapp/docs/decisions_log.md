@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-22 — Pedido direto pelo cartão do jardineiro e tracking (0059, design A7)
+
+- **O mesmo mecanismo do A5**: o pedido pelo cartão usa as colunas `direct_*` e a reserva
+  de 24h; muda só a origem (`direct_origin`, para estatística).
+- **`direct_card_worker_id` é o alvo, não a identidade**: o cliente continua a ser
+  `auth.uid()`; o trigger valida o jardineiro (existe, aceita pedidos, não é o próprio
+  cliente). A regra das RPCs (nunca receber `worker_id`/`client_id` como identidade)
+  mantém-se.
+- **Interruptor no servidor**: `direct_auto_release` decide, no trigger e no cron, se a
+  recusa ou o fim do prazo abrem o pedido a todos ou o deixam parado (`on_hold`). A UI só
+  mostra o que o servidor decidiu, nunca usa o relógio do telemóvel para isso.
+- **Flags em vez de "Pro"**: `worker_can_use_public_card` e
+  `worker_can_receive_direct_requests` são o único sítio a mudar quando houver plano Pro;
+  os ecrãs recebem `WorkerPublicCardFeatureAccess` e nunca `isPro`.
+- **Tracking sem dados pessoais**: cada abertura do cartão grava a origem (`?src=qr`,
+  `link`, `app`) e um id aleatório do aparelho, para não contar duas vezes a mesma pessoa
+  em 30 min. Tabelas sem acesso pela app (só RPC e SQL Editor), para ninguém mexer nos
+  números. Um cliente conta como trazido pelo cartão se a conta nascer até 7 dias depois
+  da visita.
+- **Conta nova a partir do cartão é sempre de cliente**: o ecrã "Escolher papel" é
+  saltado quando já há nome e telefone.
+
 ## 2026-10-22 — Valor total ou preço por hora em cada proposta (0058, design A6)
 
 - **O formato do preço não é um estado**: coluna `pricing_mode` à parte, o `status` da

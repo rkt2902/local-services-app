@@ -146,7 +146,8 @@ class _ClientJobDetailScreenState
   }
 
   /// Faixa do pedido direto no pedido aberto: à espera do jardineiro
-  /// escolhido, ou já aberto a todos porque ele recusou ou o prazo passou.
+  /// escolhido, já aberto a todos porque ele recusou ou o prazo passou, ou
+  /// parado à espera do cliente (interruptor desligado, 0059).
   Widget? _directBanner(JobRequest job) {
     final workerId = job.directWorkerId;
     if (job.status != JobStatus.open || workerId == null) return null;
@@ -159,19 +160,28 @@ class _ClientJobDetailScreenState
     final info = infoAsync.asData?.value ?? const <String, String>{};
     final name = info['full_name'] ?? '';
     final texts = directBannerTexts(job, workerName: name)!;
-    final waiting = texts.kind == DirectBannerKind.waiting;
+    final display = switch (texts.kind) {
+      DirectBannerKind.waiting => DirectRequestWaitingDisplay.waiting,
+      DirectBannerKind.onHold => DirectRequestWaitingDisplay.onHold,
+      DirectBannerKind.released => DirectRequestWaitingDisplay.released,
+    };
+    final onHold = display == DirectRequestWaitingDisplay.onHold;
     return DirectRequestWaitingBanner(
       data: DirectRequestWaitingBannerViewData(
-        display: waiting
-            ? DirectRequestWaitingDisplay.waiting
-            : DirectRequestWaitingDisplay.released,
+        display: display,
         titleLabel: texts.title,
         descriptionLabel: texts.description,
         workerInitial: initialOf(name.isEmpty ? 'Jardineiro' : name),
         workerAvatarUrl: info['avatar_url'],
-        releaseActionLabel: waiting ? 'Mostrar já a todos' : null,
+        releaseActionLabel: switch (display) {
+          DirectRequestWaitingDisplay.waiting => 'Mostrar já a todos',
+          DirectRequestWaitingDisplay.onHold => 'Mostrar a todos',
+          DirectRequestWaitingDisplay.released => null,
+        },
+        cancelActionLabel: onHold ? 'Cancelar pedido' : null,
       ),
       onReleaseToAll: _releaseDirectRequest,
+      onCancelRequest: onHold && !_saving ? _cancelJob : null,
     );
   }
 

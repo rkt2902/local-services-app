@@ -186,7 +186,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final workerId = state.pathParameters['workerId']!;
           return AppContentWidth(
-            child: WorkerPublicProfileScreen(workerId: workerId),
+            child: WorkerPublicProfileScreen(
+              workerId: workerId,
+              source: state.uri.queryParameters['src'],
+            ),
           );
         },
       ),

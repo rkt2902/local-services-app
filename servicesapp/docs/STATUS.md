@@ -8,6 +8,18 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-22, Pedido direto pelo cartão do jardineiro (design A7, migration 0059 por aplicar):**
+o cartão público `/w/:id` tem "Pedir orçamento a {nome}". Sem sessão, o registo (ou
+login) guarda o jardineiro, cria a conta já como cliente e volta ao pedido. O passo 1 só
+mostra os serviços desse jardineiro, a faixa "Pedido para {nome}" fica nos 4 passos e o
+passo 4 tem o interruptor "Se não puder, mostrar a outros jardineiros". Desligado, uma
+recusa ou o fim do prazo deixam o pedido parado até o cliente escolher "Mostrar a todos"
+ou "Cancelar pedido". O jardineiro vê o pedido fixo no topo, mesmo fora da área e com
+filtros. Cada abertura do cartão fica registada (QR, link ou app) e os clientes novos
+ficam ligados ao jardineiro que os trouxe (`worker_card_funnel`, só no SQL Editor). O
+selo Pro continua sem dados; as flags do cartão vêm do servidor e hoje estão todas
+ligadas. Antes da 0059 aplicada, pedir pelo cartão dá erro; o resto funciona como antes.
+
 **2026-10-22, Propostas com valor total ou por hora (design A6, migration 0058 por aplicar):**
 o jardineiro escolhe, em cada proposta, entre preço por hora e valor total, marca o que
 inclui (material, remoção de resíduos, deslocação, máquinas), indica a duração em horas

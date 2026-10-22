@@ -103,4 +103,8 @@ abstract final class AppSizes {
   static const double gardenerSkeletonTitleWidth = 164.0;
   static const double repeatHireSkeleton = 132.0;
   static const double directBannerSkeleton = 116.0;
+
+  // Pedido pelo cartão público (A7).
+  static const double directChipAvatarRadius = 14.0;
+  static const double directServiceSkeleton = 76.0;
 }

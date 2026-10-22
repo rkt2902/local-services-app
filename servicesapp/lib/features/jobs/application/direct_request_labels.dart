@@ -63,7 +63,7 @@ String timeAgoLabel(DateTime date, DateTime now) {
 }
 
 /// Faixa do detalhe do pedido aberto, do lado do cliente.
-enum DirectBannerKind { waiting, released }
+enum DirectBannerKind { waiting, released, onHold }
 
 typedef DirectBannerTexts = ({
   DirectBannerKind kind,
@@ -88,6 +88,17 @@ DirectBannerTexts? directBannerTexts(JobRequest job, {required String workerName
         description: job.proposalCount > 0
             ? '$name já enviou proposta. Por agora só $name vê o pedido.'
             : 'Por agora só $name vê o pedido.',
+      );
+    case DirectRequestStatus.onHold:
+      // Interruptor desligado no passo 4 (pedido pelo cartão, 0059): o
+      // pedido fica parado até o cliente decidir.
+      return (
+        kind: DirectBannerKind.onHold,
+        title: job.directHoldReason == 'declined'
+            ? '$name não pode desta vez'
+            : '$name não respondeu a tempo',
+        description:
+            'O pedido está parado. Queres mostrá-lo a outros jardineiros?',
       );
     case DirectRequestStatus.declined:
       return (
@@ -127,3 +138,21 @@ String directHistoryLabel(
   final rest = parts.skip(1).map((p) => ', $p').join();
   return 'Já trabalhaste com $name$first$rest.';
 }
+
+/// Botão do rodapé do cartão público: "Pedir orçamento a Rui".
+String cardDirectRequestActionLabel(String workerName) =>
+    'Pedir orçamento a ${firstNameOr(workerName, 'este jardineiro')}';
+
+/// "Fora da tua área, a 12 km" no cartão do pedido pelo cartão.
+String outsideAreaLabel(double distanceKm) =>
+    'Fora da tua área, a ${distanceKm.round()} km';
+
+/// Interruptor do passo 4 (A7): o texto muda com o valor.
+const directReleaseOptionTitle = 'Se não puder, mostrar a outros jardineiros';
+
+String directReleaseOptionDescription(String name, {required bool autoRelease}) =>
+    autoRelease
+        ? 'Se $name não puder ou não responder a tempo, o pedido fica '
+            'logo visível para todos.'
+        : 'Se $name não puder ou não responder a tempo, o pedido fica '
+            'parado e decides tu.';

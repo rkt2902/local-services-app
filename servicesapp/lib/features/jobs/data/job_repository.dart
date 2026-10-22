@@ -26,6 +26,9 @@ class JobRepository {
     SizeEstimate? sizeEstimate,
     required String description,
     String? directSourceJobId,
+    String? directCardWorkerId,
+    bool directAutoRelease = true,
+    String? cardVisitId,
   }) async {
     final payload = <String, dynamic>{
       'client_id': clientId,
@@ -47,6 +50,16 @@ class JobRepository {
       // Pedido direto (0057): o servidor tira o jardineiro deste trabalho
       // concluído e reserva-lhe o pedido durante 24 horas.
       'direct_source_job_id': ?directSourceJobId,
+      // Pedido pelo cartão (0059): o servidor valida o jardineiro e
+      // reserva-lhe o pedido. Só vai com o cartão, para o "Pedir de novo"
+      // continuar a funcionar sem a 0059.
+      if (directCardWorkerId != null) ...{
+        'direct_card_worker_id': directCardWorkerId,
+        'direct_auto_release': directAutoRelease,
+        'card_visit_id': ?cardVisitId,
+      },
+      if (directSourceJobId != null && !directAutoRelease)
+        'direct_auto_release': false,
     };
 
     final result = await _client

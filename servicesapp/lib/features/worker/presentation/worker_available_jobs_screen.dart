@@ -95,11 +95,12 @@ class _WorkerAvailableJobsScreenState
     });
   }
 
-  /// Pedido direto (0057) ainda reservado a este jardineiro. O servidor só
-  /// manda `direct_worker_id` ao próprio.
+  /// Pedido direto (0057, 0059) ainda reservado a este jardineiro: à
+  /// espera dele, ou parado depois do prazo à espera do cliente (ainda pode
+  /// propor). O servidor só manda `direct_worker_id` ao próprio.
   bool _isDirectForMe(JobRequest job) {
     final myId = ref.read(currentUserIdProvider);
-    return job.isDirectWaiting &&
+    return (job.isDirectWaiting || job.isDirectOnHold) &&
         myId != null &&
         job.directWorkerId == myId;
   }
@@ -111,7 +112,11 @@ class _WorkerAvailableJobsScreenState
   ) {
     final query = _searchQuery.trim().toLowerCase();
 
-    Iterable<JobRequest> filtered = allJobs;
+    // Pedidos só para mim (A7): fixos no topo, fora de pesquisa, filtros e
+    // raio. Não mudam o raio nem os filtros para o resto.
+    final pinned = allJobs.where(_isDirectForMe).toList();
+    Iterable<JobRequest> filtered =
+        allJobs.where((job) => !_isDirectForMe(job));
 
     // 1. Pesquisa por texto — nome do serviço resolvido via join client-side.
     if (query.isNotEmpty) {
@@ -142,8 +147,6 @@ class _WorkerAvailableJobsScreenState
     if (_radiusOverrideKm != null && workerProfile != null) {
       final radiusMeters = _radiusOverrideKm! * 1000;
       filtered = filtered.where((job) {
-        // O pedido só para mim aparece sempre, venha de onde vier.
-        if (_isDirectForMe(job)) return true;
         final distanceMeters = Geolocator.distanceBetween(
           workerProfile.baseLat,
           workerProfile.baseLng,
@@ -154,7 +157,7 @@ class _WorkerAvailableJobsScreenState
       });
     }
 
-    return filtered
+    return [...pinned, ...filtered]
         .map((job) => _toViewData(job, serviceTypes, workerProfile))
         .toList();
   }
@@ -167,6 +170,7 @@ class _WorkerAvailableJobsScreenState
     final serviceType =
         serviceTypes.where((s) => s.id == job.serviceTypeId).firstOrNull;
 
+    final forMe = _isDirectForMe(job);
     var locationLabel = '';
     if (workerProfile != null) {
       final distanceMeters = Geolocator.distanceBetween(
@@ -175,9 +179,11 @@ class _WorkerAvailableJobsScreenState
         job.locationLat,
         job.locationLng,
       );
-      locationLabel = distanceMeters < 1000
-          ? '${distanceMeters.round()} m'
-          : '${decimalLabel(distanceMeters / 1000, 1)} km';
+      locationLabel = forMe && distanceMeters > workerProfile.radiusKm * 1000
+          ? outsideAreaLabel(distanceMeters / 1000)
+          : distanceMeters < 1000
+              ? '${distanceMeters.round()} m'
+              : '${decimalLabel(distanceMeters / 1000, 1)} km';
     }
 
     final scheduleLabel = job.preferredDate == null
@@ -197,10 +203,14 @@ class _WorkerAvailableJobsScreenState
     final directUntil = job.directUntil;
     return view.WorkerAvailableJobViewData(
       id: job.id,
-      directTagLabel: _isDirectForMe(job) && directUntil != null
-          ? 'Pedido só para ti · '
-              '${directTimeLeftLabel(directUntil, DateTime.now())}'
-          : null,
+      directTagLabel: !forMe
+          ? null
+          : job.isDirectOnHold
+              ? 'Pedido só para ti · prazo terminado'
+              : directUntil != null
+                  ? 'Pedido só para ti · '
+                      '${directTimeLeftLabel(directUntil, DateTime.now())}'
+                  : 'Pedido só para ti',
       title: serviceType?.name ?? '',
       locationLabel: locationLabel,
       scheduleLabel: scheduleLabel,

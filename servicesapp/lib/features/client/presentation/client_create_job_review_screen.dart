@@ -23,6 +23,7 @@ import '../../jobs/application/direct_request_labels.dart';
 import '../application/client_create_job_wizard_provider.dart';
 import 'widgets/direct_request_review_banner.dart';
 import '../../../core/widgets/app_toast.dart';
+import 'widgets/direct_request_create_header.dart';
 
 /// Passo 4/4 de "Criar pedido" — rever o draft e publicar.
 ///
@@ -128,6 +129,9 @@ class _ClientCreateJobReviewScreenState
         sizeEstimate: wizard.sizeEstimate,
         description: wizard.description.trim(),
         directSourceJobId: wizard.directSourceJobId,
+        directCardWorkerId: wizard.directCardWorkerId,
+        directAutoRelease: wizard.directAutoRelease,
+        cardVisitId: wizard.cardVisitId,
       );
     } catch (e) {
       // O pedido não foi criado: pode repetir-se sem risco de duplicar.
@@ -233,16 +237,20 @@ class _ClientCreateJobReviewScreenState
     final directBanner = wizard.isDirectRequest
         ? DirectRequestReviewBannerViewData(
             titleLabel: 'Vai primeiro para $directName',
-            descriptionLabel:
-                'Durante 24 horas, só $directName vê o pedido e pode enviar '
-                'proposta. Se não responder, mostramos o pedido a todos os '
-                'jardineiros.',
+            descriptionLabel: 'Tem 24 horas para responder. Até lá, só '
+                '$directName vê o pedido e pode enviar proposta.',
             workerInitial: initialOf(
               wizard.directWorkerName.isEmpty
                   ? 'Jardineiro'
                   : wizard.directWorkerName,
             ),
             workerAvatarUrl: wizard.directWorkerAvatarUrl,
+            releaseOptionTitleLabel: directReleaseOptionTitle,
+            releaseOptionDescriptionLabel: directReleaseOptionDescription(
+              directName,
+              autoRelease: wizard.directAutoRelease,
+            ),
+            allowAutomaticReleaseToAll: wizard.directAutoRelease,
           )
         : null;
     final overflowCount = photos.length - 2;
@@ -288,6 +296,7 @@ class _ClientCreateJobReviewScreenState
                   child: const AppStepProgress(currentStep: 4, totalSteps: 4),
                 ),
               ),
+              const WizardCardRequestHeader(),
               Expanded(
                 child: IgnorePointer(
                   ignoring: !_interactionEnabled,
@@ -329,6 +338,11 @@ class _ClientCreateJobReviewScreenState
                         DirectRequestReviewBanner(
                           data: directBanner,
                           entranceIndex: 1,
+                          onAutomaticReleaseChanged: _interactionEnabled
+                              ? ref
+                                  .read(clientCreateJobWizardProvider.notifier)
+                                  .setDirectAutoRelease
+                              : null,
                         ),
                         const SizedBox(height: AppSpacing.sm),
                       ],
@@ -372,7 +386,11 @@ class _ClientCreateJobReviewScreenState
                   AppSpacing.lg,
                 ),
                 child: PrimaryActionButton(
-                  label: _publishing ? 'A publicar...' : 'Publicar pedido',
+                  label: _publishing
+                      ? 'A publicar...'
+                      : wizard.isDirectRequest
+                          ? 'Enviar a $directName'
+                          : 'Publicar pedido',
                   isLoading: _publishing,
                   onPressed: _publishing ? null : _publish,
                 ),
