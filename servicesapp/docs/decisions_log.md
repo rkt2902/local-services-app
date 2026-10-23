@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-23 — Lembretes, pedido sem propostas e textos das notificações (0061, 0062)
+
+- **Correção 0061 à parte**: o erro de NULL em `job_reserved_for_other` está vivo, por isso vai numa migration pequena que se aplica já, sem esperar pela 0058 e 0059.
+- **Três avisos por pedido, não mais**: pedido novo, lembrete às 6h e anel mais longe às 24h. O lembrete junta vários pedidos e só sai um por jardineiro em 20h; tudo das 8h às 21h. Mais do que isto leva os jardineiros a desligar as notificações.
+- **Alargar em vez de notificar mais longe**: `search_extra_km` muda também a lista do jardineiro, para que quem recebe o aviso encontre o pedido. Máximo 30 km. O prazo do pedido estende-se 24h ao alargar.
+- **Textos num só sítio**: o trigger BEFORE INSERT reescreve os textos antigos; as funções grandes (`create_proposal`, `cancel_job`, ...) não se recriam, menos risco de regressões.
+- **Dicas da época em tabela**: campanhas editáveis no SQL Editor (mês, dia, texto), uma vez por ano, só a clientes e com opção de desligar.
+
 ## 2026-10-22 — Painel /admin e planos dos jardineiros (0060)
 
 - **No mesmo link, em `/admin`** (pedido do Henrique), não num site à parte. O código do
@@ -24,6 +32,48 @@
   contratado e pago fora, e atribuído no painel.
 - **Sem selo "Verificado" à parte**: "documentos verificados" é uma data no plano, e o
   selo Pro passa a querer dizer isso (o selo em si ainda não aparece aos clientes).
+
+## 2026-10-22 — Pedido direto pelo cartão do jardineiro e tracking (0059, design A7)
+
+- **O mesmo mecanismo do A5**: o pedido pelo cartão usa as colunas `direct_*` e a reserva
+  de 24h; muda só a origem (`direct_origin`, para estatística).
+- **`direct_card_worker_id` é o alvo, não a identidade**: o cliente continua a ser
+  `auth.uid()`; o trigger valida o jardineiro (existe, aceita pedidos, não é o próprio
+  cliente). A regra das RPCs (nunca receber `worker_id`/`client_id` como identidade)
+  mantém-se.
+- **Interruptor no servidor**: `direct_auto_release` decide, no trigger e no cron, se a
+  recusa ou o fim do prazo abrem o pedido a todos ou o deixam parado (`on_hold`). A UI só
+  mostra o que o servidor decidiu, nunca usa o relógio do telemóvel para isso.
+- **Flags em vez de "Pro"**: `worker_can_use_public_card` e
+  `worker_can_receive_direct_requests` são o único sítio a mudar quando houver plano Pro;
+  os ecrãs recebem `WorkerPublicCardFeatureAccess` e nunca `isPro`.
+- **Tracking sem dados pessoais**: cada abertura do cartão grava a origem (`?src=qr`,
+  `link`, `app`) e um id aleatório do aparelho, para não contar duas vezes a mesma pessoa
+  em 30 min. Tabelas sem acesso pela app (só RPC e SQL Editor), para ninguém mexer nos
+  números. Um cliente conta como trazido pelo cartão se a conta nascer até 7 dias depois
+  da visita.
+- **Conta nova a partir do cartão é sempre de cliente**: o ecrã "Escolher papel" é
+  saltado quando já há nome e telefone.
+
+## 2026-10-22 — Valor total ou preço por hora em cada proposta (0058, design A6)
+
+- **O formato do preço não é um estado**: coluna `pricing_mode` à parte, o `status` da
+  proposta não muda.
+- **Nunca comparar formatos pelo preço**: a lista de propostas ordena por recomendada,
+  avaliação e chegada; as expiradas vão para o fim.
+- **Taxa de referência no valor total**: `hourly_rate` continua preenchido (o pagamento dos
+  ajudantes depende dele), com o preço por hora do jardineiro ou o total a dividir pelas
+  horas da equipa (8 h por dia). O cliente nunca a vê.
+- **Validade decidida no servidor**: `is_expired` vem da RPC e um trigger recusa aceitar
+  uma proposta expirada. A app não usa o relógio do telemóvel para isso.
+- **Dias de trabalho na BD** (`job_work_days`), não no ecrã: o relógio conta a partir do
+  início do dia aberto, por isso sobrevive a fechar a app ou mudar de telemóvel.
+- **O valor fechado não muda com as horas**: o tempo fica registado e aparece na conclusão,
+  com a nota "O tempo fica registado, mas não muda o valor."
+- **Formato da última proposta por omissão**, com a frase "Escolhemos o valor total porque
+  o usaste da última vez."
+- **Visita ao local ("Ver o local primeiro") fica para a fase 2**, por escolha do Henrique.
+- **Selo "Pro"** continua sem dados (`null`), não se inventa.
 
 ## 2026-10-22 — Pedir de novo ao mesmo jardineiro (0057, design A5)
 

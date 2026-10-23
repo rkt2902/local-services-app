@@ -438,7 +438,13 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_repeat_hire_for_job` (0057) | `p_job_id` (trabalho concluído do cliente) | `TABLE(worker_id, worker_name, worker_avatar_url, service_type_id, job_date, can_request, my_stars)` | `JobRepository.fetchRepeatHireForJob` |
 | `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
 | `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
-| `expire_direct_job_requests` (0057) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`) |
+| `expire_direct_job_requests` (0057, última 0059) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`); desde a 0059 respeita o interruptor (abre a todos ou deixa parado, `on_hold`) |
+| `log_worker_card_visit` (0059) | `p_worker_id` (o cartão aberto, não a identidade), `p_source`, `p_device_key?` | `uuid` da visita, ou `null` (o próprio, cartão desligado); o mesmo aparelho no mesmo cartão em 30 min conta uma vez. `anon` e `authenticated` | `WorkerRepository.logCardVisit` |
+| `claim_worker_card_visit` (0059) | `p_visit_id` | `void`: liga a visita a `auth.uid()` e, se a conta de cliente nasceu até 7 dias depois, cria `client_referrals` | `WorkerRepository.claimCardVisit` |
+| `create_proposal` (última 0058) | os de 0044 e, no fim, todos com omissão: `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until` (`p_hourly_rate` passa a opcional) | `uuid` | `ProposalRepository.createProposal` |
+| `get_pending_proposals_for_job` (última 0058) | `p_job_id` | colunas de 0040 + `pricing_mode`, `total_price`, `includes`, `estimated_days_min/max`, `valid_until`, `is_expired` | `ProposalRepository.fetchPendingProposalsForJob` |
+| `finish_work_day` / `start_work_day` (0058) | `p_job_id` (jardineiro responsável, trabalho iniciado) | `void` (fecha o dia aberto / abre o seguinte) | `ProposalRepository.finishWorkDay` / `startWorkDay` |
+| `get_job_work_days` (0058) | `p_job_id` (cliente, responsável ou ajudante aceite) | `TABLE(day_number, started_at, ended_at)`; sem linhas usa `started_at`/`marked_done_at` | `ProposalRepository.fetchWorkDays` |
 | `get_my_plan` (0060) | — | `TABLE(tier, ends_at, verified, jobs_this_month, monthly_job_limit)` | `WorkerRepository.fetchMyPlan` (linha "Plano" da conta) |
 | `admin_whoami` (0060) | — | `TABLE(is_admin, has_mfa)` (aal2) | `AdminRepository.fetchAccess` |
 | `admin_overview` (0060) | `p_days?` (NULL = sempre) | `jsonb` (utilizadores, coorte de pedidos do período, avaliações, planos, alertas) | `AdminRepository.fetchOverview` |
@@ -472,6 +478,9 @@ muda (ver secção 13).
 | `trg_job_request_direct_before_insert` (0057) | `job_requests` | BEFORE INSERT | limpa os campos diretos e, com `direct_source_job_id`, valida que o pedido de origem é do cliente e está concluído, tira o jardineiro da proposta aceite e reserva 24h (`direct_status = 'waiting'`). A app nunca manda o id do jardineiro |
 | `trg_job_proposal_direct_before_insert` / `trg_job_proposal_direct_after_status` (0057) | `job_proposals` | BEFORE INSERT / AFTER UPDATE OF status | bloqueiam propostas de outros enquanto a reserva está ativa; proposta do escolhido recusada abre a todos (`released`), retirada conta como recusa (`declined`) |
 | `trg_set_proposal_accepted_at` / `trg_enforce_free_plan_limit` (0060) | `job_proposals` | BEFORE UPDATE OF status / BEFORE INSERT | grava `accepted_at`; recusa proposta nova de um jardineiro sem Pro/Pro+ em vigor com 5 trabalhos aceites no mês (Lisboa). Limite suave: propostas já pendentes ainda podem ser aceites |
+| `trg_job_request_direct_lock_update` (0059) | `job_requests` | BEFORE UPDATE | a app não muda nenhum campo do pedido direto depois de criado (só as RPCs e o cron) |
+| `trg_job_proposal_block_expired_accept` (0058) | `job_proposals` | BEFORE UPDATE OF status | recusa aceitar uma proposta com `valid_until` passado ("Este orçamento expirou e já não pode ser aceite."). A app nunca decide a validade pelo relógio do telemóvel |
+| `trg_job_requests_sync_work_days` (0058) | `job_requests` | AFTER UPDATE OF started_at, status | cria o dia 1 quando o trabalho começa e fecha o dia aberto ao marcar concluído ou cancelar |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` — bloqueia mudar `role` por UPDATE direto |
 
 ### Storage
@@ -504,10 +513,14 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
 | `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
 | `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
-| `0057_direct_requests.sql` | **criada, NÃO aplicada**, depois da 0056 (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
+| `0057_direct_requests.sql` | aplicada (confirmado a 2026-10-22) (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
+| `0058_proposal_pricing_and_work_days.sql` | **criada, NÃO aplicada**, depois da 0057 (propostas com valor total ou por hora, "O que inclui", duração em dias, validade, bloqueio de aceitar expiradas, dias de trabalho com `finish_work_day`/`start_work_day`) |
+| `0059_card_direct_requests_and_tracking.sql` | **criada, NÃO aplicada**, depois da 0051 e da 0057 (pedido direto pelo cartão público, interruptor "mostrar a outros" com `on_hold`, origem do pedido, flags do cartão para o futuro plano Pro, tracking de visitas QR/link/app e clientes trazidos por cada jardineiro) |
 | `0060_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da `0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql` (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
+| `0061_hotfix_reserved_for_other.sql` | **criada, aplicar já** e sozinha: `job_reserved_for_other` dava NULL nos pedidos normais e `NOT ...` escondia-os aos jardineiros desde a 0057. Corrige a versão que existir (4 ou 5 argumentos) |
+| `0062_job_followups_and_better_notifications.sql` | **criada, NÃO aplicada**, depois da 0058 e da 0059 (lembrete às 6h aos jardineiros, 24h sem propostas: pedido mostrado mais longe e aviso ao cliente, "Mostrar a jardineiros mais longe", dicas da época, textos das notificações reescritos no trigger) |
 
-Próxima migration: `0061`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0063`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
