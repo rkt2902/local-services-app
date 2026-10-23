@@ -56,7 +56,11 @@ class AdminGateScreen extends ConsumerWidget {
             iconBackground: AppStatusColor.neutral.background,
             iconForeground: AppStatusColor.neutral.foreground,
             title: 'Sem acesso',
-            message: 'Esta conta não tem acesso à administração.',
+            message: user.email == null
+                ? 'Esta conta não tem acesso à administração.'
+                : 'Entraste como ${user.email}. Esta conta não tem acesso '
+                    'à administração. Se é a tua conta de admin, confirma '
+                    'que está na tabela admin_users.',
             primaryActionLabel: 'Terminar sessão',
             onPrimaryAction: () =>
                 ref.read(adminRepositoryProvider).signOut(),
