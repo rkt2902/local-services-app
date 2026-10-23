@@ -31,6 +31,10 @@ class ClientCreateJobWizardState {
     this.directSourceJobId,
     this.directWorkerName = '',
     this.directWorkerAvatarUrl = '',
+    this.directCardWorkerId,
+    this.directShowAllServices = false,
+    this.directAutoRelease = true,
+    this.cardVisitId,
   });
 
   final String? serviceTypeId;
@@ -65,7 +69,26 @@ class ClientCreateJobWizardState {
   final String directWorkerName;
   final String directWorkerAvatarUrl;
 
-  bool get isDirectRequest => directSourceJobId != null;
+  /// Pedido pelo cartão público `/w/:id` (A7, migration 0059): o
+  /// jardineiro a quem o pedido vai primeiro. O servidor valida-o; o
+  /// cliente continua a ser sempre `auth.uid()`.
+  final String? directCardWorkerId;
+
+  /// Pedido pelo cartão: o passo 1 mostra só os serviços do jardineiro,
+  /// até o cliente escolher "Ver todos os serviços" (fica `true`).
+  final bool directShowAllServices;
+
+  /// Interruptor do passo 4 "Se não puder, mostrar a outros jardineiros".
+  /// `false`: depois de recusa ou fim do prazo o pedido fica parado até o
+  /// cliente decidir.
+  final bool directAutoRelease;
+
+  /// Visita ao cartão que trouxe este pedido (tracking do QR/link).
+  final String? cardVisitId;
+
+  bool get isCardRequest => directCardWorkerId != null;
+
+  bool get isDirectRequest => directSourceJobId != null || isCardRequest;
 
   ClientCreateJobWizardState copyWith({
     String? serviceTypeId,
@@ -81,6 +104,8 @@ class ClientCreateJobWizardState {
     double? locationLng,
     String? description,
     List<XFile>? photos,
+    bool? directShowAllServices,
+    bool? directAutoRelease,
   }) {
     return ClientCreateJobWizardState(
       serviceTypeId: serviceTypeId ?? this.serviceTypeId,
@@ -103,6 +128,11 @@ class ClientCreateJobWizardState {
       directSourceJobId: directSourceJobId,
       directWorkerName: directWorkerName,
       directWorkerAvatarUrl: directWorkerAvatarUrl,
+      directCardWorkerId: directCardWorkerId,
+      directShowAllServices:
+          directShowAllServices ?? this.directShowAllServices,
+      directAutoRelease: directAutoRelease ?? this.directAutoRelease,
+      cardVisitId: cardVisitId,
     );
   }
 
@@ -162,6 +192,10 @@ class ClientCreateJobWizardNotifier
       directSourceJobId: state.directSourceJobId,
       directWorkerName: state.directWorkerName,
       directWorkerAvatarUrl: state.directWorkerAvatarUrl,
+      directCardWorkerId: state.directCardWorkerId,
+      directShowAllServices: state.directShowAllServices,
+      directAutoRelease: state.directAutoRelease,
+      cardVisitId: state.cardVisitId,
     );
   }
 
@@ -191,6 +225,17 @@ class ClientCreateJobWizardNotifier
   /// Começa o wizard já preenchido (ex.: "Publicar de novo" a partir de um
   /// pedido antigo, ver `republishWizardState`).
   void startFrom(ClientCreateJobWizardState draft) => state = draft;
+
+  /// Passo 4 do pedido direto: o que acontece se o jardineiro não puder.
+  void setDirectAutoRelease(bool value) {
+    state = state.copyWith(directAutoRelease: value);
+  }
+
+  /// "Ver todos os serviços" no passo 1 de um pedido pelo cartão: o pedido
+  /// continua a ir primeiro para o mesmo jardineiro.
+  void showAllServices() {
+    state = state.copyWith(directShowAllServices: true);
+  }
 
   /// "Criar pedido" a partir do Início, da aba Pedidos ou do botão central:
   /// mantém o rascunho, mas um "Pedir de novo" abandonado deixa de ir só

@@ -250,6 +250,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/client/create-job/review` | `ClientCreateJobReviewScreen` | fora | shared-axis |
 | `/client/job/:id` | `ClientJobDetailScreen` | fora | container-transform (default) / shared-axis se `entryTransition` |
 | `/client/job/:id/proposals` | `ClientProposalsScreen` | fora | shared-axis |
+| `/client/job/:id/proposals/:proposalId` (A6) | `ClientProposalDetailScreen` (detalhe e "Aceitar por X") | fora | shared-axis |
 | `/client/job/:id/confirmed` | `ClientJobConfirmedScreen` | fora | shared-axis |
 | `/client/job/:id/rate-worker` | `ClientRateWorkerScreen` | fora | shared-axis |
 | `/worker/job/:id/propose` | `WorkerSubmitProposalScreen` | fora | shared-axis |
@@ -343,9 +344,13 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
-| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057) |
+| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057); desde a 0059 `direct_card_worker_id` (pedido pelo cartão), `direct_auto_release` (interruptor do passo 4), `direct_origin` (`public_card`/`repeat_hire`/`your_gardeners`), `direct_hold_reason` e `card_visit_id`, e `direct_status` aceita `on_hold` |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
-| `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required` |
+| `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required`; desde a 0058 `pricing_mode` (`hourly`/`fixed_total`), `total_price`, `includes[]`, `estimated_days_min/max`, `valid_until`. No valor total, `hourly_rate` é uma taxa de referência calculada no servidor (só para o pagamento dos ajudantes) |
+| `proposal_include_options` (0058) | opções do "O que inclui" | `slug`, `label`, `sort_order`, `active`; leitura por autenticados |
+| `job_work_days` (0058) | dias de um trabalho em vários dias | `job_id`, `day_number`, `started_at`, `ended_at` (no máximo um aberto); só por RPC |
+| `worker_card_visits` (0059) | aberturas do cartão público `/w/:id` | `worker_id`, `source` (`qr`/`link`/`app`), `device_key` (id aleatório do aparelho), `visitor_id`; RLS sem políticas, só por RPC e SQL Editor |
+| `client_referrals` (0059) | clientes novos trazidos por um cartão | `client_id` PK, `worker_id`, `visit_id`, `source`; RLS sem políticas, só por RPC e SQL Editor |
 | `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
 | `device_tokens` (0041) | tokens FCM | `token` PK, `user_id`, `platform`; escrita só por RPC |
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
@@ -404,7 +409,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `get_accepted_helpers_for_job` | `p_job_id` | `TABLE(worker_id, full_name, avatar_url)` (foto desde a 0054; desde a 0055 responde também ao cliente do trabalho) | `RatingRepository` (avaliações, cartão "Equipa" do responsável e do cliente) |
 | `get_help_requests_in_radius` | `worker_lat, worker_lng, radius_km` | `TABLE(... principal_name, principal_avatar_url, payment_per_helper, confirmed_date/time)` — shape atual é a soma de 0034+0039, ver nota | `HelpRequestRepository` |
 | `get_job_by_id` (0043) | `p_job_id` | `SETOF job_requests` (mascarado se a proposta não foi aceite) | `JobRepository.fetchJobById` |
-| `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests` | `JobRepository.fetchJobsInRadius` |
+| `get_jobs_in_radius` | `worker_lat, worker_lng, radius_km` (sem `p_worker_id` desde 0044) | `SETOF job_requests`; desde a 0062 também os pedidos até `radius_km + search_extra_km` | `JobRepository.fetchJobsInRadius` |
+| `widen_job_search` (0062) | `p_job_id` | `integer` (novo `search_extra_km`): +10 km, máximo 30, só o dono de um pedido aberto e não reservado | `JobRepository.widenJobSearch` |
+| `get_my_notification_preferences` / `set_seasonal_tips` (0062) | — / `p_enabled` | `seasonal_tips` / `void` | `NotificationRepository` ("Dicas da época" em Definições do cliente) |
 | `get_my_help_acceptances` | — | `TABLE(... principal_name, principal_phone, job_status, ...)` | `HelpRequestRepository.fetchMyHelpAcceptances` |
 | `mark_job_done` | `p_job_id, p_photo_path?` (0046; só a partir do dia do trabalho). Desde a 0052: `p_job_id, p_photo_paths text[]` (até 3 fotos de depois) e exige `started_at` | `void` | `ProposalRepository.markJobCompleted` |
 | `start_job` (0052) | `p_job_id, p_photo_paths text[]` (até 3 fotos de antes; a partir de 1h antes da hora) | `void` | `JobRepository.startJob` |
@@ -415,7 +422,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
-| `get_worker_job_board` (0035, última 0056) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
+| `get_worker_job_board` (0035, última 0058: `pricing_mode`, `total_price` no fim) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
 | `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
@@ -452,7 +459,8 @@ muda (ver secção 13).
 |---|---|---|---|
 | `worker_profiles_public` | **não** (definer-style, deliberado) | `authenticated` | `bio, radius_km, tools, location_name, photos` — sem coordenadas |
 | `worker_rating_summary` | **sim** (deliberado — ratings já é `USING(true)`) | `authenticated` | `worker_id, avg_rating, rating_count` |
-| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio |
+| `worker_public_card` (0033) | não | `anon` + `authenticated` | nome, avatar, bio, zona, serviços, rating e, desde a 0051, `highlights`/`social_links` — sem telefone/coordenadas/raio. Desde a 0059 também `service_type_ids`, `can_use_public_card`, `can_receive_direct_requests` e a última avaliação de 4 ou 5 estrelas com comentário (`latest_review_*`, primeiro nome) |
+| `worker_card_funnel` (0059) | não | ninguém (só SQL Editor) | por jardineiro: visitas (QR, link, app), aparelhos, visitantes com sessão, clientes novos, pedidos pelo cartão e quantos foram contratados |
 
 ### Triggers
 
@@ -474,7 +482,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### pg_cron
 
-`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron. Desde a 0055, `process-help-request-deadlines` (`10 * * * *`) aprova sozinho o pedido de ajudantes que está por aprovar há 24h (se o dia ainda não chegou; avisos `help_request_approved` ao responsável e `help_request_auto_approved` ao cliente) e, na véspera a partir das 18h de Portugal, avisa uma vez (`help_requests.eve_reminder_sent_at`): o responsável com candidatos por decidir ou vagas livres (`help_request_closing_soon`) e o cliente que ainda não aprovou (`help_request_pending_approval`). No dia do trabalho o ajudante aceite já não pode desistir e, se o responsável o retirar, a vaga não reabre (`remove_help_helper`). Desde a 0057, `expire-direct-job-requests` (`*/5 * * * *`) abre a todos os pedidos diretos cuja reserva de 24h passou (`direct_status = 'expired'`, aviso `direct_request_released` ao cliente). A visibilidade já depende da hora (`job_reserved_for_other`), por isso o atraso do cron só atrasa os avisos.
+`auto-expire-jobs` e `auto-confirm-completed-jobs`, ambos `0 */3 * * *` (cada 3h); desde 0046 também `job-reminders` (`30 7 * * *`, `send_job_reminders`); desde 0042 `cleanup-old-notifications` (`30 3 * * *`). `auto_expire_jobs` passa a expirar pedidos abertos com data fixa passada e trabalhos confirmados 3 dias depois da data. Desde a 0054, `close-help-requests-on-job-day` (`5 * * * *`) fecha os pedidos de ajuda no dia do trabalho: candidaturas pendentes recusadas e avisadas, equipa fica com os aceites (`filled`) ou o pedido é cancelado, aviso `help_request_closed` ao responsável. A descoberta e as candidaturas já fecham à meia-noite (filtro `confirmed_date > today_pt()`), sem esperar pelo cron. Desde a 0055, `process-help-request-deadlines` (`10 * * * *`) aprova sozinho o pedido de ajudantes que está por aprovar há 24h (se o dia ainda não chegou; avisos `help_request_approved` ao responsável e `help_request_auto_approved` ao cliente) e, na véspera a partir das 18h de Portugal, avisa uma vez (`help_requests.eve_reminder_sent_at`): o responsável com candidatos por decidir ou vagas livres (`help_request_closing_soon`) e o cliente que ainda não aprovou (`help_request_pending_approval`). No dia do trabalho o ajudante aceite já não pode desistir e, se o responsável o retirar, a vaga não reabre (`remove_help_helper`). Desde a 0057, `expire-direct-job-requests` (`*/5 * * * *`) abre a todos os pedidos diretos cuja reserva de 24h passou (`direct_status = 'expired'`, aviso `direct_request_released` ao cliente). A visibilidade já depende da hora (`job_reserved_for_other`), por isso o atraso do cron só atrasa os avisos. Desde a 0062, `open-job-followups` (`15 * * * *`, só das 8h às 21h de Portugal) trata os pedidos abertos sem propostas: às 6h lembra os jardineiros da zona (`job_opportunity_reminder`), às 24h mostra o pedido 10 km mais longe (aviso `new_job_in_radius` "Pedido um pouco mais longe" a quem fica no novo anel, prazo estendido 24h) e avisa o cliente (`job_no_proposals_yet`); e `seasonal-campaigns` (`0 10 * * *`) envia as dicas da época uma vez por ano a cada cliente que não as desligou.
 
 ### Estado das migrations
 
@@ -513,7 +521,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | Transição | RPC | Notificação |
 |---|---|---|
 | criar pedido | INSERT direto | `new_job_in_radius` (trigger) |
-| pedido direto ("Pedir de novo", 0057; continua `open`, `direct_status` à parte: `waiting → declined/expired/released`) | INSERT direto com `direct_source_job_id`; `decline_direct_job_request`, `release_direct_job_request`, cron | `direct_job_request` só ao escolhido; ao abrir a todos `new_job_in_radius` e, se recusou ou expirou, `direct_request_released` ao cliente |
+| pedido direto ("Pedir de novo", 0057, ou pelo cartão, 0059; continua `open`, `direct_status` à parte: `waiting → declined/expired/released`, ou `on_hold` com o interruptor desligado até o cliente decidir) | INSERT direto com `direct_source_job_id` ou `direct_card_worker_id`; `decline_direct_job_request`, `release_direct_job_request`, cron | `direct_job_request` só ao escolhido; ao abrir a todos `new_job_in_radius` e, se recusou ou expirou, `direct_request_released` ao cliente |
 | aceitar proposta → `confirmed` | `accept_proposal` | `proposal_accepted` / `proposal_rejected` (outras) |
 | worker inicia (continua `confirmed`, "Em curso" = `started_at` preenchido, 0052) | `start_job` | `job_started` |
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |
@@ -579,6 +587,11 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `help_job_started` (0055) | trigger `trg_notify_helpers_on_job_change` (`started_at`) | `/worker/help/:id` | go |
 | `direct_job_request` (0057) | trigger `notify_workers_new_job` (pedido direto) | `/worker/job/:id` | go |
 | `direct_request_released` (0057) | `open_direct_job_to_all` (recusa, retirada ou cron) | `/client/job/:id` | go |
+| `job_opportunity_reminder` (0062) | `process_open_job_followups` (cron, 6h sem propostas, no máximo 1 por jardineiro em 20h; vários pedidos juntos num só com `related_id` null) | `/worker/job/:id` ou `/worker/available-jobs` | go |
+| `job_no_proposals_yet` (0062) | `process_open_job_followups` (cron, 24h sem propostas) | `/client/job/:id` (cartão "Ainda sem propostas") | go |
+| `seasonal_tip` (0062) | `send_seasonal_campaigns` (cron diário, campanhas em `seasonal_campaigns`) | cliente: `/client/create-job`; jardineiro: `/worker/available-jobs` | push / go |
+
+**Textos (0062):** o trigger BEFORE INSERT `notifications_add_job_context` reescreve os textos genéricos antigos (nome da outra pessoa, valor da proposta, distância, sempre por tu) antes de juntar " (Serviço, DD/MM)". As funções que criam notificações não mudam; texto novo de um tipo antigo muda-se aí.
 
 Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStreamProvider` e mostra a notificação nova no topo (`AppToast.notification`, ícone e tom de `notificationLook`); tocar abre o mesmo destino e marca como lida. Não aparece no primeiro carregamento nem no ecrã `/notifications`.
 

@@ -79,10 +79,23 @@ class WorkerDirectRequestViewData {
     required this.tagLabel,
     required this.explanationLabel,
     required this.history,
+    this.titleLabel,
+    this.outsideAreaLabel,
+    this.noticeLabel,
   });
 
   final String tagLabel;
+
+  /// "Marta pediu-te orçamento pelo teu cartão" (A7); `null` sem título.
+  final String? titleLabel;
   final String explanationLabel;
+
+  /// "Fora da tua área, a 12 km": o pedido aparece na mesma (A7).
+  final String? outsideAreaLabel;
+
+  /// Depois do prazo ("Marta vai decidir se mostra o pedido a outros
+  /// jardineiros."); `null` enquanto a reserva corre.
+  final String? noticeLabel;
 
   /// `null` dentro do `data`: sem histórico, fica só a etiqueta e a
   /// explicação.
@@ -117,12 +130,40 @@ class WorkerDirectRequestCard extends StatelessWidget {
         children: [
           WorkerDirectRequestTag(label: data.tagLabel),
           const SizedBox(height: AppSpacing.sm),
+          if (data.titleLabel != null) ...[
+            Text(
+              data.titleLabel!,
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+          ],
           Text(
             data.explanationLabel,
             style: textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
           ),
+          if (data.outsideAreaLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _DirectNote(
+              icon: Icons.near_me_outlined,
+              tone: AppStatusColor.waiting,
+              title: data.outsideAreaLabel!,
+              description:
+                  'Podes enviar proposta na mesma. Conta com a deslocação.',
+            ),
+          ],
+          if (data.noticeLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _DirectNote(
+              icon: Icons.schedule_outlined,
+              tone: AppStatusColor.neutral,
+              title: data.noticeLabel!,
+            ),
+          ],
           AppFadeThroughSwitcher(
             switchKey: data.history.isLoading
                 ? 'loading'
@@ -135,6 +176,64 @@ class WorkerDirectRequestCard extends StatelessWidget {
               data: (history) => history == null
                   ? const SizedBox.shrink()
                   : _History(history: history),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DirectNote extends StatelessWidget {
+  const _DirectNote({
+    required this.icon,
+    required this.tone,
+    required this.title,
+    this.description,
+  });
+
+  final IconData icon;
+  final AppStatusColor tone;
+  final String title;
+  final String? description;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: tone.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: AppSizes.infoRowIcon, color: tone.foreground),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (description != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    description!,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

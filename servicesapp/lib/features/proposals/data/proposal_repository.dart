@@ -72,27 +72,45 @@ class ProposalRepository {
     });
   }
 
+  /// Preço por hora: [hourlyRate]. Valor total ([pricingMode] fixedTotal):
+  /// [totalPrice], e a BD guarda uma hora de referência (migration 0058).
+  /// Os campos do A6 só vão quando têm valor, para a app continuar a
+  /// enviar propostas por hora antes da 0058 aplicada.
   Future<String> createProposal({
     required String jobId,
-    required double hourlyRate,
+    ProposalPricingMode pricingMode = ProposalPricingMode.hourly,
+    double? hourlyRate,
+    double? totalPrice,
     double? estimatedHoursMin,
     double? estimatedHoursMax,
+    int? estimatedDaysMin,
+    int? estimatedDaysMax,
     required int peopleNeeded,
     String? notes,
+    List<String> includes = const [],
+    DateTime? validUntil,
     DateTime? scheduledDate,
     String? scheduledTime,
     bool scheduledFlexible = false,
     bool helpersEquipmentRequired = false,
   }) async {
+    final fixed = pricingMode == ProposalPricingMode.fixedTotal;
     final params = <String, dynamic>{
       'p_job_id': jobId,
-      'p_hourly_rate': hourlyRate,
+      if (!fixed) 'p_hourly_rate': hourlyRate,
       'p_estimated_hours_min': estimatedHoursMin,
       'p_estimated_hours_max': estimatedHoursMax,
       'p_people_needed': peopleNeeded,
       'p_notes': notes,
       'p_scheduled_flexible': scheduledFlexible,
       'p_helpers_equipment_required': helpersEquipmentRequired,
+      if (fixed) 'p_pricing_mode': pricingMode.value,
+      if (fixed) 'p_total_price': totalPrice,
+      if (includes.isNotEmpty) 'p_includes': includes,
+      'p_estimated_days_min': ?estimatedDaysMin,
+      'p_estimated_days_max': ?estimatedDaysMax,
+      if (validUntil != null)
+        'p_valid_until': validUntil.toIso8601String().substring(0, 10),
     };
     if (scheduledDate != null) {
       params['p_scheduled_date'] =
@@ -111,6 +129,56 @@ class ProposalRepository {
       }
       rethrow;
     }
+  }
+
+  /// Último formato de preço que o jardineiro usou ("Escolhemos o valor
+  /// total porque o usaste da última vez"). Antes da 0058 ou sem
+  /// propostas devolve null.
+  Future<ProposalPricingMode?> fetchLastPricingMode(String workerId) async {
+    try {
+      final data = await _client
+          .from('job_proposals')
+          .select('pricing_mode')
+          .eq('worker_id', workerId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (data == null) return null;
+      return ProposalPricingMode.fromString(data['pricing_mode'] as String?);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Opções de "O que inclui" ativas, por ordem (migration 0058).
+  Future<List<ProposalIncludeOption>> fetchIncludeOptions() async {
+    final data = await _client
+        .from('proposal_include_options')
+        .select('slug, label')
+        .eq('active', true)
+        .order('sort_order');
+    return (data as List)
+        .map((e) => ProposalIncludeOption.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Dias de trabalho de um trabalho iniciado (migration 0058).
+  Future<List<JobWorkDay>> fetchWorkDays(String jobId) async {
+    final data =
+        await _client.rpc('get_job_work_days', params: {'p_job_id': jobId});
+    return (data as List)
+        .map((e) => JobWorkDay.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// "Terminar o dia N".
+  Future<void> finishWorkDay(String jobId) async {
+    await _client.rpc('finish_work_day', params: {'p_job_id': jobId});
+  }
+
+  /// "Começar o dia N+1".
+  Future<void> startWorkDay(String jobId) async {
+    await _client.rpc('start_work_day', params: {'p_job_id': jobId});
   }
 
   Future<void> rejectProposal(String proposalId, String jobId) async {

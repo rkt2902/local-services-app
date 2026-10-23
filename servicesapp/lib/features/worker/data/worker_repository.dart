@@ -149,6 +149,37 @@ class WorkerRepository {
     return WorkerPublicCard.fromJson(data);
   }
 
+  /// Regista uma abertura do cartão público (0059), também sem sessão.
+  /// [source]: "qr", "link" ou "app". Devolve o id da visita, ou `null`
+  /// (o próprio jardineiro, ou a migration ainda por aplicar). Nunca
+  /// falha: o registo não pode impedir de ver o cartão.
+  Future<String?> logCardVisit({
+    required String workerId,
+    required String source,
+    String? deviceKey,
+  }) async {
+    try {
+      final id = await _client.rpc('log_worker_card_visit', params: {
+        'p_worker_id': workerId,
+        'p_source': source,
+        'p_device_key': ?deviceKey,
+      });
+      return id as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Liga a visita ao cartão à conta que acabou de entrar ou de ser
+  /// criada (0059). Falhas ficam em silêncio.
+  Future<void> claimCardVisit(String visitId) async {
+    try {
+      await _client.rpc('claim_worker_card_visit', params: {
+        'p_visit_id': visitId,
+      });
+    } catch (_) {}
+  }
+
   Future<String> uploadAvatar(String userId, XFile file) async {
     final path = '$userId.jpg';
     final bucket = _client.storage.from('avatars');

@@ -15,9 +15,13 @@ import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/service_category_section.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/application/job_providers.dart';
+import '../../worker/application/worker_providers.dart';
 import '../../worker/data/service_type_model.dart';
 import '../application/client_create_job_wizard_provider.dart';
+import 'widgets/direct_request_create_header.dart';
+import 'widgets/direct_request_services_state.dart';
 
 /// Passo 1/3 de "Criar pedido" — escolha do tipo de serviço.
 ///
@@ -105,11 +109,63 @@ class _ClientCreateJobServiceScreenState
     );
   }
 
+  /// Pedido pelo cartão (A7): só os serviços deste jardineiro, numa grelha
+  /// sem categorias. Sem serviços, "Ver todos os serviços" volta à lista
+  /// normal e o pedido continua a ir primeiro para ele.
+  Widget _cardServices(
+    ClientCreateJobWizardState wizard,
+    AsyncValue<List<ServiceType>> serviceTypesAsync,
+    String query,
+  ) {
+    final workerId = wizard.directCardWorkerId!;
+    final cardAsync = ref.watch(workerPublicCardProvider(workerId));
+    if (cardAsync.hasError || serviceTypesAsync.hasError) {
+      return DirectRequestServicesError(
+        onRetry: () {
+          ref.invalidate(workerPublicCardProvider(workerId));
+          if (serviceTypesAsync.hasError) ref.invalidate(serviceTypesProvider);
+        },
+      );
+    }
+    final card = cardAsync.asData?.value;
+    final types = serviceTypesAsync.asData?.value;
+    if (types == null || (card == null && cardAsync.isLoading)) {
+      return const DirectRequestServicesSkeleton();
+    }
+    final offered = card?.serviceTypeIds ?? const <String>[];
+    final workerTypes = types.where((t) => offered.contains(t.id)).toList();
+    if (workerTypes.isEmpty) {
+      return DirectRequestServicesEmpty(
+        workerName: firstNameOr(wizard.directWorkerName, 'O jardineiro'),
+        onShowAllServices: () => ref
+            .read(clientCreateJobWizardProvider.notifier)
+            .showAllServices(),
+      );
+    }
+    final matches = query.isEmpty
+        ? workerTypes
+        : workerTypes
+            .where((s) => s.name.toLowerCase().contains(query))
+            .toList();
+    if (matches.isEmpty) {
+      return Text(
+        'Nenhum serviço encontrado.',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+      );
+    }
+    return _serviceGrid(matches);
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
     final query = _searchController.text.trim().toLowerCase();
+    final wizard = ref.watch(clientCreateJobWizardProvider);
+    final onlyWorkerServices =
+        wizard.isCardRequest && !wizard.directShowAllServices;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -137,6 +193,7 @@ class _ClientCreateJobServiceScreenState
             ),
             child: AppStepProgress(currentStep: 1, totalSteps: 4),
           ),
+          const WizardCardRequestHeader(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
@@ -182,7 +239,9 @@ class _ClientCreateJobServiceScreenState
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
                     index: 2,
-                    child: serviceTypesAsync.when(
+                    child: onlyWorkerServices
+                        ? _cardServices(wizard, serviceTypesAsync, query)
+                        : serviceTypesAsync.when(
                     loading: () => GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),

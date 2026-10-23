@@ -12,6 +12,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/price_labels.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/cancel_reasons.dart';
@@ -69,6 +70,8 @@ String _whenLabel(WorkerJobBoardEntry e, DateTime now) {
 }
 
 String? _estimateOf(WorkerJobBoardEntry e) {
+  final fixed = boardFixedPriceLabel(e.pricingMode, e.totalPrice);
+  if (fixed != null) return fixed;
   final rate = e.hourlyRate ?? 0;
   if (rate <= 0) return null;
   final total = estimatedTotalLabel(

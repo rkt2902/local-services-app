@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/enums.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/utils/price_labels.dart';
+import '../../../../core/widgets/app_bar_title.dart';
 import '../../../../core/widgets/app_filter_chip.dart';
+import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 
@@ -24,45 +28,81 @@ class WorkerProposalTimeSlotViewData {
   final String label;
 }
 
+/// Unidade da duração estimada. Por hora é sempre em horas; no valor
+/// total o jardineiro escolhe horas ou dias (design A6).
+enum WorkerProposalDurationUnit { hours, days }
+
 class WorkerProposalDurationViewData {
   const WorkerProposalDurationViewData({
     required this.id,
     required this.label,
-    required this.minimumHours,
-    required this.maximumHours,
+    required this.minimum,
+    required this.maximum,
   });
 
   final String id;
   final String label;
-  final int minimumHours;
 
-  /// `null` = sem limite superior (ex.: opção "+6h"). O widget mostra um
-  /// total "a partir de €X" em vez de um intervalo quando for null.
-  final int? maximumHours;
+  /// Horas ou dias, conforme a lista de onde vem.
+  final int minimum;
+
+  /// `null` = sem limite superior (ex.: "+6h", "Mais de uma semana").
+  final int? maximum;
+}
+
+/// Uma opção de "O que inclui" (vem da BD, nunca fixa no ecrã).
+class WorkerProposalIncludeViewData {
+  const WorkerProposalIncludeViewData({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+/// Validade escolhida. Ex.: 15 dias, "15 dias", "até 06/11".
+class WorkerProposalValiditySelection {
+  const WorkerProposalValiditySelection({
+    required this.days,
+    required this.label,
+    required this.untilLabel,
+  });
+
+  final int days;
+  final String label;
+  final String untilLabel;
 }
 
 class WorkerProposalDraft {
   const WorkerProposalDraft({
-    required this.hourlyPrice,
+    required this.pricingMode,
+    required this.price,
     required this.scheduledDate,
     required this.timeSlotId,
-    required this.durationOptionId,
-    required this.minimumEstimatedHours,
-    required this.maximumEstimatedHours,
+    required this.durationUnit,
+    required this.minimumDuration,
+    required this.maximumDuration,
+    required this.includeIds,
+    required this.validityDays,
     required this.needsHelpers,
     required this.helperCount,
     required this.helpersEquipmentRequired,
     required this.message,
   });
 
-  final double hourlyPrice;
+  final ProposalPricingMode pricingMode;
+
+  /// Preço por hora ou valor total, conforme [pricingMode].
+  final double price;
 
   final DateTime scheduledDate;
   final String timeSlotId;
 
-  final String durationOptionId;
-  final int minimumEstimatedHours;
-  final int? maximumEstimatedHours;
+  final WorkerProposalDurationUnit durationUnit;
+  final int minimumDuration;
+  final int? maximumDuration;
+
+  /// Só no valor total.
+  final Set<String> includeIds;
+  final int validityDays;
 
   final bool needsHelpers;
   final int helperCount;
@@ -75,10 +115,17 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
   const WorkerSubmitProposalScreen({
     required this.timeSlots,
     required this.durationOptions,
+    required this.dayDurationOptions,
+    required this.includeOptions,
+    required this.initialValidity,
     required this.onBack,
     required this.onSelectDate,
+    required this.onSelectValidity,
     required this.onSubmit,
     super.key,
+    this.jobSubtitle,
+    this.initialPricingMode = ProposalPricingMode.hourly,
+    this.pricingModeHint,
     this.suggestedHourlyPriceLabel,
     this.initialHourlyPrice,
     this.initialDate,
@@ -91,7 +138,17 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
     this.minimumHelperCount = 1,
     this.maximumHelperCount = 10,
     this.isSubmitting = false,
+    this.submitError,
+    this.jobClosed = false,
   });
+
+  /// Ex.: "Limpeza de terreno · Grande".
+  final String? jobSubtitle;
+
+  final ProposalPricingMode initialPricingMode;
+
+  /// Ex.: "Escolhemos o valor total porque o usaste da última vez."
+  final String? pricingModeHint;
 
   final String? suggestedHourlyPriceLabel;
 
@@ -99,14 +156,24 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
   /// O ecrã não cria listas fixas de períodos.
   final List<WorkerProposalTimeSlotViewData> timeSlots;
 
-  /// Estas opções devem vir da configuração/domínio existente.
-  /// Exemplos visuais do mockup: 1–2h, 2–4h, 4–6h, +6h.
+  /// Duração em horas (os dois formatos). Ex.: 1–2h, 2–4h, 4–6h, +6h.
   final List<WorkerProposalDurationViewData> durationOptions;
+
+  /// Duração em dias (só no valor total). Ex.: 1 dia, 2 a 3 dias.
+  final List<WorkerProposalDurationViewData> dayDurationOptions;
+
+  /// Opções de "O que inclui". Vazia: a secção não aparece.
+  final List<WorkerProposalIncludeViewData> includeOptions;
+
+  final WorkerProposalValiditySelection initialValidity;
 
   final VoidCallback onBack;
 
   /// A integração deve abrir o calendário já utilizado no projeto.
   final Future<WorkerProposalDateSelection?> Function() onSelectDate;
+
+  /// A integração abre a escolha da validade.
+  final Future<WorkerProposalValiditySelection?> Function() onSelectValidity;
 
   /// A submissão real e a navegação ficam fora do widget.
   final ValueChanged<WorkerProposalDraft> onSubmit;
@@ -127,6 +194,12 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
 
   final bool isSubmitting;
 
+  /// Erro do último envio ("Tentar novamente" volta a enviar).
+  final String? submitError;
+
+  /// O pedido fechou entretanto: o botão fica bloqueado.
+  final bool jobClosed;
+
   @override
   State<WorkerSubmitProposalScreen> createState() {
     return _WorkerSubmitProposalScreenState();
@@ -137,18 +210,35 @@ class _WorkerSubmitProposalScreenState
     extends State<WorkerSubmitProposalScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _hourlyPriceController;
+  late final TextEditingController _priceController;
   late final TextEditingController _messageController;
+
+  late ProposalPricingMode _pricingMode;
+
+  /// O preço por hora e o valor total não partilham o campo: ao trocar de
+  /// formato o valor de cada um fica guardado.
+  String _hourlyText = '';
+  String _totalText = '';
 
   WorkerProposalDateSelection? _selectedDate;
   String? _selectedTimeSlotId;
   String? _selectedDurationOptionId;
+  WorkerProposalDurationUnit _durationUnit = WorkerProposalDurationUnit.hours;
+  final Set<String> _includeIds = {};
+  late WorkerProposalValiditySelection _validity;
 
   late bool _needsHelpers;
   late int _helperCount;
   late bool _equipmentRequired;
 
   bool _showSelectionErrors = false;
+
+  bool get _isFixed => _pricingMode == ProposalPricingMode.fixedTotal;
+
+  List<WorkerProposalDurationViewData> get _durationChoices =>
+      _durationUnit == WorkerProposalDurationUnit.days
+          ? widget.dayDurationOptions
+          : widget.durationOptions;
 
   WorkerProposalDurationViewData? get _selectedDuration {
     final selectedId = _selectedDurationOptionId;
@@ -157,7 +247,7 @@ class _WorkerSubmitProposalScreenState
       return null;
     }
 
-    for (final option in widget.durationOptions) {
+    for (final option in _durationChoices) {
       if (option.id == selectedId) {
         return option;
       }
@@ -166,12 +256,13 @@ class _WorkerSubmitProposalScreenState
     return null;
   }
 
-  double? get _hourlyPrice {
-    return _parsePrice(_hourlyPriceController.text);
+  double? get _price {
+    return _parsePrice(_priceController.text);
   }
 
   String? get _estimatedTotalLabel {
-    final price = _hourlyPrice;
+    if (_isFixed) return null;
+    final price = _price;
     final duration = _selectedDuration;
 
     if (price == null || duration == null) {
@@ -185,26 +276,28 @@ class _WorkerSubmitProposalScreenState
       helpersEquipmentRequired: _needsHelpers && _equipmentRequired,
     );
     final teamNote = _needsHelpers ? ' com a equipa' : '';
-    final minimumTotal = teamPrice * duration.minimumHours;
-    final maximumHours = duration.maximumHours;
+    final minimumTotal = teamPrice * duration.minimum;
+    final maximumHours = duration.maximum;
 
     if (maximumHours == null) {
-      return '≈ ${duration.label} estimadas · total aproximado$teamNote a '
-          'partir de ${_formatMoney(minimumTotal)} €';
+      return 'Total aproximado$teamNote: a partir de '
+          '${_formatMoney(minimumTotal)} €';
     }
 
     final maximumTotal = teamPrice * maximumHours;
 
-    return '≈ ${duration.label} estimadas · total aproximado$teamNote '
-        '${_formatMoney(minimumTotal)} a ${_formatMoney(maximumTotal)} €';
+    return 'Total aproximado$teamNote: ${_formatMoney(minimumTotal)} a '
+        '${_formatMoney(maximumTotal)} €';
   }
 
   @override
   void initState() {
     super.initState();
 
-    _hourlyPriceController = TextEditingController(
-      text: _formatInitialPrice(widget.initialHourlyPrice),
+    _pricingMode = widget.initialPricingMode;
+    _hourlyText = _formatInitialPrice(widget.initialHourlyPrice);
+    _priceController = TextEditingController(
+      text: _isFixed ? _totalText : _hourlyText,
     );
 
     _messageController = TextEditingController(text: widget.initialMessage);
@@ -212,6 +305,7 @@ class _WorkerSubmitProposalScreenState
     _selectedDate = widget.initialDate;
     _selectedTimeSlotId = widget.initialTimeSlotId;
     _selectedDurationOptionId = widget.initialDurationOptionId;
+    _validity = widget.initialValidity;
 
     _needsHelpers = widget.initialNeedsHelpers;
 
@@ -222,7 +316,7 @@ class _WorkerSubmitProposalScreenState
 
     _equipmentRequired = widget.initialHelpersEquipmentRequired;
 
-    _hourlyPriceController.addListener(_handlePriceChanged);
+    _priceController.addListener(_handlePriceChanged);
   }
 
   void _handlePriceChanged() {
@@ -253,6 +347,34 @@ class _WorkerSubmitProposalScreenState
     return double.tryParse(value.trim().replaceAll(',', '.'));
   }
 
+  void _setPricingMode(ProposalPricingMode mode) {
+    if (mode == _pricingMode) return;
+    setState(() {
+      if (_isFixed) {
+        _totalText = _priceController.text;
+      } else {
+        _hourlyText = _priceController.text;
+      }
+      _pricingMode = mode;
+      _priceController.text = _isFixed ? _totalText : _hourlyText;
+      // Por hora a duração é sempre em horas.
+      if (!_isFixed && _durationUnit == WorkerProposalDurationUnit.days) {
+        _durationUnit = WorkerProposalDurationUnit.hours;
+        _selectedDurationOptionId = null;
+      }
+      _showSelectionErrors = false;
+    });
+    _formKey.currentState?.reset();
+  }
+
+  void _setDurationUnit(WorkerProposalDurationUnit unit) {
+    if (unit == _durationUnit) return;
+    setState(() {
+      _durationUnit = unit;
+      _selectedDurationOptionId = null;
+    });
+  }
+
   Future<void> _selectDate() async {
     final result = await widget.onSelectDate();
 
@@ -263,6 +385,12 @@ class _WorkerSubmitProposalScreenState
     setState(() {
       _selectedDate = result;
     });
+  }
+
+  Future<void> _selectValidity() async {
+    final result = await widget.onSelectValidity();
+    if (!mounted || result == null) return;
+    setState(() => _validity = result);
   }
 
   void _decreaseHelperCount() {
@@ -286,6 +414,7 @@ class _WorkerSubmitProposalScreenState
   }
 
   void _submit() {
+    if (widget.jobClosed) return;
     setState(() {
       _showSelectionErrors = true;
     });
@@ -293,7 +422,7 @@ class _WorkerSubmitProposalScreenState
     final formIsValid = _formKey.currentState?.validate() ?? false;
 
     final duration = _selectedDuration;
-    final price = _hourlyPrice;
+    final price = _price;
 
     if (!formIsValid ||
         price == null ||
@@ -305,12 +434,15 @@ class _WorkerSubmitProposalScreenState
 
     widget.onSubmit(
       WorkerProposalDraft(
-        hourlyPrice: price,
+        pricingMode: _pricingMode,
+        price: price,
         scheduledDate: _selectedDate!.value,
         timeSlotId: _selectedTimeSlotId!,
-        durationOptionId: duration.id,
-        minimumEstimatedHours: duration.minimumHours,
-        maximumEstimatedHours: duration.maximumHours,
+        durationUnit: _durationUnit,
+        minimumDuration: duration.minimum,
+        maximumDuration: duration.maximum,
+        includeIds: _isFixed ? {..._includeIds} : const {},
+        validityDays: _validity.days,
         needsHelpers: _needsHelpers,
         helperCount: _needsHelpers ? _helperCount : 0,
         helpersEquipmentRequired: _needsHelpers ? _equipmentRequired : false,
@@ -321,18 +453,48 @@ class _WorkerSubmitProposalScreenState
 
   @override
   void dispose() {
-    _hourlyPriceController.removeListener(_handlePriceChanged);
+    _priceController.removeListener(_handlePriceChanged);
 
-    _hourlyPriceController.dispose();
+    _priceController.dispose();
     _messageController.dispose();
 
     super.dispose();
+  }
+
+  String get _submitLabel {
+    final price = _price;
+    if (_isFixed && price != null && price > 0) {
+      return 'Enviar proposta de ${_formatMoney(price)} €';
+    }
+    return 'Enviar proposta';
+  }
+
+  List<_SummaryLine> get _summaryLines {
+    final duration = _selectedDuration;
+    final includes = [
+      for (final o in widget.includeOptions)
+        if (_includeIds.contains(o.id)) o.label,
+    ];
+    return [
+      if (_isFixed && includes.isNotEmpty)
+        _SummaryLine('Inclui', includes.join(', ')),
+      if (!_isFixed && _estimatedTotalLabel != null)
+        _SummaryLine(
+          'Total aproximado',
+          _estimatedTotalLabel!.split(': ').last,
+        ),
+      if (duration != null) _SummaryLine('Duração', duration.label),
+      if (_selectedDate != null) _SummaryLine('Início', _selectedDate!.label),
+      _SummaryLine('Válido até', _validity.untilLabel.replaceFirst('até ', '')),
+      if (_needsHelpers) _SummaryLine('Ajudantes', '$_helperCount'),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final estimatedTotalLabel = _estimatedTotalLabel;
+    final price = _price;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -342,16 +504,16 @@ class _WorkerSubmitProposalScreenState
         elevation: 0,
         leading: IconButton(
           onPressed: widget.onBack,
-          tooltip: 'Voltar',
+          tooltip: 'Fechar',
           icon: const Icon(
-            Icons.arrow_back_rounded,
+            Icons.close_rounded,
             color: AppColors.textPrimary,
           ),
         ),
         titleSpacing: 0,
-        title: Text(
-          'A tua proposta',
-          style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
+        title: AppBarTitle(
+          title: 'Enviar proposta',
+          subtitle: widget.jobSubtitle,
         ),
       ),
       body: SafeArea(
@@ -370,29 +532,141 @@ class _WorkerSubmitProposalScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      AppStaggeredEntrance(
+                        index: 0,
+                        child: _PricingModeSwitch(
+                          selected: _pricingMode,
+                          onChanged: _setPricingMode,
+                        ),
+                      ),
+                      if (widget.pricingModeHint != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.history_rounded,
+                              size: AppSizes.metaIcon,
+                              color: AppColors.textSecondary,
+                            ),
+                            const SizedBox(width: AppSpacing.xxs),
+                            Expanded(
+                              child: Text(
+                                widget.pricingModeHint!,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Preço por hora',
+                        _isFixed ? 'Valor total' : 'Preço por hora',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      _HourlyPriceField(
-                        controller: _hourlyPriceController,
-                        suggestedPriceLabel: widget.suggestedHourlyPriceLabel,
+                      _PriceField(
+                        key: ValueKey(_pricingMode),
+                        controller: _priceController,
+                        fixedTotal: _isFixed,
+                        suggestedPriceLabel: _isFixed
+                            ? null
+                            : widget.suggestedHourlyPriceLabel,
                       ),
-                      if (estimatedTotalLabel != null) ...[
-                        const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        _isFixed
+                            ? 'É o valor que o cliente paga, faças as horas '
+                                'que fizeres.'
+                            : estimatedTotalLabel ??
+                                'Escolhe a duração para veres o total '
+                                    'aproximado.',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      if (_isFixed && widget.includeOptions.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.md),
                         Text(
-                          estimatedTotalLabel,
+                          'O que inclui',
                           style: textTheme.labelMedium?.copyWith(
-                            color: AppColors.textSecondary,
+                            color: AppColors.textPrimary,
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            for (final option in widget.includeOptions)
+                              AppFilterChip(
+                                label: option.label,
+                                selected: _includeIds.contains(option.id),
+                                showCheckmark: true,
+                                onPressed: () => setState(() {
+                                  if (!_includeIds.remove(option.id)) {
+                                    _includeIds.add(option.id);
+                                  }
+                                }),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        AppTextField(
+                          controller: _messageController,
+                          label: 'Mais alguma coisa? (opcional)',
+                          minLines: 2,
+                          maxLines: 4,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                        ),
                       ],
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Duração estimada',
+                              style: textTheme.labelMedium?.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (_isFixed && widget.dayDurationOptions.isNotEmpty)
+                            _UnitToggle(
+                              selected: _durationUnit,
+                              onChanged: _setDurationUnit,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      _DurationSelector(
+                        options: _durationChoices,
+                        columns:
+                            _durationUnit == WorkerProposalDurationUnit.days
+                                ? 2
+                                : 4,
+                        selectedId: _selectedDurationOptionId,
+                        onSelected: (id) {
+                          setState(() {
+                            _selectedDurationOptionId = id;
+                          });
+                        },
+                      ),
+                      if (_showSelectionErrors &&
+                          _selectedDuration == null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        const _SelectionError(
+                          message: 'Seleciona uma duração.',
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Agendamento',
+                        'Data de início',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -424,31 +698,19 @@ class _WorkerSubmitProposalScreenState
                         const SizedBox(height: AppSpacing.xxs),
                         const _SelectionError(message: 'Seleciona um período.'),
                       ],
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: AppSpacing.md),
                       Text(
-                        'Duração estimada do trabalho',
+                        'Validade do orçamento',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      _DurationSelector(
-                        options: widget.durationOptions,
-                        selectedId: _selectedDurationOptionId,
-                        onSelected: (id) {
-                          setState(() {
-                            _selectedDurationOptionId = id;
-                          });
-                        },
+                      _ValidityField(
+                        validity: _validity,
+                        onPressed: _selectValidity,
                       ),
-                      if (_showSelectionErrors &&
-                          _selectedDurationOptionId == null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
-                        const _SelectionError(
-                          message: 'Seleciona uma duração.',
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.sm),
+                      const SizedBox(height: AppSpacing.md),
 
                       // O estado 4b é apenas este componente
                       // com enabled = true.
@@ -472,30 +734,59 @@ class _WorkerSubmitProposalScreenState
                         },
                       ),
 
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Mensagem',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: AppColors.textPrimary,
+                      if (!_isFixed) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Mensagem',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      AppTextField(
-                        controller: _messageController,
-                        label: 'Mensagem opcional',
-                        minLines: 2,
-                        maxLines: 4,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Descreve o que inclui a proposta '
-                        '(varia por serviço).',
-                        style: textTheme.labelMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                        const SizedBox(height: AppSpacing.xs),
+                        AppTextField(
+                          controller: _messageController,
+                          label: 'Mensagem opcional',
+                          minLines: 2,
+                          maxLines: 4,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
                         ),
-                      ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Descreve o que inclui a proposta '
+                          '(varia por serviço).',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                      if (price != null && price > 0) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        _ProposalSummaryCard(
+                          priceTitle: _isFixed ? 'Valor fechado' : 'Preço por hora',
+                          priceLabel: _isFixed
+                              ? '${_formatMoney(price)} €'
+                              : '${_formatMoney(price)} €/h',
+                          lines: _summaryLines,
+                        ),
+                      ],
+                      if (widget.jobClosed) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        const _SubmitStateCard(
+                          icon: Icons.lock_outline_rounded,
+                          tone: AppStatusColor.neutral,
+                          message: 'Este pedido já não aceita propostas. O '
+                              'que escreveste não foi enviado.',
+                        ),
+                      ] else if (widget.submitError != null) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        _SubmitStateCard(
+                          icon: Icons.error_outline_rounded,
+                          tone: AppStatusColor.cancelled,
+                          message: widget.submitError!,
+                          onRetry: widget.isSubmitting ? null : _submit,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -510,9 +801,11 @@ class _WorkerSubmitProposalScreenState
                 AppSpacing.lg,
               ),
               child: PrimaryActionButton(
-                label: 'Enviar proposta',
+                label: widget.isSubmitting ? 'A enviar...' : _submitLabel,
                 isLoading: widget.isSubmitting,
-                onPressed: widget.isSubmitting ? null : _submit,
+                onPressed: (widget.isSubmitting || widget.jobClosed)
+                    ? null
+                    : _submit,
               ),
             ),
           ],
@@ -522,17 +815,158 @@ class _WorkerSubmitProposalScreenState
   }
 }
 
-class _HourlyPriceField extends StatelessWidget {
-  const _HourlyPriceField({
+class _SummaryLine {
+  const _SummaryLine(this.label, this.value);
+
+  final String label;
+  final String value;
+}
+
+/// "Preço por hora | Valor total".
+class _PricingModeSwitch extends StatelessWidget {
+  const _PricingModeSwitch({required this.selected, required this.onChanged});
+
+  final ProposalPricingMode selected;
+  final ValueChanged<ProposalPricingMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SegmentButton(
+              label: 'Preço por hora',
+              selected: selected == ProposalPricingMode.hourly,
+              onPressed: () => onChanged(ProposalPricingMode.hourly),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: _SegmentButton(
+              label: 'Valor total',
+              selected: selected == ProposalPricingMode.fixedTotal,
+              onPressed: () => onChanged(ProposalPricingMode.fixedTotal),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Horas | Dias", pequeno, ao lado de "Duração estimada".
+class _UnitToggle extends StatelessWidget {
+  const _UnitToggle({required this.selected, required this.onChanged});
+
+  final WorkerProposalDurationUnit selected;
+  final ValueChanged<WorkerProposalDurationUnit> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SegmentButton(
+            label: 'Horas',
+            compact: true,
+            selected: selected == WorkerProposalDurationUnit.hours,
+            onPressed: () => onChanged(WorkerProposalDurationUnit.hours),
+          ),
+          _SegmentButton(
+            label: 'Dias',
+            compact: true,
+            selected: selected == WorkerProposalDurationUnit.days,
+            onPressed: () => onChanged(WorkerProposalDurationUnit.days),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  const _SegmentButton({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+    this.compact = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final radius = BorderRadius.circular(
+      compact ? AppRadius.pill : AppRadius.input,
+    );
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: radius,
+          child: AnimatedContainer(
+            duration:
+                disableAnimations ? Duration.zero : AppMotionDuration.fast,
+            curve: AppMotionCurve.standard,
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? AppSpacing.sm : AppSpacing.xs,
+              vertical: compact ? AppSpacing.xxs : AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.surface : Colors.transparent,
+              borderRadius: radius,
+            ),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: (compact ? textTheme.labelMedium : textTheme.bodyMedium)
+                  ?.copyWith(
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PriceField extends StatelessWidget {
+  const _PriceField({
+    super.key,
     required this.controller,
+    required this.fixedTotal,
     required this.suggestedPriceLabel,
   });
 
   final TextEditingController controller;
+  final bool fixedTotal;
 
   /// Null/vazio = sem preço sugerido — o chip "Sugerido: ..." não é
-  /// mostrado (não há orçamento no job_request hoje, ver relatório de
-  /// integração; o wrapper só passa um valor quando o worker tem
+  /// mostrado (o wrapper só passa um valor quando o worker tem
   /// `default_hourly_rate` definido no perfil).
   final String? suggestedPriceLabel;
 
@@ -555,29 +989,23 @@ class _HourlyPriceField extends StatelessWidget {
         final price = _parsePrice(value ?? '');
 
         if (price == null || price <= 0) {
-          return 'Introduz um preço válido.';
+          return fixedTotal
+              ? 'Indica o valor total da proposta.'
+              : 'Introduz um preço válido.';
         }
 
         return null;
       },
       decoration: InputDecoration(
-        prefixText: '€ ',
-        prefixStyle: textTheme.titleLarge?.copyWith(color: AppColors.primary),
-        suffix: hasSuggestion
-            ? Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  'Sugerido: $suggestedPriceLabel',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+        hintText: '0',
+        suffixText: fixedTotal ? '€' : '€/h',
+        suffixStyle:
+            textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
+        helper: hasSuggestion
+            ? Text(
+                'Sugerido: $suggestedPriceLabel',
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               )
             : null,
@@ -606,6 +1034,197 @@ class _HourlyPriceField extends StatelessWidget {
             width: 1.5,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "Validade do orçamento": "15 dias" e "até 06/11" à direita.
+class _ValidityField extends StatelessWidget {
+  const _ValidityField({required this.validity, required this.onPressed});
+
+  final WorkerProposalValiditySelection validity;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: Container(
+          width: double.infinity,
+          constraints:
+              const BoxConstraints(minHeight: AppSizes.dateFieldMinHeight),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.input),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  validity.label,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                validity.untilLabel,
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Resumo da proposta" antes de enviar.
+class _ProposalSummaryCard extends StatelessWidget {
+  const _ProposalSummaryCard({
+    required this.priceTitle,
+    required this.priceLabel,
+    required this.lines,
+  });
+
+  final String priceTitle;
+  final String priceLabel;
+  final List<_SummaryLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'RESUMO DA PROPOSTA',
+            style: textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  priceTitle,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                priceLabel,
+                style: textTheme.titleLarge?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    line.label,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      line.value,
+                      textAlign: TextAlign.end,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Erro ao enviar (com "Tentar novamente") ou pedido já fechado.
+class _SubmitStateCard extends StatelessWidget {
+  const _SubmitStateCard({
+    required this.icon,
+    required this.tone,
+    required this.message,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final AppStatusColor tone;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: tone.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: AppSizes.infoRowIcon, color: tone.foreground),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (onRetry != null)
+            TextButton(
+              onPressed: onRetry,
+              child: Text(
+                'Tentar novamente',
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -712,11 +1331,15 @@ class _TimeSlotSelector extends StatelessWidget {
 class _DurationSelector extends StatelessWidget {
   const _DurationSelector({
     required this.options,
+    required this.columns,
     required this.selectedId,
     required this.onSelected,
   });
 
   final List<WorkerProposalDurationViewData> options;
+
+  /// 4 por linha nas horas, 2 nos dias (os textos são maiores).
+  final int columns;
 
   final String? selectedId;
   final ValueChanged<String> onSelected;
@@ -727,19 +1350,29 @@ class _DurationSelector extends StatelessWidget {
       return const _EmptyOptionsMessage(message: 'Nenhuma duração disponível.');
     }
 
-    return Row(
+    return Column(
       children: [
-        for (var index = 0; index < options.length; index++) ...[
-          Expanded(
-            child: AppFilterChip(
-              label: options[index].label,
-              selected: selectedId == options[index].id,
-              onPressed: () {
-                onSelected(options[index].id);
-              },
-            ),
+        for (var start = 0; start < options.length; start += columns) ...[
+          if (start > 0) const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              for (var index = start; index < start + columns; index++) ...[
+                Expanded(
+                  child: index < options.length
+                      ? AppFilterChip(
+                          label: options[index].label,
+                          selected: selectedId == options[index].id,
+                          onPressed: () {
+                            onSelected(options[index].id);
+                          },
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                if (index < start + columns - 1)
+                  const SizedBox(width: AppSpacing.xs),
+              ],
+            ],
           ),
-          if (index < options.length - 1) const SizedBox(width: AppSpacing.xs),
         ],
       ],
     );

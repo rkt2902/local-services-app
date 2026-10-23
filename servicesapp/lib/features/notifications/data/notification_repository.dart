@@ -69,4 +69,17 @@ class NotificationRepository {
         .limit(50);
     return (data as List).map((e) => AppNotification.fromJson(e)).toList();
   }
+
+  /// "Dicas da época" (0062). Sem linha guardada vale `true`.
+  Future<bool> fetchSeasonalTipsEnabled() async {
+    final data = await _client.rpc('get_my_notification_preferences');
+    final rows = data as List<dynamic>;
+    if (rows.isEmpty) return true;
+    return (rows.first as Map<String, dynamic>)['seasonal_tips'] as bool? ??
+        true;
+  }
+
+  Future<void> setSeasonalTips(bool enabled) async {
+    await _client.rpc('set_seasonal_tips', params: {'p_enabled': enabled});
+  }
 }

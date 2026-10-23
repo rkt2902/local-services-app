@@ -20,6 +20,7 @@ import '../application/client_create_job_wizard_provider.dart';
 import '../application/job_request_form.dart';
 import 'widgets/job_location_picker.dart';
 import 'widgets/job_schedule_fields.dart';
+import 'widgets/direct_request_create_header.dart';
 
 /// Texto curto de cada dimensão no chip do passo 2 (o chip é estreito:
 /// 3 por linha). As faixas de m² são as mesmas de `SizeEstimate.label`.
@@ -208,6 +209,7 @@ class _ClientCreateJobScheduleScreenState
               ),
               child: AppStepProgress(currentStep: 2, totalSteps: 4),
             ),
+            const WizardCardRequestHeader(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(

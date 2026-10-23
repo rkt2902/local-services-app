@@ -2,242 +2,207 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/enums.dart';
+import '../../../core/models/worker_public_card_feature_access.dart';
 import '../../../core/router/app_back_navigation.dart';
-
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radius.dart';
-import '../../../core/theme/app_sizes.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/error_utils.dart';
-import '../../../core/utils/price_labels.dart';
-import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../auth/application/auth_providers.dart';
-import '../../../core/widgets/primary_action_button.dart';
+import '../../auth/application/direct_request_auth_context.dart';
+import '../../auth/application/session_provider.dart';
+import '../../client/application/client_create_job_wizard_provider.dart';
+import '../../client/presentation/card_request_launcher.dart';
+import '../../jobs/application/direct_request_labels.dart';
+import '../../onboarding/application/onboarding_providers.dart';
 import '../../ratings/presentation/worker_ratings_sheet.dart';
 import '../application/worker_providers.dart';
-import 'widgets/worker_showcase_section.dart';
+import '../data/worker_public_card_model.dart';
+import 'widgets/worker_public_card_view.dart';
+import 'worker_card_share.dart';
 
-/// Perfil público mínimo do worker — acessível via link/QR partilhado a
-/// partir do cartão digital, sem sessão. Ver `worker_public_card` (migration
-/// 0033) para a origem dos dados e o que fica deliberadamente de fora
-/// (telefone, morada exata, raio de atuação).
-class WorkerPublicProfileScreen extends ConsumerWidget {
-  const WorkerPublicProfileScreen({required this.workerId, super.key});
+/// Cartão público do jardineiro `/w/:id`, aberto por link, QR ou dentro da
+/// app, com ou sem sessão. Ver `worker_public_card` (0033, 0051, 0059) para
+/// o que fica deliberadamente de fora (telefone, morada exata, raio).
+///
+/// A7: o rodapé depende de quem vê (cliente, visitante sem conta, outro
+/// jardineiro, o próprio) e cada abertura conta uma visita no servidor
+/// (`log_worker_card_visit`), com a origem de [source].
+class WorkerPublicProfileScreen extends ConsumerStatefulWidget {
+  const WorkerPublicProfileScreen({
+    required this.workerId,
+    this.source,
+    super.key,
+  });
 
   final String workerId;
 
+  /// `?src=` do endereço: `qr`, `link` ou `app`. Sem nada conta como link
+  /// (alguém colou o endereço à mão).
+  final String? source;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cardAsync = ref.watch(workerPublicCardProvider(workerId));
-    final textTheme = Theme.of(context).textTheme;
-    // Visitante sem conta (link/QR partilhado): voltar leva ao início
-    // público e há um convite para criar conta.
-    final isVisitor = ref.watch(currentUserIdProvider) == null;
+  ConsumerState<WorkerPublicProfileScreen> createState() =>
+      _WorkerPublicProfileScreenState();
+}
 
-    void back() => isVisitor
-        ? goBackOr(context, '/')
-        : goBackOrToRoleHome(context);
+class _WorkerPublicProfileScreenState
+    extends ConsumerState<WorkerPublicProfileScreen> {
+  static const _sources = {'qr', 'link', 'app'};
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: back,
-          tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.textPrimary,
+  /// Visita registada no servidor; vai com o pedido para ligar a conta nova
+  /// (ou o pedido) ao QR/link de onde veio.
+  Future<String?>? _visit;
+
+  @override
+  void initState() {
+    super.initState();
+    _visit = _logVisit();
+  }
+
+  Future<String?> _logVisit() async {
+    final source =
+        _sources.contains(widget.source) ? widget.source! : 'link';
+    String? deviceKey;
+    try {
+      deviceKey = await ref.read(directRequestAuthStoreProvider).deviceKey();
+    } catch (_) {
+      deviceKey = null;
+    }
+    return ref.read(workerRepositoryProvider).logCardVisit(
+          workerId: widget.workerId,
+          source: source,
+          deviceKey: deviceKey,
+        );
+  }
+
+  WorkerPublicCardViewerMode _viewerMode() {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId == null) return WorkerPublicCardViewerMode.signedOut;
+    if (userId == widget.workerId) {
+      return WorkerPublicCardViewerMode.ownerPreview;
+    }
+    final role = ref.watch(sessionStatusProvider).asData?.value.role;
+    return role == UserRole.worker
+        ? WorkerPublicCardViewerMode.anotherWorker
+        : WorkerPublicCardViewerMode.clientSignedIn;
+  }
+
+  /// Hoje todos os jardineiros têm tudo ligado; o servidor já devolve as
+  /// capacidades para quando o plano Pro as separar. A partilha segue o
+  /// próprio cartão.
+  static WorkerPublicCardFeatureAccess _accessFor(WorkerPublicCard card) =>
+      WorkerPublicCardFeatureAccess(
+        canUsePublicCard: card.canUsePublicCard,
+        canSharePublicCard: card.canUsePublicCard,
+        canReceiveDirectRequests: card.canReceiveDirectRequests,
+      );
+
+  static String? _latestReviewLabel(WorkerPublicCard card) {
+    final comment = card.latestReviewComment?.trim() ?? '';
+    if (comment.isEmpty) return null;
+    final author = card.latestReviewAuthor?.trim() ?? '';
+    return author.isEmpty ? '"$comment"' : '"$comment" · $author';
+  }
+
+  Future<String?> _visitId() async {
+    try {
+      return await _visit;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _rememberForAuth(WorkerPublicCard card) async {
+    // Quem chega pelo cartão já sabe ao que vem: o router não o desvia para
+    // o onboarding a caminho do registo.
+    try {
+      await ref.read(hasSeenOnboardingProvider.notifier).markSeen();
+    } catch (_) {}
+    await ref.read(directRequestAuthProvider.notifier).save(
+          DirectRequestAuthContext(
+            workerId: card.workerId,
+            workerName: card.fullName,
+            workerAvatarUrl: card.avatarUrl ?? '',
+            visitId: await _visitId(),
+            savedAt: DateTime.now(),
           ),
-        ),
-      ),
-      bottomNavigationBar: isVisitor
-          ? ColoredBox(
-              color: AppColors.surface,
-              child: SafeArea(
-                child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                ),
-                  child: PrimaryActionButton(
-                    label: 'Criar conta',
-                    onPressed: () => context.go('/signup'),
-                  ),
-                ),
-              ),
-            )
-          : null,
-      body: cardAsync.when(
-        loading: () => const AppScreenLoadingSkeleton(),
-        error: (e, _) => Center(child: Text(friendlyError(e))),
-        data: (card) {
-          if (card == null) {
-            return const Center(child: Text('Perfil não encontrado.'));
-          }
-          final hasRatings = card.ratingCount > 0;
-          final ratingStyle =
-              textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary);
-          final ratingRow = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                size: AppSizes.inlineIcon,
-                color: AppColors.logoAccent,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-              if (hasRatings) ...[
-                Text(
-                  decimalLabel(card.avgRating, 1),
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  ' · ${card.ratingCount} '
-                  'avalia${card.ratingCount == 1 ? 'ção' : 'ções'}',
-                  style: ratingStyle,
-                ),
-              ] else
-                Text('Sem avaliações ainda', style: ratingStyle),
-            ],
-          );
+        );
+  }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              0,
-              AppSpacing.md,
-              AppSpacing.xl,
+  Future<void> _startDirectRequest(
+    WorkerPublicCard card,
+    WorkerPublicCardViewerMode mode,
+  ) async {
+    if (mode == WorkerPublicCardViewerMode.signedOut) {
+      // Registo normal; no fim volta ao pedido para este jardineiro
+      // (ver resumePendingCardRequest no início do cliente).
+      await _rememberForAuth(card);
+      if (mounted) context.go('/signup');
+      return;
+    }
+    final visitId = await _visitId();
+    if (!mounted) return;
+    startCardDirectRequest(
+      context,
+      ref,
+      workerId: card.workerId,
+      workerName: card.fullName,
+      workerAvatarUrl: card.avatarUrl ?? '',
+      visitId: visitId,
+    );
+  }
+
+  Future<void> _login(WorkerPublicCard? card) async {
+    if (card != null) await _rememberForAuth(card);
+    if (mounted) context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cardAsync = ref.watch(workerPublicCardProvider(widget.workerId));
+    final mode = _viewerMode();
+    final isVisitor = mode == WorkerPublicCardViewerMode.signedOut;
+    final card = cardAsync.asData?.value;
+
+    final dataAsync = cardAsync.whenData(
+      (card) => card == null
+          ? null
+          : WorkerPublicCardViewData(
+              card: card,
+              featureAccess: _accessFor(card),
+              viewerMode: mode,
+              directRequestActionLabel:
+                  cardDirectRequestActionLabel(card.fullName),
+              latestReviewLabel: _latestReviewLabel(card),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppStaggeredEntrance(
-                  index: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.xxs),
-                      decoration: const BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: CircleAvatar(
-                        radius: AppSizes.publicAvatar / 2,
-                        backgroundColor: AppColors.primaryContainer,
-                        backgroundImage: card.avatarUrl != null
-                            ? NetworkImage(card.avatarUrl!)
-                            : null,
-                        child: card.avatarUrl == null
-                            ? const Icon(
-                                Icons.person_outline_rounded,
-                                size: AppSizes.emptyIcon,
-                                color: AppColors.primary,
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppStaggeredEntrance(
-                  index: 1,
-                  child: Column(
-                    children: [
-                      Text(
-                        card.fullName,
-                        textAlign: TextAlign.center,
-                        style: textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      // Só a zona: o raio fica de fora do cartão público
-                      // (worker_public_card, 0033).
-                      if (card.locationName.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          card.locationName,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.xxs),
-                      // As avaliações individuais só se leem com sessão
-                      // (RLS de ratings); o visitante vê só a média.
-                      if (hasRatings && !isVisitor)
-                        InkWell(
-                          onTap: () => showWorkerRatingsSheet(
-                            context,
-                            workerId: card.workerId,
-                            workerName: card.fullName,
-                          ),
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.input),
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.xxs),
-                            child: ratingRow,
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.xxs),
-                          child: ratingRow,
-                        ),
-                    ],
-                  ),
-                ),
-                if (card.serviceNames.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  AppStaggeredEntrance(
-                    index: 2,
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: card.serviceNames
-                          .map((name) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: AppSpacing.xs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryContainer,
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadius.pill),
-                                ),
-                                child: Text(
-                                  name,
-                                  style: textTheme.labelMedium
-                                      ?.copyWith(color: AppColors.primary),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 3,
-                  child: WorkerShowcaseSection(
-                    bio: card.bio,
-                    highlights: card.highlights,
-                    socialLinks: card.socialLinks,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    );
+
+    return WorkerPublicCardView(
+      dataAsync: dataAsync,
+      onBack: () =>
+          isVisitor ? goBackOr(context, '/') : goBackOrToRoleHome(context),
+      onStartDirectRequest: (_) {
+        if (card != null) _startDirectRequest(card, mode);
+      },
+      onShareCard: shareWorkerPublicCard,
+      onLogin: () => _login(card),
+      onRetry: () =>
+          ref.invalidate(workerPublicCardProvider(widget.workerId)),
+      // As avaliações individuais só se leem com sessão (RLS de ratings);
+      // o visitante vê só a média.
+      onRatingsPressed: isVisitor || card == null
+          ? null
+          : () => showWorkerRatingsSheet(
+                context,
+                workerId: card.workerId,
+                workerName: card.fullName,
+              ),
+      onCreateGenericRequest: switch (mode) {
+        WorkerPublicCardViewerMode.clientSignedIn => () {
+            ref.read(clientCreateJobWizardProvider.notifier).clearDirectWorker();
+            context.push('/client/create-job');
+          },
+        WorkerPublicCardViewerMode.signedOut => () => context.go('/signup'),
+        _ => null,
+      },
     );
   }
 }

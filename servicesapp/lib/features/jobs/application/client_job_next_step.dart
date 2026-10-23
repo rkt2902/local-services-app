@@ -75,6 +75,10 @@ String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
       return 'Só o teu jardineiro vê o pedido até '
           '${directDeadlineLabel(directUntil)}.';
     }
+    // Interruptor desligado (0059): o pedido parou e espera pelo cliente.
+    if (n <= 0 && job.isDirectOnHold) {
+      return 'O pedido está parado. Decide se o mostras a outros jardineiros.';
+    }
     if (n <= 0) return 'À espera de propostas dos jardineiros.';
     return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
   }

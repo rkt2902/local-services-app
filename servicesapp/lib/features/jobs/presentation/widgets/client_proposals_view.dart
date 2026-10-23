@@ -8,22 +8,21 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
-import '../../../../core/widgets/app_sheet.dart';
-import '../../../../core/widgets/primary_action_button.dart';
 
-/// Dados de "Propostas recebidas" (design A3). A integração
+/// Dados de "Propostas recebidas" (designs A3 e A6). A integração
 /// (client_proposals_screen.dart) entrega a lista já ordenada e os textos
-/// já formatados; este widget não lê providers nem ordena nada.
+/// já formatados; este widget não lê providers nem ordena nada. Por hora
+/// e valor total ficam juntos e nunca se ordenam pelo número.
 class ClientProposalsViewData {
   const ClientProposalsViewData({
     required this.headerSubtitle,
-    required this.orderingLabel,
     required this.proposals,
+    this.orderingLabel,
   });
 
   /// Ex.: "Corte de relva · 3 propostas".
   final String headerSubtitle;
-  final String orderingLabel;
+  final String? orderingLabel;
   final List<ClientProposalCardViewData> proposals;
 }
 
@@ -33,14 +32,20 @@ class ClientProposalCardViewData {
     required this.workerId,
     required this.workerName,
     required this.priceLabel,
-    required this.priceDetailLabel,
+    required this.priceKindLabel,
+    required this.totalNoteLabel,
     required this.scheduleLabel,
-    required this.confirmation,
     this.workerAvatarUrl,
     this.ratingLabel,
+    this.totalLabel,
+    this.includesLabel,
+    this.durationLabel,
+    this.validUntilLabel,
     this.teamLabel,
     this.notes,
+    this.workerBadgeLabel,
     this.recommended = false,
+    this.expired = false,
   });
 
   final String proposalId;
@@ -51,12 +56,31 @@ class ClientProposalCardViewData {
   /// Ex.: "4,9 · 38 avaliações"; `null` mostra "Ainda sem avaliações".
   final String? ratingLabel;
 
-  /// Ex.: "48 €" ou "48 a 96 €".
+  /// Valor grande. Ex.: "25 €/h" ou "450 €".
   final String priceLabel;
 
-  /// Ex.: "2 a 4h · 12,00 €/h". Pode vir vazio.
-  final String priceDetailLabel;
+  /// Ao lado do valor: "preço por hora" ou "valor fechado".
+  final String priceKindLabel;
+
+  /// Linha "Total": "cerca de 100 a 150 €" ou "450 €". `null` por hora sem
+  /// duração (a caixa mostra só a nota).
+  final String? totalLabel;
+
+  /// "Estimado. Depende das horas feitas." / "Fechado. Não muda com as
+  /// horas."
+  final String totalNoteLabel;
+
+  /// Ex.: "material, remoção de resíduos".
+  final String? includesLabel;
+
+  /// Ex.: "2 a 3 dias", "4 a 6 h".
+  final String? durationLabel;
+
+  /// Ex.: "Início 03/11".
   final String scheduleLabel;
+
+  /// Ex.: "Válido até 06/11".
+  final String? validUntilLabel;
 
   /// Ex.: "Equipa de 2"; `null` quando é só o jardineiro.
   final String? teamLabel;
@@ -64,48 +88,14 @@ class ClientProposalCardViewData {
   /// Nota que o jardineiro escreveu na proposta.
   final String? notes;
 
+  /// Selo opcional (ex.: "Pro"). `null` enquanto não houver o plano.
+  final String? workerBadgeLabel;
+
   /// Destaque visual, não é estado da proposta.
   final bool recommended;
 
-  final ClientProposalConfirmationViewData confirmation;
-}
-
-class ClientProposalConfirmationViewData {
-  const ClientProposalConfirmationViewData({
-    required this.summaryMetaLabel,
-    required this.infoLines,
-    required this.confirmActionLabel,
-  });
-
-  /// Ex.: "Qui, 23/10 · 9:00 · 2 a 4h".
-  final String summaryMetaLabel;
-  final List<ClientProposalInfoLine> infoLines;
-
-  /// Ex.: "Aceitar proposta · 12,00 €/h".
-  final String confirmActionLabel;
-}
-
-class ClientProposalInfoLine {
-  const ClientProposalInfoLine({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-}
-
-enum ClientProposalAcceptOutcome { accepted, unavailable, failed }
-
-class ClientProposalAcceptResult {
-  const ClientProposalAcceptResult.accepted()
-      : outcome = ClientProposalAcceptOutcome.accepted,
-        message = null;
-  const ClientProposalAcceptResult.unavailable()
-      : outcome = ClientProposalAcceptOutcome.unavailable,
-        message = null;
-  const ClientProposalAcceptResult.failed(this.message)
-      : outcome = ClientProposalAcceptOutcome.failed;
-
-  final ClientProposalAcceptOutcome outcome;
-  final String? message;
+  /// Validade passou (calculado no servidor).
+  final bool expired;
 }
 
 class ClientProposalsView extends StatelessWidget {
@@ -114,38 +104,15 @@ class ClientProposalsView extends StatelessWidget {
     required this.dataAsync,
     required this.onBack,
     required this.onRetry,
-    required this.onOpenWorkerProfile,
-    required this.onAcceptProposal,
-    required this.onProposalAccepted,
+    required this.onOpenProposal,
   });
 
   final AsyncValue<ClientProposalsViewData> dataAsync;
   final VoidCallback onBack;
   final VoidCallback onRetry;
-  final ValueChanged<ClientProposalCardViewData> onOpenWorkerProfile;
 
-  /// Só devolve `accepted` depois de o servidor confirmar.
-  final Future<ClientProposalAcceptResult> Function(String proposalId)
-      onAcceptProposal;
-
-  /// Chamado com a folha já fechada; quem integra navega.
-  final ValueChanged<ClientProposalCardViewData> onProposalAccepted;
-
-  Future<void> _choose(
-    BuildContext context,
-    ClientProposalCardViewData proposal,
-  ) async {
-    final accepted = await AppSheet.show<bool>(
-      context,
-      isDismissible: false,
-      enableDrag: false,
-      builder: (_) => _AcceptProposalSheet(
-        proposal: proposal,
-        onAccept: onAcceptProposal,
-      ),
-    );
-    if (accepted == true && context.mounted) onProposalAccepted(proposal);
-  }
+  /// Abre o detalhe, onde se aceita.
+  final ValueChanged<ClientProposalCardViewData> onOpenProposal;
 
   @override
   Widget build(BuildContext context) {
@@ -158,16 +125,14 @@ class ClientProposalsView extends StatelessWidget {
               child: AppEmptyState(
                 icon: Icons.hourglass_empty_rounded,
                 title: 'Ainda sem propostas',
-                message:
-                    'Avisamos-te assim que um jardineiro enviar uma proposta.',
+                message: 'Avisamos-te quando chegar a primeira.',
                 tone: AppStatusColor.waiting,
               ),
             )
           : _ProposalsList(
               key: const ValueKey('list'),
               data: data,
-              onOpenProfile: onOpenWorkerProfile,
-              onChoose: (p) => _choose(context, p),
+              onOpen: onOpenProposal,
             );
     } else if (dataAsync.hasError) {
       body = _CenteredState(
@@ -275,17 +240,16 @@ class _ProposalsList extends StatelessWidget {
   const _ProposalsList({
     super.key,
     required this.data,
-    required this.onOpenProfile,
-    required this.onChoose,
+    required this.onOpen,
   });
 
   final ClientProposalsViewData data;
-  final ValueChanged<ClientProposalCardViewData> onOpenProfile;
-  final ValueChanged<ClientProposalCardViewData> onChoose;
+  final ValueChanged<ClientProposalCardViewData> onOpen;
 
   @override
   Widget build(BuildContext context) {
     final proposals = data.proposals;
+    final ordering = data.orderingLabel;
 
     return ListView.builder(
       key: const PageStorageKey('client_job_proposals'),
@@ -298,10 +262,11 @@ class _ProposalsList extends StatelessWidget {
       itemCount: proposals.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
+          if (ordering == null) return const SizedBox.shrink();
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
-              data.orderingLabel,
+              ordering,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
@@ -315,11 +280,15 @@ class _ProposalsList extends StatelessWidget {
           child: AppStaggeredEntrance(
             key: ValueKey(proposal.proposalId),
             index: index - 1,
-            child: _ProposalCard(
-              proposal: proposal,
-              onOpenProfile: () => onOpenProfile(proposal),
-              onChoose: () => onChoose(proposal),
-            ),
+            child: proposal.expired
+                ? _ExpiredProposalCard(
+                    proposal: proposal,
+                    onTap: () => onOpen(proposal),
+                  )
+                : _ProposalCard(
+                    proposal: proposal,
+                    onTap: () => onOpen(proposal),
+                  ),
           ),
         );
       },
@@ -327,174 +296,312 @@ class _ProposalsList extends StatelessWidget {
   }
 }
 
+/// Cartão do design A6: o valor grande segue o formato do jardineiro, e a
+/// caixa "Total" fica no mesmo sítio nos dois formatos, com o tipo escrito
+/// por baixo.
 class _ProposalCard extends StatelessWidget {
-  const _ProposalCard({
-    required this.proposal,
-    required this.onOpenProfile,
-    required this.onChoose,
-  });
+  const _ProposalCard({required this.proposal, required this.onTap});
 
   final ClientProposalCardViewData proposal;
-  final VoidCallback onOpenProfile;
-  final VoidCallback onChoose;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final notes = proposal.notes;
-    final buttonShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    );
-    final buttonPadding = const EdgeInsets.symmetric(horizontal: AppSpacing.xs);
-    final buttonText =
-        textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700);
+    final includes = proposal.includesLabel;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
+    return Semantics(
+      button: true,
+      label: 'Proposta de ${proposal.workerName}, ${proposal.priceLabel} '
+          '${proposal.priceKindLabel}',
+      child: Material(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(
-          color: proposal.recommended ? AppColors.primary : AppColors.divider,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: proposal.recommended
+                    ? AppColors.primary
+                    : AppColors.divider,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ProposalWorkerAvatar(
+                      name: proposal.workerName,
+                      avatarUrl: proposal.workerAvatarUrl,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: AppSpacing.xs,
+                            runSpacing: AppSpacing.xxs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                proposal.workerName,
+                                style: textTheme.titleMedium
+                                    ?.copyWith(color: AppColors.textPrimary),
+                              ),
+                              if (proposal.workerBadgeLabel != null)
+                                _WorkerBadge(label: proposal.workerBadgeLabel!),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          _RatingLine(label: proposal.ratingLabel),
+                        ],
+                      ),
+                    ),
+                    if (proposal.recommended) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      const _RecommendedChip(),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: AppSpacing.xs,
+                  children: [
+                    Text(
+                      proposal.priceLabel,
+                      style: textTheme.headlineSmall
+                          ?.copyWith(color: AppColors.textPrimary),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+                      child: Text(
+                        proposal.priceKindLabel,
+                        style: textTheme.labelMedium
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                _TotalBox(
+                  totalLabel: proposal.totalLabel,
+                  noteLabel: proposal.totalNoteLabel,
+                ),
+                if (includes != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Inclui: ',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextSpan(text: includes),
+                      ],
+                    ),
+                    style: textTheme.labelMedium
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.md,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    if (proposal.durationLabel != null)
+                      _MetaItem(
+                        icon: Icons.schedule_outlined,
+                        label: proposal.durationLabel!,
+                      ),
+                    _MetaItem(
+                      icon: Icons.event_outlined,
+                      label: proposal.scheduleLabel,
+                    ),
+                    if (proposal.teamLabel != null)
+                      _MetaItem(
+                        icon: Icons.group_outlined,
+                        label: proposal.teamLabel!,
+                      ),
+                    if (proposal.validUntilLabel != null)
+                      _MetaItem(
+                        icon: Icons.timer_outlined,
+                        label: proposal.validUntilLabel!,
+                      ),
+                  ],
+                ),
+                if (notes != null && notes.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    notes,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// Caixa "Total" (mesmo sítio nos dois formatos).
+class _TotalBox extends StatelessWidget {
+  const _TotalBox({required this.totalLabel, required this.noteLabel});
+
+  final String? totalLabel;
+  final String noteLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ProposalWorkerAvatar(
-                name: proposal.workerName,
-                avatarUrl: proposal.workerAvatarUrl,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xxs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          proposal.workerName,
-                          style: textTheme.titleMedium
-                              ?.copyWith(color: AppColors.textPrimary),
-                        ),
-                        if (proposal.recommended) const _RecommendedChip(),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    _RatingLine(label: proposal.ratingLabel),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              // Flexível para não rebentar com letra grande em ecrãs
-              // estreitos; o valor parte em duas linhas antes disso.
-              Flexible(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      proposal.priceLabel,
-                      textAlign: TextAlign.end,
-                      style: textTheme.titleLarge
-                          ?.copyWith(color: AppColors.textPrimary),
-                    ),
-                    if (proposal.priceDetailLabel.isNotEmpty)
-                      Text(
-                        proposal.priceDetailLabel,
-                        textAlign: TextAlign.end,
-                        style: textTheme.labelSmall
-                            ?.copyWith(color: AppColors.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.xxs,
-            children: [
-              _MetaItem(
-                icon: Icons.event_outlined,
-                label: proposal.scheduleLabel,
-              ),
-              if (proposal.teamLabel != null)
-                _MetaItem(
-                  icon: Icons.group_outlined,
-                  label: proposal.teamLabel!,
-                ),
-            ],
-          ),
-          if (notes != null && notes.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              notes,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          Row(
             children: [
               Expanded(
-                flex: 3,
-                child: SizedBox(
-                  height: AppSizes.compactButtonHeight,
-                  child: OutlinedButton(
-                    onPressed: onOpenProfile,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.divider),
-                      shape: buttonShape,
-                      padding: buttonPadding,
-                      textStyle: buttonText,
-                    ),
-                    child: const Text(
-                      'Ver perfil e avaliações',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                child: Text(
+                  'Total',
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: AppColors.textPrimary),
+                ),
+              ),
+              if (totalLabel != null)
+                Text(
+                  totalLabel!,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                flex: 2,
-                child: proposal.recommended
-                    ? PrimaryActionButton(
-                        label: 'Escolher',
-                        height: AppSizes.compactButtonHeight,
-                        onPressed: onChoose,
-                      )
-                    : SizedBox(
-                        height: AppSizes.compactButtonHeight,
-                        child: OutlinedButton(
-                          onPressed: onChoose,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            shape: buttonShape,
-                            padding: buttonPadding,
-                            textStyle: buttonText,
-                          ),
-                          child: const Text('Escolher'),
-                        ),
+            ],
+          ),
+          Text(
+            noteLabel,
+            style: textTheme.labelSmall
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Orçamento expirado na lista: cinzento, com a etiqueta "Expirada".
+class _ExpiredProposalCard extends StatelessWidget {
+  const _ExpiredProposalCard({required this.proposal, required this.onTap});
+
+  final ClientProposalCardViewData proposal;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    const tone = AppStatusColor.neutral;
+
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      proposal.workerName,
+                      style: textTheme.titleMedium
+                          ?.copyWith(color: AppColors.textPrimary),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                      vertical: AppSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tone.background,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      'Expirada',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: tone.foreground,
+                        fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                proposal.priceLabel,
+                style: textTheme.titleLarge?.copyWith(color: tone.foreground),
               ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Selo opcional ao lado do nome.
+class _WorkerBadge extends StatelessWidget {
+  const _WorkerBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.logoAccent),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
@@ -643,218 +750,6 @@ class _LoadingList extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ── Folha "Aceitar esta proposta?" ──────────────────────────────────────────
-
-class _AcceptProposalSheet extends StatefulWidget {
-  const _AcceptProposalSheet({required this.proposal, required this.onAccept});
-
-  final ClientProposalCardViewData proposal;
-  final Future<ClientProposalAcceptResult> Function(String proposalId) onAccept;
-
-  @override
-  State<_AcceptProposalSheet> createState() => _AcceptProposalSheetState();
-}
-
-class _AcceptProposalSheetState extends State<_AcceptProposalSheet> {
-  bool _submitting = false;
-  bool _unavailable = false;
-  String? _error;
-
-  Future<void> _submit() async {
-    if (_submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-
-    ClientProposalAcceptResult result;
-    try {
-      result = await widget.onAccept(widget.proposal.proposalId);
-    } catch (_) {
-      result = const ClientProposalAcceptResult.failed(null);
-    }
-    if (!mounted) return;
-
-    switch (result.outcome) {
-      case ClientProposalAcceptOutcome.accepted:
-        Navigator.of(context).pop(true);
-      case ClientProposalAcceptOutcome.unavailable:
-        setState(() {
-          _submitting = false;
-          _unavailable = true;
-        });
-      case ClientProposalAcceptOutcome.failed:
-        // Erro dentro da folha: um SnackBar ficava escondido por trás dela.
-        // O botão de aceitar serve de "Repetir".
-        setState(() {
-          _submitting = false;
-          _error = result.message ??
-              'Não foi possível aceitar a proposta. Tenta novamente.';
-        });
-    }
-  }
-
-  void _close() => Navigator.of(context).pop(false);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppFadeThroughSwitcher(
-      switchKey: _unavailable,
-      child: _unavailable ? _buildUnavailable() : _buildConfirmation(),
-    );
-  }
-
-  Widget _buildUnavailable() {
-    return AppSheet(
-      key: const ValueKey('unavailable'),
-      title: '',
-      onClose: _close,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-        child: AppEmptyState(
-          icon: Icons.block_rounded,
-          title: 'Esta proposta já não está disponível',
-          message: 'O jardineiro pode tê-la retirado. '
-              'Escolhe outra da lista.',
-          tone: AppStatusColor.neutral,
-          action: OutlinedButton(
-            onPressed: _close,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.divider),
-              minimumSize: const Size(
-                AppSizes.emptyActionMinWidth,
-                AppSizes.compactButtonHeight,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.card),
-              ),
-            ),
-            child: const Text('Ver propostas'),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConfirmation() {
-    final confirmation = widget.proposal.confirmation;
-    return AppSheet(
-      key: const ValueKey('confirmation'),
-      title: 'Aceitar esta proposta?',
-      onClose: _close,
-      isSubmitting: _submitting,
-      primaryActionLabel: confirmation.confirmActionLabel,
-      onPrimaryAction: _submit,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SheetSummary(proposal: widget.proposal),
-          const SizedBox(height: AppSpacing.md),
-          for (final line in confirmation.infoLines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _InfoRow(line: line),
-            ),
-          if (_error != null)
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppStatusColor.cancelled.background,
-                borderRadius: BorderRadius.circular(AppRadius.input),
-              ),
-              child: Text(
-                _error!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppStatusColor.cancelled.foreground,
-                    ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetSummary extends StatelessWidget {
-  const _SheetSummary({required this.proposal});
-
-  final ClientProposalCardViewData proposal;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      child: Row(
-        children: [
-          ProposalWorkerAvatar(
-            name: proposal.workerName,
-            avatarUrl: proposal.workerAvatarUrl,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  proposal.workerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleSmall
-                      ?.copyWith(color: AppColors.textPrimary),
-                ),
-                Text(
-                  proposal.confirmation.summaryMetaLabel,
-                  style: textTheme.labelSmall
-                      ?.copyWith(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            proposal.priceLabel,
-            style:
-                textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.line});
-
-  final ClientProposalInfoLine line;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(line.icon, size: AppSizes.infoRowIcon, color: AppColors.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            line.label,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textPrimary),
-          ),
-        ),
-      ],
     );
   }
 }

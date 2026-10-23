@@ -60,7 +60,13 @@ class ClientEditProfileScreen extends StatefulWidget {
     required this.onSave,
     required this.onSignOut,
     this.onRetry,
+    this.seasonalTipsEnabled,
+    this.onSeasonalTipsChanged,
   });
+
+  /// "Dicas da época" (0062). `null` esconde a linha (a carregar ou erro).
+  final bool? seasonalTipsEnabled;
+  final ValueChanged<bool>? onSeasonalTipsChanged;
 
   /// null = perfil não encontrado / sessão já não permite
   /// resolver um perfil de cliente.
@@ -180,6 +186,8 @@ class _ClientEditProfileScreenState extends State<ClientEditProfileScreen> {
                   onSignOut: widget.onSignOut,
                   onChangePhoto: widget.onChangePhoto,
                   onSave: _save,
+                  seasonalTipsEnabled: widget.seasonalTipsEnabled,
+                  onSeasonalTipsChanged: widget.onSeasonalTipsChanged,
                 );
               },
             ),
@@ -210,9 +218,13 @@ class _ProfileForm extends StatelessWidget {
     required this.onSignOut,
     required this.onChangePhoto,
     required this.onSave,
+    this.seasonalTipsEnabled,
+    this.onSeasonalTipsChanged,
   });
 
   final GlobalKey<FormState> formKey;
+  final bool? seasonalTipsEnabled;
+  final ValueChanged<bool>? onSeasonalTipsChanged;
   final ClientEditProfileViewData data;
 
   final TextEditingController fullNameController;
@@ -298,6 +310,16 @@ class _ProfileForm extends StatelessWidget {
                           : null,
                     ),
                   ),
+                  if (seasonalTipsEnabled != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 4,
+                      child: SeasonalTipsSwitch(
+                        value: seasonalTipsEnabled!,
+                        onChanged: onSeasonalTipsChanged,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -667,6 +689,66 @@ class _ProfileNotFound extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Linha "Dicas da época": lembretes por push em outubro e fevereiro
+/// (0062). Muda logo, sem esperar por "Guardar alterações".
+class SeasonalTipsSwitch extends StatelessWidget {
+  const SeasonalTipsSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dicas da época',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Um lembrete por estação do que o jardim precisa, como '
+                  'preparar o inverno em outubro.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Switch(value: value, onChanged: onChanged),
+        ],
       ),
     );
   }

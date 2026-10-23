@@ -24,5 +24,6 @@ void invalidateWorkerLists(WidgetRef ref, {String? jobId}) {
   ref.invalidate(jobsInRadiusProvider);
   if (jobId != null && jobId.isNotEmpty) {
     ref.invalidate(jobByIdProvider(jobId));
+    ref.invalidate(jobWorkDaysProvider(jobId));
   }
 }

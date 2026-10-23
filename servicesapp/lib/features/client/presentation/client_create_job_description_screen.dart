@@ -15,6 +15,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/client_create_job_wizard_provider.dart';
 import '../application/job_request_form.dart';
+import 'widgets/direct_request_create_header.dart';
 
 const _maximumPhotos = 2;
 // Limites partilhados com "Editar pedido" (job_request_form.dart).
@@ -163,6 +164,7 @@ class _ClientCreateJobDescriptionScreenState
             ),
             child: AppStepProgress(currentStep: 3, totalSteps: 4),
           ),
+          const WizardCardRequestHeader(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(

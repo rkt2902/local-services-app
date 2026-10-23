@@ -10,7 +10,9 @@ import '../../../core/widgets/app_password_strength_meter.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
+import '../application/direct_request_auth_context.dart';
 import '../application/pending_signup_provider.dart';
+import 'widgets/direct_request_auth_banner.dart';
 import 'widgets/social_sign_in_buttons.dart';
 import '../../../core/widgets/app_toast.dart';
 
@@ -76,6 +78,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final textTheme = Theme.of(context).textTheme;
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState is AuthLoading;
+    final pendingCard = ref.watch(directRequestAuthProvider).asData?.value;
 
     ref.listen(authControllerProvider, (_, next) {
       if (next is AuthError) {
@@ -115,6 +118,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
+                      if (pendingCard != null) ...[
+                        DirectRequestAuthBanner(
+                          workerName: pendingCard.workerName,
+                          workerAvatarUrl: pendingCard.workerAvatarUrl,
+                          descriptionLabel:
+                              'Cria a conta e voltas logo ao pedido.',
+                        ),
+                        const SizedBox(height: AppSpacing.s14),
+                      ],
                       AppTextField(
                         controller: _nameController,
                         label: 'Nome completo',

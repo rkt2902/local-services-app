@@ -184,13 +184,51 @@ Pedidos criados por clientes.
 | direct_worker_id          | uuid        | nullable (0057), FK → `profiles.id` ON DELETE SET NULL: jardineiro escolhido no "Pedir de novo"; tirado pelo trigger da proposta aceite do pedido de origem |
 | direct_source_job_id      | uuid        | nullable (0057), FK → `job_requests.id` ON DELETE SET NULL: trabalho concluído de onde veio; é o único campo direto que a app escreve |
 | direct_until              | timestamptz | nullable (0057): fim da reserva (criação + 24h) |
-| direct_status             | text        | nullable (0057), CHECK in (`waiting`,`declined`,`expired`,`released`); o `status` do pedido continua `open` |
+| direct_status             | text        | nullable (0057), CHECK in (`waiting`,`declined`,`expired`,`released`, `on_hold` desde a 0059); o `status` do pedido continua `open` |
+| direct_card_worker_id     | uuid        | nullable (0059), FK → `profiles.id`: jardineiro do cartão público a quem o pedido vai primeiro; o trigger valida-o (não pode ser o próprio cliente, tem de aceitar pedidos) |
+| direct_auto_release       | boolean     | NOT NULL DEFAULT true (0059): interruptor do passo 4; `false` deixa o pedido parado (`on_hold`) depois de recusa ou fim do prazo |
+| direct_origin             | text        | nullable (0059), CHECK in (`public_card`,`repeat_hire`,`your_gardeners`): só para estatística, o mecanismo é o mesmo |
+| direct_hold_reason        | text        | nullable (0059), CHECK in (`declined`,`expired`): porque está `on_hold` |
+| search_extra_km           | smallint    | NOT NULL DEFAULT 0 (0062), 0 a 30: km além do raio de cada jardineiro em que o pedido também aparece |
+| visible_to_all_at         | timestamptz | nullable (0062): quando ficou visível a todos (criação, ou fim da reserva do pedido direto); conta o tempo dos lembretes |
+| followup_stage            | smallint    | NOT NULL DEFAULT 0 (0062): 0 só aviso inicial, 1 lembrete enviado, 2 mostrado mais longe e cliente avisado |
+| no_proposals_nudged_at    | timestamptz | nullable (0062): quando o cliente recebeu "Ainda sem propostas". A app não muda nenhum dos quatro (trigger) |
+| card_visit_id             | uuid        | nullable (0059), FK → `worker_card_visits.id`: visita ao cartão que trouxe o pedido; nunca vai para os jardineiros |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
 
 Desde a 0043 os workers só leem esta tabela diretamente se forem o worker aceite (ou
 ajudante aceite). Os outros leem por `get_job_by_id`, `get_jobs_in_radius` e
 `get_worker_job_board`, que devolvem a localidade e coordenadas arredondadas (cerca de 1 km).
+
+### seasonal_campaigns, seasonal_campaign_sends, notification_preferences (0062)
+
+Dicas da época: `seasonal_campaigns` (`slug`, `month`, `day` 1 a 28, `audience` client/worker, `title`, `body`, `active`), um envio por campanha e ano em `seasonal_campaign_sends`, e `notification_preferences` (`user_id` PK, `seasonal_tips` DEFAULT true). RLS ligado sem políticas: só RPCs e SQL Editor.
+
+### worker_card_visits (0059)
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | uuid | PK |
+| worker_id | uuid | FK → `profiles.id` ON DELETE CASCADE |
+| source | text | CHECK in (`qr`,`link`,`app`) |
+| device_key | text | nullable, 8 a 64 caracteres: id aleatório do aparelho (SharedPreferences), sem dados pessoais |
+| visitor_id | uuid | nullable, FK → `profiles.id` ON DELETE SET NULL: preenchido quando há sessão ou depois do registo |
+| created_at | timestamptz | |
+
+RLS ligado sem políticas e sem GRANT a `anon`/`authenticated`: escreve-se só por `log_worker_card_visit`/`claim_worker_card_visit` e lê-se no SQL Editor.
+
+### client_referrals (0059)
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| client_id | uuid | PK, FK → `profiles.id` ON DELETE CASCADE |
+| worker_id | uuid | FK → `profiles.id` ON DELETE CASCADE: o cartão que trouxe o cliente |
+| visit_id | uuid | nullable, FK → `worker_card_visits.id` |
+| source | text | `qr`/`link`/`app` |
+| created_at | timestamptz | |
+
+Uma linha por cliente, só quando a conta de cliente nasce entre 5 min antes e 7 dias depois da visita. Mesmo acesso que `worker_card_visits`. Resumo por jardineiro na vista `worker_card_funnel`.
 
 ### job_photos
 Fotos anexadas a um pedido (Storage bucket `job-photos`). Máximo 2 por pedido.
@@ -223,6 +261,21 @@ Propostas de workers para jobs.
 | status                       | text        | CHECK in proposal_status                                   |
 | created_at                   | timestamptz |                                                            |
 | updated_at                   | timestamptz |                                                            |
+| pricing_mode                 | text        | 0058, default `hourly`, CHECK in (`hourly`,`fixed_total`)  |
+| total_price                  | numeric     | 0058, nullable; obrigatório e > 0 em `fixed_total`. No valor total, `hourly_rate` é a taxa de referência para os ajudantes |
+| includes                     | text[]      | 0058, default `{}`: slugs de `proposal_include_options`    |
+| estimated_days_min/max       | int         | 0058, nullable: duração em dias (max nulo = "mais de uma semana") |
+| valid_until                  | date        | 0058, nullable: último dia em que pode ser aceite          |
+
+### proposal_include_options (0058)
+Opções do "O que inclui" da proposta. `slug` PK, `label`, `sort_order`, `active`. Leitura por
+autenticados. Sementes: `material`, `waste_removal`, `travel`, `machinery`.
+
+### job_work_days (0058)
+Dias de um trabalho em vários dias. `job_id` FK → `job_requests.id`, `day_number`,
+`started_at`, `ended_at` (nulo = dia aberto; índice único parcial garante no máximo um).
+RLS ligada sem policies: só pelas RPCs `get_job_work_days`, `finish_work_day`,
+`start_work_day` e pelo trigger `trg_job_requests_sync_work_days`.
 
 > **`people_needed` e estimativa de custo:** quando `people_needed > 1`, a app exibe ao cliente a estimativa do custo total da equipa: `hourly_rate × estimated_hours × (1 + (people_needed - 1) × factor)`, onde `factor = 1.0` se `helpers_equipment_required = true`, ou `0.75` caso contrário (buffer de estimativa; o pagamento real ao ajudante sem equipamento é 70%, mas mostra-se 75% para dar margem). Custo real registado em `help_acceptance.agreed_rate` no momento da aceitação.
 
@@ -332,6 +385,10 @@ seus; a ativação é manual por SQL (service role). Ver a migration para as col
 ---
 
 ## RPC Functions (security definer)
+
+> **Propostas e dias de trabalho (0058):** `create_proposal` com `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until`; `get_pending_proposals_for_job` com `is_expired`; `finish_work_day`, `start_work_day`, `get_job_work_days`. Detalhe em `ARCHITECTURE.md` secção 7.
+
+> **Pedido pelo cartão e tracking (0059):** `log_worker_card_visit` (anon e autenticados), `claim_worker_card_visit`; `release_direct_job_request` também tira o pedido de `on_hold`; `decline_direct_job_request` e o cron passam por `end_direct_reservation` (abre a todos ou deixa parado conforme `direct_auto_release`).
 
 > **Pedido direto (0057):** `release_direct_job_request`, `decline_direct_job_request`, `get_repeat_hire_for_job`, `get_my_previous_workers`, `get_direct_request_context` e o cron `expire_direct_job_requests`. Detalhe em `ARCHITECTURE.md` secção 7.
 
