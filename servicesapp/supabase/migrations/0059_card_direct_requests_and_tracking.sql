@@ -318,12 +318,16 @@ LANGUAGE sql
 STABLE
 SET search_path TO 'public'
 AS $function$
-  SELECT p_direct_worker_id IS DISTINCT FROM p_worker_id
+  -- COALESCE: num pedido normal (direct_status NULL) a expressão dá NULL,
+  -- e `NOT NULL` escondia o pedido a todos (erro da 0057, ver 0061).
+  SELECT COALESCE(
+    p_direct_worker_id IS DISTINCT FROM p_worker_id
      AND (
        (p_direct_status = 'waiting'
          AND (p_direct_until > now() OR NOT COALESCE(p_direct_auto_release, true)))
        OR p_direct_status = 'on_hold'
-     );
+     ),
+    false);
 $function$;
 
 
