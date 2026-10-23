@@ -73,6 +73,18 @@ import '../data/notification_types.dart';
           icon: Icons.yard_outlined,
           tone: AppStatusColor.info,
         ),
+      NotificationType.jobOpportunityReminder => (
+          icon: Icons.notifications_active_outlined,
+          tone: AppStatusColor.waiting,
+        ),
+      NotificationType.jobNoProposalsYet => (
+          icon: Icons.travel_explore_rounded,
+          tone: AppStatusColor.waiting,
+        ),
+      NotificationType.seasonalTip => (
+          icon: Icons.eco_outlined,
+          tone: AppStatusColor.info,
+        ),
       NotificationType.directJobRequest => (
           icon: Icons.assignment_ind_outlined,
           tone: AppStatusColor.info,
@@ -120,11 +132,14 @@ import '../data/notification_types.dart';
     };
 
 /// "Trabalhos" = avisos sobre trabalhos em que a pessoa já está (pedidos,
-/// propostas, equipas). Ficam de fora as oportunidades novas na zona.
+/// propostas, equipas). Ficam de fora as oportunidades na zona, os
+/// lembretes delas e as dicas da época.
 bool isJobNotification(String type) =>
     type != NotificationType.newJobInRadius &&
     type != NotificationType.newHelpRequestInRadius &&
-    type != NotificationType.helpRequestReopened;
+    type != NotificationType.helpRequestReopened &&
+    type != NotificationType.jobOpportunityReminder &&
+    type != NotificationType.seasonalTip;
 
 /// A migration 0049 acrescenta " (Serviço, DD/MM)" ao fim do corpo; o design
 /// põe-no no título. A app muda-o de sítio, para as antigas e as novas.

@@ -222,6 +222,34 @@ Antes de aplicar, o cartão abre como antes mas pedir orçamento pelo cartão d�
 
 **Diz ao Claude:** "0059 aplicada".
 
+### 0.14 Correção urgente: 0061 (aplicar já, em qualquer ordem)
+
+- [ ] SQL Editor: colar `supabase/migrations/0061_hotfix_reserved_for_other.sql` e correr.
+      Não depende de nenhuma outra e pode correr-se mais do que uma vez.
+- [ ] Verificar: `select public.job_reserved_for_other(null, null, null, gen_random_uuid());`
+      tem de dar `false`.
+- [ ] Testar: um jardineiro volta a ver os pedidos normais da zona em "Pedidos disponíveis".
+
+**Diz ao Claude:** "0061 aplicada".
+
+### 0.15 Migration por aplicar: 0062 (depois da 0058 e da 0059)
+
+- [ ] SQL Editor: colar `supabase/migrations/0062_job_followups_and_better_notifications.sql`
+      e correr. Pode correr-se mais do que uma vez.
+- [ ] Atenção: aplicada em outubro, a dica "Prepara o jardim para o inverno" sai às 10h
+      seguintes para todos os clientes (uma vez por ano). Para não sair este ano:
+      `update seasonal_campaigns set active = false where slug = 'preparar-inverno';` e
+      voltar a pôr `true` depois de outubro.
+- [ ] Testar:
+  - Pedido novo: o jardineiro recebe "Pedido novo em {zona}, a X km de ti".
+  - Proposta: o cliente recebe "Nova proposta de {nome}" com o valor.
+  - Para não esperar 24h: `update job_requests set visible_to_all_at = now() - interval '25 hours' where id = '<id>';`
+    e `select process_open_job_followups();` (entre as 8h e as 21h). O cliente vê o cartão
+    "Ainda sem propostas" no pedido.
+  - Definições do cliente: "Dicas da época" liga e desliga.
+
+**Diz ao Claude:** "0062 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

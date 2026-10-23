@@ -270,6 +270,16 @@ class JobRepository {
     };
   }
 
+  // ── Pedido sem propostas (0062) ─────────────────────────────────────────
+
+  /// "Mostrar a jardineiros mais longe": +10 km além do raio de cada
+  /// jardineiro (máximo 30). Só o dono do pedido; devolve o novo total.
+  Future<int> widenJobSearch(String jobId) async {
+    final data =
+        await _client.rpc('widen_job_search', params: {'p_job_id': jobId});
+    return (data as num).toInt();
+  }
+
   // ── Pedido direto ("Pedir de novo", migration 0057) ─────────────────────
 
   /// "Mostrar já a todos" (cliente). Só o dono do pedido; o servidor ignora

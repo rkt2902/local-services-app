@@ -179,7 +179,8 @@ class _WorkerAvailableJobsScreenState
         job.locationLat,
         job.locationLng,
       );
-      locationLabel = forMe && distanceMeters > workerProfile.radiusKm * 1000
+      // Fora do raio: pedido direto ou pedido mostrado mais longe (0062).
+      locationLabel = distanceMeters > workerProfile.radiusKm * 1000
           ? outsideAreaLabel(distanceMeters / 1000)
           : distanceMeters < 1000
               ? '${distanceMeters.round()} m'

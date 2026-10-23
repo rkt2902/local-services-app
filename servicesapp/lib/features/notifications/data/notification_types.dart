@@ -76,4 +76,19 @@ abstract class NotificationType {
   /// 0057: ao cliente, o jardineiro escolhido não pode ou não respondeu a
   /// tempo; o pedido abriu a todos. relatedId = id do pedido.
   static const directRequestReleased = 'direct_request_released';
+
+  /// 0062: ao jardineiro, ~6h depois de um pedido da zona continuar sem
+  /// propostas. relatedId = id do pedido, ou null quando junta vários
+  /// (abre "Pedidos disponíveis").
+  static const jobOpportunityReminder = 'job_opportunity_reminder';
+
+  /// 0062: ao cliente, 24h sem propostas; o pedido já foi mostrado mais
+  /// longe e a app sugere alargar a data ou rever a descrição.
+  /// relatedId = id do pedido.
+  static const jobNoProposalsYet = 'job_no_proposals_yet';
+
+  /// 0062: dica da época (outubro, fevereiro). relatedId = id da campanha,
+  /// que a app não usa: abre um pedido novo (cliente) ou "Pedidos
+  /// disponíveis" (jardineiro).
+  static const seasonalTip = 'seasonal_tip';
 }

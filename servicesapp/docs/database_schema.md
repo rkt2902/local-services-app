@@ -189,6 +189,10 @@ Pedidos criados por clientes.
 | direct_auto_release       | boolean     | NOT NULL DEFAULT true (0059): interruptor do passo 4; `false` deixa o pedido parado (`on_hold`) depois de recusa ou fim do prazo |
 | direct_origin             | text        | nullable (0059), CHECK in (`public_card`,`repeat_hire`,`your_gardeners`): só para estatística, o mecanismo é o mesmo |
 | direct_hold_reason        | text        | nullable (0059), CHECK in (`declined`,`expired`): porque está `on_hold` |
+| search_extra_km           | smallint    | NOT NULL DEFAULT 0 (0062), 0 a 30: km além do raio de cada jardineiro em que o pedido também aparece |
+| visible_to_all_at         | timestamptz | nullable (0062): quando ficou visível a todos (criação, ou fim da reserva do pedido direto); conta o tempo dos lembretes |
+| followup_stage            | smallint    | NOT NULL DEFAULT 0 (0062): 0 só aviso inicial, 1 lembrete enviado, 2 mostrado mais longe e cliente avisado |
+| no_proposals_nudged_at    | timestamptz | nullable (0062): quando o cliente recebeu "Ainda sem propostas". A app não muda nenhum dos quatro (trigger) |
 | card_visit_id             | uuid        | nullable (0059), FK → `worker_card_visits.id`: visita ao cartão que trouxe o pedido; nunca vai para os jardineiros |
 | created_at                | timestamptz |                                                              |
 | updated_at                | timestamptz |                                                              |
@@ -196,6 +200,10 @@ Pedidos criados por clientes.
 Desde a 0043 os workers só leem esta tabela diretamente se forem o worker aceite (ou
 ajudante aceite). Os outros leem por `get_job_by_id`, `get_jobs_in_radius` e
 `get_worker_job_board`, que devolvem a localidade e coordenadas arredondadas (cerca de 1 km).
+
+### seasonal_campaigns, seasonal_campaign_sends, notification_preferences (0062)
+
+Dicas da época: `seasonal_campaigns` (`slug`, `month`, `day` 1 a 28, `audience` client/worker, `title`, `body`, `active`), um envio por campanha e ano em `seasonal_campaign_sends`, e `notification_preferences` (`user_id` PK, `seasonal_tips` DEFAULT true). RLS ligado sem políticas: só RPCs e SQL Editor.
 
 ### worker_card_visits (0059)
 

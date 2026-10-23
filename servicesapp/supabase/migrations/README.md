@@ -156,7 +156,26 @@ da 0051 e da 0057; a ordem com a 0058 não importa). Pedido direto pelo cartão 
 lugar do futuro plano Pro); `worker_public_card` com serviços por id, flags e a última
 avaliação boa; tracking `worker_card_visits` e `client_referrals` com as RPCs
 `log_worker_card_visit` e `claim_worker_card_visit`; vista `worker_card_funnel` só para o
-SQL Editor. Pode correr-se mais do que uma vez. **Próxima migration: `0060`.**
+SQL Editor. Pode correr-se mais do que uma vez.
+
+**`0060_admin_and_worker_plans.sql`:** outra thread (PR #27).
+
+**`0061_hotfix_reserved_for_other.sql`: aplicar já, sozinha.** Desde a 0057,
+`job_reserved_for_other` devolvia NULL num pedido normal (`direct_status` NULL) e
+`NOT job_reserved_for_other(...)` escondia esses pedidos aos jardineiros
+(`get_jobs_in_radius`, `can_see_job_summary`, `get_open_job_client_identity`). Corrige com
+`COALESCE(..., false)` a versão que existir (4 argumentos da 0057 ou 5 da 0059), nunca as
+duas. A 0059 também passou a criar a versão corrigida. Pode correr-se mais do que uma vez.
+
+**`0062_job_followups_and_better_notifications.sql`: criada, NÃO aplicada** (depois da
+0058 e da 0059). Colunas `search_extra_km`, `visible_to_all_at`, `followup_stage`,
+`no_proposals_nudged_at` em `job_requests` (a app não as muda); `get_jobs_in_radius`
+com o raio alargado; `widen_job_search`; cron `open-job-followups` (lembrete às 6h,
+alargar e avisar o cliente às 24h) e `seasonal-campaigns` (tabelas
+`seasonal_campaigns`, `seasonal_campaign_sends`, `notification_preferences`); textos das
+notificações reescritos no trigger `notifications_add_job_context`. Os pedidos já abertos
+há mais de 6h ficam marcados como tratados, para não haver rajada ao aplicar. Pode
+correr-se mais do que uma vez. **Próxima migration: `0063`.**
 
 **`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em

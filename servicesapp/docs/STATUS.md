@@ -8,6 +8,18 @@
 
 ## O que funciona end-to-end hoje
 
+**2026-10-23, Notificações que ajudam a fechar trabalhos (migration 0062 por aplicar; 0061 urgente):**
+a 0061 corrige um erro vivo desde a 0057: os jardineiros deixaram de ver os pedidos
+normais em "Pedidos disponíveis". Com a 0062, um pedido sem propostas tem três avisos aos
+jardineiros: o de pedido novo, um lembrete às 6h (um por jardineiro a cada 20h, vários
+pedidos juntos) e, às 24h, o pedido passa a aparecer 10 km mais longe e quem fica nesse
+anel é avisado. O cliente recebe "Ainda sem propostas" e o pedido mostra um cartão com
+"Alargar a data", "Ajustar a descrição" e "Mostrar a jardineiros mais longe" (até 30 km).
+Avisos só das 8h às 21h. Dicas da época por push (outubro e fevereiro, editáveis em
+`seasonal_campaigns`), com interruptor em Definições do cliente. Os textos das
+notificações passam a ter nomes, valores e distância, sempre por tu. Antes da 0062
+aplicada a app funciona como antes (o cartão e o interruptor não aparecem).
+
 **2026-10-22, Pedido direto pelo cartão do jardineiro (design A7, migration 0059 por aplicar):**
 o cartão público `/w/:id` tem "Pedir orçamento a {nome}". Sem sessão, o registo (ou
 login) guarda o jardineiro, cria a conta já como cliente e volta ao pedido. O passo 1 só

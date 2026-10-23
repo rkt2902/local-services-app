@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-23 — Lembretes, pedido sem propostas e textos das notificações (0061, 0062)
+
+- **Correção 0061 à parte**: o erro de NULL em `job_reserved_for_other` está vivo, por isso vai numa migration pequena que se aplica já, sem esperar pela 0058 e 0059.
+- **Três avisos por pedido, não mais**: pedido novo, lembrete às 6h e anel mais longe às 24h. O lembrete junta vários pedidos e só sai um por jardineiro em 20h; tudo das 8h às 21h. Mais do que isto leva os jardineiros a desligar as notificações.
+- **Alargar em vez de notificar mais longe**: `search_extra_km` muda também a lista do jardineiro, para que quem recebe o aviso encontre o pedido. Máximo 30 km. O prazo do pedido estende-se 24h ao alargar.
+- **Textos num só sítio**: o trigger BEFORE INSERT reescreve os textos antigos; as funções grandes (`create_proposal`, `cancel_job`, ...) não se recriam, menos risco de regressões.
+- **Dicas da época em tabela**: campanhas editáveis no SQL Editor (mês, dia, texto), uma vez por ano, só a clientes e com opção de desligar.
+
 ## 2026-10-22 — Pedido direto pelo cartão do jardineiro e tracking (0059, design A7)
 
 - **O mesmo mecanismo do A5**: o pedido pelo cartão usa as colunas `direct_*` e a reserva

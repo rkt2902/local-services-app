@@ -7,6 +7,8 @@ import '../../auth/application/auth_providers.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/utils/picked_photo.dart';
+import '../../notifications/application/notification_preferences_provider.dart';
+import '../../notifications/application/notification_providers.dart';
 import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import 'widgets/client_edit_profile_view.dart' as view;
@@ -96,6 +98,26 @@ class _ClientEditProfileScreenState
 
   Future<void> _signOut() => confirmAndSignOut(context, ref);
 
+  /// "Dicas da época": muda logo; o switch mostra o novo valor enquanto
+  /// guarda e volta atrás se falhar.
+  bool? _pendingSeasonalTips;
+
+  Future<void> _setSeasonalTips(bool enabled) async {
+    final toast = AppToast.of(context);
+    setState(() => _pendingSeasonalTips = enabled);
+    try {
+      await ref.read(notificationRepositoryProvider).setSeasonalTips(enabled);
+      if (!mounted) return;
+      toast.show(enabled
+          ? 'Vais receber as dicas da época.'
+          : 'Deixas de receber as dicas da época.');
+      ref.invalidate(seasonalTipsEnabledProvider);
+    } catch (e) {
+      if (mounted) toast.error(friendlyError(e));
+    }
+    if (mounted) setState(() => _pendingSeasonalTips = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(clientProfileProvider);
@@ -124,6 +146,10 @@ class _ClientEditProfileScreenState
       onChangePhoto: _pickAvatar,
       onSignOut: _signOut,
       onRetry: () => ref.invalidate(clientProfileProvider),
+      seasonalTipsEnabled: _pendingSeasonalTips ??
+          ref.watch(seasonalTipsEnabledProvider).asData?.value,
+      onSeasonalTipsChanged:
+          _pendingSeasonalTips != null ? null : _setSeasonalTips,
       onSave: (fullName, phone) {
         final profile = profileAsync.value;
         if (profile == null) return Future.value(false);
