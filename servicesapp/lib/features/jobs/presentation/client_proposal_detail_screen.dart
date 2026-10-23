@@ -80,6 +80,9 @@ class ClientProposalDetailScreen extends ConsumerWidget {
     ref.invalidate(clientJobsProvider);
     ref.invalidate(pendingProposalsForJobProvider(jobId));
     ref.invalidate(jobByIdProvider(jobId));
+    // O detalhe do pedido aberto já leu "sem proposta aceite" (null) e a
+    // cache guardava-o: a confirmação mostrava o preço como "—".
+    ref.invalidate(acceptedProposalForJobProvider(jobId));
   }
 
   @override

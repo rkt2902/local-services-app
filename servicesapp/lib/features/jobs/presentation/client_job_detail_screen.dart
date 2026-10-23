@@ -8,7 +8,9 @@ import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
+import '../../proposals/data/proposal_model.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_whatsapp_button.dart';
@@ -308,12 +310,22 @@ class _ClientJobDetailScreenState
   /// Fotos de antes e de depois e o tempo registado pelo jardineiro
   /// (migrations 0046 e 0052). Pedidos antigos só têm
   /// `completionPhotoPath`.
-  Widget _workRecord(JobRequest job, ThemeData theme) {
+  Widget _workRecord(
+    JobRequest job,
+    ThemeData theme, {
+    JobProposal? proposal,
+  }) {
     final repo = ref.read(jobRepositoryProvider);
     final after = job.afterPhotoPaths.isNotEmpty
         ? job.afterPhotoPaths
         : [?job.completionPhotoPath];
-    final worked = job.workedDuration;
+    // Trabalho em vários dias (0058): a soma dos dias, não do início ao
+    // fim (que contava as noites). Sem dias registados, como antes.
+    final workDays = ref.watch(jobWorkDaysProvider(job.id)).asData?.value ??
+        const <JobWorkDay>[];
+    final worked = workDays.isNotEmpty
+        ? workedDuration(workDays, now: DateTime.now())
+        : job.workedDuration;
 
     Widget photoRow(String label, List<String> paths) {
       final urls = paths.map(repo.jobPhotoPublicUrl).toList();
@@ -362,12 +374,38 @@ class _ClientJobDetailScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (proposal != null) ...[
+            Text(
+              proposal.isFixedTotal ? 'Valor fechado' : 'Valor acordado',
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              proposal.isFixedTotal
+                  ? compactMoneyLabel(proposal.totalPrice!)
+                  : acceptedProposalPriceLabel(proposal),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           if (worked != null) ...[
             Text(
               'Tempo registado: ${durationLabel(worked)}',
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: AppColors.textPrimary),
             ),
+            if (proposal?.isFixedTotal ?? false) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                fixedValueTimeNote,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ],
             const SizedBox(height: AppSpacing.sm),
           ],
           if (job.beforePhotoPaths.isNotEmpty) ...[
@@ -868,11 +906,16 @@ class _ClientJobDetailScreenState
               children: [
                 _workerContactCard(job, workerInfoAsync, theme),
                 const SizedBox(height: AppSpacing.md),
-                if (job.workedDuration != null ||
+                if (acceptedProposalAsync.asData?.value != null ||
+                    job.workedDuration != null ||
                     job.beforePhotoPaths.isNotEmpty ||
                     job.afterPhotoPaths.isNotEmpty ||
                     job.completionPhotoPath != null) ...[
-                  _workRecord(job, theme),
+                  _workRecord(
+                    job,
+                    theme,
+                    proposal: acceptedProposalAsync.asData?.value,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 AppStaggeredEntrance(

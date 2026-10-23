@@ -85,6 +85,7 @@ class DirectRequestContext {
     required this.jobDate,
     required this.serviceTypeId,
     required this.hourlyRate,
+    this.totalPrice,
   });
 
   final String clientName;
@@ -92,11 +93,18 @@ class DirectRequestContext {
   final String serviceTypeId;
   final double? hourlyRate;
 
+  /// Valor fechado do trabalho anterior (0063); `null` quando foi à hora.
+  /// Nesse caso [hourlyRate] é só a taxa de referência e não se mostra.
+  final double? totalPrice;
+
   factory DirectRequestContext.fromJson(Map<String, dynamic> json) =>
       DirectRequestContext(
         clientName: json['client_name'] as String? ?? '',
         jobDate: _date(json['job_date']),
         serviceTypeId: json['service_type_id'] as String,
         hourlyRate: (json['hourly_rate'] as num?)?.toDouble(),
+        totalPrice: json['pricing_mode'] == 'fixed_total'
+            ? (json['total_price'] as num?)?.toDouble()
+            : null,
       );
 }

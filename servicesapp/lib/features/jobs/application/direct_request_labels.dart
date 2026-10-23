@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/price_labels.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../data/direct_request_models.dart';
 import '../data/job_model.dart';
 
@@ -120,7 +121,8 @@ DirectBannerTexts? directBannerTexts(JobRequest job, {required String workerName
   }
 }
 
-/// "Já trabalhaste com Marta a 12/09/2026, Corte de relva, 12 €/h".
+/// "Já trabalhaste com Marta a 12/09/2026, Corte de relva, 12 €/h" (ou
+/// "120 € no total" quando o trabalho anterior foi a valor fechado).
 String directHistoryLabel(
   DirectRequestContext context, {
   required String serviceLabel,
@@ -130,7 +132,9 @@ String directHistoryLabel(
     if (context.jobDate != null)
       DateFormat('dd/MM/yyyy').format(context.jobDate!),
     if (serviceLabel.isNotEmpty) serviceLabel,
-    if (context.hourlyRate != null && context.hourlyRate! > 0)
+    if (context.totalPrice != null && context.totalPrice! > 0)
+      '${compactMoneyLabel(context.totalPrice!)} no total'
+    else if (context.hourlyRate != null && context.hourlyRate! > 0)
       hourlyRateLabel(context.hourlyRate!),
   ];
   if (parts.isEmpty) return 'Já trabalhaste com $name.';

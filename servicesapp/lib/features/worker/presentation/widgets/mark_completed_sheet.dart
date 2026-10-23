@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_sheet.dart';
+import '../../../proposals/application/proposal_price_labels.dart';
 import 'work_photos_strip.dart';
 
 /// Folha "Terminou o trabalho?" (design 7b), antes de `mark_job_done`.
@@ -151,7 +152,7 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
                 if (widget.fixedValue) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'O tempo fica registado, mas não muda o valor.',
+                    fixedValueTimeNote,
                     style: textTheme.labelSmall
                         ?.copyWith(color: AppColors.textSecondary),
                   ),

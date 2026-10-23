@@ -193,3 +193,6 @@ String workedTimeLabel(Duration d) {
   if (m == 0) return '$h h';
   return '$h h $m min';
 }
+
+/// Nota ao lado do tempo registado num trabalho a valor fechado.
+const fixedValueTimeNote = 'O tempo fica registado, mas não muda o valor.';
