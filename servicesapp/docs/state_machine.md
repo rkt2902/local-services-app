@@ -80,6 +80,25 @@
 | 16 | Marcado concluído, 3 dias sem confirmação | Sistema | `auto_confirm_completed_jobs` (cron) | Os dois → `job_completed` | `completed` | `accepted` |
 | — | Lembretes (0046): manhã do dia, data passada, conclusão por confirmar | Sistema | `send_job_reminders` (cron) | `job_reminder` | inalterado | inalterado |
 
+## Proposta: validade e formato do preço (0058)
+
+`pricing_mode` (`hourly`/`fixed_total`) não é um estado. `valid_until` também não: a
+proposta continua `pending` depois de expirar, mas `get_pending_proposals_for_job`
+devolve `is_expired = true` e o trigger `trg_job_proposal_block_expired_accept` recusa
+passar a `accepted`.
+
+## Dias de trabalho (0058, `job_work_days`)
+
+O trabalho continua `confirmed` com `started_at` preenchido ("Em curso"). Os dias vivem à
+parte e no máximo um está aberto.
+
+| # | Transição | Quem | RPC | Dia |
+|---|---|---|---|---|
+| W1 | Iniciar trabalho | Jardineiro | `start_job` | trigger cria o dia 1 (aberto) |
+| W2 | "Terminar o dia N" | Jardineiro | `finish_work_day` | dia N fechado |
+| W3 | "Começar o dia N+1" | Jardineiro | `start_work_day` | dia N+1 aberto (falha se houver um aberto) |
+| W4 | Concluir, ou cancelar | Jardineiro / sistema | `mark_job_done` / `cancel_job` | trigger fecha o dia aberto |
+
 ## Pedido direto (0057, `direct_status`)
 
 O pedido continua `open` em `job_status`; a reserva vive em `direct_status`. Enquanto
@@ -91,8 +110,13 @@ O pedido continua `open` em `job_status`; a reserva vive em `direct_status`. Enq
 | D2 | "Não posso desta vez" (ou retirar a proposta) | Jardineiro escolhido | `decline_direct_job_request` | Workers no raio → `new_job_in_radius`; cliente → `direct_request_released` | `declined` (fica em `excluded_worker_ids`) |
 | D3 | 24h sem proposta | Sistema | `expire_direct_job_requests` (cron 5 min) | Workers no raio; cliente → `direct_request_released` | `expired` |
 | D4 | "Mostrar já a todos" ou recusar a proposta do escolhido | Cliente | `release_direct_job_request` / `reject_proposal` | Workers no raio | `released` |
+| D5 | Pedido pelo cartão `/w/:id` (INSERT com `direct_card_worker_id`, 0059) | Cliente | — (trigger valida e reserva 24h, origem `public_card`) | Escolhido → `direct_job_request` ("Novo pedido pelo teu cartão") | `waiting` |
+| D6 | D2 ou D3 com o interruptor desligado (`direct_auto_release = false`, 0059) | Jardineiro escolhido / sistema | `decline_direct_job_request` / cron | Cliente → `direct_request_released` ("O pedido está parado...") | `on_hold` (`direct_hold_reason` `declined` ou `expired`) |
+| D7 | "Mostrar a todos" no pedido parado | Cliente | `release_direct_job_request` | Workers no raio | `released` |
 
-Ao abrir a todos, `expires_at` passa a pelo menos agora + 48h.
+Ao abrir a todos, `expires_at` passa a pelo menos agora + 48h. Em `on_hold` ninguém mais
+vê o pedido; depois do prazo (`expired`) o escolhido ainda o vê e pode propor, depois de
+recusar (`declined`) não. Cancelar continua a ser `cancel_job`.
 
 ## Transições de equipa de ajudantes (Fase 9)
 

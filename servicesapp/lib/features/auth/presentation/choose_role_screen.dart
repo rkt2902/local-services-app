@@ -14,6 +14,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../application/auth_controller.dart';
 import '../application/auth_providers.dart';
+import '../application/direct_request_auth_context.dart';
 import '../application/pending_signup_provider.dart';
 import 'sign_out_flow.dart';
 import '../../../core/widgets/app_toast.dart';
@@ -46,6 +47,22 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       metadata: ref.read(currentUserProvider)?.userMetadata,
     );
     _nameController.text = _identity.fullName;
+    _resumeCardRequestAsClient();
+  }
+
+  /// Veio do cartão de um jardineiro ("Pedir orçamento a Rui", A7): a conta
+  /// é de cliente, sem perguntar. Com nome e telefone já conhecidos cria o
+  /// perfil logo; senão fica cliente escolhido e só falta o contacto.
+  Future<void> _resumeCardRequestAsClient() async {
+    DirectRequestAuthContext? pending;
+    try {
+      pending = await ref.read(directRequestAuthProvider.future);
+    } catch (_) {
+      pending = null;
+    }
+    if (pending == null || !mounted || _selectedRole != null) return;
+    setState(() => _selectedRole = UserRole.client);
+    if (!_identity.needsContact) await _submit();
   }
 
   @override

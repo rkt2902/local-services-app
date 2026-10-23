@@ -18,6 +18,21 @@ class WorkerPublicCard {
   final List<String> highlights;
   final List<WorkerSocialLink> socialLinks;
 
+  /// Serviços do jardineiro por id (0059): o passo 1 do pedido pelo cartão
+  /// só mostra estes. Vazio antes da 0059 ou sem serviços.
+  final List<String> serviceTypeIds;
+
+  /// Acesso às funcionalidades do cartão, decidido no servidor (0059).
+  /// Sem a coluna conta como ligado.
+  final bool canUsePublicCard;
+  final bool canReceiveDirectRequests;
+
+  /// Comentário mais recente com 4 ou 5 estrelas, primeiro nome de quem
+  /// avaliou e data.
+  final String? latestReviewComment;
+  final String? latestReviewAuthor;
+  final DateTime? latestReviewAt;
+
   const WorkerPublicCard({
     required this.workerId,
     required this.fullName,
@@ -29,6 +44,12 @@ class WorkerPublicCard {
     required this.ratingCount,
     this.highlights = const [],
     this.socialLinks = const [],
+    this.serviceTypeIds = const [],
+    this.canUsePublicCard = true,
+    this.canReceiveDirectRequests = true,
+    this.latestReviewComment,
+    this.latestReviewAuthor,
+    this.latestReviewAt,
   });
 
   factory WorkerPublicCard.fromJson(Map<String, dynamic> json) =>
@@ -43,5 +64,15 @@ class WorkerPublicCard {
         ratingCount: (json['rating_count'] as num?)?.toInt() ?? 0,
         highlights: highlightsFromJson(json['highlights']),
         socialLinks: WorkerSocialLink.listFromJson(json['social_links']),
+        serviceTypeIds:
+            List<String>.from(json['service_type_ids'] as List? ?? const []),
+        canUsePublicCard: json['can_use_public_card'] as bool? ?? true,
+        canReceiveDirectRequests:
+            json['can_receive_direct_requests'] as bool? ?? true,
+        latestReviewComment: json['latest_review_comment'] as String?,
+        latestReviewAuthor: json['latest_review_author'] as String?,
+        latestReviewAt: json['latest_review_at'] != null
+            ? DateTime.parse(json['latest_review_at'] as String)
+            : null,
       );
 }

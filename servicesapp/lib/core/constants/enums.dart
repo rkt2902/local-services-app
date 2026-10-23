@@ -72,6 +72,28 @@ enum ProposalStatus {
   static ProposalStatus fromString(String value) => fromValue(value);
 }
 
+/// Formato do preço de uma proposta (design A6, migration 0058). Não é
+/// estado: a proposta continua com o seu [ProposalStatus].
+enum ProposalPricingMode {
+  /// Preço por hora; o total é uma estimativa pelas horas.
+  hourly,
+
+  /// Valor total fechado: o cliente paga isto, mesmo que demore mais.
+  fixedTotal;
+
+  String get value => switch (this) {
+        ProposalPricingMode.hourly => 'hourly',
+        ProposalPricingMode.fixedTotal => 'fixed_total',
+      };
+
+  /// Linhas antigas (sem a coluna) e valores desconhecidos contam como
+  /// preço por hora, que era o único formato.
+  static ProposalPricingMode fromString(String? value) =>
+      value == 'fixed_total'
+          ? ProposalPricingMode.fixedTotal
+          : ProposalPricingMode.hourly;
+}
+
 enum UserRole {
   client,
   worker;
@@ -245,15 +267,40 @@ enum DirectRequestStatus {
   expired,
 
   /// O cliente abriu a todos ("Mostrar já a todos" ou recusou a proposta).
-  released;
+  released,
 
-  String get value => name;
+  /// Interruptor desligado (0059): o jardineiro recusou ou o prazo acabou
+  /// e o pedido fica parado até o cliente escolher "Mostrar a todos" ou
+  /// "Cancelar pedido". O motivo vem em `direct_hold_reason`.
+  onHold;
+
+  String get value => this == onHold ? 'on_hold' : name;
 
   static DirectRequestStatus? fromString(String? value) => switch (value) {
         'waiting' => DirectRequestStatus.waiting,
         'declined' => DirectRequestStatus.declined,
         'expired' => DirectRequestStatus.expired,
         'released' => DirectRequestStatus.released,
+        'on_hold' => DirectRequestStatus.onHold,
         _ => null,
       };
+}
+
+/// De onde veio um pedido direto (0059). Só para registo e para o texto do
+/// lado do jardineiro; o mecanismo é o mesmo.
+enum DirectRequestOrigin {
+  publicCard('public_card'),
+  repeatHire('repeat_hire'),
+  yourGardeners('your_gardeners');
+
+  const DirectRequestOrigin(this.value);
+
+  final String value;
+
+  static DirectRequestOrigin? fromString(String? value) {
+    for (final o in values) {
+      if (o.value == value) return o;
+    }
+    return null;
+  }
 }

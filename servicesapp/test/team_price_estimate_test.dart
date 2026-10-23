@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/utils/price_labels.dart';
-import 'package:servicesapp/features/jobs/application/client_proposal_labels.dart';
+import 'package:servicesapp/features/proposals/application/proposal_price_labels.dart';
 import 'package:servicesapp/features/proposals/data/proposal_model.dart';
 import 'package:servicesapp/features/worker/data/worker_job_board_entry_model.dart';
 import 'package:servicesapp/features/worker/presentation/widgets/worker_jobs_view.dart'
@@ -62,7 +62,7 @@ void main() {
       status: ProposalStatus.pending,
       createdAt: DateTime(2026, 10, 20),
     );
-    expect(proposalPriceLabel(p), '100 a 200 €');
+    expect(proposalTotalLabel(p), 'cerca de 100 a 200 €');
   });
 
   test('"Os meus trabalhos" inclui a equipa na proposta pendente', () {

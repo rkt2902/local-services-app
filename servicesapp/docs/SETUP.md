@@ -180,7 +180,75 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 Antes de aplicar, o "Pedir de novo" e "Os teus jardineiros" dão erro ou não aparecem; o
 resto da app funciona como antes.
 
-**Diz ao Claude:** "0057 aplicada".
+**Diz ao Claude:** "0057 aplicada". (Feito a 2026-10-22.)
+
+### 0.11 Migration por aplicar: 0058 (depois da 0057)
+
+- [ ] SQL Editor: colar `supabase/migrations/0058_proposal_pricing_and_work_days.sql` e
+      correr. Pode correr-se mais do que uma vez. As consultas comentadas no fim mostram
+      as colunas e as tabelas novas.
+- [ ] Testar:
+  - "Enviar proposta" com "Valor total": escolher o que inclui, a duração em dias e a
+    validade, e enviar.
+  - O cliente vê a proposta por hora e a de valor total lado a lado, abre o detalhe e
+    aceita com "Aceitar por X".
+  - Num trabalho de 2 a 3 dias: iniciar, "Terminar o dia 1", "Começar o dia 2",
+    "Concluir trabalho". A folha de conclusão mostra os dias, o tempo e o valor fechado.
+
+Antes de aplicar, enviar proposta dá erro (a app já manda a validade). As propostas
+recebidas e o trabalho em curso continuam a funcionar, sem validade nem dias.
+
+**Diz ao Claude:** "0058 aplicada".
+
+### 0.12 Migration por aplicar: 0059 (depois da 0051 e da 0057)
+
+- [ ] SQL Editor: colar `supabase/migrations/0059_card_direct_requests_and_tracking.sql` e
+      correr. Pode correr-se mais do que uma vez.
+- [ ] Testar:
+  - Abrir o QR da conta de um jardineiro sem sessão: "Pedir orçamento a {nome}" leva ao
+    registo com a faixa "Vais pedir orçamento a...", a conta nasce de cliente e volta ao
+    passo 1 só com os serviços desse jardineiro.
+  - No passo 4, desligar "Se não puder, mostrar a outros jardineiros" e enviar. O
+    jardineiro vê o pedido fixo no topo, mesmo fora da área; "Não posso desta vez" deixa o
+    pedido parado e o cliente tem "Mostrar a todos" e "Cancelar pedido".
+- [ ] Ver os números (SQL Editor):
+      `select * from worker_card_funnel order by visits desc;` mostra, por jardineiro,
+      visitas por QR, link e dentro da app, aparelhos diferentes, clientes novos e pedidos
+      pelo cartão. `select * from client_referrals order by created_at desc;` lista cada
+      cliente novo e o jardineiro que o trouxe. Mais consultas no fim da migration.
+
+Antes de aplicar, o cartão abre como antes mas pedir orçamento pelo cartão dá erro; o
+"Pedir de novo" continua a funcionar.
+
+**Diz ao Claude:** "0059 aplicada".
+
+### 0.14 Correção urgente: 0061 (aplicar já, em qualquer ordem)
+
+- [ ] SQL Editor: colar `supabase/migrations/0061_hotfix_reserved_for_other.sql` e correr.
+      Não depende de nenhuma outra e pode correr-se mais do que uma vez.
+- [ ] Verificar: `select public.job_reserved_for_other(null, null, null, gen_random_uuid());`
+      tem de dar `false`.
+- [ ] Testar: um jardineiro volta a ver os pedidos normais da zona em "Pedidos disponíveis".
+
+**Diz ao Claude:** "0061 aplicada".
+
+### 0.15 Migration por aplicar: 0062 (depois da 0058 e da 0059)
+
+- [ ] SQL Editor: colar `supabase/migrations/0062_job_followups_and_better_notifications.sql`
+      e correr. Pode correr-se mais do que uma vez.
+- [ ] Atenção: aplicada em outubro, a dica "Prepara o jardim para o inverno" sai às 10h
+      seguintes para todos os clientes (uma vez por ano). Para não sair este ano:
+      `update seasonal_campaigns set active = false where slug = 'preparar-inverno';` e
+      voltar a pôr `true` depois de outubro.
+- [ ] Testar:
+  - Pedido novo: o jardineiro recebe "Pedido novo em {zona}, a X km de ti".
+  - Proposta: o cliente recebe "Nova proposta de {nome}" com o valor.
+  - Para não esperar 24h: `update job_requests set visible_to_all_at = now() - interval '25 hours' where id = '<id>';`
+    e `select process_open_job_followups();` (entre as 8h e as 21h). O cliente vê o cartão
+    "Ainda sem propostas" no pedido.
+  - Definições do cliente: "Dicas da época" liga e desliga.
+
+**Diz ao Claude:** "0062 aplicada".
 
 ---
 

@@ -1,3 +1,5 @@
+import '../../../core/constants/enums.dart';
+
 /// Papel do worker autenticado numa entrada do "board" unificado — deriva
 /// de estar em `job_proposals` (responsável) ou `help_acceptances`
 /// (ajudante). Ver `get_worker_job_board` (migration 0035).
@@ -75,6 +77,12 @@ class WorkerJobBoardEntry {
   final int peopleNeeded;
   final bool helpersEquipmentRequired;
 
+  /// Formato do preço da proposta (0058). Linhas de ajudante: sempre hourly.
+  final ProposalPricingMode pricingMode;
+
+  /// Valor fechado, só com [pricingMode] fixedTotal.
+  final double? totalPrice;
+
   const WorkerJobBoardEntry({
     required this.entryId,
     required this.role,
@@ -104,6 +112,8 @@ class WorkerJobBoardEntry {
     this.startedAt,
     this.peopleNeeded = 1,
     this.helpersEquipmentRequired = false,
+    this.pricingMode = ProposalPricingMode.hourly,
+    this.totalPrice,
   });
 
   factory WorkerJobBoardEntry.fromJson(Map<String, dynamic> json) =>
@@ -147,5 +157,8 @@ class WorkerJobBoardEntry {
         peopleNeeded: (json['people_needed'] as num?)?.toInt() ?? 1,
         helpersEquipmentRequired:
             json['helpers_equipment_required'] as bool? ?? false,
+        pricingMode:
+            ProposalPricingMode.fromString(json['pricing_mode'] as String?),
+        totalPrice: (json['total_price'] as num?)?.toDouble(),
       );
 }

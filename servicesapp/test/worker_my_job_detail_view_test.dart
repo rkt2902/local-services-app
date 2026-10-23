@@ -18,6 +18,10 @@ WorkerMyJobDetailViewData _data({
   WorkerJobTeamViewData? team,
   List<AcceptedHelper> helpers = const [],
   bool canRequestHelpers = true,
+  DateTime? startedAt,
+  WorkerWorkDaysViewData? workDays,
+  WorkerFixedValueViewData? fixedValue,
+  bool canMarkCompleted = false,
 }) {
   return WorkerMyJobDetailViewData(
     jobId: 'job-1',
@@ -49,8 +53,11 @@ WorkerMyJobDetailViewData _data({
     cancelBlockedBy24h: false,
     helpersForRating: helpers,
     agreedPriceLabel: '60 € · 2 a 4h',
-    canMarkCompleted: false,
+    canMarkCompleted: canMarkCompleted,
     canStart: canStart,
+    startedAt: startedAt,
+    workDays: workDays,
+    fixedValue: fixedValue,
     startHint: 'Disponível a partir das 8:00 de qui, 23/10',
     helpTeamLoaded: true,
     helpTeam: team,
@@ -64,6 +71,8 @@ Widget _screen(
   WorkerMyJobDetailViewData data, {
   VoidCallback? onBrowse,
   Map<String, Rating?> ratings = const {},
+  Future<void> Function()? onFinishDay,
+  Future<void> Function()? onStartNextDay,
 }) {
   return ProviderScope(
     overrides: [
@@ -89,6 +98,8 @@ Widget _screen(
         onPhotoTap: (_) {},
         onWorkPhotoTap: (_, _) {},
         onBrowseAvailableJobs: onBrowse ?? () {},
+        onFinishDay: onFinishDay,
+        onStartNextDay: onStartNextDay,
       ),
     ),
   );
@@ -301,5 +312,79 @@ void main() {
     await tester.pump();
     expect(find.text('RC'), findsNothing);
     expect(find.text('AS'), findsOneWidget);
+  });
+
+  group('vários dias e valor fechado (design A6)', () {
+    WorkerWorkDaysViewData days({required bool open}) =>
+        WorkerWorkDaysViewData(
+          headerLabel: 'Dia 2 de 3',
+          dayNumber: 2,
+          dayOpen: open,
+          dayStartedAt: open ? DateTime.now() : null,
+          workedTotalLabel: '9 h 10 min',
+          rows: [
+            const WorkerWorkDayRowViewData(
+                label: 'Dia 1', detail: '09:00 a 17:10 · 8 h 10 min'),
+            WorkerWorkDayRowViewData(
+              label: 'Dia 2',
+              detail: open ? 'Desde as 09:00 · a decorrer' : '09:00 a 10:00 · 1 h',
+              current: open,
+            ),
+            const WorkerWorkDayRowViewData(
+                label: 'Dia 3', detail: 'Previsto', planned: true),
+          ],
+        );
+
+    testWidgets('dia a decorrer: terminar o dia e concluir', (tester) async {
+      var finished = 0;
+      await tester.pumpWidget(_screen(
+        _data(
+          startedAt: DateTime.now(),
+          workDays: days(open: true),
+          canMarkCompleted: true,
+          fixedValue: const WorkerFixedValueViewData(
+            valueLabel: '450 €',
+            includesLabel: 'Inclui material',
+          ),
+        ),
+        onFinishDay: () async => finished++,
+      ));
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(find.text('Dia 2 de 3'), findsOneWidget);
+      expect(find.text('Dias de trabalho'), findsOneWidget);
+      expect(find.text('Previsto'), findsOneWidget);
+      expect(find.text('Valor fechado'), findsOneWidget);
+      expect(find.text('Inclui material'), findsOneWidget);
+      expect(find.text('Concluir trabalho'), findsOneWidget);
+      expect(find.text('Marcar como concluído'), findsNothing);
+
+      await tester.ensureVisible(find.text('Terminar o dia 2'));
+      await tester.tap(find.text('Terminar o dia 2'));
+      await tester.pump();
+      expect(finished, 1);
+    });
+
+    testWidgets('entre dias: começar o dia seguinte', (tester) async {
+      var started = 0;
+      await tester.pumpWidget(_screen(
+        _data(startedAt: DateTime.now(), workDays: days(open: false)),
+        onStartNextDay: () async => started++,
+      ));
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(find.text('Dia 2 terminado'), findsOneWidget);
+      await tester.tap(find.text('Começar o dia 3'));
+      await tester.pump();
+      expect(started, 1);
+    });
+
+    testWidgets('um dia só mantém o "Marcar como concluído"', (tester) async {
+      await tester.pumpWidget(_screen(_data(startedAt: DateTime.now())));
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(find.text('Tempo em curso'), findsOneWidget);
+      expect(find.text('Marcar como concluído'), findsOneWidget);
+      expect(find.text('Concluir trabalho'), findsNothing);
+    });
   });
 }

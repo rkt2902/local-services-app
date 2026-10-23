@@ -56,14 +56,18 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
   /// outras oportunidades", sem recarregar o pedido.
   String? _declinedMessage;
 
-  Future<void> _declineDirect(String clientName) async {
+  Future<void> _declineDirect(String clientName, bool autoRelease) async {
     final name = firstNameOr(clientName, 'o cliente');
+    // Com o interruptor do cliente desligado (0059) o pedido fica parado e
+    // é o cliente que decide.
+    final next = autoRelease
+        ? 'o pedido fica visível para outros jardineiros'
+        : '$name decide se mostra o pedido a outros jardineiros';
     final confirmed = await AppConfirmDialog.show(
       context,
       icon: Icons.event_busy_outlined,
       title: 'Não podes desta vez?',
-      message: 'Avisamos $name e o pedido fica visível para outros '
-          'jardineiros. Não dá para desfazer.',
+      message: 'Avisamos $name e $next. Não dá para desfazer.',
       confirmLabel: 'Não posso',
     );
     if (confirmed != true || !mounted) return;
@@ -81,8 +85,10 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     if (!mounted) return;
     setState(() {
       _decliningDirect = false;
-      _declinedMessage =
-          'Avisámos $name. O pedido fica visível para os outros jardineiros.';
+      _declinedMessage = autoRelease
+          ? 'Avisámos $name. O pedido fica visível para os outros jardineiros.'
+          : 'Avisámos $name. $name decide se mostra o pedido a outros '
+              'jardineiros.';
     });
     // Este ecrã não observa a lista: pode recarregar já.
     ref.invalidate(jobsInRadiusProvider);
@@ -184,39 +190,88 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     final avatarUrl = clientInfo?['avatar_url'];
     final clientName = clientInfo?['full_name'] ?? '';
 
-    // Pedido direto para mim (0057), ainda dentro da reserva.
+    // Pedido direto para mim (0057, 0059): à espera da minha resposta, ou
+    // parado depois do prazo à espera do cliente (ainda posso propor).
     final directUntil = job.directUntil;
-    final isDirectForMe = !unavailable &&
-        job.isDirectWaiting &&
-        directUntil != null &&
+    final directMine = !unavailable &&
         job.directWorkerId != null &&
         job.directWorkerId == currentUserId;
+    final isDirectWaitingForMe = directMine && job.isDirectWaiting;
+    final isDirectForMe =
+        directMine && (job.isDirectWaiting || job.isDirectOnHold);
+    final fromCard = job.directOrigin == DirectRequestOrigin.publicCard;
+    final clientFirstName = firstNameOr(clientName, 'O cliente');
+
     view.WorkerDirectRequestViewData? direct;
     if (isDirectForMe || _declinedMessage != null) {
-      final contextAsync = ref.watch(directRequestContextProvider(jobId));
+      // Pelo cartão não há trabalho anterior: sem histórico para pedir.
+      final AsyncValue<view.WorkerDirectHistoryViewData?> history = fromCard
+          ? const AsyncValue.data(null)
+          : ref.watch(directRequestContextProvider(jobId)).whenData((history) {
+              if (history == null) return null;
+              final service = serviceTypes
+                      .where((s) => s.id == history.serviceTypeId)
+                      .map((s) => s.name)
+                      .firstOrNull ??
+                  '';
+              final name = history.clientName.isNotEmpty
+                  ? history.clientName
+                  : clientName;
+              return view.WorkerDirectHistoryViewData(
+                clientInitial: initialOf(name.isEmpty ? 'Cliente' : name),
+                clientAvatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty)
+                    ? avatarUrl
+                    : null,
+                label: directHistoryLabel(history, serviceLabel: service),
+              );
+            });
+      String? outsideArea;
+      if (workerProfile != null) {
+        final meters = Geolocator.distanceBetween(
+          workerProfile.baseLat,
+          workerProfile.baseLng,
+          job.locationLat,
+          job.locationLng,
+        );
+        if (meters > workerProfile.radiusKm * 1000) {
+          outsideArea = outsideAreaLabel(meters / 1000);
+        }
+      }
       direct = view.WorkerDirectRequestViewData(
-        tagLabel: directUntil == null
-            ? 'Pedido só para ti'
-            : 'Pedido só para ti · '
-                '${directTimeLeftLabel(directUntil, DateTime.now())}',
-        explanationLabel: 'O cliente pediu-te este trabalho primeiro. Se não '
-            'responderes a tempo, o pedido fica visível para todos.',
-        history: contextAsync.whenData((history) {
-          if (history == null) return null;
-          final service = serviceTypes
-                  .where((s) => s.id == history.serviceTypeId)
-                  .map((s) => s.name)
-                  .firstOrNull ??
-              '';
-          final name =
-              history.clientName.isNotEmpty ? history.clientName : clientName;
-          return view.WorkerDirectHistoryViewData(
-            clientInitial: initialOf(name.isEmpty ? 'Cliente' : name),
-            clientAvatarUrl:
-                (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
-            label: directHistoryLabel(history, serviceLabel: service),
-          );
-        }),
+        tagLabel: job.isDirectOnHold
+            ? 'Pedido só para ti · prazo terminado'
+            : directUntil == null
+                ? 'Pedido só para ti'
+                : 'Pedido só para ti · '
+                    '${directTimeLeftLabel(directUntil, DateTime.now())}',
+        titleLabel: fromCard
+            ? '$clientFirstName pediu-te orçamento pelo teu cartão'
+            : null,
+        explanationLabel: !job.directAutoRelease
+            ? 'Se não responderes a tempo, $clientFirstName decide se '
+                'mostra o pedido a outros jardineiros.'
+            : fromCard
+                ? 'Se não responderes a tempo, o pedido pode ser mostrado '
+                    'a outros jardineiros.'
+                : 'O cliente pediu-te este trabalho primeiro. Se não '
+                    'responderes a tempo, o pedido fica visível para todos.',
+        outsideAreaLabel: outsideArea,
+        noticeLabel: job.isDirectOnHold
+            ? '$clientFirstName vai decidir se mostra o pedido a outros '
+                'jardineiros. Ainda podes enviar proposta.'
+            : null,
+        history: history,
+      );
+    } else if (directMine &&
+        job.directStatus == DirectRequestStatus.expired &&
+        myPendingProposal == null) {
+      // O prazo acabou com o interruptor ligado: aberto a todos, mas ainda
+      // dá para propor.
+      direct = const view.WorkerDirectRequestViewData(
+        tagLabel: 'Prazo terminado',
+        explanationLabel:
+            'O pedido está aberto agora a todos. Ainda podes enviar proposta.',
+        history: AsyncValue.data(null),
       );
     }
 
@@ -265,9 +320,11 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       directRequest: direct,
       onRetryDirectHistory: () =>
           ref.invalidate(directRequestContextProvider(jobId)),
-      onDeclineDirectPressed: myPendingProposal == null && isDirectForMe
-          ? () => _declineDirect(clientName)
-          : null,
+      // "Não posso desta vez" só enquanto a reserva corre.
+      onDeclineDirectPressed:
+          myPendingProposal == null && isDirectWaitingForMe
+              ? () => _declineDirect(clientName, job.directAutoRelease)
+              : null,
       decliningDirect: _decliningDirect,
       directDeclinedMessage: _declinedMessage,
       onSeeOtherJobsPressed: _seeOtherJobs,

@@ -38,6 +38,8 @@ import '../../client/application/client_create_job_wizard_provider.dart';
 import '../../client/application/job_request_form.dart';
 import '../../client/presentation/repeat_hire_launcher.dart';
 import '../../client/presentation/widgets/direct_request_waiting_banner.dart';
+import '../../client/presentation/widgets/no_proposals_help_card.dart';
+import '../application/no_proposals_labels.dart';
 import '../../client/presentation/widgets/repeat_hire_card.dart';
 import '../application/direct_request_labels.dart';
 import '../data/direct_request_models.dart';
@@ -145,8 +147,44 @@ class _ClientJobDetailScreenState
     return null;
   }
 
+  /// "Mostrar a jardineiros mais longe" (0062). Sem navegação: aviso e
+  /// depois recarrega o pedido; em erro a mensagem fica no cartão.
+  Future<String?> _widenSearch() async {
+    final int extraKm;
+    try {
+      extraKm = await ref.read(jobRepositoryProvider).widenJobSearch(widget.jobId);
+    } catch (e) {
+      return friendlyError(e);
+    }
+    if (!mounted) return null;
+    AppToast.of(context).show(widenedSearchToast(extraKm));
+    ref.invalidate(jobByIdProvider(widget.jobId));
+    ref.invalidate(clientJobsProvider);
+    return null;
+  }
+
+  /// Cartão "Ainda sem propostas" (RC5): depois do aviso das 24h.
+  Widget? _noProposalsCard(JobRequest job) {
+    final texts = noProposalsHelpTexts(job);
+    if (texts == null) return null;
+    return NoProposalsHelpCard(
+      data: NoProposalsHelpCardViewData(
+        titleLabel: texts.title,
+        descriptionLabel: texts.description,
+        dateActionLabel: noProposalsDateActionLabel,
+        descriptionActionLabel: noProposalsDescriptionActionLabel,
+        widenActionLabel: texts.widenActionLabel,
+      ),
+      onEditRequest: _saving
+          ? null
+          : () => context.push('/client/job/${widget.jobId}/edit'),
+      onWiden: _widenSearch,
+    );
+  }
+
   /// Faixa do pedido direto no pedido aberto: à espera do jardineiro
-  /// escolhido, ou já aberto a todos porque ele recusou ou o prazo passou.
+  /// escolhido, já aberto a todos porque ele recusou ou o prazo passou, ou
+  /// parado à espera do cliente (interruptor desligado, 0059).
   Widget? _directBanner(JobRequest job) {
     final workerId = job.directWorkerId;
     if (job.status != JobStatus.open || workerId == null) return null;
@@ -159,19 +197,28 @@ class _ClientJobDetailScreenState
     final info = infoAsync.asData?.value ?? const <String, String>{};
     final name = info['full_name'] ?? '';
     final texts = directBannerTexts(job, workerName: name)!;
-    final waiting = texts.kind == DirectBannerKind.waiting;
+    final display = switch (texts.kind) {
+      DirectBannerKind.waiting => DirectRequestWaitingDisplay.waiting,
+      DirectBannerKind.onHold => DirectRequestWaitingDisplay.onHold,
+      DirectBannerKind.released => DirectRequestWaitingDisplay.released,
+    };
+    final onHold = display == DirectRequestWaitingDisplay.onHold;
     return DirectRequestWaitingBanner(
       data: DirectRequestWaitingBannerViewData(
-        display: waiting
-            ? DirectRequestWaitingDisplay.waiting
-            : DirectRequestWaitingDisplay.released,
+        display: display,
         titleLabel: texts.title,
         descriptionLabel: texts.description,
         workerInitial: initialOf(name.isEmpty ? 'Jardineiro' : name),
         workerAvatarUrl: info['avatar_url'],
-        releaseActionLabel: waiting ? 'Mostrar já a todos' : null,
+        releaseActionLabel: switch (display) {
+          DirectRequestWaitingDisplay.waiting => 'Mostrar já a todos',
+          DirectRequestWaitingDisplay.onHold => 'Mostrar a todos',
+          DirectRequestWaitingDisplay.released => null,
+        },
+        cancelActionLabel: onHold ? 'Cancelar pedido' : null,
       ),
       onReleaseToAll: _releaseDirectRequest,
+      onCancelRequest: onHold && !_saving ? _cancelJob : null,
     );
   }
 
@@ -733,7 +780,7 @@ class _ClientJobDetailScreenState
         // ── Open status: single scroll + "Ver propostas" no fundo ────────────────
 
         if (job.status == JobStatus.open) {
-          final directBanner = _directBanner(job);
+          final directBanner = _noProposalsCard(job) ?? _directBanner(job);
           if (directBanner != null) {
             detailChildren.insertAll(0, [
               directBanner,

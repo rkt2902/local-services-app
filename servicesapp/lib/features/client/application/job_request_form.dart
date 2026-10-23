@@ -149,3 +149,35 @@ String repeatHireFirstRoute(ClientCreateJobWizardState state) {
       ? '/client/create-job/schedule'
       : route;
 }
+
+/// Pedido pelo cartão público (A7, migration 0059): o rascunho atual sem
+/// outro jardineiro, agora para [workerId]. Mantém morada e o resto do que
+/// o cliente já tinha escrito. O serviço fica por escolher: o passo 1
+/// mostra só os serviços deste jardineiro.
+ClientCreateJobWizardState cardRequestWizardState(
+  ClientCreateJobWizardState current, {
+  required String workerId,
+  required String workerName,
+  String workerAvatarUrl = '',
+  String? visitId,
+}) {
+  final base = current.withoutDirectWorker();
+  return ClientCreateJobWizardState(
+    dateMode: base.dateMode,
+    preferredDate: base.preferredDate,
+    availabilityText: base.availabilityText,
+    urgency: base.urgency,
+    sizeEstimate: base.sizeEstimate,
+    addressText: base.addressText,
+    addressAutoFilled: base.addressAutoFilled,
+    locationArea: base.locationArea,
+    locationLat: base.locationLat,
+    locationLng: base.locationLng,
+    description: base.description,
+    photos: base.photos,
+    directWorkerName: workerName,
+    directWorkerAvatarUrl: workerAvatarUrl,
+    directCardWorkerId: workerId,
+    cardVisitId: visitId,
+  );
+}

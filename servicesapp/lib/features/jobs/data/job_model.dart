@@ -72,6 +72,25 @@ class JobRequest {
   final DateTime? directUntil;
   final DirectRequestStatus? directStatus;
 
+  /// Pedido pelo cartão do jardineiro (0059). Para outros jardineiros chega
+  /// sempre `null`.
+  final DirectRequestOrigin? directOrigin;
+
+  /// Interruptor "Se não puder, mostrar a outros jardineiros".
+  final bool directAutoRelease;
+
+  /// Com o pedido parado (`onHold`): "declined" ou "expired".
+  final String? directHoldReason;
+
+  /// Km além do raio de cada jardineiro em que o pedido também aparece
+  /// (0062, 0 a 30). Sobe sozinho ao fim de 24h sem propostas ou quando o
+  /// cliente carrega em "Mostrar a jardineiros mais longe".
+  final int searchExtraKm;
+
+  /// Quando o cliente recebeu "Ainda sem propostas" (0062). A partir daqui
+  /// o pedido mostra as sugestões.
+  final DateTime? noProposalsNudgedAt;
+
   const JobRequest({
     required this.id,
     required this.clientId,
@@ -117,11 +136,23 @@ class JobRequest {
     this.directSourceJobId,
     this.directUntil,
     this.directStatus,
+    this.directOrigin,
+    this.directAutoRelease = true,
+    this.directHoldReason,
+    this.searchExtraKm = 0,
+    this.noProposalsNudgedAt,
   });
+
+  /// Máximo de [searchExtraKm] (igual ao CHECK da 0062).
+  static const maxSearchExtraKm = 30;
 
   /// Reservado ao jardineiro escolhido (o servidor decide quando acaba).
   bool get isDirectWaiting =>
       status == JobStatus.open && directStatus == DirectRequestStatus.waiting;
+
+  /// Parado à espera da decisão do cliente (interruptor desligado, 0059).
+  bool get isDirectOnHold =>
+      status == JobStatus.open && directStatus == DirectRequestStatus.onHold;
 
   /// `confirmed` com início marcado: o trabalho está a decorrer.
   bool get isInProgress => status == JobStatus.confirmed && startedAt != null;
@@ -201,6 +232,14 @@ class JobRequest {
             : null,
         directStatus:
             DirectRequestStatus.fromString(json['direct_status'] as String?),
+        directOrigin:
+            DirectRequestOrigin.fromString(json['direct_origin'] as String?),
+        directAutoRelease: json['direct_auto_release'] as bool? ?? true,
+        directHoldReason: json['direct_hold_reason'] as String?,
+        searchExtraKm: (json['search_extra_km'] as num?)?.toInt() ?? 0,
+        noProposalsNudgedAt: json['no_proposals_nudged_at'] != null
+            ? DateTime.parse(json['no_proposals_nudged_at'] as String)
+            : null,
       );
 
   JobRequest copyWith({
@@ -297,5 +336,10 @@ class JobRequest {
         directSourceJobId: directSourceJobId ?? this.directSourceJobId,
         directUntil: directUntil ?? this.directUntil,
         directStatus: directStatus ?? this.directStatus,
+        directOrigin: directOrigin,
+        directAutoRelease: directAutoRelease,
+        directHoldReason: directHoldReason,
+        searchExtraKm: searchExtraKm,
+        noProposalsNudgedAt: noProposalsNudgedAt,
       );
 }

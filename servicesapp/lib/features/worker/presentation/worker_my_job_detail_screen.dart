@@ -30,7 +30,9 @@ import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
 import '../application/worker_job_rules.dart';
 import '../application/worker_list_invalidation.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
+import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
 import 'widgets/start_job_sheet.dart';
@@ -315,6 +317,75 @@ class _WorkerMyJobDetailScreenState
     invalidateWorkerLists(ref, jobId: _jobId);
   }
 
+  /// "Terminar o dia N" (`finish_work_day`, migration 0058). Fica no ecrã.
+  Future<void> _finishDay(int day) async {
+    final toast = AppToast.of(context);
+    try {
+      await ref.read(proposalRepositoryProvider).finishWorkDay(_jobId);
+    } catch (e) {
+      toast.error(friendlyError(e));
+      return;
+    }
+    if (!mounted) return;
+    // Regra T4: sem navegação; aviso → invalidar.
+    toast.show('Dia $day terminado. Até amanhã!');
+    ref.invalidate(jobWorkDaysProvider(_jobId));
+  }
+
+  /// "Começar o dia N+1" (`start_work_day`).
+  Future<void> _startNextDay(int day) async {
+    final toast = AppToast.of(context);
+    try {
+      await ref.read(proposalRepositoryProvider).startWorkDay(_jobId);
+    } catch (e) {
+      toast.error(friendlyError(e));
+      return;
+    }
+    if (!mounted) return;
+    toast.show('Dia $day começado.');
+    ref.invalidate(jobWorkDaysProvider(_jobId));
+  }
+
+  /// Lista e estado dos dias para o ecrã (design A6, E). `null` quando o
+  /// trabalho é de um dia só ou os dias ainda não carregaram.
+  view.WorkerWorkDaysViewData? _workDaysViewData(
+    JobProposal proposal,
+    List<JobWorkDay> days,
+    DateTime now,
+  ) {
+    if (days.isEmpty || !isMultiDayWork(proposal, dayCount: days.length)) {
+      return null;
+    }
+    final current = days.last;
+    final planned = plannedWorkDays(proposal);
+    String hm(DateTime d) => DateFormat('HH:mm').format(d.toLocal());
+    final rows = <view.WorkerWorkDayRowViewData>[
+      for (final d in days)
+        view.WorkerWorkDayRowViewData(
+          label: 'Dia ${d.dayNumber}',
+          detail: d.isOpen
+              ? 'Desde as ${hm(d.startedAt)} · a decorrer'
+              : '${hm(d.startedAt)} a ${hm(d.endedAt!)} · ${workedTimeLabel(d.endedAt!.difference(d.startedAt))}',
+          current: d.isOpen,
+        ),
+      if (planned != null)
+        for (var n = current.dayNumber + 1; n <= planned; n++)
+          view.WorkerWorkDayRowViewData(
+            label: 'Dia $n',
+            detail: 'Previsto',
+            planned: true,
+          ),
+    ];
+    return view.WorkerWorkDaysViewData(
+      headerLabel: workDayHeaderLabel(current.dayNumber, planned),
+      dayNumber: current.dayNumber,
+      dayOpen: current.isOpen,
+      dayStartedAt: current.isOpen ? current.startedAt : null,
+      rows: rows,
+      workedTotalLabel: workedTimeLabel(workedDuration(days, now: now)),
+    );
+  }
+
   /// Folha "Terminou o trabalho?" → upload das fotos de depois → RPC
   /// mark_job_done. Devolve true só depois da RPC confirmar sucesso: a view
   /// mostra o AppSuccessFeedback e a navegação/invalidação fica em
@@ -323,16 +394,27 @@ class _WorkerMyJobDetailScreenState
     required String clientName,
     required DateTime? startedAt,
     required String priceLabel,
+    required List<JobWorkDay> workDays,
+    required bool multiDay,
+    required bool fixedValue,
   }) async {
     final toast = AppToast.of(context);
-    final worked = startedAt == null
-        ? 'Sem registo'
-        : durationLabel(DateTime.now().difference(startedAt));
+    final now = DateTime.now();
+    // Com dias registados (0058) o tempo é a soma dos dias; sem eles fica o
+    // cálculo antigo desde o início.
+    final worked = workDays.isNotEmpty
+        ? workedTimeLabel(workedDuration(workDays, now: now))
+        : startedAt == null
+            ? 'Sem registo'
+            : durationLabel(now.difference(startedAt));
     return MarkCompletedSheet.show(
       context,
       clientName: clientName,
       workedTimeLabel: worked,
       priceLabel: priceLabel,
+      workDaysLabel:
+          multiDay && workDays.isNotEmpty ? '${workDays.length}' : null,
+      fixedValue: fixedValue,
       onSend: (photos) async {
         try {
           final paths = <String>[];
@@ -537,6 +619,15 @@ class _WorkerMyJobDetailScreenState
 
     final isConfirmed = proposal.status == ProposalStatus.accepted &&
         job.status == JobStatus.confirmed;
+    // Dias de trabalho só depois de iniciado (migration 0058).
+    final workDays = (isConfirmed && job.startedAt != null)
+        ? ref.watch(jobWorkDaysProvider(_jobId)).asData?.value ??
+            const <JobWorkDay>[]
+        : const <JobWorkDay>[];
+    final includeOptions = proposal.isFixedTotal
+        ? ref.watch(proposalIncludeOptionsProvider).asData?.value ??
+            const <ProposalIncludeOption>[]
+        : const <ProposalIncludeOption>[];
     final ({bool loaded, HelpTeamSummary? summary}) team =
         isConfirmed ? _helpTeam() : (loaded: false, summary: null);
 
@@ -664,12 +755,21 @@ class _WorkerMyJobDetailScreenState
       sizeLabel: job.sizeEstimate?.label,
       description: job.description,
       photoUrls: photos,
-      hourlyRateLabel: hourlyRateLabel(proposal.hourlyRate),
-      estimatedHoursLabel: (proposal.estimatedHoursMin != null ||
-              proposal.estimatedHoursMax != null)
-          ? _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax)
-          : null,
-      estimatedTotalLabel: estimate,
+      hourlyRateLabel: proposal.isFixedTotal
+          ? proposalValueLabel(proposal)
+          : hourlyRateLabel(proposal.hourlyRate),
+      priceRowLabel: proposal.isFixedTotal ? 'Valor total' : 'Taxa/hora',
+      durationRowLabel:
+          proposal.isFixedTotal ? 'Duração' : 'Horas estimadas',
+      estimatedHoursLabel: proposal.estimatedDaysMin != null ||
+              proposal.estimatedDaysMax != null
+          ? proposalDurationLabel(proposal)
+          : (proposal.estimatedHoursMin != null ||
+                  proposal.estimatedHoursMax != null)
+              ? _hoursLabel(
+                  proposal.estimatedHoursMin, proposal.estimatedHoursMax)
+              : null,
+      estimatedTotalLabel: proposal.isFixedTotal ? '' : estimate,
       peopleNeeded: proposal.peopleNeeded,
       notes: proposal.notes,
       timelineSteps: buildJobTimeline(job, now: now),
@@ -684,15 +784,16 @@ class _WorkerMyJobDetailScreenState
       cancelBlockedBy24h: dayActionsBlocked,
       rescheduleBlocked: dayActionsBlocked,
       helpersForRating: helpersForRatingAsync.asData?.value ?? const [],
-      agreedPriceLabel: agreedPriceLabel(
-        proposal.hourlyRate,
-        proposal.estimatedHoursMin,
-        proposal.estimatedHoursMax,
-        peopleNeeded: proposal.peopleNeeded,
-        helpersEquipmentRequired: proposal.helpersEquipmentRequired,
-      ),
+      agreedPriceLabel: acceptedProposalPriceLabel(proposal),
       canMarkCompleted: canMarkCompleted,
       startedAt: job.startedAt,
+      workDays: _workDaysViewData(proposal, workDays, now),
+      fixedValue: proposal.isFixedTotal
+          ? view.WorkerFixedValueViewData(
+              valueLabel: compactMoneyLabel(proposal.totalPrice!),
+              includesLabel: _includesLabel(proposal, includeOptions),
+            )
+          : null,
       canStart: canStart,
       startHint: startHint,
       markCompletedHint: confirmedDay == null
@@ -731,8 +832,19 @@ class _WorkerMyJobDetailScreenState
       onMarkCompleted: () => _markCompleted(
         clientName: data.clientName,
         startedAt: job.startedAt,
-        priceLabel: data.agreedPriceLabel,
+        priceLabel: proposal.isFixedTotal
+            ? compactMoneyLabel(proposal.totalPrice!)
+            : data.agreedPriceLabel,
+        workDays: workDays,
+        multiDay: data.workDays != null,
+        fixedValue: proposal.isFixedTotal,
       ),
+      onFinishDay: data.workDays == null
+          ? null
+          : () => _finishDay(data.workDays!.dayNumber),
+      onStartNextDay: data.workDays == null
+          ? null
+          : () => _startNextDay(data.workDays!.dayNumber + 1),
       onStartJob: () => _startJob(data.clientName),
       onReportProblem: _reportProblem,
       onCompletionFeedbackFinished: _onCompletionFeedbackFinished,
@@ -816,4 +928,11 @@ view.WorkerJobTeamViewData? _teamViewData(
         ? '$undecided ${undecided == 1 ? 'candidato' : 'candidatos'} por decidir'
         : null,
   );
+}
+
+/// "Inclui material, remoção de resíduos". `null` sem nada incluído.
+String? _includesLabel(JobProposal p, List<ProposalIncludeOption> options) {
+  final summary = proposalIncludesSummaryLabel(p, options);
+  if (summary == null) return null;
+  return 'Inclui ${summary[0].toLowerCase()}${summary.substring(1)}';
 }

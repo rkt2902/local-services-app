@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../auth/application/session_provider.dart';
+import '../../client/application/client_create_job_wizard_provider.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/application/helper_job_state.dart';
 import '../../help_requests/data/help_request_model.dart';
@@ -57,6 +58,29 @@ class NotificationHandler {
           '/worker/job/${notification.relatedId}',
           extra: {'entryTransition': 'sharedAxis'},
         );
+
+      case NotificationType.jobOpportunityReminder:
+        // 0062: um pedido (relatedId) ou vários juntos (null).
+        final reminderJobId = notification.relatedId;
+        context.go(
+          reminderJobId == null
+              ? '/worker/available-jobs'
+              : '/worker/job/$reminderJobId',
+          extra: {'entryTransition': 'sharedAxis'},
+        );
+
+      case NotificationType.seasonalTip:
+        // 0062: a dica convida a pedir orçamento; ao jardineiro, a lista.
+        final sessionTip = ref.read(sessionStatusProvider).asData?.value;
+        if (sessionTip?.role == UserRole.worker) {
+          context.go(
+            '/worker/available-jobs',
+            extra: {'entryTransition': 'sharedAxis'},
+          );
+        } else {
+          ref.read(clientCreateJobWizardProvider.notifier).clearDirectWorker();
+          context.push('/client/create-job');
+        }
 
       // ── Proposal lifecycle (client-facing) ────────────────────────────────
       case NotificationType.proposalReceived:
@@ -207,6 +231,8 @@ class NotificationHandler {
 
       case NotificationType.jobNoResponse:
       case NotificationType.directRequestReleased:
+      case NotificationType.jobNoProposalsYet:
+        // jobNoProposalsYet (0062): o pedido mostra as sugestões.
         // directRequestReleased (0057): o jardineiro escolhido não pode ou
         // não respondeu; o pedido abriu a todos.
         // Sent to client only — job expired without proposals. relatedId = job_id.

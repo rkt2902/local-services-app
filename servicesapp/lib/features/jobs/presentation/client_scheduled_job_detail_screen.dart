@@ -26,6 +26,7 @@ import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
@@ -378,15 +379,32 @@ class _ClientScheduledJobDetailScreenState
         );
 
         final proposal = acceptedProposalAsync.asData?.value;
-        final priceLabel = proposal != null
-            ? agreedPriceLabel(
-            proposal.hourlyRate,
-            proposal.estimatedHoursMin,
-            proposal.estimatedHoursMax,
-            peopleNeeded: proposal.peopleNeeded,
-            helpersEquipmentRequired: proposal.helpersEquipmentRequired,
-          )
-            : '—';
+        final fixed = proposal?.isFixedTotal ?? false;
+        final priceLabel = proposal == null
+            ? '—'
+            : fixed
+                ? compactMoneyLabel(proposal.totalPrice!)
+                : acceptedProposalPriceLabel(proposal);
+        // Valor fechado: o que inclui (design A6, F).
+        final includeOptions = fixed
+            ? ref.watch(proposalIncludeOptionsProvider).asData?.value ??
+                const []
+            : const [];
+        final includesLabel = fixed
+            ? proposalIncludesSummaryLabel(proposal!, [...includeOptions])
+            : null;
+        final durationLabel =
+            proposal == null ? '' : proposalDurationLabel(proposal);
+        // "Dia 2 de 3" com o trabalho em curso em vários dias.
+        final workDays = (proposal != null && job.isInProgress)
+            ? ref.watch(jobWorkDaysProvider(job.id)).asData?.value ?? const []
+            : const [];
+        final workDayLabel = proposal != null &&
+                workDays.isNotEmpty &&
+                isMultiDayWork(proposal, dayCount: workDays.length)
+            ? workDayHeaderLabel(
+                workDays.last.dayNumber, plannedWorkDays(proposal))
+            : null;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -492,6 +510,17 @@ class _ClientScheduledJobDetailScreenState
                                   ? '${proposal.peopleNeeded} pessoas'
                                   : null,
                           priceLabel: priceLabel,
+                          priceRowLabel:
+                              fixed ? 'Valor fechado' : 'Valor acordado',
+                          durationLabel:
+                              durationLabel.isEmpty ? null : durationLabel,
+                          workDayLabel: workDayLabel,
+                          includesLabel: includesLabel == null
+                              ? null
+                              : 'Inclui ${includesLabel[0].toLowerCase()}${includesLabel.substring(1)}',
+                          fixedNote: fixed
+                              ? 'Não muda com as horas nem com os dias.'
+                              : null,
                         ),
                       ),
                       if (job.locationLat != 0 || job.locationLng != 0) ...[
@@ -842,6 +871,11 @@ class _ScheduledSummary extends StatelessWidget {
     required this.addressLabel,
     required this.priceLabel,
     this.peopleLabel,
+    this.priceRowLabel = 'Valor acordado',
+    this.durationLabel,
+    this.workDayLabel,
+    this.includesLabel,
+    this.fixedNote,
   });
 
   final String serviceLabel;
@@ -849,6 +883,19 @@ class _ScheduledSummary extends StatelessWidget {
   final String addressLabel;
   final String priceLabel;
   final String? peopleLabel;
+
+  /// "Valor fechado" numa proposta com valor total.
+  final String priceRowLabel;
+  final String? durationLabel;
+
+  /// "Dia 2 de 3", com o trabalho em curso em vários dias.
+  final String? workDayLabel;
+
+  /// "Inclui material, remoção de resíduos".
+  final String? includesLabel;
+
+  /// "Não muda com as horas nem com os dias."
+  final String? fixedNote;
 
   @override
   Widget build(BuildContext context) {
@@ -870,10 +917,31 @@ class _ScheduledSummary extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             _SummaryRow(label: 'Equipa', value: peopleLabel!),
           ],
+          if (durationLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _SummaryRow(label: 'Duração prevista', value: durationLabel!),
+          ],
+          if (workDayLabel != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _SummaryRow(label: 'Hoje', value: workDayLabel!),
+          ],
           const SizedBox(height: AppSpacing.sm),
           const Divider(color: AppColors.divider),
           const SizedBox(height: AppSpacing.sm),
-          _SummaryRow(label: 'Valor acordado', value: priceLabel, emphasized: true),
+          _SummaryRow(label: priceRowLabel, value: priceLabel, emphasized: true),
+          if (includesLabel != null || fixedNote != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                [?includesLabel, ?fixedNote].join('. '),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
         ],
       ),
     );

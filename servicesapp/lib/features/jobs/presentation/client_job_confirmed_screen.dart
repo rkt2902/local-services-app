@@ -15,6 +15,7 @@ import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/primary_action_button.dart';
+import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
@@ -95,15 +96,8 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     final workerAvatarUrl = workerInfo['avatar_url'];
     final workerPhone = workerInfo['phone'] ?? '';
 
-    final priceLabel = proposal != null
-        ? agreedPriceLabel(
-            proposal.hourlyRate,
-            proposal.estimatedHoursMin,
-            proposal.estimatedHoursMax,
-            peopleNeeded: proposal.peopleNeeded,
-            helpersEquipmentRequired: proposal.helpersEquipmentRequired,
-          )
-        : '—';
+    final priceLabel =
+        proposal != null ? acceptedProposalPriceLabel(proposal) : '—';
 
     return _ClientJobConfirmedView(
       workerName: workerName.isEmpty ? 'Jardineiro' : workerName,
@@ -129,7 +123,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
           ? null
           : () => openWhatsAppOrWarn(context, workerPhone),
       // Cartão público do jardineiro (`/w/:workerId`), o mesmo do link/QR.
-      onWorkerPressed: () => context.push('/w/$workerId'),
+      onWorkerPressed: () => context.push('/w/$workerId?src=app'),
       onClosePressed: () => goBackOrToRoleHome(context),
       onViewJobPressed: () {
         GoRouter.of(context).pushReplacement('/client/job/$jobId');
