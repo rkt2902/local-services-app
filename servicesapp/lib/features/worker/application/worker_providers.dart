@@ -4,6 +4,7 @@ import '../../auth/application/auth_providers.dart';
 import '../data/worker_repository.dart';
 import '../data/worker_profile_model.dart';
 import '../data/worker_public_card_model.dart';
+import '../data/worker_plan_model.dart';
 import '../data/service_type_model.dart';
 
 // Nome/telefone/avatar/bio mudam raramente (edição manual de perfil) —
@@ -43,4 +44,12 @@ final workerPublicCardProvider =
     FutureProvider.autoDispose.family<WorkerPublicCard?, String>((ref, workerId) {
   cacheFor(ref, _profileInfoCacheTtl);
   return ref.read(workerRepositoryProvider).fetchPublicCard(workerId);
+});
+
+/// Plano do jardineiro com sessão e trabalhos aceites este mês (0060).
+/// Invalidado quando uma proposta é aceite (ver notification_providers).
+final myWorkerPlanProvider = FutureProvider.autoDispose<WorkerPlan>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return WorkerPlan.unavailable;
+  return ref.read(workerRepositoryProvider).fetchMyPlan();
 });

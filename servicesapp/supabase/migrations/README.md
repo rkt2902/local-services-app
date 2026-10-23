@@ -139,45 +139,16 @@ da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quan
 iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
 alteração, para os cartões de "Os meus trabalhos" (design A2).
 
-**`0058_proposal_pricing_and_work_days.sql`: criada, NÃO aplicada** (aplicar depois da
-0057). Propostas com valor total ou preço por hora (design A6): `pricing_mode`,
-`total_price`, `includes`, duração em dias e `valid_until` em `job_proposals`, tabela
-`proposal_include_options`, `create_proposal` com os parâmetros novos (todos com
-omissão), trigger que recusa aceitar propostas expiradas, `get_pending_proposals_for_job`
-e `get_worker_job_board` com as colunas novas (DROP + CREATE), e os dias de trabalho
-(`job_work_days`, `finish_work_day`, `start_work_day`, `get_job_work_days`). Pode
-correr-se mais do que uma vez.
+**`0060_admin_and_worker_plans.sql`: criada, NÃO aplicada** (aplicar depois da
+`0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql`,
+que vêm no PR das propostas por valor total e do cartão).
+Painel `/admin`: `admin_users` (quem é admin, só por SQL), `admin_actions` (registo),
+`worker_plans` (Grátis, Pro, Pro+ com validade, verificação e notas), `job_proposals.accepted_at`,
+limite de 5 trabalhos aceites por mês no Grátis (trigger BEFORE INSERT em
+`job_proposals`), `get_my_plan()` e as RPCs `admin_*` (exigem `admin_users` + aal2).
+Pode correr-se mais do que uma vez. **Próxima migration: `0061`.**
 
-**`0059_card_direct_requests_and_tracking.sql`: criada, NÃO aplicada** (aplicar depois
-da 0051 e da 0057; a ordem com a 0058 não importa). Pedido direto pelo cartão público
-(design A7): `direct_card_worker_id`, `direct_auto_release`, `direct_origin`,
-`direct_hold_reason`, `card_visit_id` e o estado `on_hold` em `job_requests`; flags
-`worker_can_use_public_card`/`worker_can_receive_direct_requests` (hoje sempre ligadas,
-lugar do futuro plano Pro); `worker_public_card` com serviços por id, flags e a última
-avaliação boa; tracking `worker_card_visits` e `client_referrals` com as RPCs
-`log_worker_card_visit` e `claim_worker_card_visit`; vista `worker_card_funnel` só para o
-SQL Editor. Pode correr-se mais do que uma vez.
-
-**`0060_admin_and_worker_plans.sql`:** outra thread (PR #27).
-
-**`0061_hotfix_reserved_for_other.sql`: aplicar já, sozinha.** Desde a 0057,
-`job_reserved_for_other` devolvia NULL num pedido normal (`direct_status` NULL) e
-`NOT job_reserved_for_other(...)` escondia esses pedidos aos jardineiros
-(`get_jobs_in_radius`, `can_see_job_summary`, `get_open_job_client_identity`). Corrige com
-`COALESCE(..., false)` a versão que existir (4 argumentos da 0057 ou 5 da 0059), nunca as
-duas. A 0059 também passou a criar a versão corrigida. Pode correr-se mais do que uma vez.
-
-**`0062_job_followups_and_better_notifications.sql`: criada, NÃO aplicada** (depois da
-0058 e da 0059). Colunas `search_extra_km`, `visible_to_all_at`, `followup_stage`,
-`no_proposals_nudged_at` em `job_requests` (a app não as muda); `get_jobs_in_radius`
-com o raio alargado; `widen_job_search`; cron `open-job-followups` (lembrete às 6h,
-alargar e avisar o cliente às 24h) e `seasonal-campaigns` (tabelas
-`seasonal_campaigns`, `seasonal_campaign_sends`, `notification_preferences`); textos das
-notificações reescritos no trigger `notifications_add_job_context`. Os pedidos já abertos
-há mais de 6h ficam marcados como tratados, para não haver rajada ao aplicar. Pode
-correr-se mais do que uma vez. **Próxima migration: `0063`.**
-
-**`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
+**`0057_direct_requests.sql`: criada, NÃO aplicada** (aplicar depois da 0056). Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em
 `job_requests`, reserva de 24h só para o jardineiro escolhido, recusa, "Mostrar já a
 todos", cron `expire-direct-job-requests` de 5 em 5 minutos, avisos `direct_job_request` e

@@ -413,6 +413,14 @@ Modelo de dados: `worker_client_relationships`, `relationship_messages`, `recurr
 
 ### Alta prioridade
 
+**Painel /admin, fases 2 e 3 (2026-10-22)**
+A fase 1 (0060) tem visão geral, jardineiros e planos. Falta: mapa com camadas
+(pedidos por estado, jardineiros com raio, zonas sem resposta, densidade) com
+`flutter_map`/OSM; lista de pedidos parados; moderação (reports, cartões frota,
+suspender conta); ficha de cliente; funil; exportar CSV; avisos a grupos de
+jardineiros. Também o selo Pro nas propostas e no cartão público, e acrescentar à
+Política de Privacidade que a administração vê moradas e posições base.
+
 **Mini-chat por proposta (modelo Vinted)**
 Cada job_proposal tem um chat associado — cliente e worker trocam mensagens dentro dessa proposta específica. Realtime via Supabase Realtime (infraestrutura já existe). Modelo de dados: `proposal_messages(id, proposal_id, sender_id, content, created_at)`. RLS: só client e worker da proposta veem as mensagens. UI: bottom sheet da proposta com tabs "Detalhes" e "Chat". Após proposta rejeitada/retirada, chat fica em modo leitura. **Diferenciador forte vs contacto por WhatsApp.**
 

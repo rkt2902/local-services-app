@@ -5,6 +5,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_job_board_providers.dart';
+import '../../worker/application/worker_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
 import '../data/notification_types.dart';
@@ -96,6 +97,8 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(proposalByIdProvider);
           ref.invalidate(workerProposalForJobProvider);
           ref.invalidate(jobByIdProvider);
+          // Mais um trabalho aceite este mês (limite do plano Grátis).
+          ref.invalidate(myWorkerPlanProvider);
         case NotificationType.proposalRejected:
           ref.invalidate(jobsInRadiusProvider);
           ref.invalidate(pendingWorkerProposalsProvider);

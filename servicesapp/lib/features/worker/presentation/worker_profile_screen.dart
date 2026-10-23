@@ -12,6 +12,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_about_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_legal_links.dart';
 import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
@@ -19,7 +20,9 @@ import '../../auth/presentation/delete_account_flow.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
+import '../application/worker_plan_labels.dart';
 import '../application/worker_providers.dart';
+import '../data/worker_plan_model.dart';
 import 'widgets/worker_account_view.dart';
 import 'worker_card_share.dart';
 
@@ -64,6 +67,23 @@ class WorkerProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showPlanSheet(BuildContext context, WorkerPlan plan) {
+    AppSheet.show<void>(
+      context,
+      builder: (sheetContext) => AppSheet(
+        title: 'Plano ${plan.tier.label}',
+        onClose: () => Navigator.of(sheetContext).pop(),
+        child: Text(
+          workerPlanExplanation(plan),
+          style: Theme.of(sheetContext)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(workerProfileProvider);
@@ -73,6 +93,8 @@ class WorkerProfileScreen extends ConsumerWidget {
         ? null
         : ref.watch(ratingSummaryProvider(userId));
     final fleetCardAsync = ref.watch(myFleetCardProvider);
+    final plan =
+        ref.watch(myWorkerPlanProvider).asData?.value ?? WorkerPlan.unavailable;
 
     if (profileAsync.isLoading || serviceTypesAsync.isLoading) {
       return const Scaffold(body: AppScreenLoadingSkeleton());
@@ -125,6 +147,7 @@ class WorkerProfileScreen extends ConsumerWidget {
             ? NetworkImage(profile.avatarUrl!)
             : null,
         fleetCardStatusLabel: fleetCardStatusLabel,
+        planLabel: workerPlanSummaryLabel(plan),
       ),
       onSettingsPressed: () => context.push('/worker/profile/edit'),
       onDefinitionsPressed: () => context.push('/worker/profile/edit'),
@@ -134,6 +157,7 @@ class WorkerProfileScreen extends ConsumerWidget {
       onJobsPressed: () => context.go('/worker/jobs'),
       onReviewsPressed: () => context.push('/worker/ratings'),
       onFleetCardPressed: () => context.push('/worker/fleet-card'),
+      onPlanPressed: () => _showPlanSheet(context, plan),
       onSupportPressed: () => showSupportContactSheet(context),
       onTermsPressed: () => openTermsOfUse(context),
       onPrivacyPressed: () => openPrivacyPolicy(context),

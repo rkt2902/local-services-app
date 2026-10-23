@@ -286,21 +286,31 @@ enum DirectRequestStatus {
       };
 }
 
-/// De onde veio um pedido direto (0059). Só para registo e para o texto do
-/// lado do jardineiro; o mecanismo é o mesmo.
-enum DirectRequestOrigin {
-  publicCard('public_card'),
-  repeatHire('repeat_hire'),
-  yourGardeners('your_gardeners');
+/// Plano do jardineiro (`worker_plans.tier`, migration 0060). O papel
+/// continua a ser `worker`; o plano só muda o limite mensal e o selo.
+enum WorkerPlanTier {
+  free,
+  pro,
+  proPlus;
 
-  const DirectRequestOrigin(this.value);
+  String get value => switch (this) {
+        WorkerPlanTier.free => 'free',
+        WorkerPlanTier.pro => 'pro',
+        WorkerPlanTier.proPlus => 'pro_plus',
+      };
 
-  final String value;
+  String get label => switch (this) {
+        WorkerPlanTier.free => 'Grátis',
+        WorkerPlanTier.pro => 'Pro',
+        WorkerPlanTier.proPlus => 'Pro+',
+      };
 
-  static DirectRequestOrigin? fromString(String? value) {
-    for (final o in values) {
-      if (o.value == value) return o;
-    }
-    return null;
-  }
+  bool get isPaid => this != WorkerPlanTier.free;
+
+  /// Valor desconhecido (BD mais nova que a app) conta como Grátis.
+  static WorkerPlanTier fromValue(String? value) => switch (value) {
+        'pro' => WorkerPlanTier.pro,
+        'pro_plus' => WorkerPlanTier.proPlus,
+        _ => WorkerPlanTier.free,
+      };
 }

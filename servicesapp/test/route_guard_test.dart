@@ -45,6 +45,33 @@ void main() {
     });
   });
 
+  group('painel de administração (/admin)', () {
+    test('sem sessão fica no /admin (é o login), mesmo sem onboarding', () {
+      expect(_go('/admin', SessionStatus.unauthenticated), isNull);
+      expect(_go('/admin', SessionStatus.unauthenticated, seen: false), isNull);
+    });
+
+    test('subpáginas sem sessão voltam à entrada do painel', () {
+      expect(_go('/admin/workers/abc', SessionStatus.unauthenticated), '/admin');
+    });
+
+    test('a conta de admin sem papel não vai para escolher papel', () {
+      expect(_go('/admin', _noRole), isNull);
+      expect(_go('/admin/workers/abc', _noRole), isNull);
+    });
+
+    test('clientes e jardineiros também ficam (o ecrã diz "Sem acesso")', () {
+      expect(_go('/admin', _client), isNull);
+      expect(_go('/admin', _worker), isNull);
+    });
+
+    test('caminhos parecidos não contam como admin', () {
+      expect(isAdminLocation('/administrator'), isFalse);
+      expect(isAdminLocation('/admin'), isTrue);
+      expect(isAdminLocation('/admin/workers/1'), isTrue);
+    });
+  });
+
   group('sessão a carregar', () {
     test('fica sempre onde está', () {
       for (final loc in ['/loading', '/client/home', '/worker/jobs', '/login']) {

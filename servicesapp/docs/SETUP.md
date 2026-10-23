@@ -250,6 +250,52 @@ Antes de aplicar, o cartão abre como antes mas pedir orçamento pelo cartão d�
 
 **Diz ao Claude:** "0062 aplicada".
 
+### 0.13 Migration por aplicar: 0060 (depois da 0058 e da 0059 do passo 0.12) e acesso ao painel /admin
+
+A 0060 usa colunas e tabelas que a `0058_proposal_pricing_and_work_days.sql` cria
+(PR das propostas por hora ou valor total e do cartão). Aplica primeiro a 0058 e a
+`0059_card_direct_requests_and_tracking.sql` desse PR, por esta ordem, e só depois esta.
+
+Painel de administração em `https://<o teu site>/admin` (o mesmo link da app). A
+segurança está toda na BD: só entra uma conta que esteja na tabela `admin_users` e que
+tenha confirmado o código de uma app autenticadora nesta sessão.
+
+- [ ] SQL Editor: colar `supabase/migrations/0060_admin_and_worker_plans.sql` e correr.
+      Pode correr-se mais do que uma vez.
+- [ ] Supabase > Authentication > Users > **Add user > Create new user**: cria uma conta
+      só para administrar (um email teu que não uses como cliente nem como jardineiro),
+      com uma palavra-passe forte e "Auto Confirm User" ligado. Não entres com ela na
+      app normal: não tem papel e a app pedia para escolher um.
+- [ ] Supabase > Authentication > **Multi-Factor** (ou "Sign In / Providers" > MFA):
+      confirma que o **TOTP (App Authenticator)** está ligado. Vem ligado por omissão.
+- [ ] SQL Editor, com o email dessa conta:
+      ```sql
+      insert into public.admin_users (user_id)
+      select id from auth.users where email = 'O_TEU_EMAIL_DE_ADMIN'
+      on conflict do nothing;
+      ```
+- [ ] Abre `/admin`, entra com essa conta e lê o código QR com o Google Authenticator
+      (ou outra app autenticadora). A partir daí pede sempre o código de 6 dígitos.
+- [ ] Testar:
+  - Na conta de um jardineiro de teste, "A minha conta > Plano" mostra "Grátis · 0 de 5
+    este mês".
+  - No painel, "Jardineiros" > esse jardineiro > "Mudar plano" > Pro com 12 meses.
+    A conta dele passa a mostrar "Pro · até ...".
+  - Num jardineiro Grátis com 5 trabalhos aceites este mês, enviar outra proposta dá o
+    aviso do limite.
+  - Entrar em `/admin` com uma conta normal de cliente mostra "Sem acesso".
+
+Se perderes o telemóvel com a app autenticadora: Supabase > Authentication > Users >
+a conta de admin > apagar o fator (MFA factors). Na entrada seguinte o painel mostra um
+QR novo.
+
+Para tirar o acesso a uma conta: `delete from public.admin_users where user_id = ...`.
+
+Antes de aplicar a 0060, `/admin` dá erro ao confirmar o acesso e a linha "Plano" da conta
+do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
+
+**Diz ao Claude:** "0060 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

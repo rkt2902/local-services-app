@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 /// Rota de início do papel atual, inferida do PRÓPRIO prefixo da rota
 /// (`/worker/` ou `/client/`) — o mesmo padrão já usado no cross-role guard
 /// do router (`app_router.dart`), sem precisar de ler sessão/Riverpod aqui.
-String roleHomeRouteFor(String location) =>
-    location.startsWith('/worker/') ? '/worker/home' : '/client/home';
+String roleHomeRouteFor(String location) {
+  if (location.startsWith('/admin')) return '/admin';
+  return location.startsWith('/worker/') ? '/worker/home' : '/client/home';
+}
 
 /// "Voltar com fallback" — usado pelo botão de voltar da AppBar
 /// ([AppBackButton], `core/widgets/app_back_button.dart`). O gesto/botão de
