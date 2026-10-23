@@ -286,25 +286,6 @@ enum DirectRequestStatus {
       };
 }
 
-/// De onde veio um pedido direto (0059). Só para registo e para o texto do
-/// lado do jardineiro; o mecanismo é o mesmo.
-enum DirectRequestOrigin {
-  publicCard('public_card'),
-  repeatHire('repeat_hire'),
-  yourGardeners('your_gardeners');
-
-  const DirectRequestOrigin(this.value);
-
-  final String value;
-
-  static DirectRequestOrigin? fromString(String? value) {
-    for (final o in values) {
-      if (o.value == value) return o;
-    }
-    return null;
-  }
-}
-
 /// Plano do jardineiro (`worker_plans.tier`, migration 0060). O papel
 /// continua a ser `worker`; o plano só muda o limite mensal e o selo.
 enum WorkerPlanTier {
