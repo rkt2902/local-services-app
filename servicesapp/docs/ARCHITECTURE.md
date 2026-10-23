@@ -518,9 +518,10 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0059_card_direct_requests_and_tracking.sql` | **criada, NÃO aplicada**, depois da 0051 e da 0057 (pedido direto pelo cartão público, interruptor "mostrar a outros" com `on_hold`, origem do pedido, flags do cartão para o futuro plano Pro, tracking de visitas QR/link/app e clientes trazidos por cada jardineiro) |
 | `0060_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da `0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql` (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
 | `0061_hotfix_reserved_for_other.sql` | **criada, aplicar já** e sozinha: `job_reserved_for_other` dava NULL nos pedidos normais e `NOT ...` escondia-os aos jardineiros desde a 0057. Corrige a versão que existir (4 ou 5 argumentos) |
+| `0063_direct_context_fixed_price.sql` | **criada, NÃO aplicada**, depois da 0058 (`get_direct_request_context` com `pricing_mode` e `total_price`) |
 | `0062_job_followups_and_better_notifications.sql` | **criada, NÃO aplicada**, depois da 0058 e da 0059 (lembrete às 6h aos jardineiros, 24h sem propostas: pedido mostrado mais longe e aviso ao cliente, "Mostrar a jardineiros mais longe", dicas da época, textos das notificações reescritos no trigger) |
 
-Próxima migration: `0063`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0064`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

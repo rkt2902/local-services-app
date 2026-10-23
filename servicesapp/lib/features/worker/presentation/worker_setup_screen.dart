@@ -35,6 +35,10 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
   final _lngController = TextEditingController();
 
   XFile? _avatar;
+
+  /// Foto que o perfil já tem (conta Google): conta como foto, e o
+  /// jardineiro pode trocá-la.
+  String? _existingAvatarUrl;
   final List<String> _selectedServiceTypeIds = [];
 
   /// Categorias abertas na lista de serviços (todas fechadas no início).
@@ -50,11 +54,31 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
   bool _showManualCoords = false;
   bool _saving = false;
 
+  bool get _hasPhoto => _avatar != null || _existingAvatarUrl != null;
+
   bool get _canContinue =>
-      _avatar != null &&
+      _hasPhoto &&
       _selectedServiceTypeIds.isNotEmpty &&
       _baseLat != null &&
       _baseLng != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingAvatar();
+  }
+
+  Future<void> _loadExistingAvatar() async {
+    final userId = ref.read(currentUserProvider)?.id;
+    if (userId == null) return;
+    try {
+      final url =
+          await ref.read(authRepositoryProvider).fetchAvatarUrl(userId);
+      if (mounted && url != null) setState(() => _existingAvatarUrl = url);
+    } catch (_) {
+      // Sem foto conhecida: o jardineiro escolhe uma.
+    }
+  }
 
   @override
   void dispose() {
@@ -329,7 +353,24 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                     Center(
                       child: _WorkerPhotoSelector(
                         avatar: _avatar,
+                        existingAvatarUrl: _existingAvatarUrl,
                         onPressed: _pickAvatar,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Center(
+                      child: Text(
+                        workerSetupPhotoHint(
+                          hasPhoto: _hasPhoto,
+                          fromSocialAccount:
+                              _avatar == null && _existingAvatarUrl != null,
+                        ),
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: _hasPhoto
+                              ? AppColors.textSecondary
+                              : AppStatusColor.waiting.foreground,
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -543,10 +584,29 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
-              child: PrimaryActionButton(
-                label: 'Entrar na app',
-                isLoading: _saving,
-                onPressed: _canContinue ? _save : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_canContinue && !_saving) ...[
+                    Text(
+                      workerSetupMissingLabel(
+                        hasPhoto: _hasPhoto,
+                        hasServices: _selectedServiceTypeIds.isNotEmpty,
+                        hasArea: _baseLat != null && _baseLng != null,
+                      ),
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                  ],
+                  PrimaryActionButton(
+                    label: 'Entrar na app',
+                    isLoading: _saving,
+                    onPressed: _canContinue ? _save : null,
+                  ),
+                ],
               ),
             ),
           ],
@@ -562,15 +622,22 @@ class _WorkerPhotoSelector extends StatelessWidget {
   const _WorkerPhotoSelector({
     required this.avatar,
     required this.onPressed,
+    this.existingAvatarUrl,
   });
 
   final XFile? avatar;
+  final String? existingAvatarUrl;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final hasPhoto = avatar != null;
+    final ImageProvider? image = avatar != null
+        ? pickedPhotoImage(avatar!)
+        : existingAvatarUrl != null
+            ? NetworkImage(existingAvatarUrl!)
+            : null;
+    final hasPhoto = image != null;
 
     return Semantics(
       button: true,
@@ -595,10 +662,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: AppColors.primaryContainer,
                       image: hasPhoto
-                          ? DecorationImage(
-                              image: pickedPhotoImage(avatar!),
-                              fit: BoxFit.cover,
-                            )
+                          ? DecorationImage(image: image, fit: BoxFit.cover)
                           : null,
                     ),
                     child: hasPhoto
@@ -626,7 +690,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.s6),
             Text(
-              hasPhoto ? 'Alterar foto' : 'Adicionar foto',
+              hasPhoto ? 'Alterar foto' : 'Adicionar foto *',
               style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
             ),
           ],
@@ -759,4 +823,34 @@ class _IdentityVerificationNotice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Por baixo da foto no registo do jardineiro: a foto é obrigatória.
+String workerSetupPhotoHint({
+  required bool hasPhoto,
+  required bool fromSocialAccount,
+}) {
+  if (fromSocialAccount) {
+    return 'Usámos a foto da tua conta. Podes trocá-la por outra tua, nítida.';
+  }
+  if (hasPhoto) return 'Boa. Os clientes confiam mais quando veem quem vai.';
+  return 'Foto obrigatória: os clientes confiam mais quando veem quem vai.';
+}
+
+/// Por cima de "Entrar na app" enquanto falta alguma coisa.
+String workerSetupMissingLabel({
+  required bool hasPhoto,
+  required bool hasServices,
+  required bool hasArea,
+}) {
+  final missing = [
+    if (!hasPhoto) 'a foto',
+    if (!hasServices) 'os serviços',
+    if (!hasArea) 'a zona de trabalho',
+  ];
+  if (missing.isEmpty) return '';
+  final list = missing.length == 1
+      ? missing.first
+      : '${missing.sublist(0, missing.length - 1).join(', ')} e ${missing.last}';
+  return 'Falta $list.';
 }

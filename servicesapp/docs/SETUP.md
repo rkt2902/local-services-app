@@ -296,6 +296,15 @@ do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
 
 **Diz ao Claude:** "0062 aplicada".
 
+### 0.16 Migration por aplicar: 0063 (depois da 0058)
+
+- [ ] SQL Editor: colar `supabase/migrations/0063_direct_context_fixed_price.sql` e correr.
+      Pode correr-se mais do que uma vez.
+- [ ] Testar: "Pedir de novo" de um trabalho feito a valor fechado. O jardineiro vê
+      "Já trabalhaste com {nome} ..., 1000 € no total" em vez de um preço por hora.
+
+**Diz ao Claude:** "0063 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

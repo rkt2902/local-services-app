@@ -148,6 +148,18 @@ class AuthRepository {
     );
   }
 
+  /// Foto já guardada no perfil (por exemplo a da conta Google, copiada em
+  /// "Escolher papel"); `null` sem foto.
+  Future<String?> fetchAvatarUrl(String userId) async {
+    final data = await _client
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', userId)
+        .maybeSingle();
+    final url = data?['avatar_url'] as String?;
+    return (url == null || url.isEmpty) ? null : url;
+  }
+
   Future<UserRole?> fetchUserRole(String userId) async {
     final data = await _client
         .from('profiles')

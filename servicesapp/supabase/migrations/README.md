@@ -182,7 +182,13 @@ alargar e avisar o cliente às 24h) e `seasonal-campaigns` (tabelas
 `seasonal_campaigns`, `seasonal_campaign_sends`, `notification_preferences`); textos das
 notificações reescritos no trigger `notifications_add_job_context`. Os pedidos já abertos
 há mais de 6h ficam marcados como tratados, para não haver rajada ao aplicar. Pode
-correr-se mais do que uma vez. **Próxima migration: `0063`.**
+correr-se mais do que uma vez.
+
+**`0063_direct_context_fixed_price.sql`: criada, NÃO aplicada** (depois da 0058).
+`get_direct_request_context` (DROP + CREATE) devolve também `pricing_mode` e
+`total_price`, para "Já trabalhaste com..." mostrar o valor fechado em vez da taxa de
+referência. Antes de aplicar, a app mostra a taxa como até aqui. Pode correr-se mais do
+que uma vez. **Próxima migration: `0064`.**
 
 **`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em

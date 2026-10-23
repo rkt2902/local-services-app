@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/address_suggestions_list.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/app_toast.dart';
@@ -87,6 +90,13 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
   /// Texto posto pelo geocoding; qualquer diferença vem do utilizador.
   String? _autoFilledText;
 
+  /// Sugestões da pesquisa enquanto se escreve (só a última conta).
+  List<AddressSuggestion> _suggestions = const [];
+  bool _searchingSuggestions = false;
+  bool _noSuggestions = false;
+  Timer? _suggestDebounce;
+  int _suggestRequest = 0;
+
   /// Só a resposta do último pin conta: um toque rápido em dois sítios não
   /// pode deixar a morada/localidade do primeiro.
   int _geocodeRequest = 0;
@@ -105,6 +115,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
 
   @override
   void dispose() {
+    _suggestDebounce?.cancel();
     _addressController.removeListener(_onAddressChanged);
     _addressController.dispose();
     super.dispose();
@@ -121,10 +132,78 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
   }
 
   void _onAddressChanged() {
-    if (_addressAutoFilled && _addressController.text != _autoFilledText) {
+    final typed = _addressController.text != _autoFilledText;
+    if (_addressAutoFilled && typed) {
       _addressAutoFilled = false;
     }
     _notify();
+    if (typed) _scheduleSuggestions();
+  }
+
+  /// Procura sugestões 400 ms depois de a pessoa parar de escrever.
+  void _scheduleSuggestions() {
+    _suggestDebounce?.cancel();
+    final text = _addressController.text.trim();
+    if (text.length < 3) {
+      if (_suggestions.isNotEmpty || _searchingSuggestions || _noSuggestions) {
+        setState(() {
+          _suggestions = const [];
+          _searchingSuggestions = false;
+          _noSuggestions = false;
+        });
+      }
+      return;
+    }
+    _suggestDebounce =
+        Timer(const Duration(milliseconds: 400), () => _loadSuggestions(text));
+  }
+
+  Future<void> _loadSuggestions(String text) async {
+    final request = ++_suggestRequest;
+    setState(() {
+      _searchingSuggestions = true;
+      _noSuggestions = false;
+    });
+    List<AddressSuggestion> found;
+    try {
+      found = await GeocodingService.suggestAddresses(
+        text,
+        nearLat: _pinPosition?.latitude,
+        nearLng: _pinPosition?.longitude,
+      );
+    } catch (_) {
+      found = const [];
+    }
+    if (!mounted || request != _suggestRequest) return;
+    setState(() {
+      _suggestions = found;
+      _searchingSuggestions = false;
+      _noSuggestions = found.isEmpty;
+    });
+  }
+
+  void _clearSuggestions() {
+    _suggestDebounce?.cancel();
+    _suggestRequest++;
+    _suggestions = const [];
+    _searchingSuggestions = false;
+    _noSuggestions = false;
+  }
+
+  /// Escolher uma sugestão põe o pin no sítio e a morada no campo.
+  void _selectSuggestion(AddressSuggestion s) {
+    final latlng = LatLng(s.lat, s.lng);
+    setState(() {
+      _clearSuggestions();
+      _pinPosition = latlng;
+      _addressLookupFailed = false;
+      _locationArea = s.locality;
+      _fillAddressFromPin(s.fullText);
+    });
+    FocusScope.of(context).unfocus();
+    _mapController.move(latlng, 16);
+    _notify();
+    if (s.locality == null) _reverseGeocodePin(s.lat, s.lng);
   }
 
   void _fillAddressFromPin(String text) {
@@ -136,7 +215,12 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
   Future<void> _geocode() async {
     final text = _addressController.text.trim();
     if (text.isEmpty) return;
+    if (_suggestions.isNotEmpty) {
+      _selectSuggestion(_suggestions.first);
+      return;
+    }
     setState(() {
+      _clearSuggestions();
       _geocoding = true;
       _addressLookupFailed = false;
     });
@@ -144,7 +228,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
       final found = await GeocodingService.searchAddress(text);
       if (!mounted) return;
       if (found == null) {
-        AppToast.of(context).error('Morada não encontrada. Tenta ser mais específico.');
+        AppToast.of(context).error(addressNotFoundHint);
         return;
       }
       final latlng = LatLng(found.lat, found.lng);
@@ -401,6 +485,12 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
                     onPressed: _geocode,
                   ),
           ),
+        ),
+        AddressSuggestionsList(
+          suggestions: _suggestions,
+          loading: _searchingSuggestions,
+          onSelected: _selectSuggestion,
+          emptyHint: _noSuggestions ? addressNotFoundHint : null,
         ),
         if (_addressLookupFailed && _addressController.text.isEmpty) ...[
           const SizedBox(height: AppSpacing.xxs),

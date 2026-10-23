@@ -12,7 +12,6 @@ import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_step_progress.dart';
 import '../../../core/widgets/bottom_actions_bar.dart';
 import '../../../core/widgets/primary_action_button.dart';
@@ -24,12 +23,30 @@ import 'widgets/direct_request_create_header.dart';
 
 /// Texto curto de cada dimensão no chip do passo 2 (o chip é estreito:
 /// 3 por linha). As faixas de m² são as mesmas de `SizeEstimate.label`.
-String _sizeChipLabel(SizeEstimate? size) => switch (size) {
+String _sizeChipLabel(SizeEstimate size) => switch (size) {
       SizeEstimate.small => 'Até 100 m²',
       SizeEstimate.medium => '100-300 m²',
       SizeEstimate.large => '300+ m²',
-      null => 'Dimensão',
     };
+
+/// Por cima de "Continuar" enquanto falta alguma coisa no passo 2: o botão
+/// cinzento sozinho não dizia o quê. `null` quando está tudo.
+String? createJobScheduleMissingLabel({
+  required bool hasDate,
+  required bool hasLocation,
+  required bool hasSize,
+}) {
+  final missing = [
+    if (!hasDate) 'a data',
+    if (!hasLocation) 'o local no mapa',
+    if (!hasSize) 'a dimensão do espaço',
+  ];
+  if (missing.isEmpty) return null;
+  final list = missing.length == 1
+      ? missing.first
+      : '${missing.sublist(0, missing.length - 1).join(', ')} e ${missing.last}';
+  return 'Falta escolher $list.';
+}
 
 /// Passo 2/4 de "Criar pedido" (design U3, "Quando e onde"): modo da data,
 /// localização, urgência e dimensão.
@@ -103,34 +120,7 @@ class _ClientCreateJobScheduleScreenState
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  Future<void> _pickSize() async {
-    final picked = await AppSheet.show<SizeEstimate>(
-      context,
-      builder: (sheetContext) => AppSheet(
-        title: 'Dimensão aproximada',
-        onClose: () => Navigator.pop(sheetContext),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final size in SizeEstimate.values) ...[
-              if (size != SizeEstimate.values.first)
-                const SizedBox(height: AppSpacing.xs),
-              _SizeOptionRow(
-                label: size.label,
-                selected: _size == size,
-                onPressed: () => Navigator.pop(sheetContext, size),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-    if (picked != null && mounted) setState(() => _size = picked);
-  }
-
-  bool get _canContinue {
-    if (_size == null) return false;
-    if (!_location.hasPin) return false;
+  bool get _hasDate {
     if (_dateMode == DateMode.fixed && _selectedDate == null) return false;
     if (_dateMode == DateMode.availability &&
         availabilityTextError(_availabilityController.text) != null) {
@@ -138,6 +128,8 @@ class _ClientCreateJobScheduleScreenState
     }
     return true;
   }
+
+  bool get _canContinue => _size != null && _location.hasPin && _hasDate;
 
   void _continue() {
     if (!_canContinue) return;
@@ -170,6 +162,11 @@ class _ClientCreateJobScheduleScreenState
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final missingLabel = createJobScheduleMissingLabel(
+      hasDate: _hasDate,
+      hasLocation: _location.hasPin,
+      hasSize: _size != null,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -242,6 +239,45 @@ class _ClientCreateJobScheduleScreenState
                     const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 4,
+                      child: Text(
+                        'Dimensão do espaço *',
+                        style: textTheme.titleMedium
+                            ?.copyWith(color: AppColors.textPrimary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppStaggeredEntrance(
+                      index: 4,
+                      child: Row(
+                        children: [
+                          for (final size in SizeEstimate.values) ...[
+                            if (size != SizeEstimate.values.first)
+                              const SizedBox(width: AppSpacing.xs),
+                            Expanded(
+                              child: _AttributeChip(
+                                label: _sizeChipLabel(size),
+                                selected: _size == size,
+                                selectedBackground: AppColors.primaryContainer,
+                                selectedForeground: AppColors.primary,
+                                onPressed: () => setState(() => _size = size),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppStaggeredEntrance(
+                      index: 5,
+                      child: Text(
+                        'Urgência',
+                        style: textTheme.titleMedium
+                            ?.copyWith(color: AppColors.textPrimary),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppStaggeredEntrance(
+                      index: 5,
                       child: Row(
                         children: [
                           Expanded(
@@ -265,18 +301,6 @@ class _ClientCreateJobScheduleScreenState
                               onPressed: () => setState(() => _urgent = true),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: _AttributeChip(
-                              label: _sizeChipLabel(_size),
-                              selected: false,
-                              selectedBackground: AppColors.surface,
-                              selectedForeground: AppColors.textPrimary,
-                              trailingIcon: Icons.expand_more_rounded,
-                              muted: _size == null,
-                              onPressed: _pickSize,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -285,6 +309,15 @@ class _ClientCreateJobScheduleScreenState
               ),
             ),
             BottomActionsBar(children: [
+              if (missingLabel != null) ...[
+                Text(
+                  missingLabel,
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               PrimaryActionButton(
                 label: 'Continuar',
                 onPressed: _canContinue ? _continue : null,
@@ -305,8 +338,6 @@ class _AttributeChip extends StatelessWidget {
     required this.selectedBackground,
     required this.selectedForeground,
     required this.onPressed,
-    this.trailingIcon,
-    this.muted = false,
   });
 
   final String label;
@@ -314,19 +345,11 @@ class _AttributeChip extends StatelessWidget {
   final Color selectedBackground;
   final Color selectedForeground;
   final VoidCallback onPressed;
-  final IconData? trailingIcon;
-
-  /// Texto em cinzento (ex.: dimensão ainda por escolher).
-  final bool muted;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final foreground = selected
-        ? selectedForeground
-        : muted
-            ? AppColors.textSecondary
-            : AppColors.textPrimary;
+    final foreground = selected ? selectedForeground : AppColors.textPrimary;
 
     return Semantics(
       button: true,
@@ -363,64 +386,8 @@ class _AttributeChip extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (trailingIcon != null)
-                  Icon(
-                    trailingIcon,
-                    size: AppSizes.inlineIcon,
-                    color: AppColors.textSecondary,
-                  ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Linha de escolha única na folha "Dimensão aproximada".
-class _SizeOptionRow extends StatelessWidget {
-  const _SizeOptionRow({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Material(
-      color: selected ? AppColors.primaryContainer : AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.input),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.divider,
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w700 : null,
-                  ),
-                ),
-              ),
-              if (selected)
-                const Icon(Icons.check_rounded, color: AppColors.primary),
-            ],
           ),
         ),
       ),

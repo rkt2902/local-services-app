@@ -3,6 +3,13 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-23 — Revisão de preços, foto do jardineiro, morada e dimensão
+
+- **Pesquisa de morada com sugestões** enquanto se escreve, pelo Photon (OSM, gratuito, sem chave), com o Nominatim de reserva e o mapa como último recurso. Moradas que faltam no OpenStreetMap continuam a faltar; resolver isso de vez é o Google Places (chave e custo por pesquisa), decisão do Henrique.
+- **Foto obrigatória só no registo do jardineiro**, e a foto da conta Google conta. O cliente não precisa de foto.
+- **Dimensão do espaço à vista** no passo 2 (três opções, sem folha escondida) e "Falta escolher ..." por cima do botão.
+- **Valor fechado nunca aparece como taxa**: "Já trabalhaste com..." (0063) e a confirmação de conclusão do cliente mostram o total.
+
 ## 2026-10-23 — Lembretes, pedido sem propostas e textos das notificações (0061, 0062)
 
 - **Correção 0061 à parte**: o erro de NULL em `job_reserved_for_other` está vivo, por isso vai numa migration pequena que se aplica já, sem esperar pela 0058 e 0059.
