@@ -243,7 +243,7 @@ tenha confirmado o código de uma app autenticadora nesta sessão.
 - [ ] SQL Editor, com o email dessa conta:
       ```sql
       insert into public.admin_users (user_id)
-      select id from auth.users where email = 'O_TEU_EMAIL_DE_ADMIN'
+      select id from auth.users where lower(email) = lower('O_TEU_EMAIL_DE_ADMIN')
       on conflict do nothing;
       ```
 - [ ] Abre `/admin`, entra com essa conta e lê o código QR com o Google Authenticator
@@ -256,6 +256,18 @@ tenha confirmado o código de uma app autenticadora nesta sessão.
   - Num jardineiro Grátis com 5 trabalhos aceites este mês, enviar outra proposta dá o
     aviso do limite.
   - Entrar em `/admin` com uma conta normal de cliente mostra "Sem acesso".
+
+Se `/admin` mostrar "Sem acesso" (o ecrã diz com que email entraste): a sessão é a
+mesma da app, por isso se já tinhas entrado como cliente ou jardineiro neste browser
+estás nessa conta. Carrega em "Terminar sessão" e entra com a conta de admin. Para
+confirmar no SQL Editor que a conta está mesmo na tabela:
+```sql
+select u.email, a.user_id is not null as e_admin
+from auth.users u left join public.admin_users a on a.user_id = u.id
+where lower(u.email) = lower('O_TEU_EMAIL_DE_ADMIN');
+```
+Se `e_admin` der `false` (ou não der linha nenhuma), volta a correr o `insert` acima
+com o email certo. O QR só aparece depois deste passo.
 
 Se perderes o telemóvel com a app autenticadora: Supabase > Authentication > Users >
 a conta de admin > apagar o fator (MFA factors). Na entrada seguinte o painel mostra um
