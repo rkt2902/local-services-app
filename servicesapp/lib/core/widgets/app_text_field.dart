@@ -61,6 +61,12 @@ class AppTextField extends StatelessWidget {
         (isMultiline ? TextInputType.multiline : TextInputType.text);
 
     return TextFormField(
+      // Na web (Flutter 3.44), mostrar/esconder a senha num campo já focado
+      // deixava o campo sem aceitar escrita depois de sair e voltar a ele
+      // (flutter/flutter#192102, #193267). Com uma chave por estado, o campo
+      // é recriado ao alternar e abre uma ligação de texto nova; o texto
+      // fica, porque vive no controller.
+      key: ValueKey<bool>(obscureText),
       controller: controller,
       keyboardType: effectiveKeyboardType,
       textInputAction: textInputAction,
