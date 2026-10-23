@@ -38,6 +38,10 @@ abstract final class AppSizes {
   static const double headerIconButton = 44.0;
   static const double unreadDot = 9.0;
 
+  /// Sombra do cabeçalho fixo quando o conteúdo passa por baixo
+  /// (ex.: "A minha conta").
+  static const double scrolledHeaderElevation = 2.0;
+
   /// Pega das folhas ([AppSheet]).
   static const double sheetHandleWidth = 40.0;
   static const double sheetHandleHeight = 4.0;

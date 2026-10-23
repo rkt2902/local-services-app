@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'app_radius.dart';
 import 'app_typography.dart';
 
 class AppTheme {
@@ -19,6 +20,29 @@ class AppTheme {
       // `AppColors.background`, visível como uma faixa esverdeada distinta
       // por cima da barra de navegação (ver decisions_log.md).
       scaffoldBackgroundColor: AppColors.background,
+      // Folhas e diálogos que não passam cor própria caíam no
+      // `surfaceContainerLow`/`surfaceContainerHigh` da seed (cinzento
+      // esverdeado) em vez do branco do design system. Aqui fica o fundo
+      // certo para todos, incluindo os seletores câmara/galeria.
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        modalBackgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.card)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+      ),
+      timePickerTheme: const TimePickerThemeData(
+        backgroundColor: AppColors.surface,
+      ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).copyWith(
         displaySmall: GoogleFonts.plusJakartaSans(textStyle: AppTypography.display),
         titleLarge: GoogleFonts.plusJakartaSans(textStyle: AppTypography.title),

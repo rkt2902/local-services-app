@@ -53,7 +53,9 @@ class AppConfirmDialog extends StatelessWidget {
   final String? message;
   final String confirmLabel;
   final String cancelLabel;
-  final VoidCallback onConfirm;
+
+  /// `null` desativa a ação (ex.: falta escolher a razão ou a data).
+  final VoidCallback? onConfirm;
   final VoidCallback onCancel;
   final bool destructive;
 
@@ -247,7 +249,7 @@ class _DestructiveButton extends StatelessWidget {
 
   final String label;
   final bool isSubmitting;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool outlined;
 
   @override

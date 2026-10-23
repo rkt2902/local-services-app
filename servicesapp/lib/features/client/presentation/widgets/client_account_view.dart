@@ -67,6 +67,10 @@ class ClientAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        // Ao fazer scroll, uma sombra leve separa o título dos cartões que
+        // passam por baixo, em vez de os cortar a seco.
+        scrolledUnderElevation: AppSizes.scrolledHeaderElevation,
+        shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
         titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',

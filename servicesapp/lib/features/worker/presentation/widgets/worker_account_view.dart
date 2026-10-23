@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/widgets/app_account_menu_group.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
@@ -84,6 +85,10 @@ class WorkerAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        // Ao fazer scroll, uma sombra leve separa o título dos cartões que
+        // passam por baixo, em vez de os cortar a seco.
+        scrolledUnderElevation: AppSizes.scrolledHeaderElevation,
+        shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
         titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',

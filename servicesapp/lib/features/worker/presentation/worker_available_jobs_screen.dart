@@ -19,7 +19,8 @@ import '../../notifications/application/notification_providers.dart';
 import '../application/worker_providers.dart';
 import '../data/worker_profile_model.dart';
 import 'widgets/worker_available_jobs_view.dart' as view;
-import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_sheet.dart';
 
 /// Lista de jobs disponíveis no raio do worker ("Pedidos disponíveis").
 ///
@@ -49,39 +50,46 @@ class _WorkerAvailableJobsScreenState
   /// (comportamento atual, sem filtro extra).
   int? _radiusOverrideKm;
 
+  /// Passos do filtro de distância. O raio do perfil vai de 1 a 50 km
+  /// (slider contínuo), por isso só aparecem os passos abaixo dele, mais o
+  /// próprio raio no fim.
+  static const _distanceStepsKm = [2, 5, 10, 20, 30];
+
   Future<void> _pickDistance(int profileRadiusKm) async {
-    final options = ({2, 5, 10, profileRadiusKm}
+    final options = ({..._distanceStepsKm, profileRadiusKm}
           ..removeWhere((r) => r > profileRadiusKm))
         .toList()
       ..sort();
     final currentValue = _radiusOverrideKm ?? profileRadiusKm;
 
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      builder: (ctx) => SafeArea(
+    final picked = await AppSheet.show<int>(
+      context,
+      builder: (ctx) => AppSheet(
+        title: 'Distância',
+        onClose: () => Navigator.pop(ctx),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.s20, AppSpacing.lg, AppSpacing.xxs),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Distância', style: Theme.of(ctx).textTheme.titleLarge),
-              ),
-            ),
             for (final radiusKm in options)
               ListTile(
+                contentPadding: EdgeInsets.zero,
                 title: Text(
                   radiusKm == profileRadiusKm
-                      ? 'Até $radiusKm km (raio definido no perfil)'
+                      ? 'Até $radiusKm km (o teu raio)'
                       : 'Até $radiusKm km',
+                  style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                        color: radiusKm == currentValue
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                        fontWeight:
+                            radiusKm == currentValue ? FontWeight.w700 : null,
+                      ),
                 ),
                 trailing: radiusKm == currentValue
-                    ? const Icon(Icons.check_rounded)
+                    ? const Icon(Icons.check_rounded, color: AppColors.primary)
                     : null,
                 onTap: () => Navigator.pop(ctx, radiusKm),
               ),
-            const SizedBox(height: AppSpacing.xs),
           ],
         ),
       ),

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/widgets/app_date_picker.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 class RescheduleDialog extends StatefulWidget {
@@ -47,9 +51,20 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
     return true;
   }
 
+  void _confirm() {
+    final timeStr = _time != null
+        ? '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}'
+        : null;
+    Navigator.pop(context, {
+      'date': _date!,
+      'time': timeStr,
+      'flexible': _flexible,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final textTheme = Theme.of(context).textTheme;
     final dateText = _date == null
         ? 'Escolher data *'
         : DateFormat('dd/MM/yyyy').format(_date!);
@@ -57,66 +72,81 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
         ? 'Escolher hora *'
         : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
-    return AlertDialog(
-      title: const Text('Propor remarcação'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Escolhe uma nova data e hora',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+    return AppConfirmDialog(
+      icon: Icons.event_repeat_outlined,
+      title: 'Propor remarcação',
+      message: 'Escolhe uma nova data e hora. A outra parte tem de aceitar.',
+      confirmLabel: 'Enviar proposta',
+      onCancel: () => Navigator.pop(context),
+      onConfirm: _valid ? _confirm : null,
+      details: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppSpacing.xs),
+          _PickerButton(
+            icon: Icons.calendar_today_outlined,
+            label: dateText,
+            onPressed: _pickDate,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SwitchListTile(
+            title: Text(
+              'Horário flexível neste dia',
+              style: textTheme.bodyMedium
+                  ?.copyWith(color: AppColors.textPrimary),
             ),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_today_outlined),
-              label: Text(dateText),
+            value: _flexible,
+            onChanged: (v) => setState(() {
+              _flexible = v;
+              if (v) _time = null;
+            }),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (!_flexible) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            _PickerButton(
+              icon: Icons.access_time_outlined,
+              label: timeText,
+              onPressed: _pickTime,
             ),
-            const SizedBox(height: AppSpacing.xs),
-            SwitchListTile(
-              title: const Text('Horário flexível neste dia'),
-              value: _flexible,
-              onChanged: (v) => setState(() {
-                _flexible = v;
-                if (v) _time = null;
-              }),
-              contentPadding: EdgeInsets.zero,
-            ),
-            if (!_flexible) ...[
-              const SizedBox(height: AppSpacing.xxs),
-              OutlinedButton.icon(
-                onPressed: _pickTime,
-                icon: const Icon(Icons.access_time_outlined),
-                label: Text(timeText),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Voltar'),
+    );
+  }
+}
+
+/// Botão de escolher data/hora, com o rebordo e os cantos dos campos.
+class _PickerButton extends StatelessWidget {
+  const _PickerButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: AppSizes.inlineIcon),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(AppSizes.compactButtonHeight),
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.divider),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.input),
         ),
-        FilledButton(
-          onPressed: _valid
-              ? () {
-                  final timeStr = _time != null
-                      ? '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}'
-                      : null;
-                  Navigator.pop(context, {
-                    'date': _date!,
-                    'time': timeStr,
-                    'flexible': _flexible,
-                  });
-                }
-              : null,
-          child: const Text('Enviar proposta de remarcação'),
-        ),
-      ],
+        textStyle: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
