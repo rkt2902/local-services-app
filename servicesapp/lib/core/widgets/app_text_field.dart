@@ -23,6 +23,8 @@ class AppTextField extends StatelessWidget {
     this.onFieldSubmitted,
     this.maxLength,
     this.prefixText,
+    this.helperText,
+    this.autovalidateMode,
   });
 
   final TextEditingController controller;
@@ -53,6 +55,13 @@ class AppTextField extends StatelessWidget {
   /// Texto fixo antes do valor (ex.: o indicativo "+351" no telemóvel).
   final String? prefixText;
 
+  /// Texto de ajuda por baixo do campo (ex.: para que serve um opcional).
+  final String? helperText;
+
+  /// `onUserInteraction` revalida enquanto se escreve, para o erro não ficar
+  /// desatualizado depois de corrigir o valor (ex.: telefone).
+  final AutovalidateMode? autovalidateMode;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -68,6 +77,7 @@ class AppTextField extends StatelessWidget {
       readOnly: readOnly,
       onTap: onTap,
       validator: validator,
+      autovalidateMode: autovalidateMode,
       autofillHints: autofillHints,
       maxLines: maxLines,
       minLines: minLines,
@@ -77,6 +87,11 @@ class AppTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
+        helperText: helperText,
+        helperMaxLines: 2,
+        helperStyle:
+            textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+        errorMaxLines: 2,
         prefixText: prefixText,
         prefixStyle:
             textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),

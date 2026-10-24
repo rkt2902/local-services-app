@@ -13,7 +13,6 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_about_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_sheet.dart';
-import '../../../core/widgets/app_legal_links.dart';
 import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/delete_account_flow.dart';
@@ -159,8 +158,6 @@ class WorkerProfileScreen extends ConsumerWidget {
       onFleetCardPressed: () => context.push('/worker/fleet-card'),
       onPlanPressed: () => _showPlanSheet(context, plan),
       onSupportPressed: () => showSupportContactSheet(context),
-      onTermsPressed: () => openTermsOfUse(context),
-      onPrivacyPressed: () => openPrivacyPolicy(context),
       onSignOutPressed: () => confirmAndSignOut(context, ref),
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAppAboutDialog(context),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/widgets/app_account_menu_group.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
@@ -48,8 +49,6 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
-    required this.onTermsPressed,
-    required this.onPrivacyPressed,
     required this.onSignOutPressed,
     required this.onDeleteAccountPressed,
     super.key,
@@ -69,8 +68,6 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
-  final VoidCallback onTermsPressed;
-  final VoidCallback onPrivacyPressed;
   final VoidCallback onSignOutPressed;
   final VoidCallback onDeleteAccountPressed;
 
@@ -84,6 +81,10 @@ class WorkerAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        // Ao fazer scroll, uma sombra leve separa o título dos cartões que
+        // passam por baixo, em vez de os cortar a seco.
+        scrolledUnderElevation: AppSizes.scrolledHeaderElevation,
+        shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
         titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',
@@ -253,16 +254,6 @@ class WorkerAccountScreen extends StatelessWidget {
                     label: 'Sobre a ProJardim',
                     icon: Icons.info_outline_rounded,
                   ),
-                  AppAccountMenuItem(
-                    id: 'terms',
-                    label: 'Termos de utilização',
-                    icon: Icons.description_outlined,
-                  ),
-                  AppAccountMenuItem(
-                    id: 'privacy',
-                    label: 'Política de Privacidade',
-                    icon: Icons.privacy_tip_outlined,
-                  ),
                 ],
                 onItemPressed: (id) {
                   switch (id) {
@@ -272,10 +263,6 @@ class WorkerAccountScreen extends StatelessWidget {
                       onSupportPressed();
                     case 'about':
                       onAboutPressed();
-                    case 'terms':
-                      onTermsPressed();
-                    case 'privacy':
-                      onPrivacyPressed();
                   }
                 },
               ),

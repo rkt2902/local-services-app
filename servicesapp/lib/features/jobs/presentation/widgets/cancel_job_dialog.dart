@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../data/cancel_reasons.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_status_color.dart';
+import '../../../../core/widgets/app_confirm_dialog.dart';
+import '../../../../core/widgets/app_text_field.dart';
 
 class CancelJobDialog extends StatefulWidget {
   const CancelJobDialog._({required this.isClient});
@@ -39,84 +43,70 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
         CancelReason.other,
       ];
 
+  void _confirm() {
+    final detail = _detailController.text.trim();
+    Navigator.pop(context, {
+      'reason': _selectedReason!,
+      'reasonDetail': _selectedReason == CancelReason.other && detail.isNotEmpty
+          ? detail
+          : null,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: const Text('Cancelar pedido'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Indica a razão do cancelamento',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            RadioGroup<String>(
-              groupValue: _selectedReason,
-              onChanged: (v) => setState(() => _selectedReason = v),
-              child: Column(
-                children: _reasons
-                    .map(
-                      (reason) => RadioListTile<String>(
-                        value: reason,
-                        title: Text(CancelReason.label(reason)),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
+    final textTheme = Theme.of(context).textTheme;
+    return AppConfirmDialog(
+      icon: Icons.event_busy_outlined,
+      title: 'Cancelar pedido',
+      message: 'Indica a razão do cancelamento.',
+      destructive: true,
+      confirmLabel: 'Cancelar pedido',
+      onCancel: () => Navigator.pop(context),
+      onConfirm: _selectedReason == null ? null : _confirm,
+      details: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RadioGroup<String>(
+            groupValue: _selectedReason,
+            onChanged: (v) => setState(() => _selectedReason = v),
+            child: Column(
+              children: _reasons
+                  .map(
+                    (reason) => RadioListTile<String>(
+                      value: reason,
+                      title: Text(
+                        CancelReason.label(reason),
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.textPrimary),
                       ),
-                    )
-                    .toList(),
-              ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  )
+                  .toList(),
             ),
-            if (_selectedReason == CancelReason.other) ...[
-              const SizedBox(height: AppSpacing.xs),
-              TextField(
-                controller: _detailController,
-                maxLength: 200,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Descreve a razão (opcional)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
+          ),
+          if (_selectedReason == CancelReason.other) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Esta ação não pode ser desfeita.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.error),
+            AppTextField(
+              controller: _detailController,
+              label: 'Descreve a razão (opcional)',
+              maxLength: 200,
+              minLines: 2,
+              maxLines: 3,
+              textInputAction: TextInputAction.newline,
             ),
           ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Voltar'),
-        ),
-        FilledButton(
-          onPressed: _selectedReason == null
-              ? null
-              : () => Navigator.pop(context, {
-                    'reason': _selectedReason!,
-                    'reasonDetail': _selectedReason == CancelReason.other
-                        ? (_detailController.text.trim().isEmpty
-                            ? null
-                            : _detailController.text.trim())
-                        : null,
-                  }),
-          style: FilledButton.styleFrom(
-            backgroundColor: theme.colorScheme.error,
-            foregroundColor: theme.colorScheme.onError,
-            disabledBackgroundColor:
-                theme.colorScheme.error.withValues(alpha: 0.38),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Esta ação não pode ser desfeita.',
+            style: textTheme.labelMedium
+                ?.copyWith(color: AppStatusColor.cancelled.foreground),
           ),
-          child: const Text('Confirmar cancelamento'),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
