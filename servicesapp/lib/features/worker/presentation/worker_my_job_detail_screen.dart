@@ -36,6 +36,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
+import 'widgets/report_problem_dialog.dart';
 import 'widgets/start_job_sheet.dart';
 import 'widgets/worker_my_job_detail_view.dart' as view;
 import '../../../core/widgets/app_toast.dart';
@@ -427,43 +428,7 @@ class _WorkerMyJobDetailScreenState
   /// "Reportar problema" do jardineiro durante o trabalho (job_reports, a
   /// policy já deixa o jardineiro aceite reportar).
   Future<void> _reportProblem() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final description = await showDialog<String>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Reportar problema'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Descreve o que aconteceu',
-            ),
-            validator: (v) => (v == null || v.trim().length < 10)
-                ? 'Descreve o problema (mínimo 10 caracteres).'
-                : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Voltar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(dialogCtx, controller.text.trim());
-              }
-            },
-            child: const Text('Enviar relato'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
+    final description = await ReportProblemDialog.show(context);
     if (description == null || !mounted) return;
     final toast = AppToast.of(context);
     try {

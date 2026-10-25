@@ -40,9 +40,6 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.card),
         ),
       ),
-      timePickerTheme: const TimePickerThemeData(
-        backgroundColor: AppColors.surface,
-      ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).copyWith(
         displaySmall: GoogleFonts.plusJakartaSans(textStyle: AppTypography.display),
         titleLarge: GoogleFonts.plusJakartaSans(textStyle: AppTypography.title),

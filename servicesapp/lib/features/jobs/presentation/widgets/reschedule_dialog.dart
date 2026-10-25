@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/widgets/app_date_picker.dart';
+import '../../../../core/widgets/app_time_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -38,7 +39,7 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    final picked = await showAppTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 9, minute: 0),
     );
