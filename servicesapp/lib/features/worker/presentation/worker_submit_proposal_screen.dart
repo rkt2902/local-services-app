@@ -13,6 +13,7 @@ import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../../core/router/app_back_navigation.dart';
+import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../application/worker_list_invalidation.dart';
@@ -113,18 +114,30 @@ class _WorkerSubmitProposalScreenState
     );
   }
 
-  Future<view.WorkerProposalDateSelection?> _selectDate() async {
+  view.WorkerProposalDateSelection _dateSelection(DateTime date) {
+    return view.WorkerProposalDateSelection(
+      value: date,
+      label: DateFormat('dd/MM/yyyy').format(date),
+    );
+  }
+
+  Future<view.WorkerProposalDateSelection?> _selectDate(
+      DateTime? current) async {
+    // Só datas: a data do cliente vem à meia-noite e não pode ficar antes
+    // do firstDate (o showDatePicker rebenta com um assert).
+    final today = DateUtils.dateOnly(DateTime.now());
+    final last = today.add(const Duration(days: 365));
+    var initial = current ?? today.add(const Duration(days: 1));
+    if (initial.isBefore(today)) initial = today;
+    if (initial.isAfter(last)) initial = last;
     final picked = await showAppDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: today,
+      lastDate: last,
     );
     if (picked == null) return null;
-    return view.WorkerProposalDateSelection(
-      value: picked,
-      label: DateFormat('dd/MM/yyyy').format(picked),
-    );
+    return _dateSelection(picked);
   }
 
   Future<view.WorkerProposalValiditySelection?> _selectValidity() {
@@ -236,7 +249,15 @@ class _WorkerSubmitProposalScreenState
     final defaultRate = workerProfile?.defaultHourlyRate;
     final includeOptions =
         ref.watch(proposalIncludeOptionsProvider).asData?.value ?? const [];
-    final job = ref.watch(jobByIdProvider(widget.jobId)).asData?.value;
+    // O formulário só lê a data inicial ao abrir: espera pelo pedido para
+    // abrir já com a data do cliente. Se o pedido falhar, abre sem ela.
+    final jobAsync = ref.watch(jobByIdProvider(widget.jobId));
+    if (jobAsync.isLoading && !jobAsync.hasValue) {
+      return const Scaffold(body: AppScreenLoadingSkeleton());
+    }
+    final job = jobAsync.asData?.value;
+    final initialDate =
+        job == null ? null : proposalInitialDate(job, DateTime.now());
     final serviceName = job == null
         ? null
         : ref
@@ -256,6 +277,8 @@ class _WorkerSubmitProposalScreenState
         ?serviceName,
         ?job?.sizeEstimate?.label.split(' (').first,
       ].join(' · '),
+      clientDateLabel: job == null ? null : jobPreferredDateLabel(job),
+      initialDate: initialDate == null ? null : _dateSelection(initialDate),
       initialPricingMode: _lastMode ?? ProposalPricingMode.hourly,
       pricingModeHint: _lastMode == ProposalPricingMode.fixedTotal
           ? 'Escolhemos o valor total porque o usaste da última vez.'

@@ -761,7 +761,7 @@ class _ClientJobDetailScreenState
               dateRowLabel: job.dateMode == DateMode.availability
                   ? 'Disponibilidade'
                   : 'Data preferida',
-              preferredDateLabel: _preferredDateLabel(job),
+              preferredDateLabel: jobPreferredDateLabel(job),
               urgencyLabel: job.urgency == Urgency.urgent ? 'Urgente' : 'Normal',
               sizeLabel: job.sizeEstimate?.label,
             ),
@@ -1200,16 +1200,6 @@ class _ClientJobDetailScreenState
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-/// Data do pedido: a data fixa, o texto de disponibilidade ou "Flexível".
-String _preferredDateLabel(JobRequest job) {
-  if (job.dateMode == DateMode.availability) {
-    final text = job.availabilityText?.trim() ?? '';
-    return text.isEmpty ? 'A combinar' : text;
-  }
-  if (job.preferredDate == null) return 'Flexível';
-  return DateFormat('dd/MM/yyyy').format(job.preferredDate!);
-}
 
 String _formatConfirmedSchedule(JobRequest job) {
   if (job.confirmedDate == null) return '';

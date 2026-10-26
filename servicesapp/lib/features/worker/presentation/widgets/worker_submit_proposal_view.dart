@@ -124,6 +124,7 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
     required this.onSubmit,
     super.key,
     this.jobSubtitle,
+    this.clientDateLabel,
     this.initialPricingMode = ProposalPricingMode.hourly,
     this.pricingModeHint,
     this.suggestedHourlyPriceLabel,
@@ -144,6 +145,11 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
 
   /// Ex.: "Limpeza de terreno · Grande".
   final String? jobSubtitle;
+
+  /// Data pretendida pelo cliente, já formatada (ex.: "18/10/2026",
+  /// "Flexível" ou o texto de disponibilidade). Aparece junto à data de
+  /// início para o jardineiro não ter de voltar ao pedido.
+  final String? clientDateLabel;
 
   final ProposalPricingMode initialPricingMode;
 
@@ -169,8 +175,10 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
 
   final VoidCallback onBack;
 
-  /// A integração deve abrir o calendário já utilizado no projeto.
-  final Future<WorkerProposalDateSelection?> Function() onSelectDate;
+  /// A integração deve abrir o calendário já utilizado no projeto, no dia
+  /// escolhido de momento (`current`), se houver.
+  final Future<WorkerProposalDateSelection?> Function(DateTime? current)
+      onSelectDate;
 
   /// A integração abre a escolha da validade.
   final Future<WorkerProposalValiditySelection?> Function() onSelectValidity;
@@ -376,7 +384,7 @@ class _WorkerSubmitProposalScreenState
   }
 
   Future<void> _selectDate() async {
-    final result = await widget.onSelectDate();
+    final result = await widget.onSelectDate(_selectedDate?.value);
 
     if (!mounted || result == null) {
       return;
@@ -671,6 +679,15 @@ class _WorkerSubmitProposalScreenState
                           color: AppColors.textPrimary,
                         ),
                       ),
+                      if (widget.clientDateLabel != null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          'O cliente pediu: ${widget.clientDateLabel}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.xs),
                       _DateSelector(
                         label:
