@@ -241,16 +241,16 @@ adoção parcial do componente.
 
 Feito: migration 0064 (criada, não aplicada), `AgendaRepository`, `agendaRangeProvider`,
 deteção de sobreposições com testes, os componentes da folha de design (A1 a A9) e as
-vistas **Hoje** (H1 a H7) e **Semana** (S1 a S3). O ecrã Trabalhos passou a ter as tabs Agenda · Propostas ·
+vistas **Hoje** (H1 a H7), **Semana** (S1 a S3) e **Mês** (M1 a M3). O ecrã Trabalhos passou a ter as tabs Agenda · Propostas ·
 Histórico e abre na Agenda; a antiga tab "Agendados" deixou de existir (os trabalhos
 marcados estão na Agenda, no dia deles).
 
 **Sem a 0064 aplicada a tab Agenda mostra o erro "Não foi possível carregar a agenda".**
 Aplicar a 0064 antes de publicar.
 
-Falta: vista Mês (o botão avisa "chega na próxima versão"), o formulário
-"Adicionar à agenda" e "Indisponível" (por isso o botão "Adicionar à agenda" do dia
-livre e da semana livre, o "+" das linhas "Livre" e o "Mudar datas" ainda não aparecem), o detalhe das entradas de fora da app, a
+Falta: o formulário "Adicionar à agenda" e "Indisponível" (por isso o botão
+"Adicionar à agenda" do dia livre e da semana livre, o "+" das linhas "Livre", o
+"Adicionar neste dia" do Mês e o "Mudar datas" ainda não aparecem), o detalhe das entradas de fora da app, a
 primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
 (enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da
 confirmação do cliente só se vê no dia dele (antes estava em "Agendados").

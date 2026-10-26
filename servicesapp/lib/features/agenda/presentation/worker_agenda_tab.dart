@@ -20,15 +20,18 @@ import '../../worker/presentation/widgets/start_job_sheet.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_entry_model.dart';
 import 'agenda_day_presenter.dart';
+import 'agenda_month_presenter.dart';
 import 'agenda_month_sheet.dart';
 import 'agenda_week_presenter.dart';
 import 'agenda_week_view_data.dart';
 import 'widgets/agenda_controls.dart';
 import 'widgets/agenda_day_view.dart';
+import 'widgets/agenda_month_view.dart';
 import 'widgets/agenda_week_view.dart';
 
 /// Tab Agenda do ecrã Trabalhos: liga `get_worker_agenda` (0064) às vistas
-/// Hoje (`AgendaDayView`) e Semana (`AgendaWeekView`) e trata das ações.
+/// Hoje (`AgendaDayView`), Semana (`AgendaWeekView`) e Mês (`AgendaMonthView`)
+/// e trata das ações.
 class WorkerAgendaTab extends ConsumerStatefulWidget {
   const WorkerAgendaTab({super.key});
 
@@ -79,6 +82,13 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     _goTo(inWeek ? today : weekStart);
   }
 
+  /// Mês de [month]: escolhe hoje se lá estiver, senão o dia 1.
+  void _goToMonth(DateTime month) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final inMonth = today.year == month.year && today.month == month.month;
+    _goTo(inMonth ? today : DateTime(month.year, month.month));
+  }
+
   /// Abre o Hoje em [day]; com [atConflict], já nos que coincidem.
   void _openDay(DateTime day, {bool atConflict = false}) => setState(() {
     _range = AgendaRange.day;
@@ -119,10 +129,6 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
   }
 
   void _onRangeChanged(AgendaRange range) {
-    if (range == AgendaRange.month) {
-      AppToast.of(context).show('A vista Mês chega na próxima versão.');
-      return;
-    }
     setState(() {
       _range = range;
       _focusOverlap = false;
@@ -298,7 +304,16 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       }
     }
 
-    final view = _range == AgendaRange.week
+    final view = _range == AgendaRange.month
+        ? _monthView(
+            entries: entries,
+            now: now,
+            serviceTypes: serviceTypes,
+            loading: loading,
+            offline: offline,
+            onRetry: retry,
+          )
+        : _range == AgendaRange.week
         ? _weekView(
             entries: entries,
             now: now,
@@ -411,6 +426,49 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       // Só guarda o dia, para o Hoje abrir nele; a vista já o mostra.
       onSelectedDayChanged: (day) => _day = day,
       onSearchWork: () => context.go('/worker/available-jobs'),
+    );
+  }
+
+  Widget _monthView({
+    required List<AgendaEntry>? entries,
+    required DateTime now,
+    required List<ServiceType> serviceTypes,
+    required bool loading,
+    required String? offline,
+    required VoidCallback onRetry,
+  }) {
+    AgendaMonthContentViewData build(List<AgendaEntry> list) =>
+        buildAgendaMonth(
+          selectedDay: _day,
+          entries: list,
+          now: now,
+          showProposals: _showProposals,
+          serviceTypes: serviceTypes,
+        );
+    final content = entries == null ? null : build(entries);
+    return AgendaMonthView(
+      monthKey: '${_day.year}-${_day.month}',
+      monthLabel: agendaMonthLabel(_day),
+      isCurrentMonth: _day.year == now.year && _day.month == now.month,
+      showProposals: _showProposals,
+      // A carregar, a grelha já mostra os dias, sem pontos.
+      cells: (content ?? build(const [])).cells,
+      selectedDay: _day,
+      selected: content?.selected,
+      loading: loading,
+      offlineLabel: offline,
+      onRetry: onRetry,
+      onPreviousMonth: () => _goToMonth(DateTime(_day.year, _day.month - 1)),
+      onNextMonth: () => _goToMonth(DateTime(_day.year, _day.month + 1)),
+      onGoToToday: () => _goTo(now),
+      onOpenCalendar: _openCalendar,
+      onRangeChanged: _onRangeChanged,
+      onShowProposalsChanged: (value) => setState(() => _showProposals = value),
+      onRefresh: _refresh,
+      onSelectDay: _goTo,
+      onOpenDay: _openDay,
+      onOpenEntry: _openEntry,
+      onResolveOverlap: _resolveOverlap,
     );
   }
 }

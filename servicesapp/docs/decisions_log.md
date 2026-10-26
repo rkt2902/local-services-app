@@ -3,6 +3,23 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: vista Mês (M1 a M3)
+
+Design "ProJardim Agenda Mes" integrado com as mesmas peças da Semana (célula do dia,
+pontos, linhas e grupos que coincidem passaram para `agenda_day_cells.dart`). Pontos a
+saber:
+- Lê só o mês mostrado (a mesma cache do Hoje): os dias dos meses ao lado aparecem a
+  cinzento, sem pontos, e tocar num deles muda de mês.
+- Tocar no título abre o mesmo calendário do Hoje e da Semana (escolher um dia, com
+  setas de mês), em vez de um seletor só de mês e ano.
+- Toque escolhe o dia; duplo toque ou "Ver dia" abre-o no Hoje. As entradas sem
+  detalhe (fora da app, indisponível) também abrem o dia no Hoje.
+- Cor do ajudante igual à da Semana e da legenda (verde claro), não azul como dizia o
+  código do design.
+- Sem formulário ainda: o dia livre mostra "Nada marcado neste dia." sem o botão
+  "Adicionar neste dia".
+- A carregar, a grelha mostra os dias sem pontos e só a lista é esqueleto.
+
 ## 2026-10-26 — Agenda do jardineiro: vista Semana (S1 a S3)
 
 Design "ProJardim Agenda Semana" integrado com os mesmos componentes e regras do Hoje

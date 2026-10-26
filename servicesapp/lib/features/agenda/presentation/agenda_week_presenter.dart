@@ -8,7 +8,8 @@ import 'agenda_week_view_data.dart';
 /// Monta a vista Semana (S1 a S3) a partir das linhas de `get_worker_agenda`.
 /// Usa os mesmos cartões e as mesmas regras de sobreposição do Hoje.
 
-const _weekdayLetters = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+/// Iniciais dos dias, de segunda a domingo.
+const agendaWeekdayLetters = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
@@ -89,6 +90,133 @@ String? _countLabel(List<AgendaEntry> entries) {
   return parts.join(' · ');
 }
 
+/// Um dia já montado: a célula (faixa da Semana, grelha do Mês), a lista e
+/// o primeiro grupo que coincide, para o aviso.
+class AgendaDaySlice {
+  const AgendaDaySlice({
+    required this.cell,
+    required this.section,
+    required this.entries,
+    this.firstOverlap,
+  });
+
+  final AgendaWeekDayViewData cell;
+  final AgendaWeekSectionViewData section;
+
+  /// As linhas desse dia que contam (já sem propostas, se escondidas).
+  final List<AgendaEntry> entries;
+  final AgendaOverlapGroup? firstOverlap;
+}
+
+/// Linhas por dia, para montar vários dias sem filtrar a lista toda de cada
+/// vez. Com [showProposals] a falso, as tentativas ficam de fora.
+Map<DateTime, List<AgendaEntry>> agendaEntriesByDay(
+  List<AgendaEntry> entries, {
+  required bool showProposals,
+}) {
+  final byDay = <DateTime, List<AgendaEntry>>{};
+  for (final e in entries) {
+    if (!showProposals && e.isTentative) continue;
+    byDay.putIfAbsent(_dateOnly(e.date), () => []).add(e);
+  }
+  return byDay;
+}
+
+/// Monta [day] com as suas linhas ([dayEntries], já filtradas): como no
+/// Hoje, primeiro o que não tem hora (dia todo, vários dias), depois por
+/// hora, com os que coincidem num só grupo.
+AgendaDaySlice buildAgendaDaySlice({
+  required DateTime day,
+  required List<AgendaEntry> dayEntries,
+  required DateTime now,
+  required List<ServiceType> serviceTypes,
+}) {
+  final isToday = _sameDay(day, now);
+  final untimed = [
+    for (final e in dayEntries)
+      if (!e.hasTime || e.isMultiDay) e,
+  ];
+  final timed = [
+    for (final e in dayEntries)
+      if (e.hasTime && !e.isMultiDay) e,
+  ]..sort((a, b) => a.startMinutes!.compareTo(b.startMinutes!));
+  final groups = overlapGroupsForDay(timed);
+
+  AgendaDayEntryViewData view(AgendaEntry e) {
+    final data = agendaEntryViewData(
+      e,
+      now: now,
+      isToday: isToday,
+      current: false,
+      serviceTypes: serviceTypes,
+    );
+    if (e.kind != AgendaEntryKind.block || data.subtitle != null) return data;
+    return AgendaDayEntryViewData(
+      source: data.source,
+      kind: data.kind,
+      title: data.title,
+      serviceIcon: data.serviceIcon,
+      startLabel: data.startLabel,
+      endLabel: data.endLabel,
+      subtitle: 'Marcado por ti',
+      pill: data.pill,
+      repeats: data.repeats,
+      canOpen: data.canOpen,
+    );
+  }
+
+  final items = <AgendaWeekItem>[
+    for (final e in untimed) AgendaWeekItem.entry(view(e)),
+  ];
+  for (final e in timed) {
+    final group = groups.where((g) => g.entries.contains(e)).firstOrNull;
+    if (group == null) {
+      items.add(AgendaWeekItem.entry(view(e)));
+    } else if (group.entries.first == e) {
+      items.add(
+        AgendaWeekItem.group(
+          AgendaDayOverlapGroupViewData(
+            label:
+                'Coincidem das ${formatMinutes(group.start)} '
+                'às ${formatMinutes(group.end)}',
+            entries: [for (final x in group.entries) view(x)],
+          ),
+        ),
+      );
+    }
+  }
+
+  return AgendaDaySlice(
+    entries: dayEntries,
+    firstOverlap: groups.firstOrNull,
+    cell: AgendaWeekDayViewData(
+      date: day,
+      weekdayLetter: agendaWeekdayLetters[day.weekday - 1],
+      dayNumber: '${day.day}',
+      isToday: isToday,
+      unavailable: dayEntries.any(
+        (e) => e.kind == AgendaEntryKind.block && !e.hasTime,
+      ),
+      hasOverlap: groups.isNotEmpty,
+      dots: [
+        for (final item in items)
+          if (item.entry != null)
+            item.entry!.kind
+          else
+            for (final e in item.group!.entries) e.kind,
+      ],
+    ),
+    section: AgendaWeekSectionViewData(
+      date: day,
+      label: '${agendaWeekdayName(day)}, ${agendaShortDate(day, now: now)}',
+      countLabel: _countLabel(dayEntries),
+      isToday: isToday,
+      hasOverlap: groups.isNotEmpty,
+      items: items,
+    ),
+  );
+}
+
 /// Conteúdo da semana que começa em [weekStart] (as linhas de outros dias são
 /// ignoradas). Com [showProposals] a falso, as propostas e as remarcações por
 /// aceitar saem da lista, dos pontos e do resumo.
@@ -99,128 +227,42 @@ AgendaWeekContentViewData buildAgendaWeek({
   required bool showProposals,
   required List<ServiceType> serviceTypes,
 }) {
-  final days = <AgendaWeekDayViewData>[];
-  final sections = <AgendaWeekSectionViewData>[];
-  final weekEntries = <AgendaEntry>[];
-  AgendaWeekOverlapViewData? overlap;
-  var overlapDays = 0;
-
-  for (final day in agendaWeekDays(weekStart)) {
-    final isToday = _sameDay(day, now);
-    final dayEntries = [
-      for (final e in entries)
-        if (_sameDay(e.date, day) && (showProposals || !e.isTentative)) e,
-    ];
-    weekEntries.addAll(dayEntries);
-
-    // Como no Hoje: primeiro o que não tem hora (dia todo, vários dias),
-    // depois por hora, com os que coincidem num só grupo.
-    final untimed = [
-      for (final e in dayEntries)
-        if (!e.hasTime || e.isMultiDay) e,
-    ];
-    final timed = [
-      for (final e in dayEntries)
-        if (e.hasTime && !e.isMultiDay) e,
-    ]..sort((a, b) => a.startMinutes!.compareTo(b.startMinutes!));
-    final groups = overlapGroupsForDay(timed);
-
-    AgendaDayEntryViewData view(AgendaEntry e) {
-      final data = agendaEntryViewData(
-        e,
-        now: now,
-        isToday: isToday,
-        current: false,
-        serviceTypes: serviceTypes,
-      );
-      if (e.kind != AgendaEntryKind.block || data.subtitle != null) return data;
-      return AgendaDayEntryViewData(
-        source: data.source,
-        kind: data.kind,
-        title: data.title,
-        serviceIcon: data.serviceIcon,
-        startLabel: data.startLabel,
-        endLabel: data.endLabel,
-        subtitle: 'Marcado por ti',
-        pill: data.pill,
-        repeats: data.repeats,
-        canOpen: data.canOpen,
-      );
-    }
-
-    final items = <AgendaWeekItem>[
-      for (final e in untimed) AgendaWeekItem.entry(view(e)),
-    ];
-    for (final e in timed) {
-      final group = groups.where((g) => g.entries.contains(e)).firstOrNull;
-      if (group == null) {
-        items.add(AgendaWeekItem.entry(view(e)));
-      } else if (group.entries.first == e) {
-        items.add(
-          AgendaWeekItem.group(
-            AgendaDayOverlapGroupViewData(
-              label:
-                  'Coincidem das ${formatMinutes(group.start)} '
-                  'às ${formatMinutes(group.end)}',
-              entries: [for (final x in group.entries) view(x)],
-            ),
-          ),
-        );
-      }
-    }
-
-    if (groups.isNotEmpty) {
-      overlapDays++;
-      final g = groups.first;
-      overlap ??= AgendaWeekOverlapViewData(
+  final byDay = agendaEntriesByDay(entries, showProposals: showProposals);
+  final slices = [
+    for (final day in agendaWeekDays(weekStart))
+      buildAgendaDaySlice(
         day: day,
-        label:
-            '${agendaWeekdayName(day)}: ${g.entries.length} trabalhos ao '
-            'mesmo tempo às ${formatMinutes(g.start)}',
-      );
-    }
+        dayEntries: byDay[day] ?? const [],
+        now: now,
+        serviceTypes: serviceTypes,
+      ),
+  ];
 
-    days.add(
-      AgendaWeekDayViewData(
-        date: day,
-        weekdayLetter: _weekdayLetters[day.weekday - 1],
-        dayNumber: '${day.day}',
-        isToday: isToday,
-        unavailable: dayEntries.any(
-          (e) => e.kind == AgendaEntryKind.block && !e.hasTime,
-        ),
-        hasOverlap: groups.isNotEmpty,
-        dots: [
-          for (final item in items)
-            if (item.entry != null)
-              item.entry!.kind
-            else
-              for (final e in item.group!.entries) e.kind,
-        ],
-      ),
-    );
-    sections.add(
-      AgendaWeekSectionViewData(
-        date: day,
-        label: '${agendaWeekdayName(day)}, ${agendaShortDate(day, now: now)}',
-        countLabel: _countLabel(dayEntries),
-        isToday: isToday,
-        hasOverlap: groups.isNotEmpty,
-        items: items,
-      ),
+  final overlapping = [
+    for (final s in slices)
+      if (s.firstOverlap != null) s,
+  ];
+  AgendaWeekOverlapViewData? overlap;
+  if (overlapping.isNotEmpty) {
+    final first = overlapping.first;
+    final g = first.firstOverlap!;
+    final more = overlapping.length > 1
+        ? ' (e mais ${overlapping.length - 1})'
+        : '';
+    overlap = AgendaWeekOverlapViewData(
+      day: first.cell.date,
+      label:
+          '${agendaWeekdayName(first.cell.date)}: ${g.entries.length} '
+          'trabalhos ao mesmo tempo às ${formatMinutes(g.start)}$more',
     );
   }
 
-  final first = overlap;
   return AgendaWeekContentViewData(
-    summaryLabel: _summary(weekEntries, showProposals: showProposals),
-    days: days,
-    sections: sections,
-    overlap: first == null || overlapDays < 2
-        ? first
-        : AgendaWeekOverlapViewData(
-            day: first.day,
-            label: '${first.label} (e mais ${overlapDays - 1})',
-          ),
+    summaryLabel: _summary([
+      for (final s in slices) ...s.entries,
+    ], showProposals: showProposals),
+    days: [for (final s in slices) s.cell],
+    sections: [for (final s in slices) s.section],
+    overlap: overlap,
   );
 }

@@ -15,8 +15,7 @@ import '../../data/agenda_entry_model.dart';
 import '../agenda_day_view_data.dart';
 import '../agenda_week_view_data.dart';
 import 'agenda_controls.dart';
-import 'agenda_decorations.dart';
-import 'agenda_entry_card.dart';
+import 'agenda_day_cells.dart';
 import 'agenda_overlap.dart';
 import 'agenda_skeleton.dart';
 import 'agenda_view_parts.dart';
@@ -471,6 +470,8 @@ class _DayStrip extends StatelessWidget {
   final DateTime? selected;
   final ValueChanged<DateTime> onDayTap;
 
+  static const double _cellHeight = 76;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -485,206 +486,16 @@ class _DayStrip extends StatelessWidget {
           for (var i = 0; i < days.length; i++) ...[
             if (i > 0) const SizedBox(width: AppSpacing.s6),
             Expanded(
-              child: _DayCell(
+              child: AgendaDayCell(
                 day: days[i],
                 selected: days[i].date == selected,
                 onTap: () => onDayTap(days[i].date),
+                height: _cellHeight,
+                showWeekday: true,
               ),
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _DayCell extends StatelessWidget {
-  const _DayCell({
-    required this.day,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AgendaWeekDayViewData day;
-  final bool selected;
-  final VoidCallback onTap;
-
-  static const double _height = 76;
-  static const double _border = 2;
-  static const double _warningBadge = 18;
-  static const int _maxDots = 3;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final radius = BorderRadius.circular(AppRadius.input);
-    final striped = day.unavailable && !selected;
-    final dots = day.dots.take(_maxDots).toList();
-    final extra = day.dots.length - dots.length;
-
-    // Letra grande ou ecrã estreito: encolhe em vez de partir.
-    final inner = Center(
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              day.weekdayLetter,
-              style: textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: selected
-                    ? AppColors.primaryContainer
-                    : AppColors.textSecondary,
-              ),
-            ),
-            Text(
-              day.dayNumber,
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                color: selected
-                    ? AppColors.surface
-                    : striped
-                    ? AppColors.textSecondary
-                    : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            SizedBox(
-              height: AppSpacing.s10,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < dots.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 3),
-                    _StripDot(kind: dots[i], onPrimary: selected),
-                  ],
-                  if (extra > 0) ...[
-                    const SizedBox(width: 2),
-                    Text(
-                      '+$extra',
-                      style: textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                        color: selected
-                            ? AppColors.surface
-                            : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    final Widget cell = striped
-        ? AgendaStripes(
-            radius: AppRadius.input,
-            child: SizedBox(height: _height, child: inner),
-          )
-        : AnimatedContainer(
-            duration: AppMotionDuration.fast,
-            height: _height,
-            decoration: BoxDecoration(
-              color: selected ? AppColors.primary : AppColors.surface,
-              borderRadius: radius,
-              border: Border.all(
-                color: day.isToday || selected
-                    ? AppColors.primary
-                    : Colors.transparent,
-                width: _border,
-              ),
-            ),
-            child: inner,
-          );
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: [
-        if (day.isToday) 'Hoje',
-        if (day.unavailable) 'indisponível',
-        if (day.hasOverlap) 'trabalhos que coincidem',
-        if (day.dots.isNotEmpty) '${day.dots.length} na agenda',
-      ].join(', '),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(onTap: onTap, borderRadius: radius, child: cell),
-          ),
-          if (day.hasOverlap)
-            Positioned(
-              top: -AppSpacing.xxs,
-              right: -AppSpacing.xxs,
-              child: Container(
-                width: _warningBadge,
-                height: _warningBadge,
-                decoration: BoxDecoration(
-                  color: AppStatusColor.waiting.background,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.surface, width: 1.5),
-                ),
-                child: Icon(
-                  Icons.warning_rounded,
-                  size: AppSpacing.sm,
-                  color: AppStatusColor.waiting.foreground,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Ponto da faixa (legenda da Semana): app cheio, ajudante verde claro, fora
-/// da app só contorno, proposta tracejada, indisponível cinzento cheio. No
-/// dia preenchido ganham contorno branco para se lerem sobre o verde.
-class _StripDot extends StatelessWidget {
-  const _StripDot({required this.kind, required this.onPrimary});
-
-  final AgendaCardKind kind;
-  final bool onPrimary;
-
-  static const double _size = 8;
-
-  @override
-  Widget build(BuildContext context) {
-    if (kind == AgendaCardKind.proposal) {
-      return SizedBox.square(
-        dimension: _size,
-        child: AgendaDashedBorder(
-          radius: _size / 2,
-          color: onPrimary ? AppColors.surface : AppColors.textSecondary,
-          strokeWidth: 1.5,
-          child: const SizedBox.expand(),
-        ),
-      );
-    }
-    final (Color fill, Color? ring) = switch (kind) {
-      AgendaCardKind.app => (AppColors.primary, null),
-      AgendaCardKind.helper => (AppColors.agendaHelperBar, null),
-      AgendaCardKind.external => (AppColors.surface, AppColors.textMuted),
-      AgendaCardKind.block => (AppColors.agendaDashed, null),
-      AgendaCardKind.proposal => (Colors.transparent, null),
-    };
-    return Container(
-      width: _size,
-      height: _size,
-      decoration: BoxDecoration(
-        color: fill,
-        shape: BoxShape.circle,
-        border: onPrimary
-            ? Border.all(color: AppColors.surface, width: 1.5)
-            : ring == null
-            ? null
-            : Border.all(color: ring, width: 1.5),
       ),
     );
   }
@@ -718,38 +529,13 @@ class _Section extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SectionHeader(section: section, onTap: onOpenDay),
-          for (final item in section.items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: item.group != null
-                  ? AgendaOverlapStack(
-                      label: item.group!.label,
-                      onLabelTap: () => onResolveOverlap([
-                        for (final e in item.group!.entries) e.source,
-                      ]),
-                      children: [for (final e in item.group!.entries) _row(e)],
-                    )
-                  : _row(item.entry!),
-            ),
+          AgendaDayItemsList(
+            items: section.items,
+            onOpenEntry: onOpenEntry,
+            onResolveOverlap: onResolveOverlap,
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _row(AgendaDayEntryViewData e) {
-    return AgendaWeekEntryRow(
-      kind: e.kind,
-      title: e.title,
-      startLabel: e.startLabel,
-      endLabel: e.endLabel,
-      subtitle: e.subtitle,
-      repeats: e.repeats,
-      timeToArrange: e.timeToArrange,
-      dayIndex: e.dayIndex,
-      dayCount: e.dayCount,
-      pill: e.pill,
-      done: e.done,
-      onTap: () => onOpenEntry(e),
     );
   }
 }

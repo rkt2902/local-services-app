@@ -7,8 +7,8 @@ import 'agenda_entry_card.dart';
 import 'agenda_legend.dart';
 
 /// Grelha de um mês para saltar para um dia (folha "Tocar na data" do Hoje).
-/// Cada dia mostra até 3 pontos com as cores das entradas. A vista Mês terá
-/// o seu próprio design (Prompt 4); isto é só o seletor.
+/// Cada dia mostra até 3 pontos com as cores das entradas. A vista Mês é
+/// outra (`AgendaMonthView`); isto é só o seletor.
 class AgendaMonthGrid extends StatelessWidget {
   const AgendaMonthGrid({
     required this.month,
