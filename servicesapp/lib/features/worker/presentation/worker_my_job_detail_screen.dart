@@ -16,6 +16,7 @@ import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_labels.dart';
@@ -35,6 +36,7 @@ import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
 import '../../ratings/application/rating_providers.dart';
 import 'widgets/mark_completed_sheet.dart';
+import 'widgets/report_problem_dialog.dart';
 import 'widgets/start_job_sheet.dart';
 import 'widgets/worker_my_job_detail_view.dart' as view;
 import '../../../core/widgets/app_toast.dart';
@@ -186,99 +188,88 @@ class _WorkerMyJobDetailScreenState
 
     if (!mounted) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    await AppSheet.show<void>(
+      context,
       builder: (_) => StatefulBuilder(
         builder: (sheetCtx, setSheetState) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              24, 24, 24,
-              24 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-            ),
+          final textTheme = Theme.of(sheetCtx).textTheme;
+          Future<void> submit() async {
+            setSheetState(() => loading = true);
+            final toast = AppToast.of(context);
+            try {
+              await ref.read(helpRequestRepositoryProvider).createHelpRequest(
+                    jobId: _jobId,
+                    proposalId: widget.proposalId,
+                    slotsNeeded: slotsNeeded,
+                    equipmentRequired: equipmentRequired,
+                    createdPostConfirmation: true,
+                  );
+              // Regra T4: fechar a sheet → aviso → invalidar.
+              if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
+              toast.show('Pedido de ajuda enviado para aprovação do cliente.');
+              if (mounted) {
+                ref.invalidate(helpRequestsForJobProvider(_jobId));
+              }
+            } catch (e) {
+              toast.error(friendlyError(e));
+              setSheetState(() => loading = false);
+            }
+          }
+
+          return AppSheet(
+            title: 'Adicionar ajudante',
+            onClose: () => Navigator.of(sheetCtx).pop(),
+            primaryActionLabel: 'Enviar pedido',
+            onPrimaryAction: submit,
+            isSubmitting: loading,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Adicionar ajudante',
-                  style: Theme.of(sheetCtx).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.s20),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Quantos ajudantes precisas?',
-                        style: Theme.of(sheetCtx).textTheme.bodyMedium,
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.textPrimary),
                       ),
                     ),
                     IconButton(
                       tooltip: 'Menos um ajudante',
                       icon: const Icon(Icons.remove),
-                      onPressed: slotsNeeded <= 1
+                      onPressed: slotsNeeded <= 1 || loading
                           ? null
                           : () => setSheetState(() => slotsNeeded--),
                     ),
-                    Text(
-                      '$slotsNeeded',
-                      style: Theme.of(sheetCtx).textTheme.titleMedium,
-                    ),
+                    Text('$slotsNeeded', style: textTheme.titleMedium),
                     IconButton(
                       tooltip: 'Mais um ajudante',
                       icon: const Icon(Icons.add),
-                      onPressed: () => setSheetState(() => slotsNeeded++),
+                      onPressed: loading
+                          ? null
+                          : () => setSheetState(() => slotsNeeded++),
                     ),
                   ],
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Exigir equipamento próprio'),
+                  title: Text(
+                    'Exigir equipamento próprio',
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: AppColors.textPrimary),
+                  ),
                   value: equipmentRequired,
                   onChanged: loading
                       ? null
                       : (v) =>
                           setSheetState(() => equipmentRequired = v ?? false),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                FilledButton(
-                  onPressed: loading
-                      ? null
-                      : () async {
-                          setSheetState(() => loading = true);
-                          final toast = AppToast.of(context);
-                          try {
-                            await ref
-                                .read(helpRequestRepositoryProvider)
-                                .createHelpRequest(
-                                  jobId: _jobId,
-                                  proposalId: widget.proposalId,
-                                  slotsNeeded: slotsNeeded,
-                                  equipmentRequired: equipmentRequired,
-                                  createdPostConfirmation: true,
-                                );
-                            // Regra T4: fechar a sheet → SnackBar → invalidar.
-                            if (sheetCtx.mounted) Navigator.of(sheetCtx).pop();
-                            toast.show('Pedido de ajuda enviado para aprovação do cliente.');
-                            if (mounted) {
-                              ref.invalidate(
-                                  helpRequestsForJobProvider(_jobId));
-                            }
-                          } catch (e) {
-                            toast.error(friendlyError(e));
-                            setSheetState(() => loading = false);
-                          }
-                        },
-                  child: loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Enviar pedido'),
+                Text(
+                  'O pedido segue para o cliente aprovar.',
+                  style: textTheme.labelMedium
+                      ?.copyWith(color: AppColors.textSecondary),
                 ),
-                const SizedBox(height: AppSpacing.xs),
               ],
             ),
           );
@@ -437,43 +428,7 @@ class _WorkerMyJobDetailScreenState
   /// "Reportar problema" do jardineiro durante o trabalho (job_reports, a
   /// policy já deixa o jardineiro aceite reportar).
   Future<void> _reportProblem() async {
-    final controller = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final description = await showDialog<String>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('Reportar problema'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Descreve o que aconteceu',
-            ),
-            validator: (v) => (v == null || v.trim().length < 10)
-                ? 'Descreve o problema (mínimo 10 caracteres).'
-                : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Voltar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(dialogCtx, controller.text.trim());
-              }
-            },
-            child: const Text('Enviar relato'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
+    final description = await ReportProblemDialog.show(context);
     if (description == null || !mounted) return;
     final toast = AppToast.of(context);
     try {

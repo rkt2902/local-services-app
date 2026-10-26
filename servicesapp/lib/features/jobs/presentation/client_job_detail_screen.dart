@@ -18,6 +18,8 @@ import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
@@ -426,93 +428,75 @@ class _ClientJobDetailScreenState
 
     bool submitting = false;
     String? errorText;
-    final submitted = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
+    final submitted = await AppSheet.show<bool>(
+      context,
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        builder: (ctx, setSheetState) {
+          final textTheme = Theme.of(ctx).textTheme;
+          Future<void> submit() async {
+            if (!formKey.currentState!.validate()) return;
+            setSheetState(() {
+              submitting = true;
+              errorText = null;
+            });
+            try {
+              await ref.read(proposalRepositoryProvider).reportJobProblem(
+                    jobId: widget.jobId,
+                    description: descController.text.trim(),
+                  );
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            } catch (e) {
+              // Dentro da sheet: um aviso ficava escondido por trás dela.
+              if (!ctx.mounted) return;
+              setSheetState(() {
+                submitting = false;
+                errorText = friendlyError(e);
+              });
+            }
+          }
+
+          return AppSheet(
+            title: 'Reportar problema',
+            onClose: () => Navigator.pop(ctx),
+            primaryActionLabel: 'Enviar relato',
+            onPrimaryAction: submit,
+            isSubmitting: submitting,
             child: Form(
               key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Reportar problema',
-                      style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Descreve o que aconteceu. O teu relato fica registado para referência futura.',
-                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                    'Descreve o que aconteceu. O teu relato fica registado '
+                    'para referência futura.',
+                    style: textTheme.bodyMedium
+                        ?.copyWith(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  TextFormField(
+                  AppTextField(
                     controller: descController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Descrição do problema',
-                      alignLabelWithHint: true,
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().length < 10) {
-                        return 'Descreve o problema (mínimo 10 caracteres).';
-                      }
-                      return null;
-                    },
+                    label: 'Descrição do problema',
+                    minLines: 3,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    validator: (v) => (v == null || v.trim().length < 10)
+                        ? 'Descreve o problema (mínimo 10 caracteres).'
+                        : null,
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       errorText!,
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      style: textTheme.bodyMedium?.copyWith(
                           color: AppStatusColor.cancelled.foreground),
                     ),
                   ],
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: submitting
-                        ? null
-                        : () async {
-                            if (!formKey.currentState!.validate()) return;
-                            setSheetState(() {
-                              submitting = true;
-                              errorText = null;
-                            });
-                            try {
-                              await ref
-                                  .read(proposalRepositoryProvider)
-                                  .reportJobProblem(
-                                    jobId: widget.jobId,
-                                    description: descController.text.trim(),
-                                  );
-                              if (ctx.mounted) Navigator.pop(ctx, true);
-                            } catch (e) {
-                              // Dentro da sheet: um SnackBar ficava
-                              // escondido por trás dela.
-                              if (!ctx.mounted) return;
-                              setSheetState(() {
-                                submitting = false;
-                                errorText = friendlyError(e);
-                              });
-                            }
-                          },
-                    child: submitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Enviar relato'),
-                  ),
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
 

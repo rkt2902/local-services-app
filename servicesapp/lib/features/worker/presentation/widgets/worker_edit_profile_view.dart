@@ -498,6 +498,7 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.telephoneNumber],
                         validator: widget.phoneValidator,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
                         suffixIcon: const Icon(
                           Icons.phone_outlined,
                           color: AppColors.textSecondary,
@@ -520,7 +521,9 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                       index: 4,
                       child: AppTextField(
                         controller: widget.hourlyRateController,
-                        label: 'Preço/hora (€), opcional',
+                        label: 'Preço/hora habitual (€), opcional',
+                        helperText: 'Sugerido ao fazeres propostas. Em cada '
+                            'proposta podes usar outro valor ou um valor total.',
                         keyboardType:
                             const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
@@ -536,7 +539,9 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                     AppStaggeredEntrance(
                       index: 5,
                       child: _ProfileSectionRow(
-                        icon: Icons.location_off_outlined,
+                        icon: widget.data.locationNeedsDefinition
+                            ? Icons.location_off_outlined
+                            : Icons.location_on_outlined,
                         title: 'Localização base',
                         summary: widget.data.locationSummaryLabel,
                         warning: widget.data.locationNeedsDefinition,

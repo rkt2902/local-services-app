@@ -287,6 +287,7 @@ class _ProfileForm extends StatelessWidget {
                       textInputAction: TextInputAction.done,
                       autofillHints: const [AutofillHints.telephoneNumber],
                       validator: phoneValidator,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       suffixIcon: const Icon(
                         Icons.phone_outlined,
                         color: AppColors.textSecondary,

@@ -37,8 +37,6 @@ class ClientAccountScreen extends StatelessWidget {
     required this.onDefinitionsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
-    required this.onTermsPressed,
-    required this.onPrivacyPressed,
     required this.onSignOutPressed,
     required this.onDeleteAccountPressed,
     super.key,
@@ -52,8 +50,6 @@ class ClientAccountScreen extends StatelessWidget {
   final VoidCallback onDefinitionsPressed;
   final VoidCallback onSupportPressed;
   final VoidCallback onAboutPressed;
-  final VoidCallback onTermsPressed;
-  final VoidCallback onPrivacyPressed;
   final VoidCallback onSignOutPressed;
   final VoidCallback onDeleteAccountPressed;
 
@@ -67,6 +63,10 @@ class ClientAccountScreen extends StatelessWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
+        // Ao fazer scroll, uma sombra leve separa o título dos cartões que
+        // passam por baixo, em vez de os cortar a seco.
+        scrolledUnderElevation: AppSizes.scrolledHeaderElevation,
+        shadowColor: AppColors.textPrimary.withValues(alpha: 0.12),
         titleSpacing: AppSpacing.lg,
         title: Text(
           'A minha conta',
@@ -124,16 +124,6 @@ class ClientAccountScreen extends StatelessWidget {
                     label: 'Sobre a ProJardim',
                     icon: Icons.info_outline_rounded,
                   ),
-                  const AppAccountMenuItem(
-                    id: 'terms',
-                    label: 'Termos de utilização',
-                    icon: Icons.description_outlined,
-                  ),
-                  const AppAccountMenuItem(
-                    id: 'privacy',
-                    label: 'Política de Privacidade',
-                    icon: Icons.privacy_tip_outlined,
-                  ),
                 ],
                 onItemPressed: (id) {
                   switch (id) {
@@ -147,10 +137,6 @@ class ClientAccountScreen extends StatelessWidget {
                       onSupportPressed();
                     case 'about':
                       onAboutPressed();
-                    case 'terms':
-                      onTermsPressed();
-                    case 'privacy':
-                      onPrivacyPressed();
                   }
                 },
               ),
