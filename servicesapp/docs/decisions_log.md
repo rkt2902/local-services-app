@@ -3,6 +3,13 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Data do cliente no ecrã de enviar proposta
+
+O formulário de proposta mostra "O cliente pediu: …" junto à data de início e abre já
+com a data fixa do cliente, se ainda não passou. Disponibilidade em texto livre,
+"Flexível" ou data passada só mostram a legenda, sem pré-preencher. O jardineiro pode
+trocar a data; o calendário abre no dia escolhido. Sem migrations.
+
 ## 2026-10-23 — Revisão de preços, foto do jardineiro, morada e dimensão
 
 - **Pesquisa de morada com sugestões** enquanto se escreve, pelo Photon (OSM, gratuito, sem chave), com o Nominatim de reserva e o mapa como último recurso. Moradas que faltam no OpenStreetMap continuam a faltar; resolver isso de vez é o Google Places (chave e custo por pesquisa), decisão do Henrique.

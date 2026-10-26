@@ -64,3 +64,24 @@ String? openJobExpiryNotice(JobRequest job) {
   if (parts.isEmpty) return null;
   return '${parts.join(', ')}.';
 }
+
+/// Data pretendida pelo cliente: a data fixa, o texto de disponibilidade ou
+/// "Flexível".
+String jobPreferredDateLabel(JobRequest job) {
+  if (job.dateMode == DateMode.availability) {
+    final text = job.availabilityText?.trim() ?? '';
+    return text.isEmpty ? 'A combinar' : text;
+  }
+  if (job.preferredDate == null) return 'Flexível';
+  return DateFormat('dd/MM/yyyy').format(job.preferredDate!);
+}
+
+/// Data com que o formulário de proposta abre: a que o cliente escolheu,
+/// se ainda não passou. O jardineiro pode sempre trocar.
+DateTime? proposalInitialDate(JobRequest job, DateTime now) {
+  final date = job.preferredDate;
+  if (date == null || job.dateMode == DateMode.availability) return null;
+  final day = DateTime(date.year, date.month, date.day);
+  final today = DateTime(now.year, now.month, now.day);
+  return day.isBefore(today) ? null : day;
+}
