@@ -174,7 +174,8 @@ void main() {
     final consulta = sections[0].items.last.entry!;
     expect(consulta.title, 'Consulta');
     expect(consulta.subtitle, 'Médico');
-    expect(consulta.canOpen, isFalse);
+    // Indisponível abre o formulário.
+    expect(consulta.canOpen, isTrue);
 
     final rega = sections[2].items.last.entry!;
     expect(rega.repeats, isTrue);

@@ -16,6 +16,7 @@ import '../../../core/utils/price_labels.dart';
 import '../../proposals/application/proposal_price_labels.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../agenda/presentation/widgets/agenda_legend.dart';
 import '../../agenda/presentation/worker_agenda_tab.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -313,6 +314,7 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
     super.key,
     this.highlightedJobId,
     this.initialTab,
+    this.agendaResult,
   });
 
   /// Suporte a deep-link de notificações — ver `app_router.dart` (extra da
@@ -320,6 +322,10 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
   /// `entry_id` (proposta ou candidatura), nunca `job_id`.
   final String? highlightedJobId;
   final String? initialTab;
+
+  /// Guardado no "Adicionar à agenda" aberto pelo "+": a Agenda abre no
+  /// dia e realça o cartão.
+  final AgendaEditorResult? agendaResult;
 
   @override
   ConsumerState<WorkerJobsScreen> createState() => _WorkerJobsScreenState();
@@ -353,6 +359,15 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       _highlightTimer = Timer(const Duration(milliseconds: 1300), () {
         if (mounted) setState(() => _highlightedJobId = null);
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkerJobsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.agendaResult != null &&
+        widget.agendaResult != oldWidget.agendaResult) {
+      setState(() => _selectedSection = view.WorkerJobsSection.agenda);
     }
   }
 
@@ -479,7 +494,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
 
     return view.WorkerJobsScreen(
       selectedSection: _selectedSection,
-      agenda: const WorkerAgendaTab(),
+      agenda: WorkerAgendaTab(savedResult: widget.agendaResult),
       // Sem contagem no histórico: só cresce, o número não ajuda a decidir.
       proposalsCount: totalCountFor(view.WorkerJobsTab.pending),
       pending: pending,

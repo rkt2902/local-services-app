@@ -93,7 +93,7 @@ class AgendaMonthView extends StatefulWidget {
   final ValueChanged<AgendaEntry> onOpenEntry;
   final ValueChanged<List<AgendaEntry>> onResolveOverlap;
 
-  /// "Adicionar neste dia"; nulo enquanto o formulário não existe.
+  /// "Adicionar neste dia"; nulo esconde o botão.
   final ValueChanged<DateTime>? onAddToAgendaOnDay;
 
   @override

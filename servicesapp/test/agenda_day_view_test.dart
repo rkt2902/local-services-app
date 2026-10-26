@@ -5,6 +5,7 @@ import 'package:servicesapp/features/agenda/presentation/agenda_day_presenter.da
 import 'package:servicesapp/features/agenda/presentation/agenda_day_view_data.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_controls.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_day_view.dart';
+import 'package:servicesapp/features/agenda/presentation/widgets/agenda_entry_card.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_skeleton.dart';
 
 final _day = DateTime(2026, 10, 28);
@@ -56,6 +57,7 @@ class _Calls {
   int search = 0;
   int add = 0;
   int retry = 0;
+  int undo = 0;
 }
 
 Widget _view(
@@ -65,6 +67,8 @@ Widget _view(
   bool isToday = true,
   String? offline,
   bool withAdd = false,
+  String? highlight,
+  String? saved,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -94,6 +98,9 @@ Widget _view(
         onSearchWork: () => calls.search++,
         onAddToAgenda: withAdd ? () => calls.add++ : null,
         onMarkAvailable: (e) => calls.available.add(e.sourceId),
+        highlightSourceId: highlight,
+        savedMessage: saved,
+        onUndoSaved: saved == null ? null : () => calls.undo++,
       ),
     ),
   );
@@ -262,5 +269,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sem rede · dados das 08:12'), findsOneWidget);
     expect(find.text('14:00'), findsOneWidget);
+  });
+
+  testWidgets('F8B: guardado com Desfazer e o cartão novo realçado', (
+    tester,
+  ) async {
+    final calls = _Calls();
+    await tester.pumpWidget(
+      _view(
+        calls,
+        content: _content([
+          _e('a', start: _h(9), end: _h(11)),
+          _e(
+            'novo',
+            kind: AgendaEntryKind.external,
+            start: _h(16, 30),
+            end: _h(17, 30),
+            title: 'Relva da D. Rosa',
+          ),
+        ]),
+        highlight: 'novo',
+        saved: 'Guardado na agenda',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Guardado na agenda'), findsOneWidget);
+    await tester.tap(find.text('Desfazer'));
+    expect(calls.undo, 1);
+
+    final cards = tester
+        .widgetList<AgendaEntryCard>(find.byType(AgendaEntryCard))
+        .toList();
+    expect(cards.where((c) => c.data.highlighted), hasLength(1));
+    expect(
+      cards.firstWhere((c) => c.data.highlighted).data.title,
+      'Relva da D. Rosa',
+    );
+
+    // Fora da app abre o formulário.
+    await tester.tap(find.text('Relva da D. Rosa'));
+    expect(calls.opened, ['novo']);
   });
 }

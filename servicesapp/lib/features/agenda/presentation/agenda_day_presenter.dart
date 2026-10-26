@@ -102,10 +102,9 @@ String? _join(List<String?> parts) {
 }
 
 /// "Todas as terças", "Todos os sábados", "De 15 em 15 dias", "Todos os
-/// meses, dia 31".
-String? _recurrenceLabel(AgendaEntry e) {
-  final start = e.seriesDate;
-  switch (e.recurrence) {
+/// meses, dia 31". [start] é o dia que dá o dia da semana ou do mês.
+String? agendaRecurrenceLabel(AgendaRecurrence recurrence, DateTime start) {
+  switch (recurrence) {
     case AgendaRecurrence.none:
       return null;
     case AgendaRecurrence.weekly:
@@ -119,6 +118,9 @@ String? _recurrenceLabel(AgendaEntry e) {
       return 'Todos os meses, dia ${start.day}';
   }
 }
+
+String? _recurrenceLabel(AgendaEntry e) =>
+    agendaRecurrenceLabel(e.recurrence, e.seriesDate);
 
 AgendaCardKind _cardKind(AgendaEntry e) => switch (e.kind) {
   AgendaEntryKind.appJob => AgendaCardKind.app,
@@ -244,7 +246,11 @@ AgendaDayEntryViewData agendaEntryViewData(
     changedLabel: e.isException ? 'Mudado só este dia' : null,
     done: done,
     current: current && !done,
-    canOpen: e.jobId != null,
+    // Os de fora da app e as indisponibilidades abrem o formulário.
+    canOpen:
+        e.jobId != null ||
+        e.kind == AgendaEntryKind.external ||
+        e.kind == AgendaEntryKind.block,
     showStart: showStart,
     showChooseTime:
         confirmedUnstarted && start == null && !multiDay && !showStart,

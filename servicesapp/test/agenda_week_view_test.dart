@@ -202,7 +202,7 @@ void main() {
     expect(calls.selected.last.isAfter(_d(0)), isTrue);
   });
 
-  testWidgets('cartões: trabalho abre o detalhe, fora da app abre o dia', (
+  testWidgets('cartões: fora da app abre o formulário; o dia abre o Hoje', (
     tester,
   ) async {
     final calls = _Calls();
@@ -211,9 +211,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rega'));
-    expect(calls.openedDays, [_d(2)]);
+    expect(calls.opened, hasLength(1));
+    expect(calls.openedDays, isEmpty);
     await tester.tap(find.textContaining('Quarta, 28 out', findRichText: true));
-    expect(calls.openedDays, [_d(2), _d(2)]);
+    expect(calls.openedDays, [_d(2)]);
   });
 
   testWidgets('deslizar a faixa muda de semana', (tester) async {

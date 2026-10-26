@@ -19,10 +19,14 @@ class WorkerQuickActionsSheet extends StatelessWidget {
     required this.onFindWork,
     required this.onOpenHelpRequests,
     required this.onOpenFleetCard,
+    this.onAddToAgenda,
     this.showFleetCard = false,
   });
 
   final VoidCallback onFindWork;
+
+  /// "Adicionar à agenda": trabalho de fora da app ou indisponível.
+  final VoidCallback? onAddToAgenda;
   final VoidCallback onOpenHelpRequests;
   final VoidCallback onOpenFleetCard;
   final bool showFleetCard;
@@ -38,6 +42,14 @@ class WorkerQuickActionsSheet extends StatelessWidget {
         subtitle: 'Ver pedidos perto de ti',
         onPressed: onFindWork,
       ),
+      if (onAddToAgenda != null)
+        _QuickActionCard(
+          icon: Icons.event_available_outlined,
+          tone: AppStatusColor.neutral,
+          title: 'Adicionar à agenda',
+          subtitle: 'Um trabalho de fora da app ou um dia indisponível',
+          onPressed: onAddToAgenda!,
+        ),
       _QuickActionCard(
         icon: Icons.handshake_outlined,
         tone: AppStatusColor.info,

@@ -3,6 +3,35 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: formulário Adicionar / Editar (F1 a F8)
+
+Design A8D integrado com os componentes da app, não com o código do design. Rotas
+`/worker/agenda/new` e `/worker/agenda/:id`, fora do ShellRoute, a abrir de baixo.
+Estado em `AgendaEntryForm` (lógica pura, testada); grava direto em
+`worker_calendar_entries` e `worker_calendar_exceptions` (RLS do dono, `worker_id` do
+DEFAULT `auth.uid()`); sem migration nova.
+
+Diferenças do design, e porquê:
+- Horas escolhem-se no relógio da app (`showAppTimePicker`), não a escrever: evita
+  horas inválidas. "Mudar a hora" (F4) abre logo esse relógio.
+- "Outra" duração usa o mesmo relógio, com o título "Duração".
+- Confirmação forte, folha da série e "Sair sem guardar?" são diálogos/folhas
+  (`AgendaConflictDialog`, `AgendaScopeSheet`, `AppConfirmDialog`), não camadas na
+  vista: o botão de voltar do sistema fecha-os.
+- Motivo da indisponibilidade fica no `title` ("Férias", "Folga", "Consulta";
+  "Outro" grava "Indisponível"), porque a 0064 não tem coluna de motivo.
+- "Só este dia" só guarda data, horas, título e notas (o que a exceção da 0064
+  sabe). Se mudou o cliente, o valor, a morada ou a repetição, essa opção fica
+  desligada na folha.
+- "Este e os seguintes" usa `split_calendar_series` e depois atualiza a série nova;
+  "Todos" muda a série inteira e, se a data mudou, a série anda com ela.
+- O texto da indisponibilidade segue a decisão 4 (não esconde pedidos), não a nota
+  11 do design ("bloqueio para novos pedidos").
+- "Desfazer" (F8B) só depois de criar (apaga a entrada); ao editar aparece
+  "Alterações guardadas" sem desfazer.
+- "Ver o dia" é por agora uma folha com a lista do dia (o desenho é o Prompt 7).
+- O "+" central ganhou "Adicionar à agenda" (adiantado do Prompt 10).
+
 ## 2026-10-26 — Agenda do jardineiro: vista Mês (M1 a M3)
 
 Design "ProJardim Agenda Mes" integrado com as mesmas peças da Semana (célula do dia,

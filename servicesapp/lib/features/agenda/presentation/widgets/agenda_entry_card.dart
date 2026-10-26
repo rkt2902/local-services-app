@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -80,6 +81,7 @@ class AgendaEntryCardData {
     this.changedLabel,
     this.done = false,
     this.current = false,
+    this.highlighted = false,
     this.actions = const [],
     this.onTap,
   });
@@ -127,6 +129,9 @@ class AgendaEntryCardData {
   /// A hora atual cai dentro desta entrada (vista Hoje): contorno verde de
   /// 2 px.
   final bool current;
+
+  /// Acabado de guardar no formulário (F8B): contorno verde e um halo.
+  final bool highlighted;
 
   final List<AgendaCardAction> actions;
   final VoidCallback? onTap;
@@ -318,141 +323,168 @@ class AgendaEntryCard extends StatelessWidget {
 
     return Semantics(
       button: data.onTap != null,
-      child: _AgendaFrame(
-        kind: data.kind,
-        radius: AppRadius.card,
-        done: data.done,
-        current: data.current,
-        onTap: data.onTap,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.s20,
-          AppSpacing.s14,
-          AppSpacing.s14,
-          AppSpacing.s14,
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : AppMotionDuration.fast,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          boxShadow: [
+            BoxShadow(
+              color: data.highlighted
+                  ? AppColors.primaryContainer
+                  : AppColors.primaryContainer.withValues(alpha: 0),
+              spreadRadius: AppSpacing.s6,
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: _timeColumnWidth,
-                  child: _TimeColumn(data: data, muted: tentative),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _IconBox(
-                            icon: data.done
-                                ? Icons.check_circle_rounded
-                                : data.serviceIcon,
-                            style: style,
-                            done: data.done,
-                            dashed: tentative,
-                          ),
-                          const SizedBox(width: AppSpacing.s10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        data.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                          color: muted
-                                              ? AppColors.textStrong
-                                              : AppColors.textPrimary,
-                                        ),
+        child: _card(context, textTheme, style, tentative, muted, showActions),
+      ),
+    );
+  }
+
+  Widget _card(
+    BuildContext context,
+    TextTheme textTheme,
+    _KindStyle style,
+    bool tentative,
+    bool muted,
+    bool showActions,
+  ) {
+    return _AgendaFrame(
+      kind: data.kind,
+      radius: AppRadius.card,
+      done: data.done,
+      current: data.current || data.highlighted,
+      onTap: data.onTap,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s20,
+        AppSpacing.s14,
+        AppSpacing.s14,
+        AppSpacing.s14,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: _timeColumnWidth,
+                child: _TimeColumn(data: data, muted: tentative),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _IconBox(
+                          icon: data.done
+                              ? Icons.check_circle_rounded
+                              : data.serviceIcon,
+                          style: style,
+                          done: data.done,
+                          dashed: tentative,
+                        ),
+                        const SizedBox(width: AppSpacing.s10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      data.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: muted
+                                            ? AppColors.textStrong
+                                            : AppColors.textPrimary,
                                       ),
-                                    ),
-                                    if (data.repeats) ...[
-                                      const SizedBox(width: AppSpacing.xxs),
-                                      const Icon(
-                                        Icons.repeat_rounded,
-                                        size: AppSizes.inlineIcon,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                if (data.subtitle != null) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    data.subtitle!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
                                     ),
                                   ),
+                                  if (data.repeats) ...[
+                                    const SizedBox(width: AppSpacing.xxs),
+                                    const Icon(
+                                      Icons.repeat_rounded,
+                                      size: AppSizes.inlineIcon,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ],
                                 ],
+                              ),
+                              if (data.subtitle != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  data.subtitle!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
                               ],
+                            ],
+                          ),
+                        ),
+                        if (data.amountLabel != null) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            data.amountLabel!,
+                            style: textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                          if (data.amountLabel != null) ...[
-                            const SizedBox(width: AppSpacing.xs),
+                        ],
+                      ],
+                    ),
+                    if (data.pill != null || data.detailLabel != null) ...[
+                      const SizedBox(height: AppSpacing.s10),
+                      Wrap(
+                        spacing: AppSpacing.s6,
+                        runSpacing: AppSpacing.s6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (data.pill != null)
+                            AgendaPillBadge(pill: data.pill!),
+                          if (data.detailLabel != null)
                             Text(
-                              data.amountLabel!,
+                              data.detailLabel!,
                               style: textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w700,
                                 color: AppColors.textSecondary,
                               ),
                             ),
-                          ],
                         ],
                       ),
-                      if (data.pill != null || data.detailLabel != null) ...[
-                        const SizedBox(height: AppSpacing.s10),
-                        Wrap(
-                          spacing: AppSpacing.s6,
-                          runSpacing: AppSpacing.s6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (data.pill != null)
-                              AgendaPillBadge(pill: data.pill!),
-                            if (data.detailLabel != null)
-                              Text(
-                                data.detailLabel!,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                      if (data.changedLabel != null) ...[
-                        const SizedBox(height: AppSpacing.s10),
-                        _ChangedNote(label: data.changedLabel!),
-                      ],
                     ],
-                  ),
-                ),
-              ],
-            ),
-            if (showActions) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  for (var i = 0; i < data.actions.length; i++) ...[
-                    if (i > 0) const SizedBox(width: AppSpacing.s6),
-                    Expanded(child: _ActionButton(action: data.actions[i])),
+                    if (data.changedLabel != null) ...[
+                      const SizedBox(height: AppSpacing.s10),
+                      _ChangedNote(label: data.changedLabel!),
+                    ],
                   ],
-                ],
+                ),
               ),
             ],
+          ),
+          if (showActions) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                for (var i = 0; i < data.actions.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.s6),
+                  Expanded(child: _ActionButton(action: data.actions[i])),
+                ],
+              ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

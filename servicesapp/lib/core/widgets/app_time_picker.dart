@@ -6,13 +6,16 @@ import '../theme/app_radius.dart';
 /// `showTimePicker()` nativo do Flutter com o tema da app, como
 /// [showAppDatePicker] (app_date_picker.dart): sempre em 24h, cores da
 /// marca em vez das geradas pela seed e cantos de `AppRadius.card`.
+/// [helpText] troca o título do diálogo (ex.: "Duração" na Agenda).
 Future<TimeOfDay?> showAppTimePicker({
   required BuildContext context,
   required TimeOfDay initialTime,
+  String? helpText,
 }) {
   return showTimePicker(
     context: context,
     initialTime: initialTime,
+    helpText: helpText,
     builder: (context, child) {
       final base = Theme.of(context);
       final textTheme = base.textTheme;

@@ -222,14 +222,13 @@ void main() {
       expect(calls.opened.last, _d(6));
     });
 
-    testWidgets('entrada fora da app abre o dia; trabalho abre o detalhe', (
-      tester,
-    ) async {
+    testWidgets('entrada fora da app abre o formulário', (tester) async {
       final calls = _Calls();
       await tester.pumpWidget(_view(calls, _d(6)));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Rega'));
-      expect(calls.opened, [_d(6)]);
+      expect(calls.entries, ['fora']);
+      expect(calls.opened, isEmpty);
     });
 
     testWidgets('M3: dia livre, com e sem formulário', (tester) async {

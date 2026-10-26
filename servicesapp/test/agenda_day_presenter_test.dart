@@ -157,7 +157,8 @@ void main() {
       final external = c.items[5].entry!;
       expect(external.kind, AgendaCardKind.external);
       expect(external.title, 'Rega');
-      expect(external.canOpen, isFalse);
+      // Abre o formulário de editar.
+      expect(external.canOpen, isTrue);
     });
 
     test('resumo: trabalhos, horas e valor', () {

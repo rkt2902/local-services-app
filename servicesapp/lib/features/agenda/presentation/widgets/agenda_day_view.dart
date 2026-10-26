@@ -15,6 +15,7 @@ import '../agenda_day_view_data.dart';
 import 'agenda_controls.dart';
 import 'agenda_decorations.dart';
 import 'agenda_entry_card.dart';
+import 'agenda_entry_editor_view.dart';
 import 'agenda_list_rows.dart';
 import 'agenda_overlap.dart';
 import 'agenda_skeleton.dart';
@@ -57,6 +58,9 @@ class AgendaDayView extends StatefulWidget {
     this.onRetry,
     this.onAddToAgenda,
     this.onChangeUnavailableDates,
+    this.highlightSourceId,
+    this.savedMessage,
+    this.onUndoSaved,
     super.key,
   });
 
@@ -105,9 +109,16 @@ class AgendaDayView extends StatefulWidget {
 
   final VoidCallback onSearchWork;
 
-  /// Nulo enquanto o formulário "Adicionar à agenda" não existe.
+  /// "Adicionar à agenda" no dia vazio; nulo esconde o botão.
   final VoidCallback? onAddToAgenda;
   final ValueChanged<AgendaEntry>? onChangeUnavailableDates;
+
+  /// Entrada acabada de guardar (F8B): cartão realçado e scroll até ele.
+  final String? highlightSourceId;
+
+  /// "Guardado na agenda" no topo, com "Desfazer" se houver [onUndoSaved].
+  final String? savedMessage;
+  final VoidCallback? onUndoSaved;
 
   /// "Já estou livre"; a confirmação fica na integração.
   final ValueChanged<AgendaEntry> onMarkAvailable;
@@ -125,6 +136,12 @@ class _AgendaDayViewState extends State<AgendaDayView> {
       _nowKeys.putIfAbsent(widget.dayKey, () => GlobalKey());
   GlobalKey get _overlapKey =>
       _overlapKeys.putIfAbsent(widget.dayKey, () => GlobalKey());
+  final Map<String, GlobalKey> _highlightKeys = {};
+  GlobalKey get _highlightKey =>
+      _highlightKeys.putIfAbsent(widget.dayKey, () => GlobalKey());
+
+  /// Já se deslizou até este cartão realçado.
+  String? _scrolledToHighlight;
 
   Timer? _skeletonDelay;
   bool _refreshSkeleton = false;
@@ -147,6 +164,26 @@ class _AgendaDayViewState extends State<AgendaDayView> {
         oldWidget.content != widget.content) {
       _scheduleScrollToNow();
     }
+    _scheduleScrollToHighlight();
+  }
+
+  /// Depois de guardar no formulário: desliza até ao cartão novo, quando
+  /// ele já estiver na lista.
+  void _scheduleScrollToHighlight() {
+    final id = widget.highlightSourceId;
+    if (id == null || _scrolledToHighlight == id) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _scrolledToHighlight == id) return;
+      final target = _highlightKey.currentContext;
+      if (target == null) return;
+      _scrolledToHighlight = id;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.3,
+        duration: _scrollDuration(context),
+        curve: AppMotionCurve.standard,
+      );
+    });
   }
 
   @override
@@ -164,6 +201,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
   /// ou, vindo do "Ver o dia" da Semana, os trabalhos que coincidem.
   void _scheduleScrollToNow() {
     if (widget.content == null) return;
+    if (widget.highlightSourceId != null) return;
     if (!widget.isToday && !widget.focusOverlap) return;
     if (_scrolledToNowFor == widget.dayKey) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -272,9 +310,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
       return AgendaRefreshable(
         onRefresh: _refresh,
         child: AgendaCenteredScroll(
-          top: widget.offlineLabel == null
-              ? null
-              : AgendaOfflineBanner(label: widget.offlineLabel!),
+          top: _topBanners(),
           child: _EmptyDay(
             isToday: widget.isToday,
             onSearchWork: widget.onSearchWork,
@@ -303,6 +339,14 @@ class _AgendaDayViewState extends State<AgendaDayView> {
 
     if (widget.offlineLabel != null) {
       add(AgendaOfflineBanner(label: widget.offlineLabel!));
+    }
+    if (widget.savedMessage != null) {
+      add(
+        AgendaSavedBanner(
+          message: widget.savedMessage!,
+          onUndo: widget.onUndoSaved,
+        ),
+      );
     }
     if (content.summaryLabel.isNotEmpty) {
       add(
@@ -377,8 +421,28 @@ class _AgendaDayViewState extends State<AgendaDayView> {
     );
   }
 
+  /// Faixas por cima do dia vazio: sem rede e "Guardado na agenda".
+  Widget? _topBanners() {
+    final offline = widget.offlineLabel;
+    final saved = widget.savedMessage;
+    if (offline == null && saved == null) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (offline != null) AgendaOfflineBanner(label: offline),
+        if (offline != null && saved != null)
+          const SizedBox(height: AppSpacing.sm),
+        if (saved != null)
+          AgendaSavedBanner(message: saved, onUndo: widget.onUndoSaved),
+      ],
+    );
+  }
+
   Widget _card(AgendaDayEntryViewData e) {
     final source = e.source;
+    final highlighted =
+        widget.highlightSourceId != null &&
+        source.sourceId == widget.highlightSourceId;
     // No máximo 3 botões; os de dentro não abrem o detalhe.
     final actions = <AgendaCardAction>[
       if (e.showStart)
@@ -414,7 +478,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
         ),
     ].take(3).toList();
 
-    return AgendaEntryCard(
+    final card = AgendaEntryCard(
       data: AgendaEntryCardData(
         kind: e.kind,
         title: e.title,
@@ -432,10 +496,12 @@ class _AgendaDayViewState extends State<AgendaDayView> {
         changedLabel: e.changedLabel,
         done: e.done,
         current: e.current,
+        highlighted: highlighted,
         actions: actions,
         onTap: e.canOpen ? () => widget.onOpenEntry(source) : null,
       ),
     );
+    return highlighted ? KeyedSubtree(key: _highlightKey, child: card) : card;
   }
 }
 

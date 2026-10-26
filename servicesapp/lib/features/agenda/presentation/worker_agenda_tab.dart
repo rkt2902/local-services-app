@@ -20,6 +20,7 @@ import '../../worker/presentation/widgets/start_job_sheet.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_entry_model.dart';
 import 'agenda_day_presenter.dart';
+import 'agenda_entry_editor_screen.dart';
 import 'agenda_month_presenter.dart';
 import 'agenda_month_sheet.dart';
 import 'agenda_week_presenter.dart';
@@ -33,7 +34,10 @@ import 'widgets/agenda_week_view.dart';
 /// Hoje (`AgendaDayView`), Semana (`AgendaWeekView`) e Mês (`AgendaMonthView`)
 /// e trata das ações.
 class WorkerAgendaTab extends ConsumerStatefulWidget {
-  const WorkerAgendaTab({super.key});
+  const WorkerAgendaTab({super.key, this.savedResult});
+
+  /// Guardado no formulário aberto de fora da Agenda (o "+" central).
+  final AgendaEditorResult? savedResult;
 
   @override
   ConsumerState<WorkerAgendaTab> createState() => _WorkerAgendaTabState();
@@ -55,23 +59,117 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
   /// A linha de agora e o "Iniciar" mudam com o relógio.
   Timer? _clock;
 
+  /// Acabado de guardar no formulário (F8B): cartão realçado e "Guardado na
+  /// agenda" no topo do Hoje. [_undoId] só depois de criar.
+  String? _highlightId;
+  String? _savedMessage;
+  String? _undoId;
+  Timer? _savedTimer;
+
+  static const _savedFor = Duration(seconds: 6);
+
   @override
   void initState() {
     super.initState();
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
+    final saved = widget.savedResult;
+    if (saved != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onEditorResult(saved);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkerAgendaTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final saved = widget.savedResult;
+    if (saved != null && saved != oldWidget.savedResult) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onEditorResult(saved);
+      });
+    }
   }
 
   @override
   void dispose() {
     _clock?.cancel();
+    _savedTimer?.cancel();
     super.dispose();
+  }
+
+  /// "Adicionar à agenda" já no dia [day].
+  Future<void> _addToAgenda(DateTime day) async {
+    final result = await context.push<AgendaEditorResult>(
+      '/worker/agenda/new?date=${agendaDayKey(day)}',
+    );
+    if (result != null && mounted) _onEditorResult(result);
+  }
+
+  /// Trabalho de fora da app ou indisponibilidade: abre o formulário na
+  /// ocorrência tocada.
+  Future<void> _editEntry(AgendaEntry e) async {
+    final result = await context.push<AgendaEditorResult>(
+      '/worker/agenda/${e.sourceId}?date=${agendaDayKey(e.seriesDate)}',
+    );
+    if (result != null && mounted) _onEditorResult(result);
+  }
+
+  /// De volta do formulário. Regra T4: a navegação já aconteceu; aviso →
+  /// invalidar.
+  void _onEditorResult(AgendaEditorResult result) {
+    _savedTimer?.cancel();
+    if (result.outcome == AgendaEditorOutcome.deleted) {
+      _clearSaved();
+      AppToast.of(context).show('Apagado da agenda.');
+    } else {
+      final created = result.outcome == AgendaEditorOutcome.created;
+      setState(() {
+        _range = AgendaRange.day;
+        _day = DateUtils.dateOnly(result.day);
+        _focusOverlap = false;
+        _highlightId = result.entryId;
+        _savedMessage = created ? 'Guardado na agenda' : 'Alterações guardadas';
+        _undoId = created ? result.entryId : null;
+      });
+      _savedTimer = Timer(_savedFor, () {
+        if (mounted) _clearSaved();
+      });
+    }
+    ref.invalidate(agendaRangeProvider);
+  }
+
+  void _clearSaved() => setState(() {
+    _highlightId = null;
+    _savedMessage = null;
+    _undoId = null;
+  });
+
+  /// "Desfazer" depois de criar: apaga a entrada nova.
+  Future<void> _undoCreate() async {
+    final id = _undoId;
+    if (id == null) return;
+    _savedTimer?.cancel();
+    _clearSaved();
+    final toast = AppToast.of(context);
+    try {
+      await ref.read(agendaRepositoryProvider).deleteCalendarEntry(id);
+    } catch (err) {
+      toast.error(friendlyError(err));
+      return;
+    }
+    if (!mounted) return;
+    // Regra T4: sem navegação; aviso → invalidar.
+    toast.show('Tirado da agenda.');
+    ref.invalidate(agendaRangeProvider);
   }
 
   void _goTo(DateTime day) => setState(() {
     _day = DateUtils.dateOnly(day);
     _focusOverlap = false;
+    _highlightId = null;
   });
 
   /// Semana que começa em [weekStart]: preenche hoje se lá estiver, senão a
@@ -137,7 +235,11 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
 
   void _openEntry(AgendaEntry e) {
     final jobId = e.jobId;
-    if (jobId == null) return;
+    if (jobId == null &&
+        e.kind != AgendaEntryKind.external &&
+        e.kind != AgendaEntryKind.block) {
+      return;
+    }
     switch (e.kind) {
       case AgendaEntryKind.helperJob:
         // source_id de um ajudante é a candidatura.
@@ -149,7 +251,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
         if (proposalId == null) return;
         context.push('/worker/my-job/$proposalId?jobId=$jobId');
       case AgendaEntryKind.external || AgendaEntryKind.block:
-        return;
+        _editEntry(e);
     }
   }
 
@@ -208,11 +310,11 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
   }
 
   /// "Mudar a hora" de um dos que coincidem: abre o trabalho escolhido,
-  /// onde se pede a remarcação.
+  /// onde se pede a remarcação (ou o formulário, se for de fora da app).
   Future<void> _resolveOverlap(List<AgendaEntry> entries) async {
     final openable = [
       for (final e in entries)
-        if (e.jobId != null) e,
+        if (e.jobId != null || e.kind == AgendaEntryKind.external) e,
     ];
     if (openable.isEmpty) return;
     if (openable.length == 1) {
@@ -376,6 +478,11 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       onResolveOverlap: _resolveOverlap,
       onSearchWork: () => context.go('/worker/available-jobs'),
       onMarkAvailable: _markAvailable,
+      onAddToAgenda: () => _addToAgenda(_day),
+      onChangeUnavailableDates: _editEntry,
+      highlightSourceId: _highlightId,
+      savedMessage: _savedMessage,
+      onUndoSaved: _undoId == null ? null : _undoCreate,
     );
   }
 
@@ -426,6 +533,8 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       // Só guarda o dia, para o Hoje abrir nele; a vista já o mostra.
       onSelectedDayChanged: (day) => _day = day,
       onSearchWork: () => context.go('/worker/available-jobs'),
+      onAddToAgenda: () => _addToAgenda(weekStart),
+      onAddToAgendaOnDay: _addToAgenda,
     );
   }
 
@@ -469,6 +578,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       onOpenDay: _openDay,
       onOpenEntry: _openEntry,
       onResolveOverlap: _resolveOverlap,
+      onAddToAgendaOnDay: _addToAgenda,
     );
   }
 }

@@ -106,8 +106,8 @@ class AgendaWeekView extends StatefulWidget {
   final ValueChanged<DateTime> onSelectedDayChanged;
   final VoidCallback onSearchWork;
 
-  /// Nulos enquanto o formulário "Adicionar à agenda" não existe: o botão
-  /// e o "+" das linhas livres não aparecem.
+  /// "Adicionar à agenda" (semana livre) e o "+" das linhas livres; nulos
+  /// escondem os botões.
   final VoidCallback? onAddToAgenda;
   final ValueChanged<DateTime>? onAddToAgendaOnDay;
 

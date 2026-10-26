@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
+import '../../agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import 'widgets/worker_quick_actions_sheet.dart';
 
@@ -88,6 +89,16 @@ class WorkerShell extends ConsumerWidget {
         onOpenHelpRequests: () {
           Navigator.pop(sheetContext);
           context.push('/worker/help-requests');
+        },
+        onAddToAgenda: () async {
+          Navigator.pop(sheetContext);
+          final result = await context.push<AgendaEditorResult>(
+            '/worker/agenda/new',
+          );
+          // A Agenda abre no dia guardado e realça o cartão.
+          if (result != null && context.mounted) {
+            context.go('/worker/jobs', extra: {'agendaResult': result});
+          }
         },
         onOpenFleetCard: () {
           Navigator.pop(sheetContext);

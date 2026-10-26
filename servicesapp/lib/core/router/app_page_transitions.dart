@@ -220,3 +220,45 @@ CustomTransitionPage<void> buildFadeThroughPage(
     },
   );
 }
+
+/// Slide de baixo — formulário que se abre por cima do ecrã de onde veio e
+/// fecha para baixo ("Adicionar à agenda", design A8D). Mesmo tempo e curva
+/// das outras transições.
+CustomTransitionPage<T> buildSlideUpPage<T>(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
+  final wrapped = _wrapWithBackFallback(state, child);
+  if (_disableAnimations(context)) {
+    return CustomTransitionPage<T>(
+      key: state.pageKey,
+      child: wrapped,
+      transitionDuration: AppMotionDuration.instant,
+      reverseTransitionDuration: AppMotionDuration.instant,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );
+  }
+
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: wrapped,
+    transitionDuration: AppMotionDuration.screen,
+    reverseTransitionDuration: AppMotionDuration.screen,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final enter = CurvedAnimation(
+        parent: animation,
+        curve: AppMotionCurve.emphasized,
+        reverseCurve: AppMotionCurve.exit,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(enter),
+        child: child,
+      );
+    },
+  );
+}

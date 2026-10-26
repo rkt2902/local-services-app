@@ -259,6 +259,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/my-job/:id` | `WorkerMyJobDetailScreen` | fora | container-transform / shared-axis |
 | `/worker/help-requests` | `WorkerHelpRequestsScreen` | fora | fade-through / shared-axis |
 | `/worker/help-requests/:id/apply` | `ApplyAsHelperScreen` | fora | container-transform |
+| `/worker/agenda/new` | `AgendaEntryEditorScreen` ("Adicionar à agenda": trabalho fora da app ou indisponível; `?date=` dia, `?type=block`; volta com `AgendaEditorResult`) | fora | slide de baixo |
+| `/worker/agenda/:id` | `AgendaEntryEditorScreen` (editar `worker_calendar_entries`; `?date=` ocorrência tocada) | fora | slide de baixo |
 | `/worker/fleet-card` | `FleetCardScreen` | fora | shared-axis |
 | `/worker/fleet-card/scan` | `FleetCardScanScreen` | fora | shared-axis |
 | `/worker/fleet-card/confirm` | `FleetCardConfirmDataScreen` | fora | shared-axis |
@@ -268,7 +270,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
-| `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje, Semana e Mês; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
+| `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje, Semana e Mês; extra `agendaResult` abre o dia guardado no "+"; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
 Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'agenda_calendar_entry.dart';
 import 'agenda_entry_model.dart';
 
 /// Agenda do jardineiro (0064). Leitura por `get_worker_agenda`; as entradas
@@ -52,6 +53,78 @@ class AgendaRepository {
         'p_day': _date(day),
       },
     );
+  }
+
+  /// A série inteira, para o formulário de editar. Com [occurrenceDate],
+  /// também a exceção desse dia, se houver.
+  Future<(CalendarEntry, CalendarException?)> fetchCalendarEntry(
+    String id, {
+    DateTime? occurrenceDate,
+  }) async {
+    final row = await _client
+        .from('worker_calendar_entries')
+        .select()
+        .eq('id', id)
+        .single();
+    CalendarException? exception;
+    if (occurrenceDate != null) {
+      final found = await _client
+          .from('worker_calendar_exceptions')
+          .select()
+          .eq('entry_id', id)
+          .eq('occurrence_date', _date(occurrenceDate))
+          .maybeSingle();
+      if (found != null) exception = CalendarException.fromJson(found);
+    }
+    return (CalendarEntry.fromJson(row), exception);
+  }
+
+  /// Cria a entrada e devolve o id. [values] vem de
+  /// `AgendaEntryForm.toRow()`; o `worker_id` é o DEFAULT `auth.uid()`.
+  Future<String> createCalendarEntry(Map<String, dynamic> values) async {
+    final row = await _client
+        .from('worker_calendar_entries')
+        .insert(values)
+        .select('id')
+        .single();
+    return row['id'] as String;
+  }
+
+  Future<void> updateCalendarEntry(
+    String id,
+    Map<String, dynamic> values,
+  ) async {
+    await _client.from('worker_calendar_entries').update(values).eq('id', id);
+  }
+
+  /// Apaga a série toda (as exceções vão em cascata).
+  Future<void> deleteCalendarEntry(String id) async {
+    await _client.from('worker_calendar_entries').delete().eq('id', id);
+  }
+
+  /// "Só este dia": cria ou substitui a exceção de [occurrenceDate].
+  Future<void> saveException({
+    required String entryId,
+    required DateTime occurrenceDate,
+    required Map<String, dynamic> values,
+  }) async {
+    await _client.from('worker_calendar_exceptions').upsert({
+      'entry_id': entryId,
+      'occurrence_date': _date(occurrenceDate),
+      ...values,
+    }, onConflict: 'entry_id,occurrence_date');
+  }
+
+  /// Tira a exceção de um dia (ao mudar a série a partir dele).
+  Future<void> deleteException({
+    required String entryId,
+    required DateTime occurrenceDate,
+  }) async {
+    await _client
+        .from('worker_calendar_exceptions')
+        .delete()
+        .eq('entry_id', entryId)
+        .eq('occurrence_date', _date(occurrenceDate));
   }
 
   static String _date(DateTime d) =>
