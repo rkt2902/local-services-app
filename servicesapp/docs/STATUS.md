@@ -262,7 +262,12 @@ dia com o que se está a marcar a tracejado, a frase "Choca 1 hora com..." ou "C
 o tempo livre e as setas para outros dias. É só para ver e não mexe no formulário. Já
 aceita a etiqueta "A tua proposta" para o fluxo de enviar proposta (Prompt 10).
 
-Falta: a primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
+Também feito: a tab Propostas (R1 a R3). Cada proposta mostra o dia e a hora propostos
+(lidos da Agenda dos próximos 62 dias). As que chocam com a Agenda sobem para o topo,
+com contorno âmbar e a nota "Coincide com ...", que abre "Ver o dia". "Retirar proposta"
+pede confirmação e não tem "Desfazer". A ordem é feita na app sobre as páginas já lidas.
+
+Falta: a primeira abertura e os avisos nos fluxos existentes
 (enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da
 confirmação do cliente só se vê no dia dele (antes estava em "Agendados").
 

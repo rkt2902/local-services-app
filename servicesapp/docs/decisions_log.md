@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: tab Propostas (R1 a R3)
+
+Design A9 integrado no ecrã Trabalhos que já existia (`worker_jobs_view.dart`). Não é um
+ecrã novo. O dia e a hora de uma proposta vêm da linha `proposal` de `get_worker_agenda`
+(o board não os tem), lida para hoje mais 61 dias. Assim não foi preciso uma migration
+nova. O aviso usa `conflictsForSlot` e só conta quando as horas se cruzam ou o dia está
+ocupado. Outra proposta à mesma hora não faz aviso.
+
+- **Sem "Desfazer" ao retirar** (escolha do Henrique, 26/10). O backend avisa o cliente
+  logo, e num pedido direto termina a reserva. Fica o diálogo "Retirar a proposta?",
+  com "Retirar proposta" e "Manter", e depois o aviso "Proposta retirada.".
+- A ordem (aviso primeiro, depois a data) é feita na app sobre as páginas já lidas. A RPC
+  continua a ordenar por envio, porque o aviso depende da Agenda.
+- A candidatura a ajudante não tem "Retirar" aqui, como no design.
+- O nome do cliente não aparece no cartão da proposta, ao contrário do design. Até o
+  cliente aceitar, a app não mostra o nome dele ao jardineiro nas listas.
+- O estado continua no canto do cartão, como no resto do Trabalhos.
+
 ## 2026-10-26 — Agenda do jardineiro: folha "Ver o dia" (V1 a V3)
 
 Design A8F integrado com os componentes da app. `showAgendaDayPreview(context, day:,
