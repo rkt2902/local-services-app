@@ -22,6 +22,8 @@
 --    e remarcações por aceitar (tentativas), trabalhos de fora e
 --    indisponibilidades. A deteção de sobreposições é feita na app sobre
 --    esta leitura.
+-- 4. `free_calendar_day`: "Já estou livre" liberta só um dia de uma
+--    indisponibilidade.
 --
 -- Datas e horas em hora de Portugal (date + time), como confirmed_date/time.
 
@@ -273,6 +275,10 @@ GRANT  EXECUTE ON FUNCTION public.split_calendar_series(uuid, date) TO authentic
 -- da proposta (proposal) ou da série (external, block). job_id para abrir o
 -- detalhe. occurrence_date é o dia desta linha; series_date é o dia da
 -- ocorrência na série (para exceções), igual a occurrence_date fora das séries.
+-- proposal_id: proposta aceite (app_job, reschedule) ou a própria proposta,
+-- para abrir o detalhe do jardineiro. location_lat/lng só depois de aceite
+-- (numa proposta pendente o jardineiro só vê a zona). O ajudante aceite
+-- recebe o telefone do responsável, como no detalhe da ajuda.
 --
 -- Fim estimado: hora + duração (estimated_hours_max nas propostas,
 -- duration_minutes nos de fora), limitado a 23:59. Sem duração: NULL (a app
@@ -302,7 +308,10 @@ RETURNS TABLE(
   amount_max       numeric,
   recurrence       text,
   is_exception     boolean,
-  notes            text
+  notes            text,
+  proposal_id      uuid,
+  location_lat     numeric,
+  location_lng     numeric
 )
 LANGUAGE plpgsql
 STABLE
@@ -342,7 +351,10 @@ BEGIN
            pr.estimated_hours_min,
            j.reschedule_status,
            j.reschedule_proposed_date,
-           j.reschedule_proposed_time
+           j.reschedule_proposed_time,
+           pr.id                             AS proposal_id,
+           j.location_lat,
+           j.location_lng
     FROM   job_requests  j
     JOIN   job_proposals pr ON pr.id = j.accepted_proposal_id
     WHERE  j.status IN ('confirmed', 'awaiting_confirmation', 'completed')
@@ -361,7 +373,8 @@ BEGIN
            CASE WHEN b.pricing_mode = 'fixed_total' THEN b.total_price
                 ELSE b.hourly_rate * b.estimated_hours_min END,
            CASE WHEN b.pricing_mode = 'fixed_total' THEN b.total_price
-                ELSE b.hourly_rate * b.estimated_hours_max END
+                ELSE b.hourly_rate * b.estimated_hours_max END,
+           b.proposal_id, b.location_lat, b.location_lng
     FROM   app_base b
     LEFT   JOIN profiles cp ON cp.id = b.client_id
     WHERE  b.principal_id = v_uid
@@ -371,7 +384,8 @@ BEGIN
            b.reschedule_proposed_time, b.days, b.estimated_hours_max,
            b.service_type_id, COALESCE(b.address_text, b.location_area),
            cp.full_name, cp.phone, 'pending'::text, true,
-           NULL::numeric, NULL::numeric
+           NULL::numeric, NULL::numeric,
+           b.proposal_id, b.location_lat, b.location_lng
     FROM   app_base b
     LEFT   JOIN profiles cp ON cp.id = b.client_id
     WHERE  b.principal_id = v_uid
@@ -382,12 +396,13 @@ BEGIN
   rows_helper AS (
     SELECT 'helper_job'::text, ha.id, b.job_id, b.day0, b.t0, b.days,
            b.estimated_hours_max, b.service_type_id, b.location_area,
-           pp.full_name, NULL::text,
+           pp.full_name, pp.phone,
            CASE WHEN b.job_status = 'confirmed' AND b.started_at IS NOT NULL
                 THEN 'in_progress' ELSE b.job_status END,
            false,
            ha.agreed_rate * b.estimated_hours_min,
-           ha.agreed_rate * b.estimated_hours_max
+           ha.agreed_rate * b.estimated_hours_max,
+           NULL::uuid, b.location_lat, b.location_lng
     FROM   help_acceptances ha
     JOIN   help_requests    hr ON hr.id = ha.help_request_id
     JOIN   app_base         b  ON b.job_id = hr.job_id
@@ -404,7 +419,8 @@ BEGIN
            CASE WHEN pr.pricing_mode = 'fixed_total' THEN pr.total_price
                 ELSE pr.hourly_rate * pr.estimated_hours_min END,
            CASE WHEN pr.pricing_mode = 'fixed_total' THEN pr.total_price
-                ELSE pr.hourly_rate * pr.estimated_hours_max END
+                ELSE pr.hourly_rate * pr.estimated_hours_max END,
+           pr.id, NULL::numeric, NULL::numeric
     FROM   job_proposals pr
     JOIN   job_requests  j ON j.id = pr.job_id
     WHERE  pr.worker_id = v_uid
@@ -424,7 +440,7 @@ BEGIN
       UNION ALL SELECT * FROM rows_helper
       UNION ALL SELECT * FROM rows_proposal
     ) AS r(kind, src, jid, day0, t0, days, hours_max, stype, loc, pname,
-           pphone, st, tentative, amin, amax)
+           pphone, st, tentative, amin, amax, prop, lat, lng)
     CROSS JOIN LATERAL generate_series(1, r.days) AS d(n)
   ),
   -- Séries de fora da app: ocorrências que tocam no intervalo, mais as que
@@ -487,6 +503,7 @@ BEGIN
            s.span + 1 AS days,
            COALESCE(CASE WHEN x.action IN ('moved', 'changed') THEN x.new_title END, s.title) AS title,
            s.service_type_id, s.location_label, s.person_name, s.person_phone,
+           s.location_lat, s.location_lng,
            CASE WHEN x.action = 'done' THEN 'done' ELSE s.status END AS st,
            s.amount, s.recurrence,
            x.id IS NOT NULL AS is_exc,
@@ -524,7 +541,10 @@ BEGIN
          a.amax,
          'none'::text,
          false,
-         NULL::text
+         NULL::text,
+         a.prop,
+         a.lat,
+         a.lng
   FROM   app_days a
   WHERE  (a.day0 + (a.n - 1)) BETWEEN p_from AND p_to
 
@@ -554,7 +574,10 @@ BEGIN
          e.amount,
          e.recurrence,
          e.is_exc,
-         e.notes
+         e.notes,
+         NULL::uuid,
+         e.location_lat,
+         e.location_lng
   FROM   ext e
   CROSS  JOIN LATERAL generate_series(1, e.days) AS d(n)
   WHERE  (e.day0 + (d.n - 1)) BETWEEN p_from AND p_to
@@ -565,3 +588,88 @@ $function$;
 
 REVOKE EXECUTE ON FUNCTION public.get_worker_agenda(date, date) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.get_worker_agenda(date, date) TO authenticated;
+
+-- ── 5. "Já estou livre": libertar um dia de uma indisponibilidade ──
+--
+-- Só o dia p_day. Numa entrada que não se repete encurta-a (primeiro ou
+-- último dia), apaga-a (um só dia) ou divide-a em duas (dia do meio). Numa
+-- série cancela só esta ocorrência (exceção); se a ocorrência tiver vários
+-- dias, cancela-a toda, porque uma exceção não encurta uma ocorrência.
+
+DROP FUNCTION IF EXISTS public.free_calendar_day(uuid, date, date);
+
+CREATE FUNCTION public.free_calendar_day(
+  p_entry_id    uuid,
+  p_series_date date,
+  p_day         date
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid   uuid := auth.uid();
+  v_entry worker_calendar_entries%ROWTYPE;
+  v_last  date;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Sessão inválida' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_entry
+  FROM   worker_calendar_entries
+  WHERE  id = p_entry_id AND worker_id = v_uid AND kind = 'block'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Indisponibilidade não encontrada' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_entry.recurrence <> 'none' THEN
+    INSERT INTO worker_calendar_exceptions (entry_id, worker_id, occurrence_date, action)
+    VALUES (p_entry_id, v_uid, p_series_date, 'cancelled')
+    ON CONFLICT (entry_id, occurrence_date)
+    DO UPDATE SET action = 'cancelled', new_date = NULL, new_time = NULL,
+                  new_all_day = false, new_duration_minutes = NULL,
+                  new_title = NULL, new_notes = NULL;
+    RETURN;
+  END IF;
+
+  v_last := COALESCE(v_entry.ends_on, v_entry.starts_on);
+  IF p_day < v_entry.starts_on OR p_day > v_last THEN
+    RAISE EXCEPTION 'Esse dia não faz parte da indisponibilidade' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_entry.starts_on = v_last THEN
+    DELETE FROM worker_calendar_entries WHERE id = p_entry_id;
+  ELSIF p_day = v_entry.starts_on THEN
+    UPDATE worker_calendar_entries
+    SET    starts_on = p_day + 1,
+           ends_on   = CASE WHEN p_day + 1 = v_last THEN NULL ELSE v_last END
+    WHERE  id = p_entry_id;
+  ELSIF p_day = v_last THEN
+    UPDATE worker_calendar_entries
+    SET    ends_on = CASE WHEN p_day - 1 = v_entry.starts_on THEN NULL ELSE p_day - 1 END
+    WHERE  id = p_entry_id;
+  ELSE
+    UPDATE worker_calendar_entries
+    SET    ends_on = CASE WHEN p_day - 1 = v_entry.starts_on THEN NULL ELSE p_day - 1 END
+    WHERE  id = p_entry_id;
+
+    INSERT INTO worker_calendar_entries (
+      worker_id, kind, title, location_label, location_lat, location_lng,
+      starts_on, start_time, duration_minutes, ends_on, recurrence, notes, status
+    ) VALUES (
+      v_uid, 'block', v_entry.title, v_entry.location_label,
+      v_entry.location_lat, v_entry.location_lng, p_day + 1,
+      v_entry.start_time, v_entry.duration_minutes,
+      CASE WHEN p_day + 1 = v_last THEN NULL ELSE v_last END,
+      'none', v_entry.notes, v_entry.status
+    );
+  END IF;
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.free_calendar_day(uuid, date, date) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.free_calendar_day(uuid, date, date) TO authenticated;

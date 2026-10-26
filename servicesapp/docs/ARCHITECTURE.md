@@ -268,7 +268,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
-| `/worker/jobs` | `WorkerJobsScreen` | **WorkerShell** | idem |
+| `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vista Hoje; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
 Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.
@@ -424,8 +424,9 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
-| `get_worker_agenda` (0064) | `p_from, p_to` (máx. 62 dias) | `TABLE(entry_kind, source_id, job_id, occurrence_date, series_date, start_time, end_time, day_index, day_count, title, service_type_id, location_label, person_name, person_phone, status, is_tentative, amount_min, amount_max, recurrence, is_exception, notes)`, uma linha por dia; `entry_kind` app_job/helper_job/proposal/reschedule/external/block | `AgendaRepository` (Agenda do jardineiro; sobreposições em `agenda_conflicts.dart`) |
+| `get_worker_agenda` (0064) | `p_from, p_to` (máx. 62 dias) | `TABLE(entry_kind, source_id, job_id, occurrence_date, series_date, start_time, end_time, day_index, day_count, title, service_type_id, location_label, person_name, person_phone, status, is_tentative, amount_min, amount_max, recurrence, is_exception, notes, proposal_id, location_lat, location_lng)`, uma linha por dia; `entry_kind` app_job/helper_job/proposal/reschedule/external/block | `AgendaRepository` (Agenda do jardineiro; sobreposições em `agenda_conflicts.dart`) |
 | `split_calendar_series` (0064) | `p_entry_id, p_from_date` | `uuid` da série nova | `AgendaRepository.splitSeries` ("Este e os seguintes") |
+| `free_calendar_day` (0064) | `p_entry_id, p_series_date, p_day` | `void` | `AgendaRepository.freeDay` ("Já estou livre": só esse dia de uma indisponibilidade) |
 | `get_worker_job_board` (0035, última 0058: `pricing_mode`, `total_price` no fim) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
@@ -523,7 +524,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0060_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da `0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql` (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
 | `0061_hotfix_reserved_for_other.sql` | **criada, aplicar já** e sozinha: `job_reserved_for_other` dava NULL nos pedidos normais e `NOT ...` escondia-os aos jardineiros desde a 0057. Corrige a versão que existir (4 ou 5 argumentos) |
 | `0063_direct_context_fixed_price.sql` | **criada, NÃO aplicada**, depois da 0058 (`get_direct_request_context` com `pricing_mode` e `total_price`) |
-| `0064_worker_agenda.sql` | **criada, NÃO aplicada**, depois da 0058 (Agenda: `worker_calendar_entries`, `worker_calendar_exceptions`, `get_worker_agenda`, `split_calendar_series`) |
+| `0064_worker_agenda.sql` | **criada, NÃO aplicada**, depois da 0058 (Agenda: `worker_calendar_entries`, `worker_calendar_exceptions`, `get_worker_agenda`, `split_calendar_series`, `free_calendar_day`) |
 | `0062_job_followups_and_better_notifications.sql` | **criada, NÃO aplicada**, depois da 0058 e da 0059 (lembrete às 6h aos jardineiros, 24h sem propostas: pedido mostrado mais longe e aviso ao cliente, "Mostrar a jardineiros mais longe", dicas da época, textos das notificações reescritos no trigger) |
 
 Próxima migration: `0064`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).

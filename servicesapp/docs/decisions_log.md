@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: vista Hoje (H1 a H7)
+
+Design "ProJardim Agenda Hoje" integrado com os componentes A1 a A9 (não com o código do
+design, que repetia cartões e cores próprias). Pontos que não seguem o design à letra:
+- Texto do dia indisponível: o design dizia "Não recebes pedidos novos"; a decisão 4 é que
+  a indisponibilidade não esconde pedidos, por isso diz "Só aparece na tua agenda: os
+  pedidos novos continuam a chegar".
+- Valores: "60 €" quando é fechado, "≈ 45 a 60 €" quando é estimado (o design mostrava
+  só "≈ 60 €"), como no resto da app.
+- "Iniciar" abre a mesma folha do detalhe (fotos de antes e `start_job`) sem sair da
+  Agenda; regra de 1 h antes e só no próprio dia, como no detalhe.
+- "Mudar a hora" de um grupo que coincide abre o trabalho escolhido (é lá que se pede a
+  remarcação); as entradas de fora da app ainda não abrem (detalhe no Prompt 6).
+- Semana e Mês ficam no seletor mas mostram um aviso até haver design.
+- Leitura por mês inteiro (`agendaMonthRange`): deslizar entre dias não faz novo pedido e
+  o calendário do mês reaproveita os dados.
+- 0064 (ainda não aplicada) passou a devolver `proposal_id` (para abrir
+  `/worker/my-job/:proposalId`), `location_lat/lng` (mapa; nulos numa proposta pendente,
+  que só mostra a zona) e o telefone do responsável ao ajudante aceite (como no detalhe
+  da ajuda). Nova RPC `free_calendar_day` para "Já estou livre": liberta só um dia
+  (encurta, apaga ou divide a indisponibilidade; numa série cancela essa ocorrência).
+
 ## 2026-10-26 — Agenda do jardineiro: dados, sobreposições e componentes (0064)
 
 Plano em `projardim/design/2026-10-26-plano-agenda-jardineiro.md` (pasta partilhada).

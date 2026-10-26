@@ -76,6 +76,7 @@ class AgendaEntryCardData {
     this.repeats = false,
     this.changedLabel,
     this.done = false,
+    this.current = false,
     this.actions = const [],
     this.onTap,
   });
@@ -119,6 +120,10 @@ class AgendaEntryCardData {
 
   /// Concluído ou feito: atenuado, sem botões, visto no lugar do ícone.
   final bool done;
+
+  /// A hora atual cai dentro desta entrada (vista Hoje): contorno verde de
+  /// 2 px.
+  final bool current;
 
   final List<AgendaCardAction> actions;
   final VoidCallback? onTap;
@@ -206,6 +211,7 @@ const double _timeColumnWidth = 50;
 const double _compactTimeWidth = 44;
 const double _compactHeight = 52;
 const double _doneOpacity = 0.62;
+const double _currentBorderWidth = 2;
 
 /// Moldura comum: barra à esquerda, fundo, contorno (fino, tracejado ou
 /// riscas) e toque.
@@ -216,6 +222,7 @@ class _AgendaFrame extends StatelessWidget {
     required this.padding,
     required this.child,
     this.done = false,
+    this.current = false,
     this.onTap,
   });
 
@@ -224,6 +231,7 @@ class _AgendaFrame extends StatelessWidget {
   final EdgeInsets padding;
   final Widget child;
   final bool done;
+  final bool current;
   final VoidCallback? onTap;
 
   @override
@@ -266,8 +274,12 @@ class _AgendaFrame extends StatelessWidget {
             color: style.background,
             borderRadius: borderRadius,
             border: Border.all(
-              color: done ? AppColors.divider : style.border,
-              width: style.borderWidth,
+              color: done
+                  ? AppColors.divider
+                  : current
+                  ? AppColors.primary
+                  : style.border,
+              width: current && !done ? _currentBorderWidth : style.borderWidth,
             ),
             boxShadow: style.shadow && !done
                 ? [
@@ -307,6 +319,7 @@ class AgendaEntryCard extends StatelessWidget {
         kind: data.kind,
         radius: AppRadius.card,
         done: data.done,
+        current: data.current,
         onTap: data.onTap,
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.s20,

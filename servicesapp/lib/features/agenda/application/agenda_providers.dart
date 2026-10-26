@@ -20,3 +20,10 @@ final agendaRangeProvider = FutureProvider.autoDispose
       final (from, to) = range;
       return ref.read(agendaRepositoryProvider).fetchAgenda(from: from, to: to);
     });
+
+/// Mês inteiro de [day], a chave usada pelo Hoje: desliza entre dias sem
+/// novo pedido e o calendário reaproveita a mesma leitura.
+(DateTime, DateTime) agendaMonthRange(DateTime day) => (
+  DateTime(day.year, day.month),
+  DateTime(day.year, day.month + 1, 0),
+);

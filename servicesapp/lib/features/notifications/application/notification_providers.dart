@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../agenda/application/agenda_providers.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -22,6 +23,8 @@ void _invalidateWorkerJobBoard(Ref ref) {
   ref.invalidate(workerJobBoardPageProvider(('pending', 0)));
   ref.invalidate(workerJobBoardPageProvider(('scheduled', 0)));
   ref.invalidate(workerJobBoardPageProvider(('completed', 0)));
+  // A Agenda mostra os mesmos trabalhos e propostas.
+  ref.invalidate(agendaRangeProvider);
 }
 
 final notificationRepositoryProvider = Provider<NotificationRepository>(

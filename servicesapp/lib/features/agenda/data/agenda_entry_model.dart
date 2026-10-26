@@ -69,6 +69,9 @@ class AgendaEntry {
     this.recurrence = AgendaRecurrence.none,
     this.isException = false,
     this.notes,
+    this.proposalId,
+    this.locationLat,
+    this.locationLng,
   });
 
   factory AgendaEntry.fromJson(Map<String, dynamic> json) {
@@ -97,6 +100,9 @@ class AgendaEntry {
       recurrence: AgendaRecurrence.fromValue(json['recurrence'] as String?),
       isException: json['is_exception'] as bool? ?? false,
       notes: json['notes'] as String?,
+      proposalId: json['proposal_id'] as String?,
+      locationLat: (json['location_lat'] as num?)?.toDouble(),
+      locationLng: (json['location_lng'] as num?)?.toDouble(),
     );
   }
 
@@ -144,6 +150,14 @@ class AgendaEntry {
   /// Esta ocorrência foi mudada à parte ("Mudado só este dia").
   final bool isException;
   final String? notes;
+
+  /// Proposta aceite (app_job, reschedule) ou a própria proposta, para abrir
+  /// o detalhe do jardineiro (`/worker/my-job/:proposalId`).
+  final String? proposalId;
+
+  /// Só depois de aceite; numa proposta pendente há apenas a zona.
+  final double? locationLat;
+  final double? locationLng;
 
   bool get hasTime => startMinutes != null;
 

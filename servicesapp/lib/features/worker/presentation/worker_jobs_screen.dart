@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
@@ -13,7 +14,11 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../proposals/application/proposal_price_labels.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../agenda/presentation/widgets/agenda_legend.dart';
+import '../../agenda/presentation/worker_agenda_tab.dart';
+import '../../notifications/application/notification_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/cancel_reasons.dart';
 import '../application/worker_job_rules.dart';
@@ -28,14 +33,18 @@ String _tabParam(view.WorkerJobsTab tab) => switch (tab) {
       view.WorkerJobsTab.history => 'completed',
     };
 
-view.WorkerJobsTab? _tabFromName(String? name) {
+/// Nomes antigos das tabs (notificações, Início): "Agendados" passou a ser
+/// a Agenda.
+view.WorkerJobsSection _sectionFromName(String? name) {
   return switch (name) {
-    'pending' => view.WorkerJobsTab.pending,
-    'scheduled' => view.WorkerJobsTab.scheduled,
-    'completed' || 'history' => view.WorkerJobsTab.history,
-    _ => null,
+    'pending' || 'proposals' => view.WorkerJobsSection.proposals,
+    'completed' || 'history' => view.WorkerJobsSection.history,
+    _ => view.WorkerJobsSection.agenda,
   };
 }
+
+/// Tabs do board que o ecrã lê: a Agenda vem de `get_worker_agenda`.
+const _boardTabs = [view.WorkerJobsTab.pending, view.WorkerJobsTab.history];
 
 final _dayMonth = DateFormat('dd/MM');
 
@@ -294,10 +303,11 @@ view.WorkerJobListItemViewData _toViewData(
   );
 }
 
-/// Ecrã "Os meus trabalhos" (Flow 5) — wrapper de integração que liga o
-/// board unificado (`get_worker_job_board`, migration 0035: responsável +
-/// ajudante, filtrado/ordenado/paginado inteiramente server-side) ao
-/// componente apresentacional em `widgets/worker_jobs_view.dart`.
+/// Ecrã Trabalhos (Flow 5, design A8) — wrapper de integração. A tab Agenda
+/// é `WorkerAgendaTab` (0064); Propostas e Histórico ligam o board unificado
+/// (`get_worker_job_board`, migration 0035: responsável + ajudante,
+/// filtrado/ordenado/paginado inteiramente server-side) ao componente
+/// apresentacional em `widgets/worker_jobs_view.dart`.
 class WorkerJobsScreen extends ConsumerStatefulWidget {
   const WorkerJobsScreen({
     super.key,
@@ -316,7 +326,7 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
-  late view.WorkerJobsTab _selectedTab;
+  late view.WorkerJobsSection _selectedSection;
   String? _highlightedJobId;
   Timer? _highlightTimer;
 
@@ -337,8 +347,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedTab =
-        _tabFromName(widget.initialTab) ?? view.WorkerJobsTab.pending;
+    _selectedSection = _sectionFromName(widget.initialTab);
     _highlightedJobId = widget.highlightedJobId;
     if (_highlightedJobId != null) {
       _highlightTimer = Timer(const Duration(milliseconds: 1300), () {
@@ -361,11 +370,11 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
 
   Future<void> _onRefresh() async {
     setState(() {
-      for (final t in view.WorkerJobsTab.values) {
+      for (final t in _boardTabs) {
         _resetPagination(t);
       }
     });
-    for (final t in view.WorkerJobsTab.values) {
+    for (final t in _boardTabs) {
       ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
     }
     ref.invalidate(jobsInRadiusProvider);
@@ -391,18 +400,18 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Página 0 das 3 tabs é sempre observada: as contagens das tabs vêm do
-    // `total_count` de cada uma e as três listas ficam montadas (cada tab
-    // guarda o seu scroll).
+    // Página 0 das 2 listas é sempre observada: a contagem de Propostas vem
+    // do `total_count` e as listas ficam montadas (cada tab guarda o seu
+    // scroll).
     final page0ByTab = {
-      for (final t in view.WorkerJobsTab.values)
+      for (final t in _boardTabs)
         t: ref.watch(workerJobBoardPageProvider((_tabParam(t), 0))),
     };
 
     // Reinicia a paginação de uma tab sempre que a respetiva página 0 for
     // invalidada externamente (ex.: notificationSyncProvider), para não
     // misturar páginas extra antigas com dados novos.
-    for (final t in view.WorkerJobsTab.values) {
+    for (final t in _boardTabs) {
       ref.listen(workerJobBoardPageProvider((_tabParam(t), 0)), (prev, next) {
         if (next.isLoading && mounted) {
           setState(() => _resetPagination(t));
@@ -466,25 +475,34 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     }
 
     final pending = tabData(view.WorkerJobsTab.pending);
-    final scheduled = tabData(view.WorkerJobsTab.scheduled);
     final history = tabData(view.WorkerJobsTab.history);
 
-    String countLabel(String label, view.WorkerJobsTab tab) {
-      final count = totalCountFor(tab);
-      return count > 0 ? '$label $count' : label;
-    }
-
     return view.WorkerJobsScreen(
-      selectedTab: _selectedTab,
-      pendingTabLabel: countLabel('Pendentes', view.WorkerJobsTab.pending),
-      scheduledTabLabel: countLabel('Agendados', view.WorkerJobsTab.scheduled),
-      // Sem contagem: o histórico só cresce, o número não ajuda a decidir.
-      historyTabLabel: 'Histórico',
+      selectedSection: _selectedSection,
+      agenda: const WorkerAgendaTab(),
+      // Sem contagem no histórico: só cresce, o número não ajuda a decidir.
+      proposalsCount: totalCountFor(view.WorkerJobsTab.pending),
       pending: pending,
-      scheduled: scheduled,
       history: history,
+      hasUnreadNotifications: ref.watch(unreadCountProvider) > 0,
+      onNotificationsPressed: () => context.push('/notifications'),
+      onColorsPressed: () => AppSheet.show<void>(
+        context,
+        builder: (_) => const SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.s20,
+              AppSpacing.lg,
+              AppSpacing.s20,
+              AppSpacing.md,
+            ),
+            child: AgendaLegendSheet(),
+          ),
+        ),
+      ),
       onRetry: () {
-        for (final t in view.WorkerJobsTab.values) {
+        for (final t in _boardTabs) {
           ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
         }
       },
@@ -494,7 +512,8 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       // devolvido pela RPC (COUNT(*) OVER()), não de um heurístico de
       // "página cheia".
       onLoadMore: _loadMore,
-      onTabSelected: (tab) => setState(() => _selectedTab = tab),
+      onSectionSelected: (section) =>
+          setState(() => _selectedSection = section),
       onFindJobsPressed: () => context.go('/worker/available-jobs'),
       onJobPressed: (id) {
         final entry = entriesByTab.values

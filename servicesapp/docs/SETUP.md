@@ -321,10 +321,12 @@ do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
 
 - [ ] SQL Editor: colar `supabase/migrations/0064_worker_agenda.sql` e correr.
       Pode correr-se mais do que uma vez.
-- [ ] Testar no SQL Editor (com a app ainda sem ecrãs da Agenda):
+- [ ] Testar no SQL Editor:
       `select * from get_worker_agenda(current_date, current_date + 30);` dá erro
-      "Sessão inválida" (normal, no SQL Editor não há utilizador). Na app, quando os
-      ecrãs chegarem, os trabalhos marcados aparecem na Agenda.
+      "Sessão inválida" (normal, no SQL Editor não há utilizador).
+- [ ] Testar na app (jardineiro): Trabalhos abre na Agenda, no dia de hoje, com os
+      trabalhos marcados, a linha de agora e "Iniciar" a partir de 1 h antes. Sem a 0064
+      a Agenda mostra "Não foi possível carregar a agenda".
 
 **Diz ao Claude:** "0064 aplicada".
 

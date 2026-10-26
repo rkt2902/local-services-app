@@ -37,6 +37,23 @@ class AgendaRepository {
     return id as String;
   }
 
+  /// "Já estou livre": liberta só [day] de uma indisponibilidade. Numa
+  /// série, [seriesDate] diz qual ocorrência.
+  Future<void> freeDay({
+    required String entryId,
+    required DateTime seriesDate,
+    required DateTime day,
+  }) async {
+    await _client.rpc(
+      'free_calendar_day',
+      params: {
+        'p_entry_id': entryId,
+        'p_series_date': _date(seriesDate),
+        'p_day': _date(day),
+      },
+    );
+  }
+
   static String _date(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'

@@ -240,10 +240,20 @@ adoção parcial do componente.
 ### Agenda do jardineiro: em construção (2026-10-26)
 
 Feito: migration 0064 (criada, não aplicada), `AgendaRepository`, `agendaRangeProvider`,
-deteção de sobreposições com testes e os componentes visuais da folha de design (A1 a A9).
-Ainda não há ecrãs: a tab "Trabalhos" continua igual até chegarem os designs das vistas
-Hoje, Semana e Mês, do formulário "Adicionar à agenda" e do detalhe. Os avisos nos fluxos
-existentes (enviar proposta, detalhe do pedido, remarcar) também ficam para essa fase.
+deteção de sobreposições com testes, os componentes da folha de design (A1 a A9) e a
+vista **Hoje** (H1 a H7). O ecrã Trabalhos passou a ter as tabs Agenda · Propostas ·
+Histórico e abre na Agenda; a antiga tab "Agendados" deixou de existir (os trabalhos
+marcados estão na Agenda, no dia deles).
+
+**Sem a 0064 aplicada a tab Agenda mostra o erro "Não foi possível carregar a agenda".**
+Aplicar a 0064 antes de publicar.
+
+Falta: vistas Semana e Mês (os botões avisam "chega na próxima versão"), o formulário
+"Adicionar à agenda" e "Indisponível" (por isso o botão "Adicionar à agenda" do dia
+livre e o "Mudar datas" ainda não aparecem), o detalhe das entradas de fora da app, a
+primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
+(enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da
+confirmação do cliente só se vê no dia dele (antes estava em "Agendados").
 
 ### ✅ RESOLVIDO 2026-10-16 — verificação independente contra dump real da BD viva
 

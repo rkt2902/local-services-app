@@ -294,12 +294,27 @@ class AgendaPeriodNav extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.input),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  // Toque abre o calendário: a seta diz que há mais.
+                  if (onLabelTap != null) ...[
+                    const SizedBox(width: AppSpacing.xxs),
+                    const Icon(
+                      Icons.expand_more_rounded,
+                      size: AppSizes.emphasisIcon,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -342,11 +357,17 @@ class AgendaProposalsToggle extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Mostrar propostas',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textStrong,
+              // Em ecrãs estreitos parte em duas linhas, como no design.
+              Flexible(
+                child: Text(
+                  'Mostrar propostas',
+                  textAlign: TextAlign.end,
+                  maxLines: 2,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textStrong,
+                    height: 1.15,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),

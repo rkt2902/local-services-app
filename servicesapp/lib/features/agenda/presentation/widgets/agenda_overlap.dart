@@ -282,3 +282,77 @@ class AgendaAvailabilityChip extends StatelessWidget {
     );
   }
 }
+
+/// Aviso no topo do Hoje quando há horas que se cruzam (H2). "Ver" desliza
+/// até ao grupo.
+class AgendaOverlapBanner extends StatelessWidget {
+  const AgendaOverlapBanner({
+    required this.label,
+    required this.onView,
+    super.key,
+  });
+
+  /// "2 trabalhos ao mesmo tempo às 14:00".
+  final String label;
+  final VoidCallback onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = AppStatusColor.waiting;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s14,
+        AppSpacing.xxs,
+        AppSpacing.xxs,
+        AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: tone.background,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_rounded,
+            size: AppSizes.emphasisIcon,
+            color: tone.foreground,
+          ),
+          const SizedBox(width: AppSpacing.s10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Text(
+                label,
+                style: textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: tone.foreground,
+                ),
+              ),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onView,
+            iconAlignment: IconAlignment.end,
+            style: TextButton.styleFrom(
+              foregroundColor: tone.foreground,
+              minimumSize: const Size(0, AppSizes.headerIconButton),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s10),
+            ),
+            icon: const Icon(
+              Icons.arrow_downward_rounded,
+              size: AppSizes.inlineIcon,
+            ),
+            label: Text(
+              'Ver',
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: tone.foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

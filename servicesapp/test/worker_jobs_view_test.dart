@@ -57,22 +57,22 @@ WorkerJobListItemViewData _item(
     );
 
 Widget _screen({
-  WorkerJobsTab tab = WorkerJobsTab.scheduled,
+  WorkerJobsSection section = WorkerJobsSection.proposals,
   WorkerJobsTabViewData pending = const WorkerJobsTabViewData(),
-  WorkerJobsTabViewData scheduled = const WorkerJobsTabViewData(),
   WorkerJobsTabViewData history = const WorkerJobsTabViewData(),
   VoidCallback? onFind,
+  ValueChanged<WorkerJobsSection>? onSection,
 }) {
   return MaterialApp(
     home: WorkerJobsScreen(
-      selectedTab: tab,
-      pendingTabLabel: 'Pendentes 3',
-      scheduledTabLabel: 'Agendados 4',
-      historyTabLabel: 'Histórico',
+      selectedSection: section,
+      agenda: const Text('corpo da agenda'),
+      proposalsCount: 3,
       pending: pending,
-      scheduled: scheduled,
       history: history,
-      onTabSelected: (_) {},
+      onSectionSelected: onSection ?? (_) {},
+      onNotificationsPressed: () {},
+      onColorsPressed: () {},
       onJobPressed: (_) {},
       onLoadMore: (_) {},
       onFindJobsPressed: onFind,
@@ -156,28 +156,44 @@ void main() {
     });
   });
 
-  testWidgets('tabs com contagem, chip Ajudante e badge do trabalho',
+  testWidgets('tabs Agenda, Propostas com contagem e Histórico',
       (tester) async {
+    WorkerJobsSection? selected;
     await tester.pumpWidget(_screen(
-      scheduled: WorkerJobsTabViewData(sections: [
+      pending: WorkerJobsTabViewData(sections: [
         WorkerJobsSectionViewData(items: [
-          _item('1'),
-          _item('2', role: 'Ajudante'),
+          _item('1', status: 'Pendente'),
+          _item('2', role: 'Ajudante', status: 'Pendente'),
         ]),
       ]),
+      onSection: (s) => selected = s,
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Pendentes 3'), findsOneWidget);
-    expect(find.text('Agendados 4'), findsOneWidget);
+    expect(find.text('Trabalhos'), findsOneWidget);
+    expect(find.text('Agenda'), findsOneWidget);
+    expect(find.text('Propostas'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
     expect(find.text('Serviço 1'), findsOneWidget);
     expect(find.text('Ajudante'), findsOneWidget);
-    expect(find.text('Agendado'), findsNWidgets(2));
+    // "Cores" só na Agenda.
+    expect(find.text('Cores'), findsNothing);
+
+    await tester.tap(find.text('Agenda'));
+    expect(selected, WorkerJobsSection.agenda);
+  });
+
+  testWidgets('a Agenda mostra o corpo que recebe e o botão Cores',
+      (tester) async {
+    await tester.pumpWidget(_screen(section: WorkerJobsSection.agenda));
+    await tester.pumpAndSettle();
+    expect(find.text('corpo da agenda'), findsOneWidget);
+    expect(find.text('Cores'), findsOneWidget);
   });
 
   testWidgets('histórico agrupado por mês', (tester) async {
     await tester.pumpWidget(_screen(
-      tab: WorkerJobsTab.history,
+      section: WorkerJobsSection.history,
       history: WorkerJobsTabViewData(sections: [
         WorkerJobsSectionViewData(label: 'Outubro', items: [
           _item('1', status: 'Concluído'),
@@ -195,16 +211,15 @@ void main() {
     expect(find.text('Não selecionada'), findsOneWidget);
   });
 
-  testWidgets('vazios por tab: só pendentes e agendados têm botão',
-      (tester) async {
+  testWidgets('vazios por tab: só Propostas tem botão', (tester) async {
     var found = 0;
     await tester.pumpWidget(_screen(onFind: () => found++));
     await tester.pumpAndSettle();
-    expect(find.text('Nada agendado'), findsOneWidget);
+    expect(find.text('Sem propostas pendentes'), findsOneWidget);
     await tester.tap(find.text('Ver pedidos disponíveis'));
     expect(found, 1);
 
-    await tester.pumpWidget(_screen(tab: WorkerJobsTab.history));
+    await tester.pumpWidget(_screen(section: WorkerJobsSection.history));
     await tester.pumpAndSettle();
     expect(find.text('Histórico vazio'), findsOneWidget);
     expect(find.text('Ver pedidos disponíveis'), findsNothing);

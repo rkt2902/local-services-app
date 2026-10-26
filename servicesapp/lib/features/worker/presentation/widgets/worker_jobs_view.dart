@@ -10,6 +10,8 @@ import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/app_status_badge.dart';
+import 'package:servicesapp/core/widgets/home_notification_button.dart';
+import 'package:servicesapp/features/agenda/presentation/widgets/agenda_controls.dart';
 
 enum WorkerJobsTab {
   pending,
@@ -85,40 +87,53 @@ class WorkerJobsTabViewData {
   bool get isEmpty => sections.every((s) => s.items.isEmpty);
 }
 
+/// Tabs do ecrã Trabalhos (design A8): Agenda (Hoje, Semana, Mês), as
+/// propostas e candidaturas por responder, e o histórico.
+enum WorkerJobsSection { agenda, proposals, history }
+
+/// Ecrã Trabalhos: cabeçalho, tabs e o conteúdo de cada uma. A Agenda chega
+/// já montada ([agenda]); Propostas e Histórico são as listas do board.
 class WorkerJobsScreen extends StatelessWidget {
   const WorkerJobsScreen({
-    required this.selectedTab,
-    required this.pendingTabLabel,
-    required this.scheduledTabLabel,
-    required this.historyTabLabel,
+    required this.selectedSection,
+    required this.agenda,
     required this.pending,
-    required this.scheduled,
     required this.history,
-    required this.onTabSelected,
+    required this.onSectionSelected,
     required this.onJobPressed,
     required this.onLoadMore,
+    required this.onNotificationsPressed,
+    required this.onColorsPressed,
     super.key,
+    this.proposalsCount,
+    this.hasUnreadNotifications = false,
     this.onRetry,
     this.onRefresh,
     this.highlightedJobId,
     this.onFindJobsPressed,
   });
 
-  final WorkerJobsTab selectedTab;
+  final WorkerJobsSection selectedSection;
 
-  /// "Pendentes 3", "Agendados 4", "Histórico", já formatados.
-  final String pendingTabLabel;
-  final String scheduledTabLabel;
-  final String historyTabLabel;
+  /// Corpo da tab Agenda.
+  final Widget agenda;
+
+  /// Contador ao lado de "Propostas"; nulo ou 0 = sem contador.
+  final int? proposalsCount;
 
   final WorkerJobsTabViewData pending;
-  final WorkerJobsTabViewData scheduled;
   final WorkerJobsTabViewData history;
+
+  final bool hasUnreadNotifications;
+  final VoidCallback onNotificationsPressed;
+
+  /// "Cores": folha "O que significam as cores".
+  final VoidCallback onColorsPressed;
 
   /// CTA dos estados vazios ("Ver pedidos disponíveis").
   final VoidCallback? onFindJobsPressed;
 
-  final ValueChanged<WorkerJobsTab> onTabSelected;
+  final ValueChanged<WorkerJobsSection> onSectionSelected;
   final ValueChanged<String> onJobPressed;
 
   /// Scroll infinito: pede a página seguinte da tab.
@@ -155,45 +170,73 @@ class WorkerJobsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.sm,
+            DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(bottom: BorderSide(color: AppColors.divider)),
               ),
-              child: Text(
-                'Os meus trabalhos',
-                style: textTheme.displaySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: _JobsTabs(
-                labels: {
-                  WorkerJobsTab.pending: pendingTabLabel,
-                  WorkerJobsTab.scheduled: scheduledTabLabel,
-                  WorkerJobsTab.history: historyTabLabel,
-                },
-                selectedTab: selectedTab,
-                onSelected: onTabSelected,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.xxs,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Trabalhos',
+                            style: textTheme.displaySmall?.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (selectedSection == WorkerJobsSection.agenda) ...[
+                          _ColorsButton(onPressed: onColorsPressed),
+                          const SizedBox(width: AppSpacing.xs),
+                        ],
+                        HomeNotificationButton(
+                          hasUnread: hasUnreadNotifications,
+                          onPressed: onNotificationsPressed,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: AgendaTabs(
+                      items: [
+                        const AgendaTabItem(label: 'Agenda'),
+                        AgendaTabItem(
+                          label: 'Propostas',
+                          count: (proposalsCount ?? 0) > 0
+                              ? proposalsCount
+                              : null,
+                        ),
+                        const AgendaTabItem(label: 'Histórico'),
+                      ],
+                      selectedIndex: selectedSection.index,
+                      onSelected: (i) =>
+                          onSectionSelected(WorkerJobsSection.values[i]),
+                    ),
+                  ),
+                ],
               ),
             ),
             // IndexedStack e não um fade: cada tab guarda o scroll e as
             // listas podem atualizar em segundo plano sem recomeçar.
             Expanded(
               child: IndexedStack(
-                index: selectedTab.index,
+                index: selectedSection.index,
                 children: [
+                  agenda,
                   tab(WorkerJobsTab.pending, pending),
-                  tab(WorkerJobsTab.scheduled, scheduled),
                   tab(WorkerJobsTab.history, history),
                 ],
               ),
@@ -205,84 +248,44 @@ class WorkerJobsScreen extends StatelessWidget {
   }
 }
 
-/// Controlo segmentado igual ao de "Os meus pedidos" do cliente.
-class _JobsTabs extends StatelessWidget {
-  const _JobsTabs({
-    required this.labels,
-    required this.selectedTab,
-    required this.onSelected,
-  });
+/// "Cores" no cabeçalho da Agenda: ícone com legenda por baixo.
+class _ColorsButton extends StatelessWidget {
+  const _ColorsButton({required this.onPressed});
 
-  final Map<WorkerJobsTab, String> labels;
-  final WorkerJobsTab selectedTab;
-  final ValueChanged<WorkerJobsTab> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xxs),
-      decoration: BoxDecoration(
-        color: AppColors.divider,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-      ),
-      child: Row(
-        children: [
-          for (final t in WorkerJobsTab.values) ...[
-            if (t.index > 0) const SizedBox(width: AppSpacing.xxs),
-            Expanded(
-              child: _TabButton(
-                label: labels[t]!,
-                selected: selectedTab == t,
-                onPressed: () => onSelected(t),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool selected;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Semantics(
       button: true,
-      selected: selected,
-      child: Material(
-        color: selected ? AppColors.surface : AppColors.background,
+      label: 'O que significam as cores',
+      child: InkWell(
+        onTap: onPressed,
         borderRadius: BorderRadius.circular(AppRadius.input),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(AppRadius.input),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: AppSpacing.xs,
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.bodyMedium?.copyWith(
-                color:
-                    selected ? AppColors.textPrimary : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: AppSizes.headerIconButton,
+            minHeight: AppSizes.headerIconButton,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.palette_outlined,
+                size: AppSizes.emphasisIcon,
+                color: AppColors.textPrimary,
               ),
-            ),
+              ExcludeSemantics(
+                child: Text(
+                  'Cores',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
