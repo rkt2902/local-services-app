@@ -284,17 +284,23 @@ class AgendaAvailabilityChip extends StatelessWidget {
 }
 
 /// Aviso no topo do Hoje quando há horas que se cruzam (H2). "Ver" desliza
-/// até ao grupo.
+/// até ao grupo; na Semana, "Ver o dia" abre o Hoje desse dia.
 class AgendaOverlapBanner extends StatelessWidget {
   const AgendaOverlapBanner({
     required this.label,
     required this.onView,
+    this.actionLabel = 'Ver',
+    this.actionIcon = Icons.arrow_downward_rounded,
     super.key,
   });
 
   /// "2 trabalhos ao mesmo tempo às 14:00".
   final String label;
   final VoidCallback onView;
+
+  /// Na Semana: "Ver o dia", sem seta (abre o Hoje desse dia).
+  final String actionLabel;
+  final IconData? actionIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -339,12 +345,11 @@ class AgendaOverlapBanner extends StatelessWidget {
               minimumSize: const Size(0, AppSizes.headerIconButton),
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s10),
             ),
-            icon: const Icon(
-              Icons.arrow_downward_rounded,
-              size: AppSizes.inlineIcon,
-            ),
+            icon: actionIcon == null
+                ? null
+                : Icon(actionIcon, size: AppSizes.inlineIcon),
             label: Text(
-              'Ver',
+              actionLabel,
               style: textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: tone.foreground,

@@ -1,0 +1,994 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_status_color.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_motion.dart';
+import '../../../../core/widgets/primary_action_button.dart';
+import '../../data/agenda_entry_model.dart';
+import '../agenda_day_view_data.dart';
+import '../agenda_week_view_data.dart';
+import 'agenda_controls.dart';
+import 'agenda_decorations.dart';
+import 'agenda_entry_card.dart';
+import 'agenda_overlap.dart';
+import 'agenda_skeleton.dart';
+import 'agenda_view_parts.dart';
+
+/// Agenda · Semana (design S1 a S3): faixa dos 7 dias e a lista de todos os
+/// dias por ordem. Só o corpo da tab Agenda, como o Hoje. Não lê providers:
+/// a integração (`worker_agenda_tab.dart`) passa tudo pronto.
+///
+/// A faixa e a lista andam juntas: tocar num dia desliza a lista até ele, e
+/// deslizar a lista muda o dia preenchido.
+class AgendaWeekView extends StatefulWidget {
+  const AgendaWeekView({
+    required this.weekKey,
+    required this.rangeLabel,
+    required this.isCurrentWeek,
+    required this.showProposals,
+    required this.days,
+    required this.content,
+    required this.onPreviousWeek,
+    required this.onNextWeek,
+    required this.onGoToCurrentWeek,
+    required this.onOpenCalendar,
+    required this.onRangeChanged,
+    required this.onShowProposalsChanged,
+    required this.onRefresh,
+    required this.onOpenEntry,
+    required this.onOpenDay,
+    required this.onOpenDayAtConflict,
+    required this.onResolveOverlap,
+    required this.onSelectedDayChanged,
+    required this.onSearchWork,
+    this.initialDay,
+    this.loading = false,
+    this.errorMessage,
+    this.offlineLabel,
+    this.onRetry,
+    this.onAddToAgenda,
+    this.onAddToAgendaOnDay,
+    super.key,
+  });
+
+  /// "2026-10-26" (a segunda): muda = troca de semana (fade de 180 ms).
+  final String weekKey;
+
+  /// "27 out a 2 nov".
+  final String rangeLabel;
+
+  /// Sem botão "Hoje" na semana atual.
+  final bool isCurrentWeek;
+  final bool showProposals;
+
+  /// A faixa: existe mesmo a carregar (só faltam os pontos).
+  final List<AgendaWeekDayViewData> days;
+
+  /// Nulo enquanto não há dados (com [loading] ou [errorMessage]).
+  final AgendaWeekContentViewData? content;
+
+  /// Dia preenchido ao abrir a semana e onde a lista começa: hoje na
+  /// semana atual. Ignorado na semana livre.
+  final DateTime? initialDay;
+  final bool loading;
+  final String? errorMessage;
+  final String? offlineLabel;
+
+  final VoidCallback onPreviousWeek;
+  final VoidCallback onNextWeek;
+  final VoidCallback onGoToCurrentWeek;
+  final VoidCallback onOpenCalendar;
+  final ValueChanged<AgendaRange> onRangeChanged;
+  final ValueChanged<bool> onShowProposalsChanged;
+  final Future<void> Function() onRefresh;
+  final VoidCallback? onRetry;
+
+  /// Toque num cartão com detalhe (trabalho, proposta).
+  final ValueChanged<AgendaEntry> onOpenEntry;
+
+  /// Abre o Hoje nesse dia: cabeçalho do dia e entradas sem detalhe (fora
+  /// da app, indisponível).
+  final ValueChanged<DateTime> onOpenDay;
+
+  /// "Ver o dia" do aviso: o Hoje desse dia, já nos que coincidem.
+  final ValueChanged<DateTime> onOpenDayAtConflict;
+
+  /// Toque no título de um grupo: "Mudar a hora" de um deles.
+  final ValueChanged<List<AgendaEntry>> onResolveOverlap;
+
+  /// O dia preenchido mudou (toque ou scroll), para o Hoje abrir nele.
+  final ValueChanged<DateTime> onSelectedDayChanged;
+  final VoidCallback onSearchWork;
+
+  /// Nulos enquanto o formulário "Adicionar à agenda" não existe: o botão
+  /// e o "+" das linhas livres não aparecem.
+  final VoidCallback? onAddToAgenda;
+  final ValueChanged<DateTime>? onAddToAgendaOnDay;
+
+  @override
+  State<AgendaWeekView> createState() => _AgendaWeekViewState();
+}
+
+class _AgendaWeekViewState extends State<AgendaWeekView> {
+  /// Chaves dos dias da semana mostrada. Novas a cada semana: durante o
+  /// fade a semana anterior ainda está na árvore.
+  final Map<DateTime, GlobalKey> _sectionKeys = {};
+
+  DateTime? _selected;
+  String? _positionedFor;
+  bool _programmaticScroll = false;
+
+  Timer? _skeletonDelay;
+  bool _refreshSkeleton = false;
+
+  static const _weekFade = Duration(milliseconds: 180);
+  static const _dayScroll = Duration(milliseconds: 300);
+  static const _refreshSkeletonAfter = Duration(milliseconds: 400);
+  static const _swipeVelocity = 250.0;
+
+  /// Uma secção conta como "a do topo" até este tanto abaixo do topo.
+  static const _topSlack = 24.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _positionAtInitialDay();
+  }
+
+  @override
+  void didUpdateWidget(covariant AgendaWeekView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.weekKey != widget.weekKey) {
+      _sectionKeys.clear();
+      _positionedFor = null;
+      _selected = null;
+    }
+    _positionAtInitialDay();
+    // Calendário com um dia da mesma semana: desliza até ele.
+    final day = widget.initialDay;
+    if (oldWidget.weekKey == widget.weekKey &&
+        day != oldWidget.initialDay &&
+        day != null &&
+        day != _selected &&
+        _selected != null) {
+      _selected = day;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollTo(day, duration: _duration(_dayScroll));
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _skeletonDelay?.cancel();
+    super.dispose();
+  }
+
+  GlobalKey _keyFor(DateTime day) =>
+      _sectionKeys.putIfAbsent(day, () => GlobalKey());
+
+  Duration _duration(Duration normal) =>
+      MediaQuery.disableAnimationsOf(context) ? Duration.zero : normal;
+
+  /// Ao abrir uma semana com dados, uma vez: o dia inicial preenchido e a
+  /// lista a começar nele (os dias antes ficam por cima).
+  void _positionAtInitialDay() {
+    final content = widget.content;
+    if (content == null || _positionedFor == widget.weekKey) return;
+    _positionedFor = widget.weekKey;
+    if (content.isEmpty) {
+      _selected = null;
+      return;
+    }
+    final initial = widget.initialDay;
+    _selected = initial != null && content.days.any((d) => d.date == initial)
+        ? initial
+        : content.days.first.date;
+    final day = _selected!;
+    if (day == content.days.first.date) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scrollTo(day, duration: Duration.zero);
+    });
+  }
+
+  Future<void> _scrollTo(DateTime day, {required Duration duration}) async {
+    final target = _sectionKeys[day]?.currentContext;
+    if (target == null) return;
+    _programmaticScroll = true;
+    try {
+      await Scrollable.ensureVisible(
+        target,
+        duration: duration,
+        curve: AppMotionCurve.standard,
+      );
+    } finally {
+      _programmaticScroll = false;
+    }
+  }
+
+  void _select(DateTime day) {
+    if (_selected != day) {
+      setState(() => _selected = day);
+      widget.onSelectedDayChanged(day);
+    }
+  }
+
+  void _onDayTap(DateTime day) {
+    final content = widget.content;
+    if (content == null) return;
+    if (content.isEmpty) {
+      // Semana livre: o dia serve para marcar alguma coisa nele.
+      final add = widget.onAddToAgendaOnDay;
+      add == null ? widget.onOpenDay(day) : add(day);
+      return;
+    }
+    _select(day);
+    _scrollTo(day, duration: _duration(_dayScroll));
+  }
+
+  /// Scroll à mão: o dia preenchido é o último cujo cabeçalho já passou o
+  /// topo da lista.
+  bool _onScroll(ScrollNotification notification) {
+    if (_programmaticScroll || notification is! ScrollUpdateNotification) {
+      return false;
+    }
+    final viewport = notification.context?.findRenderObject();
+    final content = widget.content;
+    if (viewport is! RenderBox || content == null) return false;
+    final top = viewport.localToGlobal(Offset.zero).dy + _topSlack;
+
+    DateTime? current;
+    for (final day in content.days) {
+      final box = _sectionKeys[day.date]?.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.attached) continue;
+      if (box.localToGlobal(Offset.zero).dy <= top) {
+        current = day.date;
+      } else {
+        break;
+      }
+    }
+    // No fim da lista os últimos dias não chegam ao topo: fica o último.
+    final metrics = notification.metrics;
+    if (metrics.pixels >= metrics.maxScrollExtent - 1) {
+      current = content.days.last.date;
+    }
+    _select(current ?? content.days.first.date);
+    return false;
+  }
+
+  /// Puxar para baixo: o esqueleto só aparece se demorar mais de 400 ms.
+  Future<void> _refresh() async {
+    _skeletonDelay?.cancel();
+    _skeletonDelay = Timer(_refreshSkeletonAfter, () {
+      if (mounted) setState(() => _refreshSkeleton = true);
+    });
+    try {
+      await widget.onRefresh();
+    } finally {
+      _skeletonDelay?.cancel();
+      if (mounted && _refreshSkeleton) {
+        setState(() => _refreshSkeleton = false);
+      }
+    }
+  }
+
+  void _onStripSwipe(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < _swipeVelocity) return;
+    velocity < 0 ? widget.onNextWeek() : widget.onPreviousWeek();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = widget.content;
+    final showSummary =
+        content != null &&
+        !_refreshSkeleton &&
+        content.summaryLabel.isNotEmpty &&
+        !content.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AgendaViewControls(
+          periodLabel: widget.rangeLabel,
+          range: AgendaRange.week,
+          showToday: !widget.isCurrentWeek,
+          showProposals: widget.showProposals,
+          onPrevious: widget.onPreviousWeek,
+          onNext: widget.onNextWeek,
+          onOpenCalendar: widget.onOpenCalendar,
+          onRangeChanged: widget.onRangeChanged,
+          onGoToToday: widget.onGoToCurrentWeek,
+          onShowProposalsChanged: widget.onShowProposalsChanged,
+        ),
+        Expanded(
+          child: AppFadeThroughSwitcher(
+            switchKey: widget.weekKey,
+            duration: _weekFade,
+            child: Column(
+              key: ValueKey(widget.weekKey),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragEnd: _onStripSwipe,
+                  child: _DayStrip(
+                    days: widget.days,
+                    selected: _selected,
+                    onDayTap: _onDayTap,
+                  ),
+                ),
+                if (showSummary)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.xs,
+                    ),
+                    child: Text(
+                      content.summaryLabel,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textStrong,
+                      ),
+                    ),
+                  ),
+                // Fixos por cima da lista: a semana atual abre em hoje e o
+                // aviso não pode ficar escondido nos dias de cima.
+                if (_hasList && widget.offlineLabel != null)
+                  _fixed(AgendaOfflineBanner(label: widget.offlineLabel!)),
+                if (_hasList && content!.overlap != null)
+                  _fixed(
+                    AgendaOverlapBanner(
+                      label: content.overlap!.label,
+                      actionLabel: 'Ver o dia',
+                      actionIcon: null,
+                      onView: () =>
+                          widget.onOpenDayAtConflict(content.overlap!.day),
+                    ),
+                  ),
+                Expanded(child: _body()),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool get _hasList =>
+      !_refreshSkeleton && widget.content != null && !widget.content!.isEmpty;
+
+  Widget _fixed(Widget child) => Padding(
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      0,
+      AppSpacing.md,
+      AppSpacing.xs,
+    ),
+    child: child,
+  );
+
+  Widget _body() {
+    final content = widget.content;
+    if (_refreshSkeleton || (content == null && widget.loading)) {
+      return const _WeekSkeleton();
+    }
+    if (content == null) {
+      return AgendaRefreshable(
+        onRefresh: _refresh,
+        child: AgendaCenteredScroll(
+          child: AgendaLoadError(
+            message: widget.errorMessage,
+            onRetry: widget.onRetry,
+          ),
+        ),
+      );
+    }
+    if (content.isEmpty) {
+      return AgendaRefreshable(
+        onRefresh: _refresh,
+        child: AgendaCenteredScroll(
+          top: widget.offlineLabel == null
+              ? null
+              : AgendaOfflineBanner(label: widget.offlineLabel!),
+          child: _EmptyWeek(
+            rangeLabel: widget.rangeLabel,
+            onSearchWork: widget.onSearchWork,
+            onAddToAgenda: widget.onAddToAgenda,
+          ),
+        ),
+      );
+    }
+    return AgendaRefreshable(
+      onRefresh: _refresh,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: _list(content),
+      ),
+    );
+  }
+
+  Widget _list(AgendaWeekContentViewData content) {
+    // Todos os dias montados (são 7): o toque na faixa precisa de chegar a
+    // qualquer um, mesmo fora do ecrã.
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < content.sections.length; i++)
+            KeyedSubtree(
+              key: _keyFor(content.sections[i].date),
+              child: AppStaggeredEntrance(
+                index: i,
+                child: _Section(
+                  section: content.sections[i],
+                  onOpenEntry: (e) => e.canOpen
+                      ? widget.onOpenEntry(e.source)
+                      : widget.onOpenDay(content.sections[i].date),
+                  onOpenDay: () => widget.onOpenDay(content.sections[i].date),
+                  onResolveOverlap: widget.onResolveOverlap,
+                  onAdd: widget.onAddToAgendaOnDay == null
+                      ? null
+                      : () => widget.onAddToAgendaOnDay!(
+                          content.sections[i].date,
+                        ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Faixa dos 7 dias -------------------------------------------------------
+
+class _DayStrip extends StatelessWidget {
+  const _DayStrip({
+    required this.days,
+    required this.selected,
+    required this.onDayTap,
+  });
+
+  final List<AgendaWeekDayViewData> days;
+  final DateTime? selected;
+  final ValueChanged<DateTime> onDayTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s10,
+        AppSpacing.xs,
+        AppSpacing.s10,
+        AppSpacing.s10,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < days.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.s6),
+            Expanded(
+              child: _DayCell(
+                day: days[i],
+                selected: days[i].date == selected,
+                onTap: () => onDayTap(days[i].date),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.day,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AgendaWeekDayViewData day;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const double _height = 76;
+  static const double _border = 2;
+  static const double _warningBadge = 18;
+  static const int _maxDots = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final radius = BorderRadius.circular(AppRadius.input);
+    final striped = day.unavailable && !selected;
+    final dots = day.dots.take(_maxDots).toList();
+    final extra = day.dots.length - dots.length;
+
+    // Letra grande ou ecrã estreito: encolhe em vez de partir.
+    final inner = Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              day.weekdayLetter,
+              style: textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: selected
+                    ? AppColors.primaryContainer
+                    : AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              day.dayNumber,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+                color: selected
+                    ? AppColors.surface
+                    : striped
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            SizedBox(
+              height: AppSpacing.s10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < dots.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 3),
+                    _StripDot(kind: dots[i], onPrimary: selected),
+                  ],
+                  if (extra > 0) ...[
+                    const SizedBox(width: 2),
+                    Text(
+                      '+$extra',
+                      style: textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                        color: selected
+                            ? AppColors.surface
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final Widget cell = striped
+        ? AgendaStripes(
+            radius: AppRadius.input,
+            child: SizedBox(height: _height, child: inner),
+          )
+        : AnimatedContainer(
+            duration: AppMotionDuration.fast,
+            height: _height,
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primary : AppColors.surface,
+              borderRadius: radius,
+              border: Border.all(
+                color: day.isToday || selected
+                    ? AppColors.primary
+                    : Colors.transparent,
+                width: _border,
+              ),
+            ),
+            child: inner,
+          );
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: [
+        if (day.isToday) 'Hoje',
+        if (day.unavailable) 'indisponível',
+        if (day.hasOverlap) 'trabalhos que coincidem',
+        if (day.dots.isNotEmpty) '${day.dots.length} na agenda',
+      ].join(', '),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(onTap: onTap, borderRadius: radius, child: cell),
+          ),
+          if (day.hasOverlap)
+            Positioned(
+              top: -AppSpacing.xxs,
+              right: -AppSpacing.xxs,
+              child: Container(
+                width: _warningBadge,
+                height: _warningBadge,
+                decoration: BoxDecoration(
+                  color: AppStatusColor.waiting.background,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.surface, width: 1.5),
+                ),
+                child: Icon(
+                  Icons.warning_rounded,
+                  size: AppSpacing.sm,
+                  color: AppStatusColor.waiting.foreground,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ponto da faixa (legenda da Semana): app cheio, ajudante verde claro, fora
+/// da app só contorno, proposta tracejada, indisponível cinzento cheio. No
+/// dia preenchido ganham contorno branco para se lerem sobre o verde.
+class _StripDot extends StatelessWidget {
+  const _StripDot({required this.kind, required this.onPrimary});
+
+  final AgendaCardKind kind;
+  final bool onPrimary;
+
+  static const double _size = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    if (kind == AgendaCardKind.proposal) {
+      return SizedBox.square(
+        dimension: _size,
+        child: AgendaDashedBorder(
+          radius: _size / 2,
+          color: onPrimary ? AppColors.surface : AppColors.textSecondary,
+          strokeWidth: 1.5,
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
+    final (Color fill, Color? ring) = switch (kind) {
+      AgendaCardKind.app => (AppColors.primary, null),
+      AgendaCardKind.helper => (AppColors.agendaHelperBar, null),
+      AgendaCardKind.external => (AppColors.surface, AppColors.textMuted),
+      AgendaCardKind.block => (AppColors.agendaDashed, null),
+      AgendaCardKind.proposal => (Colors.transparent, null),
+    };
+    return Container(
+      width: _size,
+      height: _size,
+      decoration: BoxDecoration(
+        color: fill,
+        shape: BoxShape.circle,
+        border: onPrimary
+            ? Border.all(color: AppColors.surface, width: 1.5)
+            : ring == null
+            ? null
+            : Border.all(color: ring, width: 1.5),
+      ),
+    );
+  }
+}
+
+// --- Lista ------------------------------------------------------------------
+
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.section,
+    required this.onOpenEntry,
+    required this.onOpenDay,
+    required this.onResolveOverlap,
+    this.onAdd,
+  });
+
+  final AgendaWeekSectionViewData section;
+  final ValueChanged<AgendaDayEntryViewData> onOpenEntry;
+  final VoidCallback onOpenDay;
+  final ValueChanged<List<AgendaEntry>> onResolveOverlap;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    if (section.isFree) {
+      return _FreeDayRow(section: section, onAdd: onAdd);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionHeader(section: section, onTap: onOpenDay),
+          for (final item in section.items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: item.group != null
+                  ? AgendaOverlapStack(
+                      label: item.group!.label,
+                      onLabelTap: () => onResolveOverlap([
+                        for (final e in item.group!.entries) e.source,
+                      ]),
+                      children: [for (final e in item.group!.entries) _row(e)],
+                    )
+                  : _row(item.entry!),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(AgendaDayEntryViewData e) {
+    return AgendaWeekEntryRow(
+      kind: e.kind,
+      title: e.title,
+      startLabel: e.startLabel,
+      endLabel: e.endLabel,
+      subtitle: e.subtitle,
+      repeats: e.repeats,
+      timeToArrange: e.timeToArrange,
+      dayIndex: e.dayIndex,
+      dayCount: e.dayCount,
+      pill: e.pill,
+      done: e.done,
+      onTap: () => onOpenEntry(e),
+    );
+  }
+}
+
+/// "Terça, 28 out · 3 trabalhos [Hoje] ⚠". Toque: abre esse dia no Hoje.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.section, required this.onTap});
+
+  final AgendaWeekSectionViewData section;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xxs,
+          AppSpacing.s10,
+          AppSpacing.xxs,
+          AppSpacing.xs,
+        ),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xxs,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: section.label),
+                  if (section.countLabel != null)
+                    TextSpan(
+                      text: ' · ${section.countLabel}',
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+              style: textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if (section.isToday) const _TodayTag(),
+            if (section.hasOverlap)
+              Icon(
+                Icons.warning_rounded,
+                size: AppSizes.inlineIcon,
+                color: AppStatusColor.waiting.foreground,
+                semanticLabel: 'Trabalhos que coincidem',
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayTag extends StatelessWidget {
+  const _TodayTag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 1,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+      ),
+      child: Text(
+        'Hoje',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+/// "Domingo, 2 nov · Livre ----- (+)". Com [onAdd], toque abre "Adicionar à
+/// agenda" nesse dia.
+class _FreeDayRow extends StatelessWidget {
+  const _FreeDayRow({required this.section, this.onAdd});
+
+  final AgendaWeekSectionViewData section;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
+      onTap: onAdd,
+      borderRadius: BorderRadius.circular(AppRadius.input),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSizes.headerIconButton),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+          child: Row(
+            children: [
+              Flexible(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: section.label),
+                      TextSpan(
+                        text: ' · Livre',
+                        style: textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textStrong,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Divider(color: AppColors.agendaExternalBorder),
+              ),
+              if (onAdd != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                const Icon(
+                  Icons.add_circle_outline_rounded,
+                  color: AppColors.primary,
+                  semanticLabel: 'Adicionar à agenda',
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Semana livre (S3): uma frase e dois caminhos.
+class _EmptyWeek extends StatelessWidget {
+  const _EmptyWeek({
+    required this.rangeLabel,
+    required this.onSearchWork,
+    this.onAddToAgenda,
+  });
+
+  final String rangeLabel;
+  final VoidCallback onSearchWork;
+  final VoidCallback? onAddToAgenda;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppEmptyState(
+      icon: Icons.event_available_outlined,
+      title: 'Semana livre',
+      message: 'Ainda não tens nada de $rangeLabel.',
+      action: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PrimaryActionButton(
+            label: 'Procurar trabalho',
+            icon: Icons.search_rounded,
+            onPressed: onSearchWork,
+          ),
+          if (onAddToAgenda != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              height: AppSizes.buttonHeight,
+              child: OutlinedButton.icon(
+                style: agendaOutlinedButtonStyle(
+                  context,
+                  height: AppSizes.buttonHeight,
+                ),
+                onPressed: onAddToAgenda,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Adicionar à agenda'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Esqueleto da lista (A9): dois dias com cabeçalho e linhas compactas.
+class _WeekSkeleton extends StatelessWidget {
+  const _WeekSkeleton();
+
+  static const double _headerWidth = 150;
+  static const double _headerHeight = 14;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget header() => Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: AppSkeletonShimmer(
+          child: Container(
+            width: _headerWidth,
+            height: _headerHeight,
+            decoration: BoxDecoration(
+              color: AppColors.agendaNeutralSurface,
+              borderRadius: BorderRadius.circular(AppSpacing.s6),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      children: [
+        for (var day = 0; day < 2; day++) ...[
+          header(),
+          const AgendaEntrySkeleton(compact: true),
+          const SizedBox(height: AppSpacing.xs),
+          const AgendaEntrySkeleton(compact: true),
+        ],
+      ],
+    );
+  }
+}

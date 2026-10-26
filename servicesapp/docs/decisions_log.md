@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: vista Semana (S1 a S3)
+
+Design "ProJardim Agenda Semana" integrado com os mesmos componentes e regras do Hoje
+(não com o código do design, que repetia cartões, faixas e cores). Pontos a saber:
+- Leitura: a Semana usa a mesma cache por mês do Hoje; uma semana que atravessa o fim
+  do mês lê os dois meses.
+- Sobreposições iguais às do Hoje: só trabalhos com hora num único dia. Um trabalho de
+  vários dias não entra no grupo "Coincidem" (o design S2 punha-o lá).
+- O aviso de sobreposição e a faixa "Sem rede" ficam fixos por cima da lista: a semana
+  atual abre em hoje e o aviso não pode ficar escondido nos dias de cima.
+- Entradas sem detalhe (fora da app, indisponível) e o cabeçalho de cada dia abrem esse
+  dia no Hoje. "Ver o dia" abre o Hoje já nos que coincidem.
+- Sem formulário ainda: o "+" das linhas "Livre" e o "Adicionar à agenda" da semana
+  livre não aparecem; na semana livre, tocar num dia abre esse dia no Hoje.
+- A carregar, a faixa mostra os dias (sem pontos) em vez de esqueleto: as datas já são
+  conhecidas e continua tocável.
+- Indisponível sem descrição mostra "Marcado por ti".
+- Corrigido no Hoje: as chaves do "agora" e do grupo que coincide passaram a ser por dia
+  (com o fade, dois dias com sobreposição ficavam com a mesma chave).
+
 ## 2026-10-26 — Agenda do jardineiro: vista Hoje (H1 a H7)
 
 Design "ProJardim Agenda Hoje" integrado com os componentes A1 a A9 (não com o código do

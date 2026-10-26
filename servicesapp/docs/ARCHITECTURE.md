@@ -268,7 +268,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
-| `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vista Hoje; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
+| `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje e Semana; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
 Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
 `AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.

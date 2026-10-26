@@ -26,6 +26,9 @@ enum AgendaCardPill {
   const AgendaCardPill(this.label);
 
   final String label;
+
+  /// Nas linhas compactas da Semana, onde o espaço é curto.
+  String get shortLabel => this == AgendaCardPill.proposal ? 'À espera' : label;
 }
 
 /// Ícone à direita da linha compacta (A2): no máximo um por linha.
@@ -716,9 +719,12 @@ class _ActionButton extends StatelessWidget {
 
 /// Etiqueta do cartão (estados da pill, A1).
 class AgendaPillBadge extends StatelessWidget {
-  const AgendaPillBadge({required this.pill, super.key});
+  const AgendaPillBadge({required this.pill, this.dense = false, super.key});
 
   final AgendaCardPill pill;
+
+  /// Versão pequena das linhas da Semana, com o texto curto.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -787,10 +793,11 @@ class AgendaPillBadge extends StatelessWidget {
       ),
     };
 
+    final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s10,
-        vertical: AppSpacing.xxs,
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? AppSpacing.xs : AppSpacing.s10,
+        vertical: dense ? 3 : AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
         color: bg,
@@ -813,11 +820,9 @@ class AgendaPillBadge extends StatelessWidget {
             const SizedBox(width: AppSpacing.xxs),
           ],
           Text(
-            pill.label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
+            dense ? pill.shortLabel : pill.label,
+            style: (dense ? textTheme.labelMedium : textTheme.bodySmall)
+                ?.copyWith(fontWeight: FontWeight.w700, color: fg),
           ),
         ],
       ),
@@ -1020,5 +1025,198 @@ class AgendaEntryCompactRow extends StatelessWidget {
           semanticLabel: 'Indisponível',
         );
     }
+  }
+}
+
+/// Linha da lista da Semana (S1): hora de início e de fim, serviço (com o
+/// ícone de repetir), zona e pessoa, e uma só etiqueta à direita. Mesmas
+/// cores e contornos que o cartão completo, em mais baixo.
+class AgendaWeekEntryRow extends StatelessWidget {
+  const AgendaWeekEntryRow({
+    required this.kind,
+    required this.title,
+    this.startLabel,
+    this.endLabel,
+    this.subtitle,
+    this.repeats = false,
+    this.timeToArrange = false,
+    this.dayIndex,
+    this.dayCount,
+    this.pill,
+    this.done = false,
+    this.onTap,
+    super.key,
+  });
+
+  final AgendaCardKind kind;
+  final String title;
+  final String? startLabel;
+  final String? endLabel;
+
+  /// "Cascais · Maria Santos".
+  final String? subtitle;
+  final bool repeats;
+  final bool timeToArrange;
+
+  /// Trabalho de vários dias: etiqueta "Dia 1 de 3".
+  final int? dayIndex;
+  final int? dayCount;
+
+  /// "Marcado" não aparece: é o normal.
+  final AgendaCardPill? pill;
+  final bool done;
+  final VoidCallback? onTap;
+
+  static const double _minHeight = 58;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final hasBar = _KindStyle.of(kind).bar != null;
+    final tentative = kind == AgendaCardKind.proposal;
+    final multiDay = (dayCount ?? 1) > 1 && dayIndex != null;
+
+    final strong = textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w800,
+      color: tentative ? AppColors.textSecondary : AppColors.textPrimary,
+    );
+    final small = textTheme.labelMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
+    final (String top, String? bottom) = startLabel != null
+        ? (startLabel!, endLabel)
+        : timeToArrange
+        ? ('Hora a', 'combinar')
+        : ('Dia', 'todo');
+
+    Widget? badge;
+    if (done) {
+      badge = const AgendaPillBadge(pill: AgendaCardPill.done, dense: true);
+    } else if (multiDay) {
+      badge = _DayBadge(label: 'Dia $dayIndex de $dayCount');
+    } else if (pill != null && pill != AgendaCardPill.scheduled) {
+      badge = AgendaPillBadge(pill: pill!, dense: true);
+    }
+
+    return Semantics(
+      button: onTap != null,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _minHeight),
+        child: _AgendaFrame(
+          kind: kind,
+          radius: AppRadius.input,
+          done: done,
+          onTap: onTap,
+          padding: EdgeInsets.fromLTRB(
+            hasBar ? _barWidth + AppSpacing.sm : AppSpacing.sm,
+            AppSpacing.xs,
+            AppSpacing.s10,
+            AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: _compactTimeWidth,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(top, style: strong),
+                      if (bottom != null) Text(bottom, style: small),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: tentative
+                                  ? AppColors.textStrong
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (repeats) ...[
+                          const SizedBox(width: AppSpacing.xxs),
+                          const Icon(
+                            Icons.repeat_rounded,
+                            size: AppSizes.metaIcon,
+                            color: AppColors.textSecondary,
+                            semanticLabel: 'Repete',
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: small,
+                      ),
+                  ],
+                ),
+              ),
+              if (badge != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                badge,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Dia 2 de 3" das linhas da Semana.
+class _DayBadge extends StatelessWidget {
+  const _DayBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.date_range_outlined,
+            size: AppSizes.metaIcon,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

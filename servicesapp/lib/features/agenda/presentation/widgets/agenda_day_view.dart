@@ -7,7 +7,6 @@ import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -19,6 +18,7 @@ import 'agenda_entry_card.dart';
 import 'agenda_list_rows.dart';
 import 'agenda_overlap.dart';
 import 'agenda_skeleton.dart';
+import 'agenda_view_parts.dart';
 
 /// Agenda · Hoje (design H1 a H7): controlos do dia e a lista. Só o corpo da
 /// tab Agenda; o cabeçalho "Trabalhos" e as tabs ficam no ecrã Trabalhos.
@@ -51,6 +51,7 @@ class AgendaDayView extends StatefulWidget {
     required this.onSearchWork,
     required this.onMarkAvailable,
     this.loading = false,
+    this.focusOverlap = false,
     this.errorMessage,
     this.offlineLabel,
     this.onRetry,
@@ -73,6 +74,10 @@ class AgendaDayView extends StatefulWidget {
   /// Nulo enquanto não há dados (com [loading] ou [errorMessage]).
   final AgendaDayContentViewData? content;
   final bool loading;
+
+  /// Veio do "Ver o dia" da Semana: ao abrir, desliza até aos trabalhos que
+  /// coincidem em vez da linha de agora.
+  final bool focusOverlap;
 
   /// Erro sem dados guardados: estado de erro total (H7).
   final String? errorMessage;
@@ -112,8 +117,14 @@ class AgendaDayView extends StatefulWidget {
 }
 
 class _AgendaDayViewState extends State<AgendaDayView> {
-  final GlobalKey _nowKey = GlobalKey();
-  final GlobalKey _overlapKey = GlobalKey();
+  // Uma chave por dia: durante o fade o dia anterior ainda está na árvore.
+  final Map<String, GlobalKey> _nowKeys = {};
+  final Map<String, GlobalKey> _overlapKeys = {};
+
+  GlobalKey get _nowKey =>
+      _nowKeys.putIfAbsent(widget.dayKey, () => GlobalKey());
+  GlobalKey get _overlapKey =>
+      _overlapKeys.putIfAbsent(widget.dayKey, () => GlobalKey());
 
   Timer? _skeletonDelay;
   bool _refreshSkeleton = false;
@@ -122,7 +133,6 @@ class _AgendaDayViewState extends State<AgendaDayView> {
   static const _dayFade = Duration(milliseconds: 180);
   static const _refreshSkeletonAfter = Duration(milliseconds: 400);
   static const _swipeVelocity = 250.0;
-  static const _rangeSelectorWidth = 200.0;
 
   @override
   void initState() {
@@ -150,19 +160,22 @@ class _AgendaDayViewState extends State<AgendaDayView> {
       ? Duration.zero
       : AppMotionDuration.fast;
 
-  /// Ao abrir hoje, uma vez por dia mostrado: a linha de agora a um terço
-  /// do ecrã.
+  /// Ao abrir um dia, uma vez: a linha de agora a um terço do ecrã (hoje)
+  /// ou, vindo do "Ver o dia" da Semana, os trabalhos que coincidem.
   void _scheduleScrollToNow() {
-    if (!widget.isToday || widget.content == null) return;
+    if (widget.content == null) return;
+    if (!widget.isToday && !widget.focusOverlap) return;
     if (_scrolledToNowFor == widget.dayKey) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final target = _nowKey.currentContext;
+      final target = widget.focusOverlap
+          ? _overlapKey.currentContext
+          : _nowKey.currentContext;
       if (target == null) return;
       _scrolledToNowFor = widget.dayKey;
       Scrollable.ensureVisible(
         target,
-        alignment: 0.35,
+        alignment: widget.focusOverlap ? 0.1 : 0.35,
         duration: _scrollDuration(context),
         curve: AppMotionCurve.standard,
       );
@@ -225,66 +238,17 @@ class _AgendaDayViewState extends State<AgendaDayView> {
   }
 
   Widget _controls() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        AppSpacing.xs,
-        AppSpacing.md,
-        AppSpacing.xxs,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: AgendaPeriodNav(
-              label: widget.dayLabel,
-              onPrevious: widget.onPreviousDay,
-              onNext: widget.onNextDay,
-              onLabelTap: widget.onOpenCalendar,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: AppSpacing.xs),
-            child: Row(
-              children: [
-                Flexible(
-                  flex: 3,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: _rangeSelectorWidth,
-                          child: AgendaRangeSelector(
-                            selected: widget.range,
-                            onSelected: widget.onRangeChanged,
-                          ),
-                        ),
-                        if (!widget.isToday) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          AgendaTodayButton(onPressed: widget.onGoToToday),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  flex: 2,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: AgendaProposalsToggle(
-                      value: widget.showProposals,
-                      onChanged: widget.onShowProposalsChanged,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return AgendaViewControls(
+      periodLabel: widget.dayLabel,
+      range: widget.range,
+      showToday: !widget.isToday,
+      showProposals: widget.showProposals,
+      onPrevious: widget.onPreviousDay,
+      onNext: widget.onNextDay,
+      onOpenCalendar: widget.onOpenCalendar,
+      onRangeChanged: widget.onRangeChanged,
+      onGoToToday: widget.onGoToToday,
+      onShowProposalsChanged: widget.onShowProposalsChanged,
     );
   }
 
@@ -294,40 +258,23 @@ class _AgendaDayViewState extends State<AgendaDayView> {
       return const _DaySkeleton();
     }
     if (content == null) {
-      return _Refreshable(
+      return AgendaRefreshable(
         onRefresh: _refresh,
-        child: _CenteredScroll(
-          child: AppEmptyState(
-            icon: Icons.cloud_off_outlined,
-            tone: AppStatusColor.cancelled,
-            title: 'Não foi possível carregar a agenda',
-            message: widget.errorMessage ?? 'Verifica a rede e tenta outra vez.',
-            action: widget.onRetry == null
-                ? null
-                : ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: AppSizes.emptyActionMinWidth,
-                      maxWidth: AppSizes.emptyActionMaxWidth,
-                    ),
-                    child: IntrinsicWidth(
-                      child: PrimaryActionButton(
-                        label: 'Tentar de novo',
-                        icon: Icons.refresh_rounded,
-                        onPressed: widget.onRetry,
-                      ),
-                    ),
-                  ),
+        child: AgendaCenteredScroll(
+          child: AgendaLoadError(
+            message: widget.errorMessage,
+            onRetry: widget.onRetry,
           ),
         ),
       );
     }
     if (content.isEmpty) {
-      return _Refreshable(
+      return AgendaRefreshable(
         onRefresh: _refresh,
-        child: _CenteredScroll(
+        child: AgendaCenteredScroll(
           top: widget.offlineLabel == null
               ? null
-              : _OfflineBanner(label: widget.offlineLabel!),
+              : AgendaOfflineBanner(label: widget.offlineLabel!),
           child: _EmptyDay(
             isToday: widget.isToday,
             onSearchWork: widget.onSearchWork,
@@ -336,7 +283,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
         ),
       );
     }
-    return _Refreshable(onRefresh: _refresh, child: _list(content));
+    return AgendaRefreshable(onRefresh: _refresh, child: _list(content));
   }
 
   Widget _list(AgendaDayContentViewData content) {
@@ -355,7 +302,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
     }
 
     if (widget.offlineLabel != null) {
-      add(_OfflineBanner(label: widget.offlineLabel!));
+      add(AgendaOfflineBanner(label: widget.offlineLabel!));
     }
     if (content.summaryLabel.isNotEmpty) {
       add(
@@ -492,65 +439,6 @@ class _AgendaDayViewState extends State<AgendaDayView> {
   }
 }
 
-/// Botão contornado da Agenda: cantos de campo e contorno verde claro, como
-/// os botões dos cartões.
-ButtonStyle _outlinedStyle(BuildContext context, {double? height}) =>
-    OutlinedButton.styleFrom(
-      foregroundColor: AppColors.primary,
-      minimumSize: Size(0, height ?? AppSizes.headerIconButton),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      side: const BorderSide(color: AppColors.agendaAppBorder, width: 1.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.input),
-      ),
-      textStyle: Theme.of(
-        context,
-      ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-    );
-
-/// Pull-to-refresh sem spinner: o esqueleto (depois de 400 ms) é o sinal.
-class _Refreshable extends StatelessWidget {
-  const _Refreshable({required this.onRefresh, required this.child});
-
-  final Future<void> Function() onRefresh;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator.noSpinner(onRefresh: onRefresh, child: child);
-  }
-}
-
-/// Estado a meio do espaço, mas a deixar puxar para atualizar.
-class _CenteredScroll extends StatelessWidget {
-  const _CenteredScroll({required this.child, this.top});
-
-  final Widget child;
-  final Widget? top;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (top != null) ...[top!, const SizedBox(height: AppSpacing.lg)],
-                child,
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label});
 
@@ -564,46 +452,6 @@ class _SectionLabel extends StatelessWidget {
         fontWeight: FontWeight.w800,
         letterSpacing: 0.8,
         color: AppColors.textSecondary,
-      ),
-    );
-  }
-}
-
-class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = AppStatusColor.neutral;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: tone.background,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: AppSizes.inlineIcon,
-            color: tone.foreground,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: tone.foreground,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -643,7 +491,10 @@ class _EmptyDay extends StatelessWidget {
             SizedBox(
               height: AppSizes.buttonHeight,
               child: OutlinedButton.icon(
-                style: _outlinedStyle(context, height: AppSizes.buttonHeight),
+                style: agendaOutlinedButtonStyle(
+                  context,
+                  height: AppSizes.buttonHeight,
+                ),
                 onPressed: onAddToAgenda,
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Adicionar à agenda'),
@@ -672,7 +523,7 @@ class _UnavailableDay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final buttonStyle = _outlinedStyle(context);
+    final buttonStyle = agendaOutlinedButtonStyle(context);
 
     return AgendaStripes(
       radius: AppRadius.card,

@@ -11,6 +11,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../jobs/application/job_providers.dart';
@@ -20,11 +21,14 @@ import '../application/agenda_providers.dart';
 import '../data/agenda_entry_model.dart';
 import 'agenda_day_presenter.dart';
 import 'agenda_month_sheet.dart';
+import 'agenda_week_presenter.dart';
+import 'agenda_week_view_data.dart';
 import 'widgets/agenda_controls.dart';
 import 'widgets/agenda_day_view.dart';
+import 'widgets/agenda_week_view.dart';
 
-/// Tab Agenda do ecrã Trabalhos: liga `get_worker_agenda` (0064) à vista
-/// Hoje (`AgendaDayView`) e trata das ações.
+/// Tab Agenda do ecrã Trabalhos: liga `get_worker_agenda` (0064) às vistas
+/// Hoje (`AgendaDayView`) e Semana (`AgendaWeekView`) e trata das ações.
 class WorkerAgendaTab extends ConsumerStatefulWidget {
   const WorkerAgendaTab({super.key});
 
@@ -33,8 +37,14 @@ class WorkerAgendaTab extends ConsumerStatefulWidget {
 }
 
 class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
+  AgendaRange _range = AgendaRange.day;
+
+  /// Dia mostrado no Hoje; na Semana, o dia preenchido (a semana é a dele).
   late DateTime _day = DateUtils.dateOnly(DateTime.now());
   bool _showProposals = true;
+
+  /// Veio do "Ver o dia" da Semana: o Hoje abre nos que coincidem.
+  bool _focusOverlap = false;
 
   /// Hora da última leitura boa, para a faixa "Sem rede · dados das 08:12".
   DateTime? _loadedAt;
@@ -56,13 +66,45 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     super.dispose();
   }
 
-  void _goTo(DateTime day) => setState(() => _day = DateUtils.dateOnly(day));
+  void _goTo(DateTime day) => setState(() {
+    _day = DateUtils.dateOnly(day);
+    _focusOverlap = false;
+  });
+
+  /// Semana que começa em [weekStart]: preenche hoje se lá estiver, senão a
+  /// segunda.
+  void _goToWeek(DateTime weekStart) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final inWeek = agendaWeekStart(today) == weekStart;
+    _goTo(inWeek ? today : weekStart);
+  }
+
+  /// Abre o Hoje em [day]; com [atConflict], já nos que coincidem.
+  void _openDay(DateTime day, {bool atConflict = false}) => setState(() {
+    _range = AgendaRange.day;
+    _day = DateUtils.dateOnly(day);
+    _focusOverlap = atConflict;
+  });
+
+  /// Meses lidos para o período mostrado: o do dia no Hoje; na Semana, os
+  /// dois quando ela atravessa o fim do mês. A mesma cache serve as duas.
+  List<(DateTime, DateTime)> _monthRanges() {
+    if (_range != AgendaRange.week) return [agendaMonthRange(_day)];
+    final start = agendaWeekStart(_day);
+    final first = agendaMonthRange(start);
+    final last = agendaMonthRange(agendaWeekDays(start).last);
+    return first == last ? [first] : [first, last];
+  }
 
   Future<void> _refresh() async {
-    final range = agendaMonthRange(_day);
-    ref.invalidate(agendaRangeProvider(range));
+    final ranges = _monthRanges();
+    for (final range in ranges) {
+      ref.invalidate(agendaRangeProvider(range));
+    }
     try {
-      await ref.read(agendaRangeProvider(range).future);
+      await Future.wait([
+        for (final range in ranges) ref.read(agendaRangeProvider(range).future),
+      ]);
     } catch (_) {
       // O erro aparece na vista (faixa sem rede ou estado de erro).
     }
@@ -77,8 +119,14 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
   }
 
   void _onRangeChanged(AgendaRange range) {
-    if (range == AgendaRange.day) return;
-    AppToast.of(context).show('A vista ${range.label} chega na próxima versão.');
+    if (range == AgendaRange.month) {
+      AppToast.of(context).show('A vista Mês chega na próxima versão.');
+      return;
+    }
+    setState(() {
+      _range = range;
+      _focusOverlap = false;
+    });
   }
 
   void _openEntry(AgendaEntry e) {
@@ -217,54 +265,93 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
 
   @override
   Widget build(BuildContext context) {
-    final range = agendaMonthRange(_day);
-    final provider = agendaRangeProvider(range);
-    final async = ref.watch(provider);
-    ref.listen(provider, (_, next) {
-      if (next.hasValue && !next.hasError && !next.isLoading) {
-        _loadedAt = DateTime.now();
-      }
-    });
-    if (_loadedAt == null && async.hasValue && !async.hasError) {
+    final ranges = _monthRanges();
+    final reads = [
+      for (final range in ranges) ref.watch(agendaRangeProvider(range)),
+    ];
+    for (final range in ranges) {
+      ref.listen(agendaRangeProvider(range), (_, next) {
+        if (next.hasValue && !next.hasError && !next.isLoading) {
+          _loadedAt = DateTime.now();
+        }
+      });
+    }
+    final hasError = reads.any((r) => r.hasError);
+    final entries = reads.every((r) => r.hasValue)
+        ? [for (final r in reads) ...r.value!]
+        : null;
+    if (_loadedAt == null && entries != null && !hasError) {
       _loadedAt = DateTime.now();
     }
 
     final serviceTypes =
         ref.watch(serviceTypesProvider).asData?.value ?? const <ServiceType>[];
     final now = DateTime.now();
-    final today = DateUtils.dateOnly(now);
-    final entries = async.value;
-    final content = entries == null
-        ? null
-        : buildAgendaDay(
-            day: _day,
-            entries: entries,
-            now: now,
-            showProposals: _showProposals,
-            serviceTypes: serviceTypes,
-          );
     final loadedAt = _loadedAt;
-    final offline = async.hasError && entries != null && loadedAt != null
+    final offline = hasError && entries != null && loadedAt != null
         ? 'Sem rede · dados das ${formatMinutes(loadedAt.hour * 60 + loadedAt.minute)}'
         : null;
+    final loading = reads.any((r) => r.isLoading) && entries == null;
+    void retry() {
+      for (final range in ranges) {
+        ref.invalidate(agendaRangeProvider(range));
+      }
+    }
 
+    final view = _range == AgendaRange.week
+        ? _weekView(
+            entries: entries,
+            now: now,
+            serviceTypes: serviceTypes,
+            loading: loading,
+            offline: offline,
+            onRetry: retry,
+          )
+        : _dayView(
+            entries: entries,
+            now: now,
+            serviceTypes: serviceTypes,
+            loading: loading,
+            offline: offline,
+            onRetry: retry,
+          );
+    return AppFadeThroughSwitcher(switchKey: _range, child: view);
+  }
+
+  Widget _dayView({
+    required List<AgendaEntry>? entries,
+    required DateTime now,
+    required List<ServiceType> serviceTypes,
+    required bool loading,
+    required String? offline,
+    required VoidCallback onRetry,
+  }) {
+    final today = DateUtils.dateOnly(now);
     return AgendaDayView(
       dayKey: agendaDayKey(_day),
       dayLabel: agendaDayLabel(_day, now),
       range: AgendaRange.day,
       isToday: _day == today,
       showProposals: _showProposals,
-      content: content,
-      loading: async.isLoading && entries == null,
+      content: entries == null
+          ? null
+          : buildAgendaDay(
+              day: _day,
+              entries: entries,
+              now: now,
+              showProposals: _showProposals,
+              serviceTypes: serviceTypes,
+            ),
+      loading: loading,
+      focusOverlap: _focusOverlap,
       offlineLabel: offline,
-      onRetry: () => ref.invalidate(provider),
+      onRetry: onRetry,
       onPreviousDay: () => _goTo(_day.subtract(const Duration(days: 1))),
       onNextDay: () => _goTo(_day.add(const Duration(days: 1))),
       onGoToToday: () => _goTo(now),
       onOpenCalendar: _openCalendar,
       onRangeChanged: _onRangeChanged,
-      onShowProposalsChanged: (value) =>
-          setState(() => _showProposals = value),
+      onShowProposalsChanged: (value) => setState(() => _showProposals = value),
       onRefresh: _refresh,
       onOpenEntry: _openEntry,
       onStartJob: _startJob,
@@ -274,6 +361,56 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       onResolveOverlap: _resolveOverlap,
       onSearchWork: () => context.go('/worker/available-jobs'),
       onMarkAvailable: _markAvailable,
+    );
+  }
+
+  Widget _weekView({
+    required List<AgendaEntry>? entries,
+    required DateTime now,
+    required List<ServiceType> serviceTypes,
+    required bool loading,
+    required String? offline,
+    required VoidCallback onRetry,
+  }) {
+    final weekStart = agendaWeekStart(_day);
+    AgendaWeekContentViewData build(List<AgendaEntry> list) => buildAgendaWeek(
+      weekStart: weekStart,
+      entries: list,
+      now: now,
+      showProposals: _showProposals,
+      serviceTypes: serviceTypes,
+    );
+    final content = entries == null ? null : build(entries);
+    return AgendaWeekView(
+      weekKey: agendaDayKey(weekStart),
+      rangeLabel: agendaWeekRangeLabel(weekStart, now),
+      isCurrentWeek: weekStart == agendaWeekStart(now),
+      showProposals: _showProposals,
+      // A carregar, a faixa já mostra os dias, sem pontos.
+      days: (content ?? build(const [])).days,
+      content: content,
+      initialDay: _day,
+      loading: loading,
+      offlineLabel: offline,
+      onRetry: onRetry,
+      onPreviousWeek: () => _goToWeek(
+        DateTime(weekStart.year, weekStart.month, weekStart.day - 7),
+      ),
+      onNextWeek: () => _goToWeek(
+        DateTime(weekStart.year, weekStart.month, weekStart.day + 7),
+      ),
+      onGoToCurrentWeek: () => _goTo(now),
+      onOpenCalendar: _openCalendar,
+      onRangeChanged: _onRangeChanged,
+      onShowProposalsChanged: (value) => setState(() => _showProposals = value),
+      onRefresh: _refresh,
+      onOpenEntry: _openEntry,
+      onOpenDay: _openDay,
+      onOpenDayAtConflict: (day) => _openDay(day, atConflict: true),
+      onResolveOverlap: _resolveOverlap,
+      // Só guarda o dia, para o Hoje abrir nele; a vista já o mostra.
+      onSelectedDayChanged: (day) => _day = day,
+      onSearchWork: () => context.go('/worker/available-jobs'),
     );
   }
 }

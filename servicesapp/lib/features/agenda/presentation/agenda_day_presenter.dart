@@ -57,6 +57,10 @@ String agendaShortDate(DateTime day, {DateTime? now}) {
   return now != null && day.year != now.year ? '$base ${day.year}' : base;
 }
 
+/// "Terça", "Sábado".
+String agendaWeekdayName(DateTime day) =>
+    _capitalize(_weekdays[day.weekday - 1]);
+
 /// "Hoje, terça 28 out", "Amanhã, quarta 29 out", "Sexta, 31 out".
 String agendaDayLabel(DateTime day, DateTime now) {
   final d = _dateOnly(day);
@@ -79,7 +83,8 @@ String? agendaAmountLabel(double? min, double? max) {
   return lo == hi ? '$hi €' : '≈ $lo a $hi €';
 }
 
-String _plural(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
+String _plural(int n, String one, String many) =>
+    n == 1 ? '1 $one' : '$n $many';
 
 /// Zona curta de uma morada: "Rua A 1, Cascais" → "Cascais".
 String? _area(String? label) {
@@ -143,7 +148,8 @@ AgendaCardPill? _pill(AgendaEntry e) {
   };
 }
 
-AgendaDayEntryViewData _entryView(
+/// Cartão de uma entrada, igual no Hoje e na Semana.
+AgendaDayEntryViewData agendaEntryViewData(
   AgendaEntry e, {
   required DateTime now,
   required bool isToday,
@@ -189,7 +195,13 @@ AgendaDayEntryViewData _entryView(
   };
 
   final start = e.startMinutes;
-  final end = start == null ? null : occupiedMinutes(e)?.$2;
+  // Vários dias ocupam o dia todo nas sobreposições, mas a hora de fim é a
+  // marcada.
+  final end = start == null
+      ? null
+      : multiDay
+      ? e.endMinutes
+      : occupiedMinutes(e)?.$2;
 
   final confirmedUnstarted =
       e.kind == AgendaEntryKind.appJob && e.status == 'confirmed';
@@ -278,7 +290,9 @@ String _summary({
   if (timed.isNotEmpty) {
     final from = timed.map((t) => t.$1).reduce((a, b) => a < b ? a : b);
     final to = timed.map((t) => t.$2).reduce((a, b) => a > b ? a : b);
-    parts.add('das ${formatMinutes(from)} às ${formatMinutes(to.clamp(0, 1439))}');
+    parts.add(
+      'das ${formatMinutes(from)} às ${formatMinutes(to.clamp(0, 1439))}',
+    );
   }
 
   var min = 0.0;
@@ -329,7 +343,7 @@ AgendaDayContentViewData buildAgendaDay({
   ]..sort((a, b) => a.startMinutes!.compareTo(b.startMinutes!));
 
   AgendaDayEntryViewData view(AgendaEntry e, {bool current = false}) =>
-      _entryView(
+      agendaEntryViewData(
         e,
         now: now,
         isToday: isToday,
