@@ -61,6 +61,7 @@ class AgendaDayView extends StatefulWidget {
     this.highlightSourceId,
     this.savedMessage,
     this.onUndoSaved,
+    this.intro,
     super.key,
   });
 
@@ -119,6 +120,10 @@ class AgendaDayView extends StatefulWidget {
   /// "Guardado na agenda" no topo, com "Desfazer" se houver [onUndoSaved].
   final String? savedMessage;
   final VoidCallback? onUndoSaved;
+
+  /// Cartão da primeira abertura (A8G), no topo da lista; o dia continua
+  /// visível e usável por baixo.
+  final Widget? intro;
 
   /// "Já estou livre"; a confirmação fica na integração.
   final ValueChanged<AgendaEntry> onMarkAvailable;
@@ -340,6 +345,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
     if (widget.offlineLabel != null) {
       add(AgendaOfflineBanner(label: widget.offlineLabel!));
     }
+    if (widget.intro != null) add(widget.intro!);
     if (widget.savedMessage != null) {
       add(
         AgendaSavedBanner(
@@ -425,12 +431,16 @@ class _AgendaDayViewState extends State<AgendaDayView> {
   Widget? _topBanners() {
     final offline = widget.offlineLabel;
     final saved = widget.savedMessage;
-    if (offline == null && saved == null) return null;
+    final intro = widget.intro;
+    if (offline == null && saved == null && intro == null) return null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (offline != null) AgendaOfflineBanner(label: offline),
-        if (offline != null && saved != null)
+        if (offline != null && (saved != null || intro != null))
+          const SizedBox(height: AppSpacing.sm),
+        ?intro,
+        if (intro != null && saved != null)
           const SizedBox(height: AppSpacing.sm),
         if (saved != null)
           AgendaSavedBanner(message: saved, onUndo: widget.onUndoSaved),

@@ -26,7 +26,8 @@ class AgendaChoiceViewData<T> {
   final bool enabled;
 }
 
-enum AgendaWarningTone { info, waiting }
+/// [success] só fora do formulário (A10): "Estás livre neste horário".
+enum AgendaWarningTone { success, info, waiting }
 
 /// Nota por baixo da data e da hora (F2 leve, F3 forte). Nunca bloqueia.
 class AgendaInlineWarningViewData {
@@ -188,6 +189,7 @@ class AgendaConflictDialogData {
     required this.entryTitle,
     required this.entryMeta,
     required this.summary,
+    this.continueLabel = 'Guardar mesmo assim',
   });
 
   /// "Já tens um trabalho a esta hora".
@@ -197,8 +199,12 @@ class AgendaConflictDialogData {
   final String entryTitle;
   final String? entryMeta;
 
-  /// "O novo fica das 09:30 às 11:30. Cruzam-se 1 h 30."
+  /// "O novo fica das 09:30 às 11:30. Cruzam-se 1 h 30." Vazio: sem texto.
   final String summary;
+
+  /// Botão secundário: "Guardar mesmo assim", "Enviar mesmo assim" (A10,
+  /// proposta) ou "Pedir mesmo assim" (remarcar).
+  final String continueLabel;
 }
 
 /// Folha "Guardar a mudança em…" / "Apagar…" numa série (F7).

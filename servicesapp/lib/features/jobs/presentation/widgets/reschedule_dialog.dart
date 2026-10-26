@@ -8,14 +8,41 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_motion.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
+import '../../../agenda/presentation/agenda_slot_check.dart';
+import '../../../agenda/presentation/widgets/agenda_entry_editor_view.dart';
+
+/// Agenda do jardineiro ao remarcar (A10, M3): a nota por baixo da nova
+/// data e hora e, só com conflito forte, a confirmação "Pedir mesmo assim".
+/// [check] lê a Agenda do dia escolhido ([startMinutes] nulo = flexível).
+class RescheduleAgenda {
+  const RescheduleAgenda({
+    required this.previousLabel,
+    required this.check,
+    required this.onViewDay,
+  });
+
+  /// "Era: quarta, 28 out · 09:00".
+  final String previousLabel;
+  final Future<AgendaSlotCheck?> Function(DateTime date, int? startMinutes)
+      check;
+  final void Function(DateTime date, int? startMinutes) onViewDay;
+}
 
 class RescheduleDialog extends StatefulWidget {
-  const RescheduleDialog._();
+  const RescheduleDialog._({this.agenda});
 
-  static Future<Map<String, dynamic>?> show(BuildContext context) {
+  /// Nulo no cliente: sem Agenda.
+  final RescheduleAgenda? agenda;
+
+  static Future<Map<String, dynamic>?> show(
+    BuildContext context, {
+    RescheduleAgenda? agenda,
+  }) {
     return showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const RescheduleDialog._(),
+      builder: (_) => RescheduleDialog._(agenda: agenda),
     );
   }
 
@@ -28,6 +55,33 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
   TimeOfDay? _time;
   bool _flexible = false;
 
+  /// O que a Agenda diz da escolha atual; [_checkSeq] ignora respostas de
+  /// escolhas antigas.
+  AgendaSlotCheck? _check;
+  int _checkSeq = 0;
+
+  int? get _startMinutes =>
+      _flexible || _time == null ? null : _time!.hour * 60 + _time!.minute;
+
+  Future<void> _refreshCheck() async {
+    final agenda = widget.agenda;
+    final date = _date;
+    final seq = ++_checkSeq;
+    if (agenda == null || date == null || (!_flexible && _time == null)) {
+      setState(() => _check = null);
+      return;
+    }
+    AgendaSlotCheck? result;
+    try {
+      result = await agenda.check(date, _startMinutes);
+    } catch (_) {
+      // Sem Agenda (offline): remarca sem nota.
+      result = null;
+    }
+    if (!mounted || seq != _checkSeq) return;
+    setState(() => _check = result);
+  }
+
   Future<void> _pickDate() async {
     final picked = await showAppDatePicker(
       context: context,
@@ -35,7 +89,10 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
       firstDate: DateTime.now().add(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) {
+      setState(() => _date = picked);
+      _refreshCheck();
+    }
   }
 
   Future<void> _pickTime() async {
@@ -43,7 +100,10 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
       context: context,
       initialTime: const TimeOfDay(hour: 9, minute: 0),
     );
-    if (picked != null) setState(() => _time = picked);
+    if (picked != null) {
+      setState(() => _time = picked);
+      _refreshCheck();
+    }
   }
 
   bool get _valid {
@@ -52,7 +112,13 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
     return true;
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
+    // Só o conflito forte pede confirmação; "Mudar a hora" fica aqui.
+    final confirm = _check?.confirm;
+    if (confirm != null) {
+      final go = await AgendaConflictDialog.show(context, confirm);
+      if (!go || !mounted) return;
+    }
     final timeStr = _time != null
         ? '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}'
         : null;
@@ -84,6 +150,26 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.agenda case final agenda?) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                const Icon(
+                  Icons.history_rounded,
+                  size: AppSizes.inlineIcon,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    agenda.previousLabel,
+                    style: textTheme.labelMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.xs),
           _PickerButton(
             icon: Icons.calendar_today_outlined,
@@ -98,10 +184,13 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
                   ?.copyWith(color: AppColors.textPrimary),
             ),
             value: _flexible,
-            onChanged: (v) => setState(() {
-              _flexible = v;
-              if (v) _time = null;
-            }),
+            onChanged: (v) {
+              setState(() {
+                _flexible = v;
+                if (v) _time = null;
+              });
+              _refreshCheck();
+            },
             contentPadding: EdgeInsets.zero,
           ),
           if (!_flexible) ...[
@@ -112,6 +201,29 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
               onPressed: _pickTime,
             ),
           ],
+          AnimatedSize(
+            duration: AppMotionDuration.fast,
+            curve: AppMotionCurve.standard,
+            alignment: Alignment.topCenter,
+            child: AppFadeThroughSwitcher(
+              switchKey: _check == null
+                  ? 'none'
+                  : '${_check!.note.tone}:${_check!.note.message}',
+              duration: AppMotionDuration.fast,
+              child: _check == null
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.sm),
+                      child: AgendaInlineWarning(
+                        data: _check!.note,
+                        onAction: () => widget.agenda?.onViewDay(
+                          _date!,
+                          _startMinutes,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
         ],
       ),
     );

@@ -14,21 +14,25 @@ void main() {
   group('AppConfirmDialog.show', () {
     Future<bool?> open(WidgetTester tester, {required String tap}) async {
       bool? result;
-      await tester.pumpWidget(_app(Builder(
-        builder: (context) => TextButton(
-          onPressed: () async {
-            result = await AppConfirmDialog.show(
-              context,
-              icon: Icons.person_remove_outlined,
-              title: 'Retirar Rui da equipa?',
-              message: 'O Rui é avisado e a vaga volta a ficar aberta.',
-              confirmLabel: 'Retirar',
-              destructive: true,
-            );
-          },
-          child: const Text('abrir'),
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                result = await AppConfirmDialog.show(
+                  context,
+                  icon: Icons.person_remove_outlined,
+                  title: 'Retirar Rui da equipa?',
+                  message: 'O Rui é avisado e a vaga volta a ficar aberta.',
+                  confirmLabel: 'Retirar',
+                  destructive: true,
+                );
+              },
+              child: const Text('abrir'),
+            ),
+          ),
         ),
-      )));
+      );
       await tester.tap(find.text('abrir'));
       await tester.pumpAndSettle();
       expect(find.text('Retirar Rui da equipa?'), findsOneWidget);
@@ -46,20 +50,25 @@ void main() {
     });
   });
 
-  testWidgets('a submeter, os botões ficam bloqueados e o erro aparece',
-      (tester) async {
+  testWidgets('a submeter, os botões ficam bloqueados e o erro aparece', (
+    tester,
+  ) async {
     var taps = 0;
-    await tester.pumpWidget(_app(AppConfirmDialog(
-      icon: Icons.delete_forever_outlined,
-      title: 'Tens a certeza?',
-      message: 'Texto',
-      confirmLabel: 'Eliminar conta',
-      destructive: true,
-      isSubmitting: true,
-      errorText: 'Erro do servidor',
-      onConfirm: () => taps++,
-      onCancel: () => taps++,
-    )));
+    await tester.pumpWidget(
+      _app(
+        AppConfirmDialog(
+          icon: Icons.delete_forever_outlined,
+          title: 'Tens a certeza?',
+          message: 'Texto',
+          confirmLabel: 'Eliminar conta',
+          destructive: true,
+          isSubmitting: true,
+          errorText: 'Erro do servidor',
+          onConfirm: () => taps++,
+          onCancel: () => taps++,
+        ),
+      ),
+    );
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.text('Voltar'));
     expect(taps, 0);
@@ -68,41 +77,54 @@ void main() {
 
   testWidgets('AppEmptyState só mostra o botão quando há ação', (tester) async {
     var pressed = false;
-    await tester.pumpWidget(_app(AppEmptyState(
-      icon: Icons.inbox_outlined,
-      title: 'Ainda sem candidaturas',
-      message: 'Candidata-te a um pedido de ajuda.',
-      actionLabel: 'Descobrir pedidos',
-      onAction: () => pressed = true,
-    )));
+    await tester.pumpWidget(
+      _app(
+        AppEmptyState(
+          icon: Icons.inbox_outlined,
+          title: 'Ainda sem candidaturas',
+          message: 'Candidata-te a um pedido de ajuda.',
+          actionLabel: 'Descobrir pedidos',
+          onAction: () => pressed = true,
+        ),
+      ),
+    );
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.text('Descobrir pedidos'));
     expect(pressed, isTrue);
 
-    await tester.pumpWidget(_app(const AppEmptyState(
-      icon: Icons.history_rounded,
-      title: 'Sem histórico',
-      message: 'Nada aqui.',
-      tone: AppStatusColor.neutral,
-    )));
+    await tester.pumpWidget(
+      _app(
+        const AppEmptyState(
+          icon: Icons.history_rounded,
+          title: 'Sem histórico',
+          message: 'Nada aqui.',
+          tone: AppStatusColor.neutral,
+        ),
+      ),
+    );
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(FilledButton), findsNothing);
   });
 
-  testWidgets('NextStepRow usa o estado curto e o toque chega a quem o usa',
-      (tester) async {
+  testWidgets('NextStepRow usa o estado curto e o toque chega a quem o usa', (
+    tester,
+  ) async {
     var pressed = false;
-    await tester.pumpWidget(_app(NextStepRow(
-      icon: Icons.grass,
-      title: 'Corte de relva',
-      status: const AppStatusPresentation(
-        label: 'À espera de proposta',
-        color: AppStatusColor.waiting,
+    await tester.pumpWidget(
+      _app(
+        NextStepRow(
+          icon: Icons.grass,
+          title: 'Corte de relva',
+          status: const AppStatusPresentation(
+            label: 'À espera de proposta',
+            color: AppStatusColor.waiting,
+          ),
+          subtitle: 'Tens 2 propostas para ver.',
+          needsAction: true,
+          onPressed: () => pressed = true,
+        ),
       ),
-      subtitle: 'Tens 2 propostas para ver.',
-      needsAction: true,
-      onPressed: () => pressed = true,
-    )));
+    );
     expect(find.text('Em aberto'), findsOneWidget);
     await tester.tap(find.text('Corte de relva'));
     expect(pressed, isTrue);
@@ -110,32 +132,71 @@ void main() {
 
   testWidgets('TodoRow mostra o texto e responde ao toque', (tester) async {
     var pressed = false;
-    await tester.pumpWidget(_app(TodoRow(
-      icon: Icons.task_alt_rounded,
-      tone: AppStatusColor.cancelled,
-      title: '2 trabalhos por concluir',
-      onPressed: () => pressed = true,
-    )));
+    await tester.pumpWidget(
+      _app(
+        TodoRow(
+          icon: Icons.task_alt_rounded,
+          tone: AppStatusColor.cancelled,
+          title: '2 trabalhos por concluir',
+          onPressed: () => pressed = true,
+        ),
+      ),
+    );
     await tester.tap(find.text('2 trabalhos por concluir'));
     expect(pressed, isTrue);
   });
 
-  testWidgets('folha do "+" só mostra o Cartão frota quando está ativo',
-      (tester) async {
-    Widget sheet({required bool fleet}) => _app(WorkerQuickActionsSheet(
-          showFleetCard: fleet,
-          onFindWork: () {},
-          onOpenHelpRequests: () {},
-          onOpenFleetCard: () {},
-        ));
+  testWidgets('folha do "+" só mostra o Cartão frota quando está ativo', (
+    tester,
+  ) async {
+    Widget sheet({required bool fleet}) => _app(
+      WorkerQuickActionsSheet(
+        showFleetCard: fleet,
+        onFindWork: () {},
+        onOpenHelpRequests: () {},
+        onOpenFleetCard: () {},
+      ),
+    );
     await tester.pumpWidget(sheet(fleet: false));
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Encontrar trabalho'), findsOneWidget);
+    expect(find.text('Procurar trabalho'), findsOneWidget);
     expect(find.text('Pedidos de ajuda'), findsOneWidget);
     expect(find.text('Cartão frota'), findsNothing);
 
     await tester.pumpWidget(sheet(fleet: true));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Cartão frota'), findsOneWidget);
+  });
+
+  testWidgets('folha do "+": Agenda primeiro, depois o resto (A10, M4)', (
+    tester,
+  ) async {
+    final taps = <String>[];
+    await tester.pumpWidget(
+      _app(
+        WorkerQuickActionsSheet(
+          onAddToAgenda: () => taps.add('agenda'),
+          onMarkUnavailable: () => taps.add('block'),
+          onFindWork: () => taps.add('find'),
+          onOpenHelpRequests: () => taps.add('help'),
+          onOpenFleetCard: () => taps.add('fleet'),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    final order = [
+      'Adicionar à agenda',
+      'Marcar indisponível',
+      'Procurar trabalho',
+      'Pedidos de ajuda',
+    ].map((t) => tester.getTopLeft(find.text(t)).dy).toList();
+    expect(order, [...order]..sort());
+    expect(find.text('Um trabalho fora da app'), findsOneWidget);
+    expect(find.byType(Divider), findsOneWidget);
+
+    await tester.tap(find.text('Marcar indisponível'));
+    await tester.tap(find.text('Adicionar à agenda'));
+    expect(taps, ['block', 'agenda']);
   });
 }

@@ -267,8 +267,18 @@ Também feito: a tab Propostas (R1 a R3). Cada proposta mostra o dia e a hora pr
 com contorno âmbar e a nota "Coincide com ...", que abre "Ver o dia". "Retirar proposta"
 pede confirmação e não tem "Desfazer". A ordem é feita na app sobre as páginas já lidas.
 
-Falta: a primeira abertura e os avisos nos fluxos existentes
-(enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da
+Também feito: a primeira abertura (P1 a P3). Um cartão "A tua agenda" no topo da Agenda,
+até ser fechado ou até o primeiro trabalho ser guardado por ele (guardado por conta e por
+aparelho). "O que significam as cores?" abre a mesma folha do botão "Cores".
+
+Também feito: a Agenda nos ecrãs que já existiam (M1 a M4). Em Enviar proposta, uma nota
+por baixo do período diz se está livre, apertado ou se coincide, com "Ver o dia"; só o
+conflito forte pede confirmação ("Enviar mesmo assim"). O detalhe de um pedido mostra um
+chip "Estás livre" / "Já tens N trabalhos neste dia" / "Coincide com um trabalho". Ao
+remarcar (só o jardineiro), "Era: ..." e a mesma nota, com "Pedir mesmo assim". O "+" tem
+"Adicionar à agenda" e "Marcar indisponível" primeiro e vira ✕ com a folha aberta.
+
+Um trabalho feito à espera da
 confirmação do cliente só se vê no dia dele (antes estava em "Agendados").
 
 ### ✅ RESOLVIDO 2026-10-16 — verificação independente contra dump real da BD viva

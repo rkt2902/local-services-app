@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
@@ -9,6 +10,7 @@ import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
+import '../../../agenda/presentation/widgets/agenda_overlap.dart';
 import 'worker_direct_request_card.dart';
 
 /// Dados de apresentação do detalhe de uma oportunidade.
@@ -71,9 +73,17 @@ class WorkerJobDetailScreen extends StatelessWidget {
     this.decliningDirect = false,
     this.directDeclinedMessage,
     this.onSeeOtherJobsPressed,
+    this.agendaAvailability,
+    this.onAgendaAvailabilityPressed,
   });
 
   final WorkerJobDetailViewData data;
+
+  /// Chip da Agenda por baixo do prazo (A10, M2): livre, quantos trabalhos
+  /// já tem nesse dia ou coincide. Nulo sem data ou sem Agenda. Só
+  /// informação: tocar abre "Ver o dia".
+  final (AgendaAvailability, String)? agendaAvailability;
+  final VoidCallback? onAgendaAvailabilityPressed;
 
   /// Pedido direto para este jardineiro (design A5, 5b): cartão no topo e,
   /// sem proposta enviada, "Não posso desta vez" no fundo.
@@ -185,6 +195,25 @@ class WorkerJobDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (agendaAvailability case (
+                      final availability,
+                      final label,
+                    ) when !unavailable) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      AppFadeThroughSwitcher(
+                        switchKey: label,
+                        duration: AppMotionDuration.fast,
+                        child: Align(
+                          key: ValueKey(label),
+                          alignment: Alignment.centerLeft,
+                          child: AgendaAvailabilityChip(
+                            availability: availability,
+                            label: label,
+                            onPressed: onAgendaAvailabilityPressed,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       'Descrição',

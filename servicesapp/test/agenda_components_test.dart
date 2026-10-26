@@ -248,7 +248,7 @@ void main() {
     expect(find.text('Coincidem das 09:30 às 11:00'), findsOneWidget);
     expect(find.text('HOJE'), findsOneWidget);
     expect(find.text('Livre'), findsOneWidget);
-    expect(find.text('O que significam as cores'), findsOneWidget);
+    expect(find.text('O que significam as cores?'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

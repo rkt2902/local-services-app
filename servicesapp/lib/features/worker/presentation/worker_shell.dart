@@ -7,17 +7,26 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
+import '../../agenda/presentation/agenda_day_presenter.dart';
 import '../../agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import 'widgets/worker_quick_actions_sheet.dart';
 
-class WorkerShell extends ConsumerWidget {
+class WorkerShell extends ConsumerStatefulWidget {
   const WorkerShell({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WorkerShell> createState() => _WorkerShellState();
+}
+
+class _WorkerShellState extends ConsumerState<WorkerShell> {
+  /// A folha do "+" está aberta: o botão central mostra "✕" (A10, M4).
+  bool _quickActionsOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
 
     final selectedIndex = _indexFromLocation(location);
@@ -28,6 +37,7 @@ class WorkerShell extends ConsumerWidget {
 
     return AppAdaptiveShell(
       selectedIndex: selectedIndex,
+      centralActionActive: _quickActionsOpen,
       onItemSelected: (index) {
         switch (index) {
           case 0:
@@ -64,16 +74,17 @@ class WorkerShell extends ConsumerWidget {
           selectedIcon: Icons.person_rounded,
         ),
       ],
-      child: child,
+      child: widget.child,
     );
   }
 
   /// Botão central: atalhos (design U2). A folha fecha antes de navegar,
   /// para a navegação nunca acontecer por baixo da modal. O Cartão frota só
   /// aparece com o cartão ativo.
-  void _showQuickActionsSheet(BuildContext context,
-      {required bool fleetActive}) {
-    showModalBottomSheet<void>(
+  Future<void> _showQuickActionsSheet(BuildContext context,
+      {required bool fleetActive}) async {
+    setState(() => _quickActionsOpen = true);
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
@@ -90,15 +101,13 @@ class WorkerShell extends ConsumerWidget {
           Navigator.pop(sheetContext);
           context.push('/worker/help-requests');
         },
-        onAddToAgenda: () async {
+        onAddToAgenda: () {
           Navigator.pop(sheetContext);
-          final result = await context.push<AgendaEditorResult>(
-            '/worker/agenda/new',
-          );
-          // A Agenda abre no dia guardado e realça o cartão.
-          if (result != null && context.mounted) {
-            context.go('/worker/jobs', extra: {'agendaResult': result});
-          }
+          _openAgendaEditor(context, block: false);
+        },
+        onMarkUnavailable: () {
+          Navigator.pop(sheetContext);
+          _openAgendaEditor(context, block: true);
         },
         onOpenFleetCard: () {
           Navigator.pop(sheetContext);
@@ -106,6 +115,26 @@ class WorkerShell extends ConsumerWidget {
         },
       ),
     );
+    if (mounted) setState(() => _quickActionsOpen = false);
+  }
+
+  /// Formulário da Agenda com a data de hoje, em "Trabalho" ou
+  /// "Indisponível". Ao guardar, a Agenda abre no dia guardado e realça o
+  /// cartão.
+  Future<void> _openAgendaEditor(BuildContext context,
+      {required bool block}) async {
+    final result = await context.push<AgendaEditorResult>(
+      Uri(
+        path: '/worker/agenda/new',
+        queryParameters: {
+          'date': agendaDayKey(DateTime.now()),
+          if (block) 'type': 'block',
+        },
+      ).toString(),
+    );
+    if (result != null && context.mounted) {
+      context.go('/worker/jobs', extra: {'agendaResult': result});
+    }
   }
 
   /// Só cobre as rotas de topo (mesmo padrão do WorkerShell anterior): rotas

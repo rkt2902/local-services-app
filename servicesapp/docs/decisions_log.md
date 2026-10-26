@@ -3,6 +3,33 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: primeira abertura e ecrãs existentes (A8G, A10)
+
+- **Primeira abertura:** cartão no topo da lista da Agenda, não um ecrã por cima. Fechar
+  (✕, "Agora não") ou guardar o primeiro trabalho por ele grava
+  `agenda_intro_v1_done_<uid>` nas SharedPreferences. É por conta e por aparelho; sem
+  sessão ou com erro conta como visto, para nunca aparecer em ciclo.
+- **Lógica partilhada** em `agenda_slot_check.dart`: `checkAgendaSlot` devolve a nota
+  (verde livre, azul leve ou proposta, âmbar forte) e, só no forte, os dados do diálogo.
+  `agendaRequestAvailability` faz o chip do detalhe do pedido. Os dois usam
+  `conflictsForSlot`, como a Agenda.
+- O diálogo de conflito é o mesmo do formulário (`AgendaConflictDialog`), agora com
+  `continueLabel` ("Enviar mesmo assim", "Pedir mesmo assim") e sem texto quando o resumo
+  vem vazio. A nota do formulário passou a widget público (`AgendaInlineWarning`), com o
+  tom verde novo.
+- **Enviar proposta:** a proposta conta com a hora do período (09:00, 14:00, 18:00) e a
+  duração máxima em horas; em dias, conta com a duração por omissão de uma proposta.
+  "Mudar a hora" só fecha o diálogo, sem saltar para o período.
+- **Detalhe do pedido:** o pedido só tem dia, por isso o chip só fica âmbar com o dia
+  indisponível ou ocupado todo; de resto conta os trabalhos desse dia (sem propostas).
+  Fica por baixo dos cartões Prazo, Área e Orçamento, porque o detalhe não tem a linha de
+  data do design.
+- **Remarcar:** só no lado do jardineiro (o diálogo é partilhado com o cliente, que não
+  tem Agenda). O próprio trabalho não conta.
+- **"+":** a folha perdeu o título e as cores por ação, como no design. "Encontrar
+  trabalho" passou a "Procurar trabalho". O botão central e o do rail ficam escuros com
+  ✕ enquanto a folha está aberta.
+
 ## 2026-10-26 — Agenda do jardineiro: tab Propostas (R1 a R3)
 
 Design A9 integrado no ecrã Trabalhos que já existia (`worker_jobs_view.dart`). Não é um

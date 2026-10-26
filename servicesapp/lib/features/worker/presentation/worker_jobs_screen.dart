@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
@@ -14,7 +13,6 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../proposals/application/proposal_price_labels.dart';
-import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_toast.dart';
@@ -24,10 +22,10 @@ import '../../agenda/presentation/agenda_day_presenter.dart';
 import '../../agenda/presentation/agenda_day_preview.dart';
 import '../../agenda/presentation/agenda_day_preview_view_data.dart';
 import '../../agenda/presentation/agenda_entry_editor_screen.dart';
+import '../../agenda/presentation/agenda_legend_sheet.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../application/worker_list_invalidation.dart';
 import 'worker_proposals_agenda.dart';
-import '../../agenda/presentation/widgets/agenda_legend.dart';
 import '../../agenda/presentation/worker_agenda_tab.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../../jobs/application/job_providers.dart';
@@ -660,21 +658,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       history: history,
       hasUnreadNotifications: ref.watch(unreadCountProvider) > 0,
       onNotificationsPressed: () => context.push('/notifications'),
-      onColorsPressed: () => AppSheet.show<void>(
-        context,
-        builder: (_) => const SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.s20,
-              AppSpacing.lg,
-              AppSpacing.s20,
-              AppSpacing.md,
-            ),
-            child: AgendaLegendSheet(),
-          ),
-        ),
-      ),
+      onColorsPressed: () => showAgendaLegendSheet(context),
       onRetry: () {
         for (final t in _boardTabs) {
           ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));

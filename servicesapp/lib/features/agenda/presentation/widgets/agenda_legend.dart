@@ -90,7 +90,10 @@ class _KindSwatch extends StatelessWidget {
 /// Conteúdo da folha "O que significam as cores" (A7). Abre pelo ícone de
 /// ajuda no topo da Agenda, dentro de `AppSheet`.
 class AgendaLegendSheet extends StatelessWidget {
-  const AgendaLegendSheet({super.key});
+  const AgendaLegendSheet({super.key, this.showTitle = true});
+
+  /// Falso dentro de `AppSheet`, que já tem o título.
+  final bool showTitle;
 
   static const _rows = [
     (AgendaCardKind.app, 'Trabalho da app', 'És tu o responsável'),
@@ -137,11 +140,13 @@ class AgendaLegendSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'O que significam as cores',
-          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: AppSpacing.xs),
+        if (showTitle) ...[
+          Text(
+            'O que significam as cores?',
+            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
         for (final (kind, title, subtitle) in _rows)
           row(_KindSwatch(kind: kind), title, subtitle),
         const Divider(height: AppSpacing.sm, color: AppColors.divider),

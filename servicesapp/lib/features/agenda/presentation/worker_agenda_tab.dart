@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_motion_tokens.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
@@ -15,10 +16,12 @@ import '../../../core/widgets/app_toast.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../worker/application/worker_list_invalidation.dart';
 import '../../worker/presentation/widgets/start_job_sheet.dart';
+import '../application/agenda_intro_providers.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_entry_model.dart';
 import 'agenda_day_presenter.dart';
 import 'agenda_entry_editor_screen.dart';
+import 'agenda_legend_sheet.dart';
 import 'agenda_month_presenter.dart';
 import 'agenda_open_map.dart';
 import 'agenda_month_sheet.dart';
@@ -26,6 +29,7 @@ import 'agenda_week_presenter.dart';
 import 'agenda_week_view_data.dart';
 import 'widgets/agenda_controls.dart';
 import 'widgets/agenda_day_view.dart';
+import 'widgets/agenda_intro_card.dart';
 import 'widgets/agenda_month_view.dart';
 import 'widgets/agenda_week_view.dart';
 
@@ -97,6 +101,27 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     _clock?.cancel();
     _savedTimer?.cancel();
     super.dispose();
+  }
+
+  /// Cartão da primeira abertura: fechado nesta sessão (encolhe antes de
+  /// sair; a fonte de verdade é [agendaIntroDoneProvider]).
+  bool _introClosed = false;
+
+  void _dismissIntro() {
+    setState(() => _introClosed = true);
+    ref.read(agendaIntroDoneProvider.notifier).markDone();
+  }
+
+  /// "Adicionar o primeiro trabalho": Trabalho, hoje. Só conta como feito
+  /// depois de guardar; cancelar deixa o cartão.
+  Future<void> _addFirstWork() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final result = await context.push<AgendaEditorResult>(
+      '/worker/agenda/new?date=${agendaDayKey(today)}',
+    );
+    if (result == null || !mounted) return;
+    if (result.outcome == AgendaEditorOutcome.created) _dismissIntro();
+    _onEditorResult(result);
   }
 
   /// "Adicionar à agenda" já no dia [day].
@@ -495,6 +520,26 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       highlightSourceId: _highlightId,
       savedMessage: _savedMessage,
       onUndoSaved: _undoId == null ? null : _undoCreate,
+      intro: _intro(),
+    );
+  }
+
+  /// Só depois de a Agenda carregar (nunca por cima do esqueleto ou do
+  /// erro) e enquanto não foi fechado.
+  Widget? _intro() {
+    final done = ref.watch(agendaIntroDoneProvider).asData?.value ?? true;
+    if (done && !_introClosed) return null;
+    return AnimatedSize(
+      duration: AppMotionDuration.fast,
+      curve: AppMotionCurve.standard,
+      alignment: Alignment.topCenter,
+      child: _introClosed
+          ? const SizedBox(width: double.infinity)
+          : AgendaIntroCard(
+              onDismiss: _dismissIntro,
+              onAddFirstWork: _addFirstWork,
+              onOpenColors: () => showAgendaLegendSheet(context),
+            ),
     );
   }
 

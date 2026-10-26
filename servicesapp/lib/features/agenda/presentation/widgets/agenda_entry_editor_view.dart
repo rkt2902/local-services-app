@@ -531,7 +531,10 @@ class _WorkForm extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               child: warning == null
                   ? const SizedBox(width: double.infinity)
-                  : _Warning(data: warning, onAction: onOpenDayPreview),
+                  : AgendaInlineWarning(
+                      data: warning,
+                      onAction: onOpenDayPreview,
+                    ),
             ),
           ],
         ),
@@ -690,7 +693,7 @@ class _UnavailableForm extends StatelessWidget {
         _NeutralInfo(label: data.info),
         if (warning != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          _Warning(data: warning),
+          AgendaInlineWarning(data: warning),
         ],
       ],
     );
@@ -1075,8 +1078,11 @@ class _NeutralInfo extends StatelessWidget {
 }
 
 /// Nota de sobreposição: azul (leve) ou âmbar (forte). Nunca bloqueia.
-class _Warning extends StatelessWidget {
-  const _Warning({required this.data, this.onAction});
+/// Nota por baixo da data e da hora (F2, F3), também usada fora da Agenda
+/// (A10: Enviar proposta, Remarcar). Verde quando está livre, azul no leve,
+/// âmbar no forte. Nunca bloqueia.
+class AgendaInlineWarning extends StatelessWidget {
+  const AgendaInlineWarning({required this.data, this.onAction, super.key});
 
   final AgendaInlineWarningViewData data;
   final VoidCallback? onAction;
@@ -1084,8 +1090,26 @@ class _Warning extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final strong = data.tone == AgendaWarningTone.waiting;
-    final tone = strong ? AppStatusColor.waiting : AppStatusColor.info;
+    final (Color bg, Color fg, Color text, IconData icon) = switch (data.tone) {
+      AgendaWarningTone.success => (
+        AppColors.primaryContainer,
+        AppColors.primary,
+        AppColors.primaryPressed,
+        Icons.check_circle_rounded,
+      ),
+      AgendaWarningTone.info => (
+        AppStatusColor.info.background,
+        AppStatusColor.info.foreground,
+        AppColors.textPrimary,
+        Icons.info_outline_rounded,
+      ),
+      AgendaWarningTone.waiting => (
+        AppStatusColor.waiting.background,
+        AppStatusColor.waiting.foreground,
+        AppStatusColor.waiting.foreground,
+        Icons.warning_amber_rounded,
+      ),
+    };
     final action = data.actionLabel;
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -1095,23 +1119,19 @@ class _Warning extends StatelessWidget {
         AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: tone.background,
+        color: bg,
         borderRadius: BorderRadius.circular(AppRadius.input),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            strong ? Icons.warning_amber_rounded : Icons.info_outline_rounded,
-            size: AppSizes.infoRowIcon,
-            color: tone.foreground,
-          ),
+          Icon(icon, size: AppSizes.infoRowIcon, color: fg),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
               data.message,
               style: textTheme.bodySmall?.copyWith(
-                color: strong ? tone.foreground : AppColors.textPrimary,
+                color: text,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1120,7 +1140,7 @@ class _Warning extends StatelessWidget {
             TextButton(
               onPressed: onAction,
               style: TextButton.styleFrom(
-                foregroundColor: tone.foreground,
+                foregroundColor: fg,
                 visualDensity: VisualDensity.compact,
                 textStyle: textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w800,
@@ -1296,16 +1316,18 @@ class AgendaConflictDialog extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               AppStaggeredEntrance(index: 2, child: _ConflictEntry(data: data)),
-              const SizedBox(height: AppSpacing.sm),
-              AppStaggeredEntrance(
-                index: 3,
-                child: Text(
-                  data.summary,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textPrimary,
+              if (data.summary.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AppStaggeredEntrance(
+                  index: 3,
+                  child: Text(
+                    data.summary,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               AppStaggeredEntrance(
                 index: 4,
@@ -1333,7 +1355,7 @@ class AgendaConflictDialog extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      child: const Text('Guardar mesmo assim'),
+                      child: Text(data.continueLabel),
                     ),
                   ],
                 ),

@@ -19,7 +19,14 @@ import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../agenda/application/agenda_conflicts.dart';
+import '../../agenda/application/agenda_providers.dart';
+import '../../agenda/data/agenda_entry_model.dart';
+import '../../agenda/presentation/agenda_day_preview.dart';
+import '../../agenda/presentation/agenda_day_preview_view_data.dart';
+import '../../agenda/presentation/agenda_slot_check.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
@@ -303,8 +310,37 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       badge: badge,
     );
 
+    // Chip da Agenda (A10, M2): só com um dia pedido e o pedido aberto.
+    final requestDay = unavailable
+        ? null
+        : proposalInitialDate(job, DateTime.now());
+    final agendaEntries = requestDay == null
+        ? null
+        : ref
+            .watch(agendaRangeProvider(agendaMonthRange(requestDay)))
+            .asData
+            ?.value;
+    final agendaAvailability = requestDay == null || agendaEntries == null
+        ? null
+        : agendaRequestAvailability(
+            slot: AgendaSlot(date: requestDay),
+            entries: agendaEntries,
+          );
+
     return view.WorkerJobDetailScreen(
       data: data,
+      agendaAvailability: agendaAvailability,
+      onAgendaAvailabilityPressed: requestDay == null
+          ? null
+          : () => showAgendaDayPreview(
+                context,
+                day: requestDay,
+                ghost: AgendaDayPreviewGhost(
+                  date: requestDay,
+                  label: 'O pedido',
+                  slotKind: AgendaEntryKind.proposal,
+                ),
+              ),
       onBack: () => goBackOrToRoleHome(context),
       unavailable: unavailable,
       unavailableReason: jobUnavailableReason(
