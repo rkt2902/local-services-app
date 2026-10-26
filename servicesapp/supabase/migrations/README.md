@@ -188,7 +188,17 @@ correr-se mais do que uma vez.
 `get_direct_request_context` (DROP + CREATE) devolve também `pricing_mode` e
 `total_price`, para "Já trabalhaste com..." mostrar o valor fechado em vez da taxa de
 referência. Antes de aplicar, a app mostra a taxa como até aqui. Pode correr-se mais do
-que uma vez. **Próxima migration: `0064`.**
+que uma vez.
+
+**`0064_worker_agenda.sql`: criada, NÃO aplicada** (depois da 0058). Agenda do
+jardineiro: tabelas `worker_calendar_entries` (trabalhos fora da app e
+indisponibilidades, com repetição semanal, quinzenal e mensal) e
+`worker_calendar_exceptions` ("Só este dia"), RLS só do dono, `split_calendar_series`
+("Este e os seguintes") e `get_worker_agenda(p_from, p_to)`, que junta trabalhos da app
+(responsável e ajudante), propostas pendentes e remarcações por aceitar, trabalhos de
+fora e indisponibilidades, uma linha por dia. Testada num Postgres 16 local com as
+migrations 0001 a 0063. Pode correr-se mais do que uma vez. **Próxima migration:
+`0065`.**
 
 **`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
 direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em

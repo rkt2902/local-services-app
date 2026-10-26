@@ -360,6 +360,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
 | `admin_users` (0060) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
 | `admin_actions` (0060) | registo das mudanças feitas no painel | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
+| `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status`; RLS só do dono, INSERT só com papel worker |
+| `worker_calendar_exceptions` (0064) | "Só este dia" numa série | `entry_id`, `occurrence_date`, `action` cancelled/moved/changed/done, `new_*`; RLS só do dono |
 | `worker_plans` (0060) | plano do jardineiro | `tier` free/pro/pro_plus, `starts_at`, `ends_at`, `verified_at`, `notes`; RLS sem policies (o jardineiro lê por `get_my_plan`, sem as notas). O `role` não muda |
 
 ### RLS — resumo por tabela (ver os ficheiros de migration para o texto exato das policies)
@@ -422,6 +424,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
+| `get_worker_agenda` (0064) | `p_from, p_to` (máx. 62 dias) | `TABLE(entry_kind, source_id, job_id, occurrence_date, series_date, start_time, end_time, day_index, day_count, title, service_type_id, location_label, person_name, person_phone, status, is_tentative, amount_min, amount_max, recurrence, is_exception, notes)`, uma linha por dia; `entry_kind` app_job/helper_job/proposal/reschedule/external/block | `AgendaRepository` (Agenda do jardineiro; sobreposições em `agenda_conflicts.dart`) |
+| `split_calendar_series` (0064) | `p_entry_id, p_from_date` | `uuid` da série nova | `AgendaRepository.splitSeries` ("Este e os seguintes") |
 | `get_worker_job_board` (0035, última 0058: `pricing_mode`, `total_price` no fim) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
 | `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
 | `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
@@ -519,6 +523,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 | `0060_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da `0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql` (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
 | `0061_hotfix_reserved_for_other.sql` | **criada, aplicar já** e sozinha: `job_reserved_for_other` dava NULL nos pedidos normais e `NOT ...` escondia-os aos jardineiros desde a 0057. Corrige a versão que existir (4 ou 5 argumentos) |
 | `0063_direct_context_fixed_price.sql` | **criada, NÃO aplicada**, depois da 0058 (`get_direct_request_context` com `pricing_mode` e `total_price`) |
+| `0064_worker_agenda.sql` | **criada, NÃO aplicada**, depois da 0058 (Agenda: `worker_calendar_entries`, `worker_calendar_exceptions`, `get_worker_agenda`, `split_calendar_series`) |
 | `0062_job_followups_and_better_notifications.sql` | **criada, NÃO aplicada**, depois da 0058 e da 0059 (lembrete às 6h aos jardineiros, 24h sem propostas: pedido mostrado mais longe e aviso ao cliente, "Mostrar a jardineiros mais longe", dicas da época, textos das notificações reescritos no trigger) |
 
 Próxima migration: `0064`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).

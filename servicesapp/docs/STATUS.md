@@ -237,6 +237,14 @@ adoção parcial do componente.
 
 ## Gaps conhecidos (sem spin)
 
+### Agenda do jardineiro: em construção (2026-10-26)
+
+Feito: migration 0064 (criada, não aplicada), `AgendaRepository`, `agendaRangeProvider`,
+deteção de sobreposições com testes e os componentes visuais da folha de design (A1 a A9).
+Ainda não há ecrãs: a tab "Trabalhos" continua igual até chegarem os designs das vistas
+Hoje, Semana e Mês, do formulário "Adicionar à agenda" e do detalhe. Os avisos nos fluxos
+existentes (enviar proposta, detalhe do pedido, remarcar) também ficam para essa fase.
+
 ### ✅ RESOLVIDO 2026-10-16 — verificação independente contra dump real da BD viva
 
 O utilizador extraiu um dump real da BD viva (`supabase db dump`, projeto

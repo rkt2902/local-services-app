@@ -317,6 +317,17 @@ do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
 
 **Diz ao Claude:** "0063 aplicada".
 
+### 0.17 Migration por aplicar: 0064 (depois da 0058)
+
+- [ ] SQL Editor: colar `supabase/migrations/0064_worker_agenda.sql` e correr.
+      Pode correr-se mais do que uma vez.
+- [ ] Testar no SQL Editor (com a app ainda sem ecrãs da Agenda):
+      `select * from get_worker_agenda(current_date, current_date + 30);` dá erro
+      "Sessão inválida" (normal, no SQL Editor não há utilizador). Na app, quando os
+      ecrãs chegarem, os trabalhos marcados aparecem na Agenda.
+
+**Diz ao Claude:** "0064 aplicada".
+
 ---
 
 ## 1. Netlify e deploy automático

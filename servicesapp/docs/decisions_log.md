@@ -3,6 +3,22 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: dados, sobreposições e componentes (0064)
+
+Plano em `projardim/design/2026-10-26-plano-agenda-jardineiro.md` (pasta partilhada).
+Decisões do Henrique: a bottom nav não muda; "Trabalhos" passa a ter as tabs Agenda,
+Propostas e Histórico e abre na Agenda (Hoje, Semana, Mês); Semana em faixa de dias e
+lista por dia; propostas pendentes aparecem a tracejado, com interruptor; indisponibilidade
+só na agenda dele; repetição completa já na fase 1 ("Só este dia", "Este e os seguintes",
+"Todos"); nota de sobreposição sempre e confirmação só quando as horas se cruzam (nunca
+bloqueia); nome e telefone do cliente de fora opcionais (política de privacidade
+atualizada na pasta partilhada, a publicar quando a Agenda sair).
+Técnica: uma só leitura (`get_worker_agenda`, uma linha por dia) para a Agenda, o Início
+e os avisos; deteção de sobreposições em Dart puro (`agenda_conflicts.dart`, com testes):
+sem fim usa 2 h na app e 60 min fora; menos de 30 min entre trabalhos é aviso leve;
+indisponível e trabalhos de vários dias ocupam o dia todo. Componentes da folha de design
+(A1 a A9) em `features/agenda/presentation/widgets/`; ecrãs ainda por desenhar.
+
 ## 2026-10-26 — Data do cliente no ecrã de enviar proposta
 
 O formulário de proposta mostra "O cliente pediu: …" junto à data de início e abre já
