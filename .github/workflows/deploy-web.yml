@@ -1,14 +1,10 @@
-# Publica a versão web (servicesapp/) no Netlify a cada push para main.
-# Também se corre à mão em Actions > Deploy web > Run workflow.
+# Publica a versão web (servicesapp/) no Netlify. Só corre à mão, em
+# Actions > Deploy web > Run workflow: cada deploy gasta créditos do
+# Netlify, por isso um merge no main já não publica sozinho (26/10).
 # Configuração única: ver servicesapp/docs/web.md, secção "Netlify".
 name: Deploy web
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'servicesapp/**'
-      - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
 permissions:

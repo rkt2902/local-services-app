@@ -39,10 +39,11 @@ já faz o Netlify devolver `index.html` em qualquer caminho.
    `https://projardim.netlify.app`, se o nome estiver livre).
 5. Abrir esse endereço no telemóvel.
 
-### Automático a cada push para `main`
+### Publicar com um clique (GitHub Actions)
 
-O workflow `.github/workflows/deploy-web.yml` compila e publica sozinho.
-Configura-se uma vez:
+O workflow `.github/workflows/deploy-web.yml` compila e publica. Desde
+26/10 só corre à mão (cada deploy gasta créditos do Netlify), por isso um
+merge no `main` já não publica sozinho. Configura-se uma vez:
 
 1. Netlify: avatar > User settings > Applications > Personal access tokens >
    New access token. Copiar o token.
@@ -53,9 +54,10 @@ Configura-se uma vez:
    - `NETLIFY_AUTH_TOKEN` (passo 1)
    - `NETLIFY_SITE_ID` (passo 2)
    - `SUPABASE_URL` e `SUPABASE_ANON_KEY` (os mesmos do `launch.json`)
-4. A partir daí cada merge no `main` que mexa em `servicesapp/` publica a
-   versão nova. Para publicar sem esperar: Actions > Deploy web > Run
-   workflow. Se faltar algum secret o workflow para logo e diz qual.
+4. Para publicar: Actions > Deploy web > Run workflow (branch `main`).
+   Se faltar algum secret o workflow para logo e diz qual. Para voltar ao
+   deploy automático a cada merge, repor o bloco `push` no `on:` do
+   workflow.
 
 Alternativas com config já incluída, se um dia for preciso: Firebase Hosting
 (`firebase.json`), Vercel (`web/vercel.json`), Cloudflare Pages
