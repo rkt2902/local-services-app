@@ -257,9 +257,12 @@ D6), ao tocar no cartão: marcar como feito (com "Desfazer"), cancelar (fica na 
 riscado e pode ser reposto), apagar, editar, WhatsApp, mapa e "Ver o dia". Isto mudou a
 0064 (ainda não aplicada): estado por dia nas exceções e hora do feito.
 
-Falta: a folha "Ver o
-dia" desenhada (hoje é uma lista simples), a
-primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
+Também feito: a folha "Ver o dia" (V1 a V3), aberta a partir do formulário. Mostra o
+dia com o que se está a marcar a tracejado, a frase "Choca 1 hora com..." ou "Cabe...",
+o tempo livre e as setas para outros dias. É só para ver e não mexe no formulário. Já
+aceita a etiqueta "A tua proposta" para o fluxo de enviar proposta (Prompt 10).
+
+Falta: a primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
 (enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da
 confirmação do cliente só se vê no dia dele (antes estava em "Agendados").
 

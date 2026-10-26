@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: folha "Ver o dia" (V1 a V3)
+
+Design A8F integrado com os componentes da app. `showAgendaDayPreview(context, day:,
+ghost:)` abre a folha por cima de qualquer formulário; o formulário fica montado por
+baixo, e mudar de dia na folha não muda a data dele. O fantasma
+(`AgendaDayPreviewGhost`) traz a etiqueta ("O teu trabalho", "A tua proposta"), a hora e
+a duração, e nunca é gravado. Tudo é calculado em `agenda_day_preview_presenter.dart`
+com as mesmas regras de sobreposição do resto da Agenda (`conflictsForSlot`).
+
+Diferenças em relação ao design, de propósito:
+- A frase de cima fica fixa por cima da lista, para não sair de vista quando a folha
+  faz scroll até ao fantasma.
+- Além de "cabe" (verde) e "choca" (âmbar) há mais dois tons, das regras que já existiam:
+  info para pouco intervalo ou mesmo dia sem hora, e neutro quando coincide com uma
+  proposta enviada (decisão 3: propostas não contam como compromisso).
+- Num dia sem nada além do fantasma o texto é "Nada mais neste dia / O resto do dia está
+  livre."; noutro dia vazio é "Nada neste dia / O dia está todo livre.".
+- Um trabalho de vários dias mostra o fantasma em todos os dias que ocupa; uma série
+  que se repete só no primeiro dia.
+- A troca de dia usa 200 ms (`AppMotionDuration.fast`) e não 180 ms, para ficar nos
+  tokens.
+
 ## 2026-10-26 — Agenda do jardineiro: detalhe de um trabalho de fora da app (D1 a D6)
 
 Design A8E integrado com os componentes da app. Rota `/worker/agenda/:id?date=` (entra

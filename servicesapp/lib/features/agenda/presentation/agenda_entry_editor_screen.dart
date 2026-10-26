@@ -21,11 +21,10 @@ import '../application/agenda_entry_form.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_calendar_entry.dart';
 import '../data/agenda_entry_model.dart';
-import 'agenda_day_presenter.dart';
+import 'agenda_day_preview.dart';
+import 'agenda_day_preview_view_data.dart';
 import 'agenda_entry_editor_presenter.dart';
 import 'agenda_entry_editor_view_data.dart';
-import 'agenda_week_presenter.dart';
-import 'widgets/agenda_day_cells.dart';
 import 'widgets/agenda_entry_editor_view.dart';
 import 'widgets/agenda_view_parts.dart';
 
@@ -408,50 +407,27 @@ class _AgendaEntryEditorScreenState
     if (type != null && title.text.trim().isEmpty) title.text = type.name;
   }
 
-  /// "Ver o dia" (F3): o dia numa folha, sem sair do formulário.
-  Future<void> _openDayPreview() async {
+  /// "Ver o dia" (F3, A8F): o dia numa folha só para ver, com o que se
+  /// está a marcar a tracejado. Não mexe no formulário.
+  Future<void> _openDayPreview() {
     final form = _form!;
-    final entries = _entries();
-    if (entries == null) return;
-    final now = DateTime.now();
-    final serviceTypes =
-        ref.read(serviceTypesProvider).asData?.value ?? const <ServiceType>[];
-    final dayEntries =
-        agendaEntriesByDay([
-          for (final e in entries)
-            if (e.sourceId != widget.entryId) e,
-        ], showProposals: true)[form.date] ??
-        const <AgendaEntry>[];
-    final slice = buildAgendaDaySlice(
-      day: form.date,
-      dayEntries: dayEntries,
-      now: now,
-      serviceTypes: serviceTypes,
-    );
-    await AppSheet.show<void>(
+    final multiDay = form.lastDay.isAfter(form.date);
+    return showAgendaDayPreview(
       context,
-      builder: (sheetContext) => AppSheet(
-        title: agendaDayLabel(form.date, now),
-        onClose: () => Navigator.pop(sheetContext),
-        child: slice.section.isFree
-            ? Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: Text(
-                  'Nada marcado neste dia.',
-                  style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              )
-            : Flexible(
-                child: SingleChildScrollView(
-                  child: AgendaDayItemsList(
-                    items: slice.section.items,
-                    onOpenEntry: (_) {},
-                    onResolveOverlap: (_) {},
-                  ),
-                ),
-              ),
+      day: form.date,
+      ghost: AgendaDayPreviewGhost(
+        date: form.date,
+        lastDate: form.lastDay,
+        label: form.isWork ? 'O teu trabalho' : 'Indisponível',
+        startMinutes: form.effectiveStart,
+        durationMinutes: form.effectiveDuration,
+        // Indisponível sem horas e vários dias ocupam o dia inteiro.
+        wholeDay: form.isWork ? multiDay : form.allDay,
+        allDay: form.allDay,
+        slotKind: form.isWork
+            ? AgendaEntryKind.external
+            : AgendaEntryKind.block,
+        ignoreSourceId: widget.entryId,
       ),
     );
   }
