@@ -95,6 +95,10 @@ abstract final class AppSizes {
   /// Logo no diálogo "Sobre a ProJardim".
   static const double aboutLogo = 72.0;
   static const double heroIcon = 28.0;
+
+  /// Quadrado do ícone grande no topo de um detalhe (Agenda, A8E).
+  static const double detailHeroBox = 64.0;
+  static const double detailHeroIcon = 36.0;
   static const double infoRowIcon = 20.0;
 
   // Propostas recebidas (A3).

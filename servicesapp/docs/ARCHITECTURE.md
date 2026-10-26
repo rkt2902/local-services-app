@@ -260,7 +260,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/help-requests` | `WorkerHelpRequestsScreen` | fora | fade-through / shared-axis |
 | `/worker/help-requests/:id/apply` | `ApplyAsHelperScreen` | fora | container-transform |
 | `/worker/agenda/new` | `AgendaEntryEditorScreen` ("Adicionar à agenda": trabalho fora da app ou indisponível; `?date=` dia, `?type=block`; volta com `AgendaEditorResult`) | fora | slide de baixo |
-| `/worker/agenda/:id` | `AgendaEntryEditorScreen` (editar `worker_calendar_entries`; `?date=` ocorrência tocada) | fora | slide de baixo |
+| `/worker/agenda/:id` | `AgendaEntryDetailScreen` (detalhe de um trabalho de fora da app ou indisponibilidade: feito, cancelar, repor, apagar; `?date=` ocorrência tocada; volta com `AgendaEditorResult` ao apagar, editar ou "Ver o dia") | fora | shared-axis |
+| `/worker/agenda/:id/edit` | `AgendaEntryEditorScreen` (editar `worker_calendar_entries`; `?date=` ocorrência tocada) | fora | slide de baixo |
 | `/worker/fleet-card` | `FleetCardScreen` | fora | shared-axis |
 | `/worker/fleet-card/scan` | `FleetCardScanScreen` | fora | shared-axis |
 | `/worker/fleet-card/confirm` | `FleetCardConfirmDataScreen` | fora | shared-axis |
@@ -362,8 +363,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
 | `admin_users` (0060) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
 | `admin_actions` (0060) | registo das mudanças feitas no painel | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
-| `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status`; RLS só do dono, INSERT só com papel worker |
-| `worker_calendar_exceptions` (0064) | "Só este dia" numa série | `entry_id`, `occurrence_date`, `action` cancelled/moved/changed/done, `new_*`; RLS só do dono |
+| `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status` scheduled/done/cancelled (cancelado continua na agenda), `status_at` (trigger); RLS só do dono, INSERT só com papel worker |
+| `worker_calendar_exceptions` (0064) | "Só este dia" numa série | `entry_id`, `occurrence_date`, `action` skipped (sai da agenda)/moved/changed/status, `new_*`, `status` done/cancelled só nesse dia, `status_at`; RLS só do dono |
 | `worker_plans` (0060) | plano do jardineiro | `tier` free/pro/pro_plus, `starts_at`, `ends_at`, `verified_at`, `notes`; RLS sem policies (o jardineiro lê por `get_my_plan`, sem as notas). O `role` não muda |
 
 ### RLS — resumo por tabela (ver os ficheiros de migration para o texto exato das policies)

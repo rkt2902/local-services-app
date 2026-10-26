@@ -3,13 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/phone_utils.dart';
-import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -22,6 +20,7 @@ import '../data/agenda_entry_model.dart';
 import 'agenda_day_presenter.dart';
 import 'agenda_entry_editor_screen.dart';
 import 'agenda_month_presenter.dart';
+import 'agenda_open_map.dart';
 import 'agenda_month_sheet.dart';
 import 'agenda_week_presenter.dart';
 import 'agenda_week_view_data.dart';
@@ -108,11 +107,21 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     if (result != null && mounted) _onEditorResult(result);
   }
 
-  /// Trabalho de fora da app ou indisponibilidade: abre o formulário na
-  /// ocorrência tocada.
-  Future<void> _editEntry(AgendaEntry e) async {
+  /// Trabalho de fora da app ou indisponibilidade: abre o detalhe (A8E) na
+  /// ocorrência tocada; de lá pode-se editar, apagar ou voltar ao dia.
+  Future<void> _openExternal(AgendaEntry e) async {
     final result = await context.push<AgendaEditorResult>(
       '/worker/agenda/${e.sourceId}?date=${agendaDayKey(e.seriesDate)}',
+    );
+    // Feito, cancelado ou reposto no próprio detalhe já invalidaram a
+    // agenda: só apagar, editar e "Ver o dia" voltam com um resultado.
+    if (result != null && mounted) _onEditorResult(result);
+  }
+
+  /// "Mudar datas" de uma indisponibilidade: direto ao formulário.
+  Future<void> _editEntry(AgendaEntry e) async {
+    final result = await context.push<AgendaEditorResult>(
+      '/worker/agenda/${e.sourceId}/edit?date=${agendaDayKey(e.seriesDate)}',
     );
     if (result != null && mounted) _onEditorResult(result);
   }
@@ -124,6 +133,20 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     if (result.outcome == AgendaEditorOutcome.deleted) {
       _clearSaved();
       AppToast.of(context).show('Apagado da agenda.');
+    } else if (result.outcome == AgendaEditorOutcome.viewDay) {
+      // "Ver o dia" do detalhe: o Hoje nesse dia, nos que coincidem, com o
+      // cartão de onde veio realçado.
+      setState(() {
+        _range = AgendaRange.day;
+        _day = DateUtils.dateOnly(result.day);
+        _focusOverlap = true;
+        _highlightId = result.entryId;
+        _savedMessage = null;
+        _undoId = null;
+      });
+      _savedTimer = Timer(_savedFor, () {
+        if (mounted) _clearSaved();
+      });
     } else {
       final created = result.outcome == AgendaEditorOutcome.created;
       setState(() {
@@ -251,7 +274,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
         if (proposalId == null) return;
         context.push('/worker/my-job/$proposalId?jobId=$jobId');
       case AgendaEntryKind.external || AgendaEntryKind.block:
-        _editEntry(e);
+        _openExternal(e);
     }
   }
 
@@ -291,23 +314,12 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     invalidateWorkerLists(ref, jobId: jobId);
   }
 
-  Future<void> _openMap(AgendaEntry e) async {
-    final lat = e.locationLat;
-    final lng = e.locationLng;
-    if (lat != null && lng != null) {
-      await AddressMapLink.openInMaps(lat, lng);
-      return;
-    }
-    // Proposta pendente: só a zona.
-    final label = e.locationLabel?.trim() ?? '';
-    if (label.isEmpty) return;
-    await launchUrl(
-      Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(label)}',
-      ),
-      mode: LaunchMode.externalApplication,
-    );
-  }
+  // Proposta pendente: só a zona.
+  Future<void> _openMap(AgendaEntry e) => openAgendaPlace(
+    lat: e.locationLat,
+    lng: e.locationLng,
+    label: e.locationLabel,
+  );
 
   /// "Mudar a hora" de um dos que coincidem: abre o trabalho escolhido,
   /// onde se pede a remarcação (ou o formulário, se for de fora da app).

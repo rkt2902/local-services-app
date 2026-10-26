@@ -16,6 +16,7 @@ import '../../../core/widgets/app_time_picker.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
+import '../application/agenda_entry_actions.dart';
 import '../application/agenda_entry_form.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_calendar_entry.dart';
@@ -28,9 +29,10 @@ import 'widgets/agenda_day_cells.dart';
 import 'widgets/agenda_entry_editor_view.dart';
 import 'widgets/agenda_view_parts.dart';
 
-/// O que aconteceu no formulário, para a Agenda abrir o dia certo e
-/// realçar o cartão (F8B).
-enum AgendaEditorOutcome { created, updated, deleted }
+/// O que aconteceu no formulário (ou no detalhe), para a Agenda abrir o
+/// dia certo e realçar o cartão (F8B). [viewDay] é o "Ver o dia" do
+/// detalhe: só abre o dia.
+enum AgendaEditorOutcome { created, updated, deleted, viewDay }
 
 class AgendaEditorResult {
   const AgendaEditorResult({
@@ -47,7 +49,7 @@ class AgendaEditorResult {
 }
 
 /// Ecrã "Adicionar à agenda" / "Editar" (rotas `/worker/agenda/new` e
-/// `/worker/agenda/:id`), fora do ShellRoute. Guarda o estado do
+/// `/worker/agenda/:id/edit`), fora do ShellRoute. Guarda o estado do
 /// formulário, abre os seletores, avisa das sobreposições e grava em
 /// `worker_calendar_entries` (0064). Volta com um [AgendaEditorResult].
 class AgendaEntryEditorScreen extends ConsumerStatefulWidget {
@@ -639,23 +641,12 @@ class _AgendaEntryEditorScreenState
     final repo = ref.read(agendaRepositoryProvider);
     setState(() => _submitting = true);
     try {
-      switch (scope) {
-        case AgendaSeriesScope.thisDay:
-          await repo.saveException(
-            entryId: entry.id,
-            occurrenceDate: occurrence,
-            values: AgendaEntryForm.cancelledExceptionRow(),
-          );
-        case AgendaSeriesScope.following
-            when occurrence.isAfter(entry.startsOn):
-          await repo.updateCalendarEntry(entry.id, {
-            'recurrence_until': agendaDayKey(
-              occurrence.subtract(const Duration(days: 1)),
-            ),
-          });
-        case _:
-          await repo.deleteCalendarEntry(entry.id);
-      }
+      await deleteCalendarOccurrences(
+        repo,
+        entry: entry,
+        occurrence: occurrence,
+        scope: scope,
+      );
     } catch (err) {
       if (!mounted) return;
       setState(() => _submitting = false);

@@ -250,10 +250,14 @@ Aplicar a 0064 antes de publicar.
 
 Também feito: o formulário "Adicionar à agenda" / "Editar" (F1 a F8), ligado ao dia
 livre, à semana livre, ao "+" das linhas "Livre", ao "Adicionar neste dia" do Mês, ao
-"Mudar datas" e ao "+" central. Tocar num trabalho de fora da app ou numa
-indisponibilidade abre o formulário (até haver o detalhe próprio).
+"Mudar datas" e ao "+" central.
 
-Falta: o detalhe das entradas de fora da app (com marcar como feito), a folha "Ver o
+Também feito: o detalhe de um trabalho de fora da app ou de uma indisponibilidade (D1 a
+D6), ao tocar no cartão: marcar como feito (com "Desfazer"), cancelar (fica na agenda
+riscado e pode ser reposto), apagar, editar, WhatsApp, mapa e "Ver o dia". Isto mudou a
+0064 (ainda não aplicada): estado por dia nas exceções e hora do feito.
+
+Falta: a folha "Ver o
 dia" desenhada (hoje é uma lista simples), a
 primeira abertura, a tab Propostas com aviso, e os avisos nos fluxos existentes
 (enviar proposta, detalhe do pedido, remarcar). Um trabalho feito à espera da

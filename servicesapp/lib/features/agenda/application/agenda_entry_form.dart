@@ -388,9 +388,10 @@ class AgendaEntryForm {
     };
   }
 
-  /// Exceção que tira só um dia da série.
-  static Map<String, dynamic> cancelledExceptionRow() => {
-    'action': 'cancelled',
+  /// Exceção que tira só um dia da série (apagar só este dia).
+  static Map<String, dynamic> skippedExceptionRow() => {
+    'action': 'skipped',
+    'status': null,
     'new_date': null,
     'new_time': null,
     'new_all_day': false,

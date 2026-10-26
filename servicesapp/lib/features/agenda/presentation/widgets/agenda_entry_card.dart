@@ -19,6 +19,7 @@ enum AgendaCardPill {
   inProgress('Em curso'),
   awaitingConfirmation('Por confirmar'),
   done('Concluído'),
+  cancelled('Cancelado'),
   helper('Ajudante'),
   external('Fora da app'),
   proposal('À espera do cliente'),
@@ -795,6 +796,13 @@ class AgendaPillBadge extends StatelessWidget {
         false,
         null,
       ),
+      AgendaCardPill.cancelled => (
+        AppStatusColor.cancelled.background,
+        AppStatusColor.cancelled.foreground,
+        Icons.close_rounded,
+        false,
+        null,
+      ),
       AgendaCardPill.helper => (
         AppColors.surface,
         AppColors.primary,
@@ -1123,7 +1131,12 @@ class AgendaWeekEntryRow extends StatelessWidget {
 
     Widget? badge;
     if (done) {
-      badge = const AgendaPillBadge(pill: AgendaCardPill.done, dense: true);
+      badge = AgendaPillBadge(
+        pill: pill == AgendaCardPill.cancelled
+            ? AgendaCardPill.cancelled
+            : AgendaCardPill.done,
+        dense: true,
+      );
     } else if (multiDay) {
       badge = _DayBadge(label: 'Dia $dayIndex de $dayCount');
     } else if (pill != null && pill != AgendaCardPill.scheduled) {

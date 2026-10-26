@@ -132,6 +132,8 @@ AgendaCardKind _cardKind(AgendaEntry e) => switch (e.kind) {
 };
 
 AgendaCardPill? _pill(AgendaEntry e) {
+  // Cancelado fica na agenda, riscado, até ser reposto ou apagado.
+  if (e.status == 'cancelled') return AgendaCardPill.cancelled;
   if (e.isClosed) return AgendaCardPill.done;
   return switch (e.kind) {
     AgendaEntryKind.appJob => switch (e.status) {
@@ -246,7 +248,7 @@ AgendaDayEntryViewData agendaEntryViewData(
     changedLabel: e.isException ? 'Mudado só este dia' : null,
     done: done,
     current: current && !done,
-    // Os de fora da app e as indisponibilidades abrem o formulário.
+    // Os de fora da app e as indisponibilidades abrem o detalhe.
     canOpen:
         e.jobId != null ||
         e.kind == AgendaEntryKind.external ||

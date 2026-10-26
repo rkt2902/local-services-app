@@ -36,6 +36,7 @@ class CalendarEntry {
     this.amount,
     this.notes,
     this.status = 'scheduled',
+    this.statusAt,
   });
 
   factory CalendarEntry.fromJson(Map<String, dynamic> json) => CalendarEntry(
@@ -57,6 +58,7 @@ class CalendarEntry {
     amount: (json['amount'] as num?)?.toDouble(),
     notes: json['notes'] as String?,
     status: json['status'] as String? ?? 'scheduled',
+    statusAt: _instant(json['status_at']),
   );
 
   final String id;
@@ -82,7 +84,12 @@ class CalendarEntry {
   final DateTime? recurrenceUntil;
   final double? amount;
   final String? notes;
+
+  /// `scheduled`, `done` ou `cancelled`, para a série toda.
   final String status;
+
+  /// Quando passou a feito ou cancelado (hora local); posto pela 0064.
+  final DateTime? statusAt;
 
   bool get repeats => recurrence != AgendaRecurrence.none;
 
@@ -90,8 +97,12 @@ class CalendarEntry {
       value == null ? null : DateTime.parse(value as String);
 }
 
+DateTime? _instant(Object? value) =>
+    value == null ? null : DateTime.parse(value as String).toLocal();
+
 /// "Só este dia" de uma série (`worker_calendar_exceptions`). Só guarda o
-/// que a 0064 sabe mudar num dia: data, hora, duração, título e notas.
+/// que a 0064 sabe mudar num dia: data, hora, duração, título e notas, e
+/// o estado (feito ou cancelado só nesse dia).
 class CalendarException {
   const CalendarException({
     required this.occurrenceDate,
@@ -102,6 +113,8 @@ class CalendarException {
     this.newDurationMinutes,
     this.newTitle,
     this.newNotes,
+    this.status,
+    this.statusAt,
   });
 
   factory CalendarException.fromJson(Map<String, dynamic> json) =>
@@ -116,11 +129,14 @@ class CalendarException {
         newDurationMinutes: (json['new_duration_minutes'] as num?)?.toInt(),
         newTitle: json['new_title'] as String?,
         newNotes: json['new_notes'] as String?,
+        status: json['status'] as String?,
+        statusAt: _instant(json['status_at']),
       );
 
   final DateTime occurrenceDate;
 
-  /// `cancelled`, `moved`, `changed` ou `done`.
+  /// `skipped` (fora da agenda), `moved`, `changed` ou `status` (só muda
+  /// [status]).
   final String action;
   final DateTime? newDate;
   final int? newStartMinutes;
@@ -128,6 +144,10 @@ class CalendarException {
   final int? newDurationMinutes;
   final String? newTitle;
   final String? newNotes;
+
+  /// `done` ou `cancelled` só neste dia; nulo = o da série.
+  final String? status;
+  final DateTime? statusAt;
 
   bool get changesFields => action == 'moved' || action == 'changed';
 }

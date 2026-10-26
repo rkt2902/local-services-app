@@ -3,6 +3,38 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: detalhe de um trabalho de fora da app (D1 a D6)
+
+Design A8E integrado com os componentes da app. Rota `/worker/agenda/:id?date=` (entra
+da direita); o formulário passou para `/worker/agenda/:id/edit`. Tocar num cartão de
+fora da app ou de indisponibilidade abre o detalhe; o "Mudar datas" continua a ir
+direto ao formulário. As ações (feito, cancelar, repor, apagar) estão em
+`agenda_entry_actions.dart`, partilhadas com o formulário.
+
+Mudanças na 0064 (ainda não aplicada, por isso mudada no próprio ficheiro):
+- Cancelar já não tira da agenda: o cancelado aparece riscado, com "Cancelado", e pode
+  ser reposto. Apagar só um dia passou a ser a exceção `skipped` (antes `cancelled`).
+- A exceção ganhou `status` (feito ou cancelado só nesse dia) e `status_at`; a ação
+  `done` passou a `status`. Assim marcar como feito um dia que já tinha sido mudado
+  não perde a mudança.
+- `status_at` na série e na exceção, posto por trigger quando o estado muda, para
+  "Marcado como feito a 28 out, às 17:40".
+- `is_exception` só conta mudanças de data, horas, título ou notas.
+
+Diferenças do design, e porquê:
+- "Marcar como feito" numa série é sempre só este dia, sem a folha: marcar como
+  feitos dias que ainda não aconteceram não faz sentido. Cancelar e apagar passam
+  pela folha (um toque escolhe, como no design).
+- "Editar" numa série vai direto ao formulário, que pergunta os dias ao guardar,
+  porque só aí se sabe o que mudou (e se "Só este dia" chega).
+- Menu "⋯", folha e confirmações são `PopupMenuButton`, `AgendaScopeSheet` e
+  `AppConfirmDialog`, não camadas na vista.
+- O texto da indisponibilidade segue a decisão 4 ("os pedidos novos continuam a
+  chegar"), não "não recebes pedidos novos".
+- Depois de apagar, a Agenda mostra "Apagado da agenda." sem desfazer (como no
+  formulário).
+- "Ver o dia" abre o Hoje nesse dia, nos que coincidem, com o cartão realçado.
+
 ## 2026-10-26 — Agenda do jardineiro: formulário Adicionar / Editar (F1 a F8)
 
 Design A8D integrado com os componentes da app, não com o código do design. Rotas

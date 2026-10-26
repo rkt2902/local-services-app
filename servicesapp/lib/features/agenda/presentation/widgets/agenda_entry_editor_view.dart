@@ -1442,11 +1442,16 @@ class AgendaScopeSheet extends StatefulWidget {
     required this.data,
     required this.onConfirm,
     this.destructive = false,
+    this.onCancel,
   });
 
   final AgendaScopeViewData data;
   final ValueChanged<AgendaSeriesScope> onConfirm;
   final bool destructive;
+
+  /// Com ele, a folha do detalhe (D3): um toque numa opção escolhe logo e
+  /// o botão de baixo é [AgendaScopeViewData.actionLabel] ("Cancelar").
+  final VoidCallback? onCancel;
 
   @override
   State<AgendaScopeSheet> createState() => _AgendaScopeSheetState();
@@ -1504,15 +1509,33 @@ class _AgendaScopeSheetState extends State<AgendaScopeSheet> {
                 child: _ScopeOption(
                   data: option,
                   selected: option.id == _selected,
-                  onPressed: option.enabled
-                      ? () => setState(() => _selected = option.id)
-                      : null,
+                  onPressed: !option.enabled
+                      ? null
+                      : widget.onCancel != null
+                      ? () => widget.onConfirm(option.id)
+                      : () => setState(() => _selected = option.id),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
             ],
             const SizedBox(height: AppSpacing.xs),
-            if (widget.destructive)
+            if (widget.onCancel != null)
+              FilledButton(
+                onPressed: widget.onCancel,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+                  backgroundColor: AppColors.agendaNeutralSurface,
+                  foregroundColor: AppColors.textPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.input),
+                  ),
+                  textStyle: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: Text(widget.data.actionLabel),
+              )
+            else if (widget.destructive)
               FilledButton(
                 onPressed: () => widget.onConfirm(_selected),
                 style: FilledButton.styleFrom(
@@ -1578,9 +1601,10 @@ class _ScopeOption extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    selected
-                        ? Icons.radio_button_checked_rounded
-                        : Icons.radio_button_off_rounded,
+                    data.icon ??
+                        (selected
+                            ? Icons.radio_button_checked_rounded
+                            : Icons.radio_button_off_rounded),
                     color: selected
                         ? AppColors.primary
                         : AppColors.textSecondary,

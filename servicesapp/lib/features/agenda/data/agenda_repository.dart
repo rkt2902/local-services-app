@@ -127,6 +127,48 @@ class AgendaRepository {
         .eq('occurrence_date', _date(occurrenceDate));
   }
 
+  /// Feito, cancelado ou de volta a marcado, para a série toda (ou a
+  /// entrada que não se repete). A hora fica a cargo da 0064.
+  Future<void> setEntryStatus(String id, String status) async {
+    await _client
+        .from('worker_calendar_entries')
+        .update({'status': status})
+        .eq('id', id);
+  }
+
+  /// Feito ou cancelado só no dia [occurrenceDate] de uma série; [status]
+  /// nulo volta ao da série. Junta-se a uma exceção que já mude o dia; sem
+  /// ela, cria uma só de estado (e tira-a quando deixa de ser precisa).
+  Future<void> setOccurrenceStatus({
+    required String entryId,
+    required DateTime occurrenceDate,
+    required String? status,
+  }) async {
+    final table = _client.from('worker_calendar_exceptions');
+    final day = _date(occurrenceDate);
+    final found = await table
+        .select('action')
+        .eq('entry_id', entryId)
+        .eq('occurrence_date', day)
+        .maybeSingle();
+    if (found == null) {
+      if (status == null) return;
+      await table.insert({
+        'entry_id': entryId,
+        'occurrence_date': day,
+        'action': 'status',
+        'status': status,
+      });
+    } else if (found['action'] == 'status' && status == null) {
+      await table.delete().eq('entry_id', entryId).eq('occurrence_date', day);
+    } else {
+      await table
+          .update({'status': status})
+          .eq('entry_id', entryId)
+          .eq('occurrence_date', day);
+    }
+  }
+
   static String _date(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'

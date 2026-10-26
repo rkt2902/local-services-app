@@ -24,6 +24,11 @@
 --    esta leitura.
 -- 4. `free_calendar_day`: "Já estou livre" liberta só um dia de uma
 --    indisponibilidade.
+-- 5. Feito e cancelado (detalhe do trabalho de fora da app): `status` na
+--    série, ou `status` na exceção de um só dia. Um cancelado continua na
+--    agenda (riscado) e pode ser reposto; apagar um só dia é a exceção
+--    `skipped`, que o tira da agenda. `status_at` (hora do feito) é posto
+--    pelos triggers, nunca pela app.
 --
 -- Datas e horas em hora de Portugal (date + time), como confirmed_date/time.
 
@@ -53,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.worker_calendar_entries (
   notes            text        CHECK (notes IS NULL OR char_length(notes) <= 500),
   status           text        NOT NULL DEFAULT 'scheduled'
                      CHECK (status IN ('scheduled', 'done', 'cancelled')),
+  status_at        timestamptz,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT worker_calendar_entries_ends_check
@@ -68,6 +74,10 @@ CREATE TABLE IF NOT EXISTS public.worker_calendar_entries (
     CHECK (kind = 'job' OR (person_name IS NULL AND person_phone IS NULL
                             AND amount IS NULL AND service_type_id IS NULL))
 );
+
+-- Quem já correu uma versão anterior desta migration.
+ALTER TABLE public.worker_calendar_entries
+  ADD COLUMN IF NOT EXISTS status_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS worker_calendar_entries_worker_idx
   ON public.worker_calendar_entries (worker_id, starts_on);
@@ -106,6 +116,14 @@ CREATE POLICY worker_calendar_entries_delete ON public.worker_calendar_entries
   USING (worker_id = (SELECT auth.uid()));
 
 -- ── 2. Exceções de uma série ("Só este dia") ────────────────────
+--
+-- action:
+--   skipped  o dia sai da agenda (apagar só este dia, "Já estou livre")
+--   moved    outro dia (new_date), e talvez outras horas
+--   changed  mesmo dia, outras horas, título ou notas
+--   status   nada muda além de `status`
+-- status (feito / cancelado só neste dia) junta-se a qualquer uma, menos
+-- skipped; NULL = o da série.
 
 CREATE TABLE IF NOT EXISTS public.worker_calendar_exceptions (
   id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -114,8 +132,7 @@ CREATE TABLE IF NOT EXISTS public.worker_calendar_exceptions (
   worker_id            uuid        NOT NULL DEFAULT auth.uid()
                          REFERENCES public.profiles(id) ON DELETE CASCADE,
   occurrence_date      date        NOT NULL,
-  action               text        NOT NULL
-                         CHECK (action IN ('cancelled', 'moved', 'changed', 'done')),
+  action               text        NOT NULL,
   new_date             date,
   new_time             time,
   new_all_day          boolean     NOT NULL DEFAULT false,
@@ -123,11 +140,33 @@ CREATE TABLE IF NOT EXISTS public.worker_calendar_exceptions (
                                           OR new_duration_minutes BETWEEN 15 AND 1440),
   new_title            text        CHECK (new_title IS NULL OR char_length(btrim(new_title)) BETWEEN 1 AND 80),
   new_notes            text        CHECK (new_notes IS NULL OR char_length(new_notes) <= 500),
+  status               text        CHECK (status IS NULL OR status IN ('done', 'cancelled')),
+  status_at            timestamptz,
   created_at           timestamptz NOT NULL DEFAULT now(),
   UNIQUE (entry_id, occurrence_date),
   CONSTRAINT worker_calendar_exceptions_moved_check
     CHECK (action <> 'moved' OR new_date IS NOT NULL)
 );
+
+-- As ações tinham outros nomes numa versão anterior desta migration
+-- (cancelled = skipped, done = status 'done').
+ALTER TABLE public.worker_calendar_exceptions
+  ADD COLUMN IF NOT EXISTS status    text,
+  ADD COLUMN IF NOT EXISTS status_at timestamptz;
+ALTER TABLE public.worker_calendar_exceptions
+  DROP CONSTRAINT IF EXISTS worker_calendar_exceptions_action_check,
+  DROP CONSTRAINT IF EXISTS worker_calendar_exceptions_status_check;
+UPDATE public.worker_calendar_exceptions
+SET    action = 'skipped' WHERE action = 'cancelled';
+UPDATE public.worker_calendar_exceptions
+SET    action = 'status', status = 'done' WHERE action = 'done';
+ALTER TABLE public.worker_calendar_exceptions
+  ADD CONSTRAINT worker_calendar_exceptions_action_check
+    CHECK (action IN ('skipped', 'moved', 'changed', 'status')),
+  ADD CONSTRAINT worker_calendar_exceptions_status_check
+    CHECK ((status IS NULL OR status IN ('done', 'cancelled'))
+           AND (action <> 'status' OR status IS NOT NULL)
+           AND (action <> 'skipped' OR status IS NULL));
 
 CREATE INDEX IF NOT EXISTS worker_calendar_exceptions_worker_idx
   ON public.worker_calendar_exceptions (worker_id, new_date);
@@ -184,6 +223,34 @@ DROP TRIGGER IF EXISTS trg_touch_worker_calendar_entry ON public.worker_calendar
 CREATE TRIGGER trg_touch_worker_calendar_entry
   BEFORE UPDATE ON public.worker_calendar_entries
   FOR EACH ROW EXECUTE FUNCTION public.touch_worker_calendar_entry();
+
+-- Hora do feito / cancelado: muda só quando o estado muda. Serve as duas
+-- tabelas (na série 'scheduled' é o estado sem hora; na exceção, NULL).
+CREATE OR REPLACE FUNCTION public.stamp_worker_calendar_status()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF TG_OP = 'INSERT' OR NEW.status IS DISTINCT FROM OLD.status THEN
+    NEW.status_at := CASE WHEN NEW.status IN ('done', 'cancelled')
+                          THEN now() END;
+  ELSE
+    NEW.status_at := OLD.status_at;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_stamp_worker_calendar_entry ON public.worker_calendar_entries;
+CREATE TRIGGER trg_stamp_worker_calendar_entry
+  BEFORE INSERT OR UPDATE ON public.worker_calendar_entries
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_worker_calendar_status();
+
+DROP TRIGGER IF EXISTS trg_stamp_worker_calendar_exception ON public.worker_calendar_exceptions;
+CREATE TRIGGER trg_stamp_worker_calendar_exception
+  BEFORE INSERT OR UPDATE ON public.worker_calendar_exceptions
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_worker_calendar_status();
 
 -- ── 3. "Este e os seguintes": dividir uma série ─────────────────
 --
@@ -504,9 +571,9 @@ BEGIN
            COALESCE(CASE WHEN x.action IN ('moved', 'changed') THEN x.new_title END, s.title) AS title,
            s.service_type_id, s.location_label, s.person_name, s.person_phone,
            s.location_lat, s.location_lng,
-           CASE WHEN x.action = 'done' THEN 'done' ELSE s.status END AS st,
+           COALESCE(x.status, s.status) AS st,
            s.amount, s.recurrence,
-           x.id IS NOT NULL AS is_exc,
+           COALESCE(x.action IN ('moved', 'changed'), false) AS is_exc,
            COALESCE(CASE WHEN x.action IN ('moved', 'changed') THEN x.new_notes END, s.notes) AS notes
     FROM   occurrences o
     JOIN   series s ON s.id = o.id
@@ -514,8 +581,7 @@ BEGIN
            ON x.entry_id = s.id AND x.occurrence_date = o.occ
     WHERE  o.occ >= s.starts_on
       AND  o.occ <= s.last_day
-      AND  COALESCE(x.action, '') <> 'cancelled'
-      AND  s.status <> 'cancelled'
+      AND  COALESCE(x.action, '') <> 'skipped'
   )
   SELECT a.kind,
          a.src,
@@ -628,11 +694,11 @@ BEGIN
 
   IF v_entry.recurrence <> 'none' THEN
     INSERT INTO worker_calendar_exceptions (entry_id, worker_id, occurrence_date, action)
-    VALUES (p_entry_id, v_uid, p_series_date, 'cancelled')
+    VALUES (p_entry_id, v_uid, p_series_date, 'skipped')
     ON CONFLICT (entry_id, occurrence_date)
-    DO UPDATE SET action = 'cancelled', new_date = NULL, new_time = NULL,
+    DO UPDATE SET action = 'skipped', new_date = NULL, new_time = NULL,
                   new_all_day = false, new_duration_minutes = NULL,
-                  new_title = NULL, new_notes = NULL;
+                  new_title = NULL, new_notes = NULL, status = NULL;
     RETURN;
   END IF;
 
