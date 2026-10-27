@@ -51,6 +51,7 @@ class AgendaWeekView extends StatefulWidget {
     this.loading = false,
     this.errorMessage,
     this.offlineLabel,
+    this.intro,
     this.onRetry,
     this.onAddToAgenda,
     this.onAddToAgendaOnDay,
@@ -79,6 +80,10 @@ class AgendaWeekView extends StatefulWidget {
   final bool loading;
   final String? errorMessage;
   final String? offlineLabel;
+
+  /// Cartão da primeira abertura (A8G), fixo por cima da lista: a semana
+  /// atual abre em hoje e o cartão não pode ficar escondido lá em cima.
+  final Widget? intro;
 
   final VoidCallback onPreviousWeek;
   final VoidCallback onNextWeek;
@@ -345,6 +350,7 @@ class _AgendaWeekViewState extends State<AgendaWeekView> {
                 // aviso não pode ficar escondido nos dias de cima.
                 if (_hasList && widget.offlineLabel != null)
                   _fixed(AgendaOfflineBanner(label: widget.offlineLabel!)),
+                if (_hasList && widget.intro != null) _fixed(widget.intro!),
                 if (_hasList && content!.overlap != null)
                   _fixed(
                     AgendaOverlapBanner(
@@ -397,9 +403,18 @@ class _AgendaWeekViewState extends State<AgendaWeekView> {
       return AgendaRefreshable(
         onRefresh: _refresh,
         child: AgendaCenteredScroll(
-          top: widget.offlineLabel == null
+          top: widget.offlineLabel == null && widget.intro == null
               ? null
-              : AgendaOfflineBanner(label: widget.offlineLabel!),
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.offlineLabel != null)
+                      AgendaOfflineBanner(label: widget.offlineLabel!),
+                    if (widget.offlineLabel != null && widget.intro != null)
+                      const SizedBox(height: AppSpacing.xs),
+                    ?widget.intro,
+                  ],
+                ),
           child: _EmptyWeek(
             rangeLabel: widget.rangeLabel,
             onSearchWork: widget.onSearchWork,

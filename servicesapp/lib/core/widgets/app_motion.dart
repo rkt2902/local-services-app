@@ -184,8 +184,10 @@ class AppFadeThroughSwitcher extends StatelessWidget {
 
     return AnimatedSwitcher(
       duration: effectiveDuration,
-      switchInCurve: AppMotionCurve.emphasized,
-      switchOutCurve: AppMotionCurve.emphasized,
+      // A curva fica dentro do Interval: com curvas diferentes à entrada e
+      // à saída as duas metades deixavam de bater certo.
+      switchInCurve: Curves.linear,
+      switchOutCurve: Curves.linear,
       layoutBuilder: (currentChild, previousChildren) {
         return Stack(
           alignment: Alignment.topCenter,
@@ -196,13 +198,21 @@ class AppFadeThroughSwitcher extends StatelessWidget {
         );
       },
       transitionBuilder: (transitionChild, animation) {
+        // Fade-through a sério: o conteúdo que sai desaparece na primeira
+        // metade e o que entra só aparece na segunda. Nunca estão os dois
+        // visíveis ao mesmo tempo, por isso textos em sítios parecidos
+        // (títulos, cabeçalhos) não se sobrepõem a meio da troca.
+        final half = CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.5, 1, curve: AppMotionCurve.emphasized),
+        );
         final scaleAnimation = Tween<double>(
           begin: 0.98,
           end: 1,
-        ).animate(animation);
+        ).animate(half);
 
         return FadeTransition(
-          opacity: animation,
+          opacity: half,
           child: ScaleTransition(
             scale: scaleAnimation,
             alignment: Alignment.topCenter,

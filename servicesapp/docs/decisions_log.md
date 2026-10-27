@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-27 — Agenda: abre na Semana, transição e botão "Hoje"
+
+- A Agenda passa a abrir na **Semana** (pedido do Henrique). O cartão da primeira abertura
+  também aparece na Semana, fixo por cima da lista. Guardar no formulário ou "Ver o dia"
+  continuam a abrir o Hoje nesse dia.
+- `AppFadeThroughSwitcher` passou a fade-through a sério: o que sai desaparece na primeira
+  metade e o que entra só aparece na segunda. Antes era um cross-fade e, ao trocar de
+  vista, os dois cabeçalhos e as duas grelhas viam-se um por cima do outro. Muda em toda
+  a app onde o componente é usado.
+- O botão "Hoje" ao lado do seletor passou a ser só o ícone, redondo, e o seletor tem
+  largura fixa (180). Antes os dois encolhiam juntos num FittedBox quando o botão
+  aparecia. Quem cede espaço é "Mostrar propostas", que abaixo de 110 px fica só com o
+  interruptor.
+
 ## 2026-10-26 — Agenda do jardineiro: primeira abertura e ecrãs existentes (A8G, A10)
 
 - **Primeira abertura:** cartão no topo da lista da Agenda, não um ecrã por cima. Fechar
