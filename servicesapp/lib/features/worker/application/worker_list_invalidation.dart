@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../agenda/application/agenda_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import 'worker_job_board_providers.dart';
 
 /// Invalida todas as listas do lado do worker que uma ação dele pode mudar:
-/// o board "Os meus trabalhos" (todas as tabs e páginas), as listas antigas
+/// o board "Os meus trabalhos" (todas as tabs e páginas), a Agenda, as listas antigas
 /// de propostas (dashboard e contagens), as candidaturas de ajudante, as
 /// oportunidades no raio e a proposta do worker para cada pedido.
 ///
@@ -22,6 +23,7 @@ void invalidateWorkerLists(WidgetRef ref, {String? jobId}) {
   ref.invalidate(helpRequestSummariesInRadiusProvider);
   ref.invalidate(helpRequestsInRadiusProvider);
   ref.invalidate(jobsInRadiusProvider);
+  ref.invalidate(agendaRangeProvider);
   if (jobId != null && jobId.isNotEmpty) {
     ref.invalidate(jobByIdProvider(jobId));
     ref.invalidate(jobWorkDaysProvider(jobId));

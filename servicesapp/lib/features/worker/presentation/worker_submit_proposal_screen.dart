@@ -11,6 +11,14 @@ import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_date_picker.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../agenda/application/agenda_conflicts.dart';
+import '../../agenda/application/agenda_providers.dart';
+import '../../agenda/data/agenda_entry_model.dart';
+import '../../agenda/presentation/agenda_day_preview.dart';
+import '../../agenda/presentation/agenda_day_preview_view_data.dart';
+import '../../agenda/presentation/agenda_slot_check.dart';
+import '../../agenda/presentation/widgets/agenda_entry_editor_view.dart'
+    show AgendaConflictDialog;
 import '../../auth/application/auth_providers.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../jobs/application/job_labels.dart';
@@ -86,6 +94,11 @@ class _WorkerSubmitProposalScreenState
   /// de o saber, para não mudar de formato com o jardineiro a escrever.
   bool _lastModeLoaded = false;
   ProposalPricingMode? _lastMode;
+
+  /// Dia, período e duração escolhidos (A10, M1) e o que a Agenda diz
+  /// deles; a confirmação ao enviar usa o último [_agendaCheck].
+  view.WorkerProposalSlotSelection? _slot;
+  AgendaSlotCheck? _agendaCheck;
 
   @override
   void initState() {
@@ -175,9 +188,47 @@ class _WorkerSubmitProposalScreenState
     );
   }
 
+  /// A proposta como a Agenda a vê: a hora do período e a duração máxima
+  /// em horas (em dias, a duração por omissão de uma proposta).
+  AgendaSlot _agendaSlot(view.WorkerProposalSlotSelection slot) {
+    final hours = slot.durationUnit == view.WorkerProposalDurationUnit.hours
+        ? slot.maximumDuration ?? slot.minimumDuration
+        : null;
+    return AgendaSlot(
+      date: slot.date,
+      startMinutes: parseTimeMinutes(_timeSlotToScheduledTime[slot.timeSlotId]),
+      durationMinutes: hours == null ? null : hours * 60,
+    );
+  }
+
+  void _openDayPreview() {
+    final slot = _slot;
+    if (slot == null) return;
+    final agendaSlot = _agendaSlot(slot);
+    showAgendaDayPreview(
+      context,
+      day: slot.date,
+      ghost: AgendaDayPreviewGhost(
+        date: slot.date,
+        label: 'A tua proposta',
+        startMinutes: agendaSlot.startMinutes,
+        durationMinutes: agendaSlot.durationMinutes,
+        slotKind: AgendaEntryKind.proposal,
+      ),
+    );
+  }
+
   Future<void> _submit(view.WorkerProposalDraft draft) async {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
+
+    // Só o conflito forte pede confirmação (A10, M1); "Mudar a hora" volta
+    // ao formulário sem enviar.
+    final confirm = _agendaCheck?.confirm;
+    if (confirm != null) {
+      final go = await AgendaConflictDialog.show(context, confirm);
+      if (!go || !mounted) return;
+    }
 
     setState(() {
       _submitting = true;
@@ -268,6 +319,26 @@ class _WorkerSubmitProposalScreenState
             .map((s) => s.name)
             .firstOrNull;
 
+    final slot = _slot;
+    final agendaEntries = slot == null
+        ? null
+        : ref
+            .watch(agendaRangeProvider(agendaMonthRange(slot.date)))
+            .asData
+            ?.value;
+    _agendaCheck = slot == null || agendaEntries == null
+        ? null
+        : checkAgendaSlot(
+            slot: _agendaSlot(slot),
+            entries: agendaEntries,
+            serviceTypes:
+                ref.watch(serviceTypesProvider).asData?.value ?? const [],
+            now: DateTime.now(),
+            continueLabel: 'Enviar mesmo assim',
+            confirmSummary: 'Se enviares e o cliente aceitar, ficas com dois '
+                'trabalhos ao mesmo tempo.',
+          );
+
     final suggestedLabel = (defaultRate != null && defaultRate > 0)
         ? hourlyRateLabel(defaultRate)
         : null;
@@ -301,6 +372,9 @@ class _WorkerSubmitProposalScreenState
       isSubmitting: _submitting,
       submitError: _submitError,
       jobClosed: _jobClosed,
+      agendaNote: _agendaCheck?.note,
+      onSlotChanged: (selection) => setState(() => _slot = selection),
+      onOpenDayPreview: _openDayPreview,
     );
   }
 }

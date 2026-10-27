@@ -60,11 +60,11 @@ Widget _wrapWithBackFallback(GoRouterState state, Widget child) {
 /// Cross-fade de 100ms usado pelas 3 transições quando reduced-motion está
 /// ativo — docs/motion_spec.md §5: "Substituir por cross-fade de 100 ms:
 /// todas as transições de ecrã."
-CustomTransitionPage<void> _reducedMotionPage(
+CustomTransitionPage<T> _reducedMotionPage<T>(
   GoRouterState state,
   Widget child,
 ) {
-  return CustomTransitionPage<void>(
+  return CustomTransitionPage<T>(
     key: state.pageKey,
     child: child,
     transitionDuration: AppMotionDuration.instant,
@@ -83,16 +83,17 @@ CustomTransitionPage<void> _reducedMotionPage(
 
 /// Shared-axis (X) — desliza lateral. Passos de um mesmo fluxo com sentido
 /// de avançar/recuar: wizards, passos de registo, deep-links de
-/// notificação (docs/motion_spec.md §4).
-CustomTransitionPage<void> buildSharedAxisPage(
+/// notificação (docs/motion_spec.md §4). [T] é o que o ecrã devolve ao
+/// fechar (`context.push<T>`).
+CustomTransitionPage<T> buildSharedAxisPage<T>(
   BuildContext context,
   GoRouterState state,
   Widget child,
 ) {
   final wrapped = _wrapWithBackFallback(state, child);
-  if (_disableAnimations(context)) return _reducedMotionPage(state, wrapped);
+  if (_disableAnimations(context)) return _reducedMotionPage<T>(state, wrapped);
 
-  return CustomTransitionPage<void>(
+  return CustomTransitionPage<T>(
     key: state.pageKey,
     child: wrapped,
     transitionDuration: AppMotionDuration.screen,
@@ -216,6 +217,48 @@ CustomTransitionPage<void> buildFadeThroughPage(
             child: child,
           ),
         ),
+      );
+    },
+  );
+}
+
+/// Slide de baixo — formulário que se abre por cima do ecrã de onde veio e
+/// fecha para baixo ("Adicionar à agenda", design A8D). Mesmo tempo e curva
+/// das outras transições.
+CustomTransitionPage<T> buildSlideUpPage<T>(
+  BuildContext context,
+  GoRouterState state,
+  Widget child,
+) {
+  final wrapped = _wrapWithBackFallback(state, child);
+  if (_disableAnimations(context)) {
+    return CustomTransitionPage<T>(
+      key: state.pageKey,
+      child: wrapped,
+      transitionDuration: AppMotionDuration.instant,
+      reverseTransitionDuration: AppMotionDuration.instant,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );
+  }
+
+  return CustomTransitionPage<T>(
+    key: state.pageKey,
+    child: wrapped,
+    transitionDuration: AppMotionDuration.screen,
+    reverseTransitionDuration: AppMotionDuration.screen,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final enter = CurvedAnimation(
+        parent: animation,
+        curve: AppMotionCurve.emphasized,
+        reverseCurve: AppMotionCurve.exit,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(enter),
+        child: child,
       );
     },
   );

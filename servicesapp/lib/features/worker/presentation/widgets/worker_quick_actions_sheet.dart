@@ -7,62 +7,86 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_motion.dart';
 
-/// Folha do "+" do jardineiro (design U2): "O que queres fazer?" com os
-/// atalhos. O Cartão frota só aparece quando o cartão está ativo
-/// ([showFleetCard]). Não navega: cada callback fecha e decide o destino.
+/// Folha do "+" do jardineiro (design U2, reordenada no A10 M4): primeiro
+/// a Agenda, que é o que mais se repete no dia a dia ("Adicionar à agenda"
+/// em destaque, "Marcar indisponível" mais discreto), um divisor e depois
+/// Procurar trabalho, Pedidos de ajuda e o Cartão frota, este só quando o
+/// cartão está ativo ([showFleetCard]). Não navega: cada callback fecha e
+/// decide o destino.
 ///
 /// Sem [AppSheet] de propósito: aqui não há ação principal nem botão de
-/// fechar, só a pega e cartões equivalentes.
+/// fechar (o "+" da barra vira "✕" enquanto a folha está aberta).
 class WorkerQuickActionsSheet extends StatelessWidget {
   const WorkerQuickActionsSheet({
     super.key,
     required this.onFindWork,
     required this.onOpenHelpRequests,
     required this.onOpenFleetCard,
+    this.onAddToAgenda,
+    this.onMarkUnavailable,
     this.showFleetCard = false,
   });
 
   final VoidCallback onFindWork;
+
+  /// "Adicionar à agenda": o formulário com "Trabalho" e a data de hoje.
+  final VoidCallback? onAddToAgenda;
+
+  /// "Marcar indisponível": o mesmo formulário com "Indisponível".
+  final VoidCallback? onMarkUnavailable;
   final VoidCallback onOpenHelpRequests;
   final VoidCallback onOpenFleetCard;
   final bool showFleetCard;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final actions = [
+    final agenda = [
+      if (onAddToAgenda != null)
+        _QuickActionCard(
+          icon: Icons.edit_calendar_outlined,
+          title: 'Adicionar à agenda',
+          subtitle: 'Um trabalho fora da app',
+          emphasis: true,
+          onPressed: onAddToAgenda!,
+        ),
+      if (onMarkUnavailable != null)
+        _QuickActionCard(
+          icon: Icons.event_busy_outlined,
+          title: 'Marcar indisponível',
+          onPressed: onMarkUnavailable!,
+        ),
+    ];
+    final others = [
       _QuickActionCard(
-        icon: Icons.travel_explore_rounded,
-        tone: AppStatusColor.success,
-        title: 'Encontrar trabalho',
-        subtitle: 'Ver pedidos perto de ti',
+        icon: Icons.search_rounded,
+        title: 'Procurar trabalho',
         onPressed: onFindWork,
       ),
       _QuickActionCard(
-        icon: Icons.handshake_outlined,
-        tone: AppStatusColor.info,
+        icon: Icons.group_outlined,
         title: 'Pedidos de ajuda',
-        subtitle: 'Ajuda outros jardineiros nos trabalhos deles',
         onPressed: onOpenHelpRequests,
       ),
       if (showFleetCard)
         _QuickActionCard(
           icon: Icons.local_gas_station_outlined,
-          tone: AppStatusColor.waiting,
           title: 'Cartão frota',
-          subtitle: 'Mostra o cartão para o desconto no combustível',
           onPressed: onOpenFleetCard,
         ),
     ];
+
+    var index = 0;
+    Widget staggered(Widget child) =>
+        AppStaggeredEntrance(index: index++, child: child);
 
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.s20,
+          AppSpacing.md,
           AppSpacing.xs,
-          AppSpacing.s20,
-          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.md,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -78,19 +102,17 @@ class WorkerQuickActionsSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppStaggeredEntrance(
-              index: 0,
-              child: Text(
-                'O que queres fazer?',
-                style: textTheme.titleLarge
-                    ?.copyWith(color: AppColors.textPrimary),
-              ),
-            ),
-            for (var i = 0; i < actions.length; i++) ...[
-              SizedBox(height: i == 0 ? AppSpacing.md : AppSpacing.sm),
-              AppStaggeredEntrance(index: i + 1, child: actions[i]),
+            const SizedBox(height: AppSpacing.sm),
+            for (var i = 0; i < agenda.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.xxs),
+              staggered(agenda[i]),
             ],
+            if (agenda.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                child: Divider(height: 1, color: AppColors.divider),
+              ),
+            for (final action in others) staggered(action),
           ],
         ),
       ),
@@ -101,44 +123,50 @@ class WorkerQuickActionsSheet extends StatelessWidget {
 class _QuickActionCard extends StatelessWidget {
   const _QuickActionCard({
     required this.icon,
-    required this.tone,
     required this.title,
-    required this.subtitle,
     required this.onPressed,
+    this.subtitle,
+    this.emphasis = false,
   });
 
   final IconData icon;
-  final AppStatusColor tone;
   final String title;
-  final String subtitle;
+  final String? subtitle;
+
+  /// Só "Adicionar à agenda": fundo verde claro e ícone cheio.
+  final bool emphasis;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      side: const BorderSide(color: AppColors.divider),
-    );
+    const neutral = AppStatusColor.neutral;
+    final radius = BorderRadius.circular(AppRadius.card);
     return Material(
-      color: AppColors.surface,
-      shape: shape,
+      color: emphasis ? AppColors.primaryContainer : AppColors.surface,
+      borderRadius: radius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onPressed,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: emphasis ? AppSpacing.sm : AppSpacing.xs,
+          ),
           child: Row(
             children: [
               Container(
                 width: AppSizes.actionIconBox,
-                height: AppSizes.actionIconBox,
+                height: emphasis ? AppSizes.actionIconBox : AppSizes.rowIconBox,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: tone.background,
+                  color: emphasis ? AppColors.primary : neutral.background,
                   borderRadius: BorderRadius.circular(AppRadius.input),
                 ),
-                child: Icon(icon, color: tone.foreground),
+                child: Icon(
+                  icon,
+                  color: emphasis ? AppColors.surface : neutral.foreground,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -150,21 +178,18 @@ class _QuickActionCard extends StatelessWidget {
                       style: textTheme.titleMedium
                           ?.copyWith(color: AppColors.textPrimary),
                     ),
-                    const SizedBox(height: AppSpacing.xxs / 2),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
-                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: AppSpacing.xxs / 2),
+                      Text(
+                        subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
               ),
             ],
           ),

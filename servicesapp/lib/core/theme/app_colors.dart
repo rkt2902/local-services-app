@@ -34,4 +34,19 @@ abstract final class AppColors {
   /// Verde do logótipo do WhatsApp, só no ícone dos botões de contacto
   /// ([AppWhatsAppButton]).
   static const Color whatsapp = Color(0xFF25D366);
+
+  // Agenda do jardineiro (folha de componentes de 26/10). Cada tipo de
+  // entrada distingue-se pela barra, pelo fundo e pelo contorno.
+  static const Color textStrong = Color(0xFF3B463D);
+  static const Color textMuted = Color(0xFF8A968D);
+  static const Color agendaAppBorder = Color(0xFFCFE3CC);
+  static const Color agendaHelperSurface = Color(0xFFF2F8F1);
+  static const Color agendaHelperBorder = Color(0xFFDCEBDA);
+  static const Color agendaHelperBar = Color(0xFF8BC48E);
+  static const Color agendaExternalBorder = Color(0xFFC9D2CB);
+  static const Color agendaNeutralSurface = Color(0xFFEFF2EF);
+  static const Color agendaDashed = Color(0xFFA3ADA6);
+  static const Color agendaStripe = Color(0xFFE6EAE6);
+  static const Color agendaOverlapBar = Color(0xFFE0A84A);
+  static const Color agendaInfoDash = Color(0xFF9DBBE0);
 }

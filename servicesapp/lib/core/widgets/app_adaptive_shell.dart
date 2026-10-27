@@ -34,6 +34,7 @@ class AppAdaptiveShell extends StatefulWidget {
     required this.onItemSelected,
     required this.onCentralActionPressed,
     this.centralActionTooltip = 'Nova ação',
+    this.centralActionActive = false,
   });
 
   final Widget child;
@@ -42,6 +43,9 @@ class AppAdaptiveShell extends StatefulWidget {
   final ValueChanged<int> onItemSelected;
   final VoidCallback onCentralActionPressed;
   final String centralActionTooltip;
+
+  /// A folha da ação central está aberta ("+" vira "✕").
+  final bool centralActionActive;
 
   @override
   State<AppAdaptiveShell> createState() => _AppAdaptiveShellState();
@@ -68,6 +72,7 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
           onItemSelected: widget.onItemSelected,
           onCentralActionPressed: widget.onCentralActionPressed,
           centralActionTooltip: widget.centralActionTooltip,
+          centralActionActive: widget.centralActionActive,
         ),
       );
     }
@@ -118,7 +123,9 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
                     child: Tooltip(
                       message: widget.centralActionTooltip,
                       child: Material(
-                        color: AppColors.primary,
+                        color: widget.centralActionActive
+                            ? AppColors.textPrimary
+                            : AppColors.primary,
                         elevation: 4,
                         shadowColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
@@ -127,10 +134,12 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
                         child: InkWell(
                           onTap: widget.onCentralActionPressed,
                           borderRadius: BorderRadius.circular(AppRadius.card),
-                          child: const SizedBox.square(
+                          child: SizedBox.square(
                             dimension: AppSizes.railAction,
                             child: Icon(
-                              Icons.add_rounded,
+                              widget.centralActionActive
+                                  ? Icons.close_rounded
+                                  : Icons.add_rounded,
                               color: AppColors.surface,
                             ),
                           ),

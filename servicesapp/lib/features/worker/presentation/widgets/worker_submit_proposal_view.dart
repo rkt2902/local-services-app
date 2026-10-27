@@ -13,6 +13,9 @@ import '../../../../core/widgets/app_filter_chip.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/primary_action_button.dart';
+import '../../../agenda/presentation/agenda_entry_editor_view_data.dart';
+import '../../../agenda/presentation/widgets/agenda_entry_editor_view.dart'
+    show AgendaInlineWarning;
 
 class WorkerProposalDateSelection {
   const WorkerProposalDateSelection({required this.value, required this.label});
@@ -111,6 +114,42 @@ class WorkerProposalDraft {
   final String message;
 }
 
+/// Dia, período e duração escolhidos de momento: o que a nota da Agenda
+/// (A10, M1) precisa para saber se o jardineiro está livre.
+class WorkerProposalSlotSelection {
+  const WorkerProposalSlotSelection({
+    required this.date,
+    required this.timeSlotId,
+    required this.durationUnit,
+    this.minimumDuration,
+    this.maximumDuration,
+  });
+
+  final DateTime date;
+  final String timeSlotId;
+  final WorkerProposalDurationUnit durationUnit;
+  final int? minimumDuration;
+  final int? maximumDuration;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorkerProposalSlotSelection &&
+      other.date == date &&
+      other.timeSlotId == timeSlotId &&
+      other.durationUnit == durationUnit &&
+      other.minimumDuration == minimumDuration &&
+      other.maximumDuration == maximumDuration;
+
+  @override
+  int get hashCode => Object.hash(
+        date,
+        timeSlotId,
+        durationUnit,
+        minimumDuration,
+        maximumDuration,
+      );
+}
+
 class WorkerSubmitProposalScreen extends StatefulWidget {
   const WorkerSubmitProposalScreen({
     required this.timeSlots,
@@ -141,6 +180,9 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
     this.isSubmitting = false,
     this.submitError,
     this.jobClosed = false,
+    this.agendaNote,
+    this.onSlotChanged,
+    this.onOpenDayPreview,
   });
 
   /// Ex.: "Limpeza de terreno · Grande".
@@ -208,6 +250,18 @@ class WorkerSubmitProposalScreen extends StatefulWidget {
   /// O pedido fechou entretanto: o botão fica bloqueado.
   final bool jobClosed;
 
+  /// Nota da Agenda por baixo do período (A10, M1): livre, apertado ou
+  /// coincide, para o dia e período de [onSlotChanged]. Nula sem dia e
+  /// período, ou enquanto a Agenda não chegou.
+  final AgendaInlineWarningViewData? agendaNote;
+
+  /// Dia, período ou duração mudaram (nulo enquanto falta o dia ou o
+  /// período). O host recalcula [agendaNote].
+  final ValueChanged<WorkerProposalSlotSelection?>? onSlotChanged;
+
+  /// "Ver o dia" da nota, com a proposta a tracejado.
+  final VoidCallback? onOpenDayPreview;
+
   @override
   State<WorkerSubmitProposalScreen> createState() {
     return _WorkerSubmitProposalScreenState();
@@ -247,6 +301,37 @@ class _WorkerSubmitProposalScreenState
       _durationUnit == WorkerProposalDurationUnit.days
           ? widget.dayDurationOptions
           : widget.durationOptions;
+
+  WorkerProposalSlotSelection? _notifiedSlot;
+  bool _slotNotified = false;
+
+  /// Avisa o host depois do frame (nunca durante o build) quando a escolha
+  /// muda.
+  void _notifySlot() {
+    final selection = _slotSelection;
+    if (_slotNotified && selection == _notifiedSlot) return;
+    _slotNotified = true;
+    _notifiedSlot = selection;
+    final callback = widget.onSlotChanged;
+    if (callback == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) callback(selection);
+    });
+  }
+
+  WorkerProposalSlotSelection? get _slotSelection {
+    final date = _selectedDate?.value;
+    final slot = _selectedTimeSlotId;
+    if (date == null || slot == null) return null;
+    final duration = _selectedDuration;
+    return WorkerProposalSlotSelection(
+      date: date,
+      timeSlotId: slot,
+      durationUnit: _durationUnit,
+      minimumDuration: duration?.minimum,
+      maximumDuration: duration?.maximum,
+    );
+  }
 
   WorkerProposalDurationViewData? get _selectedDuration {
     final selectedId = _selectedDurationOptionId;
@@ -503,6 +588,7 @@ class _WorkerSubmitProposalScreenState
     final textTheme = Theme.of(context).textTheme;
     final estimatedTotalLabel = _estimatedTotalLabel;
     final price = _price;
+    _notifySlot();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -715,6 +801,10 @@ class _WorkerSubmitProposalScreenState
                         const SizedBox(height: AppSpacing.xxs),
                         const _SelectionError(message: 'Seleciona um período.'),
                       ],
+                      _AgendaNote(
+                        note: _slotSelection == null ? null : widget.agendaNote,
+                        onOpenDayPreview: widget.onOpenDayPreview,
+                      ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'Validade do orçamento',
@@ -827,6 +917,39 @@ class _WorkerSubmitProposalScreenState
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A nota da Agenda (A10, M1) com fade ao trocar de dia ou período.
+class _AgendaNote extends StatelessWidget {
+  const _AgendaNote({required this.note, required this.onOpenDayPreview});
+
+  final AgendaInlineWarningViewData? note;
+  final VoidCallback? onOpenDayPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = note;
+    return AnimatedSize(
+      duration: AppMotionDuration.fast,
+      curve: AppMotionCurve.standard,
+      alignment: Alignment.topCenter,
+      child: AppFadeThroughSwitcher(
+        switchKey: current == null
+            ? 'none'
+            : '${current.tone}:${current.message}',
+        duration: AppMotionDuration.fast,
+        child: current == null
+            ? const SizedBox(width: double.infinity)
+            : Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: AgendaInlineWarning(
+                  data: current,
+                  onAction: onOpenDayPreview,
+                ),
+              ),
       ),
     );
   }

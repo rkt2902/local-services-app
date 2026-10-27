@@ -237,6 +237,50 @@ adoção parcial do componente.
 
 ## Gaps conhecidos (sem spin)
 
+### Agenda do jardineiro: em construção (2026-10-26)
+
+Feito: migration 0064 (criada, não aplicada), `AgendaRepository`, `agendaRangeProvider`,
+deteção de sobreposições com testes, os componentes da folha de design (A1 a A9) e as
+vistas **Hoje** (H1 a H7), **Semana** (S1 a S3) e **Mês** (M1 a M3). O ecrã Trabalhos passou a ter as tabs Agenda · Propostas ·
+Histórico e abre na Agenda; a antiga tab "Agendados" deixou de existir (os trabalhos
+marcados estão na Agenda, no dia deles).
+
+**Sem a 0064 aplicada a tab Agenda mostra o erro "Não foi possível carregar a agenda".**
+Aplicar a 0064 antes de publicar.
+
+Também feito: o formulário "Adicionar à agenda" / "Editar" (F1 a F8), ligado ao dia
+livre, à semana livre, ao "+" das linhas "Livre", ao "Adicionar neste dia" do Mês, ao
+"Mudar datas" e ao "+" central.
+
+Também feito: o detalhe de um trabalho de fora da app ou de uma indisponibilidade (D1 a
+D6), ao tocar no cartão: marcar como feito (com "Desfazer"), cancelar (fica na agenda
+riscado e pode ser reposto), apagar, editar, WhatsApp, mapa e "Ver o dia". Isto mudou a
+0064 (ainda não aplicada): estado por dia nas exceções e hora do feito.
+
+Também feito: a folha "Ver o dia" (V1 a V3), aberta a partir do formulário. Mostra o
+dia com o que se está a marcar a tracejado, a frase "Choca 1 hora com..." ou "Cabe...",
+o tempo livre e as setas para outros dias. É só para ver e não mexe no formulário. Já
+aceita a etiqueta "A tua proposta" para o fluxo de enviar proposta (Prompt 10).
+
+Também feito: a tab Propostas (R1 a R3). Cada proposta mostra o dia e a hora propostos
+(lidos da Agenda dos próximos 62 dias). As que chocam com a Agenda sobem para o topo,
+com contorno âmbar e a nota "Coincide com ...", que abre "Ver o dia". "Retirar proposta"
+pede confirmação e não tem "Desfazer". A ordem é feita na app sobre as páginas já lidas.
+
+Também feito: a primeira abertura (P1 a P3). Um cartão "A tua agenda" no topo da Agenda,
+até ser fechado ou até o primeiro trabalho ser guardado por ele (guardado por conta e por
+aparelho). "O que significam as cores?" abre a mesma folha do botão "Cores".
+
+Também feito: a Agenda nos ecrãs que já existiam (M1 a M4). Em Enviar proposta, uma nota
+por baixo do período diz se está livre, apertado ou se coincide, com "Ver o dia"; só o
+conflito forte pede confirmação ("Enviar mesmo assim"). O detalhe de um pedido mostra um
+chip "Estás livre" / "Já tens N trabalhos neste dia" / "Coincide com um trabalho". Ao
+remarcar (só o jardineiro), "Era: ..." e a mesma nota, com "Pedir mesmo assim". O "+" tem
+"Adicionar à agenda" e "Marcar indisponível" primeiro e vira ✕ com a folha aberta.
+
+Um trabalho feito à espera da
+confirmação do cliente só se vê no dia dele (antes estava em "Agendados").
+
 ### ✅ RESOLVIDO 2026-10-16 — verificação independente contra dump real da BD viva
 
 O utilizador extraiu um dump real da BD viva (`supabase db dump`, projeto

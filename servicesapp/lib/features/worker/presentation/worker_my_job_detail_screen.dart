@@ -18,6 +18,13 @@ import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
+import '../../agenda/application/agenda_conflicts.dart';
+import '../../agenda/application/agenda_providers.dart';
+import '../../agenda/data/agenda_entry_model.dart';
+import '../../agenda/presentation/agenda_day_presenter.dart';
+import '../../agenda/presentation/agenda_day_preview.dart';
+import '../../agenda/presentation/agenda_day_preview_view_data.dart';
+import '../../agenda/presentation/agenda_slot_check.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../jobs/application/job_labels.dart';
 import '../../jobs/application/job_timeline.dart';
@@ -97,8 +104,57 @@ class _WorkerMyJobDetailScreenState
     }
   }
 
+  /// A Agenda no diálogo de remarcar (A10, M3): "Era: …", a nota e a
+  /// confirmação "Pedir mesmo assim". O próprio trabalho não conta.
+  RescheduleAgenda _rescheduleAgenda() {
+    final job = ref.read(jobByIdProvider(_jobId)).asData?.value;
+    final now = DateTime.now();
+    final date = job?.confirmedDate;
+    final time = job == null || job.confirmedFlexible
+        ? null
+        : parseTimeMinutes(job.confirmedTime);
+    final previous = date == null
+        ? 'Era: sem data marcada'
+        : 'Era: ${agendaWeekdayName(date).toLowerCase()}, '
+              '${agendaShortDate(date, now: now)}'
+              '${time == null ? '' : ' · ${formatMinutes(time)}'}';
+    AgendaSlot slot(DateTime day, int? start) =>
+        AgendaSlot(date: day, startMinutes: start, ignoreSourceId: _jobId);
+    return RescheduleAgenda(
+      previousLabel: previous,
+      check: (day, start) async {
+        final entries = await ref.read(
+          agendaRangeProvider(agendaMonthRange(day)).future,
+        );
+        final serviceTypes =
+            ref.read(serviceTypesProvider).asData?.value ?? const [];
+        return checkAgendaSlot(
+          slot: slot(day, start),
+          entries: entries,
+          serviceTypes: serviceTypes,
+          now: DateTime.now(),
+          continueLabel: 'Pedir mesmo assim',
+        );
+      },
+      onViewDay: (day, start) => showAgendaDayPreview(
+        context,
+        day: day,
+        ghost: AgendaDayPreviewGhost(
+          date: day,
+          label: 'A nova hora',
+          startMinutes: start,
+          slotKind: AgendaEntryKind.appJob,
+          ignoreSourceId: _jobId,
+        ),
+      ),
+    );
+  }
+
   Future<void> _proposeReschedule() async {
-    final result = await RescheduleDialog.show(context);
+    final result = await RescheduleDialog.show(
+      context,
+      agenda: _rescheduleAgenda(),
+    );
     if (result == null || !mounted) return;
 
     setState(() => _proposingReschedule = true);

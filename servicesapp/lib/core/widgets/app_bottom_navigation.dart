@@ -32,6 +32,7 @@ class AppBottomNavigation extends StatelessWidget {
     super.key,
     this.centralActionIcon = Icons.add_rounded,
     this.centralActionTooltip = 'Nova ação',
+    this.centralActionActive = false,
   }) : assert(
           items.length == 4,
           'AppBottomNavigation requer exatamente quatro destinos.',
@@ -44,6 +45,10 @@ class AppBottomNavigation extends StatelessWidget {
   final VoidCallback onCentralActionPressed;
   final IconData centralActionIcon;
   final String centralActionTooltip;
+
+  /// A folha da ação central está aberta: o botão passa a "✕" escuro
+  /// (A10, M4), no mesmo sítio e tamanho.
+  final bool centralActionActive;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +132,7 @@ class AppBottomNavigation extends StatelessWidget {
                   message: centralActionTooltip,
                   child: _CentralActionButton(
                     icon: centralActionIcon,
+                    active: centralActionActive,
                     onPressed: onCentralActionPressed,
                   ),
                 ),
@@ -143,9 +149,14 @@ class AppBottomNavigation extends StatelessWidget {
 /// tokens `instant · standard`) — sempre ativo, feedback de toque não é
 /// desligado por reduced motion (ver nota em primary_action_button.dart).
 class _CentralActionButton extends StatefulWidget {
-  const _CentralActionButton({required this.icon, required this.onPressed});
+  const _CentralActionButton({
+    required this.icon,
+    required this.active,
+    required this.onPressed,
+  });
 
   final IconData icon;
+  final bool active;
   final VoidCallback onPressed;
 
   @override
@@ -192,10 +203,14 @@ class _CentralActionButtonState extends State<_CentralActionButton> {
                   if (states.contains(
                     WidgetState.pressed,
                   )) {
-                    return AppColors.primaryPressed;
+                    return widget.active
+                        ? AppColors.textSecondary
+                        : AppColors.primaryPressed;
                   }
 
-                  return AppColors.primary;
+                  return widget.active
+                      ? AppColors.textPrimary
+                      : AppColors.primary;
                 },
               ),
               foregroundColor: const WidgetStatePropertyAll(
@@ -205,9 +220,23 @@ class _CentralActionButtonState extends State<_CentralActionButton> {
                 CircleBorder(),
               ),
             ),
-            child: Icon(
-              widget.icon,
-              size: 28,
+            // "+" ↔ "✕" com a mesma rotação curta; sem animação com
+            // reduced motion (motion_spec §5).
+            child: AnimatedSwitcher(
+              duration: MediaQuery.maybeOf(context)?.disableAnimations ?? false
+                  ? Duration.zero
+                  : AppMotionDuration.fast,
+              switchInCurve: AppMotionCurve.standard,
+              switchOutCurve: AppMotionCurve.standard,
+              transitionBuilder: (child, animation) => RotationTransition(
+                turns: Tween<double>(begin: 0.75, end: 1).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: Icon(
+                widget.active ? Icons.close_rounded : widget.icon,
+                key: ValueKey<bool>(widget.active),
+                size: 28,
+              ),
             ),
           ),
         ),

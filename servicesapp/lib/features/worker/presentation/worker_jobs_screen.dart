@@ -14,6 +14,20 @@ import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../proposals/application/proposal_price_labels.dart';
 import '../../../core/widgets/service_icon.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_toast.dart';
+import '../../agenda/application/agenda_providers.dart';
+import '../../agenda/data/agenda_entry_model.dart';
+import '../../agenda/presentation/agenda_day_presenter.dart';
+import '../../agenda/presentation/agenda_day_preview.dart';
+import '../../agenda/presentation/agenda_day_preview_view_data.dart';
+import '../../agenda/presentation/agenda_entry_editor_screen.dart';
+import '../../agenda/presentation/agenda_legend_sheet.dart';
+import '../../proposals/application/proposal_providers.dart';
+import '../application/worker_list_invalidation.dart';
+import 'worker_proposals_agenda.dart';
+import '../../agenda/presentation/worker_agenda_tab.dart';
+import '../../notifications/application/notification_providers.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/cancel_reasons.dart';
 import '../application/worker_job_rules.dart';
@@ -22,22 +36,32 @@ import '../data/worker_job_board_entry_model.dart';
 import 'widgets/worker_jobs_view.dart' as view;
 
 String _tabParam(view.WorkerJobsTab tab) => switch (tab) {
-      view.WorkerJobsTab.pending => 'pending',
-      view.WorkerJobsTab.scheduled => 'scheduled',
-      // A RPC continua a chamar "completed" ao histórico.
-      view.WorkerJobsTab.history => 'completed',
-    };
+  view.WorkerJobsTab.pending => 'pending',
+  view.WorkerJobsTab.scheduled => 'scheduled',
+  // A RPC continua a chamar "completed" ao histórico.
+  view.WorkerJobsTab.history => 'completed',
+};
 
-view.WorkerJobsTab? _tabFromName(String? name) {
+/// Nomes antigos das tabs (notificações, Início): "Agendados" passou a ser
+/// a Agenda.
+view.WorkerJobsSection _sectionFromName(String? name) {
   return switch (name) {
-    'pending' => view.WorkerJobsTab.pending,
-    'scheduled' => view.WorkerJobsTab.scheduled,
-    'completed' || 'history' => view.WorkerJobsTab.history,
-    _ => null,
+    'pending' || 'proposals' => view.WorkerJobsSection.proposals,
+    'completed' || 'history' => view.WorkerJobsSection.history,
+    _ => view.WorkerJobsSection.agenda,
   };
 }
 
+/// Tabs do board que o ecrã lê: a Agenda vem de `get_worker_agenda`.
+const _boardTabs = [view.WorkerJobsTab.pending, view.WorkerJobsTab.history];
+
 final _dayMonth = DateFormat('dd/MM');
+
+/// Hoje mais 61 dias: o máximo de `get_worker_agenda`.
+(DateTime, DateTime) _proposalsAgendaRange(DateTime now) {
+  final today = DateUtils.dateOnly(now);
+  return (today, DateTime(today.year, today.month, today.day + 61));
+}
 
 /// Localidade do cartão: `location_area` (0053) ou, com a BD antiga, o
 /// último segmento da morada (que já é só a zona antes de aceite).
@@ -163,8 +187,9 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
       final mine = e.status == 'accepted';
       final String detail;
       if (e.jobStatus == 'completed' && mine) {
-        detail =
-            isHelper ? (withPerson ?? '') : join([_areaOf(e), _estimateOf(e)]);
+        detail = isHelper
+            ? (withPerson ?? '')
+            : join([_areaOf(e), _estimateOf(e)]);
       } else if (e.jobStatus == 'no_response') {
         detail = 'expirou sem resposta';
       } else if (e.jobStatus == 'cancelled' &&
@@ -175,8 +200,8 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
         detail = e.cancelledByMe
             ? 'cancelaste'
             : e.cancelledByClient
-                ? 'cancelado pelo cliente'
-                : 'cancelado';
+            ? 'cancelado pelo cliente'
+            : 'cancelado';
       } else if (isHelper) {
         detail = e.status == 'rejected'
             ? 'a equipa ficou completa'
@@ -223,7 +248,8 @@ AppStatusPresentation? workerBoardJobPresentation(
 }) {
   if (jobStatus == null) return null;
   final isMine = entryStatus == 'accepted';
-  final expired = jobStatus == 'no_response' ||
+  final expired =
+      jobStatus == 'no_response' ||
       (jobStatus == 'cancelled' && cancelReason == CancelReason.expired);
   if (jobStatus == 'cancelled' || jobStatus == 'no_response') {
     if (!isMine && entryStatus != 'pending' && entryStatus != 'rejected') {
@@ -245,23 +271,24 @@ AppStatusPresentation? workerBoardJobPresentation(
   }
   if (!isMine) return null;
   return switch (jobStatus) {
-    'confirmed' => started
-        ? const AppStatusPresentation(
-            label: 'Em curso',
-            color: AppStatusColor.info,
-          )
-        : const AppStatusPresentation(
-            label: 'Agendado',
-            color: AppStatusColor.success,
-          ),
+    'confirmed' =>
+      started
+          ? const AppStatusPresentation(
+              label: 'Em curso',
+              color: AppStatusColor.info,
+            )
+          : const AppStatusPresentation(
+              label: 'Agendado',
+              color: AppStatusColor.success,
+            ),
     'awaiting_confirmation' => const AppStatusPresentation(
-        label: 'À espera do cliente',
-        color: AppStatusColor.waiting,
-      ),
+      label: 'À espera do cliente',
+      color: AppStatusColor.waiting,
+    ),
     'completed' => const AppStatusPresentation(
-        label: 'Concluído',
-        color: AppStatusColor.success,
-      ),
+      label: 'Concluído',
+      color: AppStatusColor.success,
+    ),
     _ => null,
   };
 }
@@ -272,11 +299,26 @@ view.WorkerJobListItemViewData _toViewData(
   DateTime now,
   List<ServiceType> serviceTypes, {
   required bool animateEntrance,
+  WorkerProposalSchedule? schedule,
+  bool withdrawing = false,
 }) {
   final text = workerJobCardText(e, tab, now);
+  final pending = tab == view.WorkerJobsTab.pending;
+  final isHelper = e.role == WorkerJobBoardRole.helper;
+  // Propostas com data (R1): "Sex 30 out · 09:00 · Cascais".
+  final meta = pending && schedule != null
+      ? [
+          schedule.label,
+          if (isHelper && e.personName.isNotEmpty)
+            'com ${e.personName}'
+          else if (!isHelper)
+            _areaOf(e),
+        ].where((p) => p.isNotEmpty).join(' · ')
+      : text.meta;
   // Ícone pelo id do serviço (0053); com a BD antiga, pelo nome.
-  final byName =
-      serviceTypes.where((t) => t.name == e.serviceTypeName).firstOrNull;
+  final byName = serviceTypes
+      .where((t) => t.name == e.serviceTypeName)
+      .firstOrNull;
   final icon = e.serviceTypeId != null
       ? serviceTypeIconFor(serviceTypes, e.serviceTypeId)
       : serviceIconFor(byName?.icon);
@@ -285,24 +327,32 @@ view.WorkerJobListItemViewData _toViewData(
     id: e.entryId,
     title: e.serviceTypeName,
     serviceIcon: icon,
-    metaLabel: text.meta,
+    metaLabel: meta,
     amountLabel: text.amount,
     status: _statusPresentationFor(e),
     roleLabel: e.role == WorkerJobBoardRole.helper ? 'Ajudante' : null,
     muted: tab == view.WorkerJobsTab.history && !completedMine,
     animateEntrance: animateEntrance,
+    warningLabel: pending ? schedule?.warning : null,
+    // Candidaturas não têm "Retirar" aqui (ver o detalhe da candidatura).
+    withdrawLabel: pending && !isHelper && e.status == 'pending'
+        ? 'Retirar proposta'
+        : null,
+    withdrawing: withdrawing,
   );
 }
 
-/// Ecrã "Os meus trabalhos" (Flow 5) — wrapper de integração que liga o
-/// board unificado (`get_worker_job_board`, migration 0035: responsável +
-/// ajudante, filtrado/ordenado/paginado inteiramente server-side) ao
-/// componente apresentacional em `widgets/worker_jobs_view.dart`.
+/// Ecrã Trabalhos (Flow 5, design A8) — wrapper de integração. A tab Agenda
+/// é `WorkerAgendaTab` (0064); Propostas e Histórico ligam o board unificado
+/// (`get_worker_job_board`, migration 0035: responsável + ajudante,
+/// filtrado/ordenado/paginado inteiramente server-side) ao componente
+/// apresentacional em `widgets/worker_jobs_view.dart`.
 class WorkerJobsScreen extends ConsumerStatefulWidget {
   const WorkerJobsScreen({
     super.key,
     this.highlightedJobId,
     this.initialTab,
+    this.agendaResult,
   });
 
   /// Suporte a deep-link de notificações — ver `app_router.dart` (extra da
@@ -311,12 +361,16 @@ class WorkerJobsScreen extends ConsumerStatefulWidget {
   final String? highlightedJobId;
   final String? initialTab;
 
+  /// Guardado no "Adicionar à agenda" aberto pelo "+": a Agenda abre no
+  /// dia e realça o cartão.
+  final AgendaEditorResult? agendaResult;
+
   @override
   ConsumerState<WorkerJobsScreen> createState() => _WorkerJobsScreenState();
 }
 
 class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
-  late view.WorkerJobsTab _selectedTab;
+  late view.WorkerJobsSection _selectedSection;
   String? _highlightedJobId;
   Timer? _highlightTimer;
 
@@ -334,16 +388,30 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     for (final t in view.WorkerJobsTab.values) t: false,
   };
 
+  /// Propostas a ser retiradas (botão desligado até a RPC responder).
+  final Set<String> _withdrawing = {};
+
+  /// Dia e aviso de cada proposta, do último build (para "Ver o dia").
+  Map<String, WorkerProposalSchedule> _schedules = const {};
+
   @override
   void initState() {
     super.initState();
-    _selectedTab =
-        _tabFromName(widget.initialTab) ?? view.WorkerJobsTab.pending;
+    _selectedSection = _sectionFromName(widget.initialTab);
     _highlightedJobId = widget.highlightedJobId;
     if (_highlightedJobId != null) {
       _highlightTimer = Timer(const Duration(milliseconds: 1300), () {
         if (mounted) setState(() => _highlightedJobId = null);
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkerJobsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.agendaResult != null &&
+        widget.agendaResult != oldWidget.agendaResult) {
+      setState(() => _selectedSection = view.WorkerJobsSection.agenda);
     }
   }
 
@@ -361,11 +429,11 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
 
   Future<void> _onRefresh() async {
     setState(() {
-      for (final t in view.WorkerJobsTab.values) {
+      for (final t in _boardTabs) {
         _resetPagination(t);
       }
     });
-    for (final t in view.WorkerJobsTab.values) {
+    for (final t in _boardTabs) {
       ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
     }
     ref.invalidate(jobsInRadiusProvider);
@@ -378,31 +446,105 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     ref
         .read(workerJobBoardPageProvider((_tabParam(tab), nextPage)).future)
         .then((page) {
-      if (!mounted) return;
-      setState(() {
-        _pageByTab[tab] = nextPage;
-        _extraByTab[tab] = [...?_extraByTab[tab], ...page];
-        _loadingMoreByTab[tab] = false;
-      });
-    }).catchError((_) {
-      if (mounted) setState(() => _loadingMoreByTab[tab] = false);
-    });
+          if (!mounted) return;
+          setState(() {
+            _pageByTab[tab] = nextPage;
+            _extraByTab[tab] = [...?_extraByTab[tab], ...page];
+            _loadingMoreByTab[tab] = false;
+          });
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _loadingMoreByTab[tab] = false);
+        });
+  }
+
+  /// Toque no aviso (R1): "Ver o dia" com a proposta a tracejado.
+  void _openDayPreview(String id) {
+    final schedule = _schedules[id];
+    if (schedule == null) return;
+    final entry = ref
+        .read(
+          workerJobBoardPageProvider((
+            _tabParam(view.WorkerJobsTab.pending),
+            0,
+          )),
+        )
+        .asData
+        ?.value
+        .where((e) => e.entryId == id)
+        .firstOrNull;
+    final helper = entry?.role == WorkerJobBoardRole.helper;
+    showAgendaDayPreview(
+      context,
+      day: schedule.date,
+      ghost: AgendaDayPreviewGhost(
+        date: schedule.date,
+        label: helper ? 'A tua candidatura' : 'A tua proposta',
+        startMinutes: schedule.startMinutes,
+        durationMinutes: schedule.durationMinutes,
+        slotKind: AgendaEntryKind.proposal,
+        ignoreSourceId: id,
+      ),
+    );
+  }
+
+  /// "Retirar proposta" (R2): confirma, grava e só depois a lista muda. Sem
+  /// "Desfazer": o cliente é avisado logo (decisão de 26/10).
+  Future<void> _withdraw(
+    WorkerJobBoardEntry e,
+    List<ServiceType> serviceTypes,
+  ) async {
+    if (_withdrawing.contains(e.entryId)) return;
+    final schedule = _schedules[e.entryId];
+    final when = schedule == null
+        ? ''
+        : ', ${agendaWeekdayName(schedule.date).toLowerCase()} '
+              '${agendaShortDate(schedule.date, now: DateTime.now())}'
+              '${schedule.startMinutes == null ? '' : ', ${formatMinutes(schedule.startMinutes!)}'}';
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.undo_rounded,
+      title: 'Retirar a proposta?',
+      message:
+          '${e.serviceTypeName}$when. O cliente é avisado de que já não '
+          'estás disponível.',
+      confirmLabel: 'Retirar proposta',
+      cancelLabel: 'Manter',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    final toast = AppToast.of(context);
+    setState(() => _withdrawing.add(e.entryId));
+    try {
+      await ref
+          .read(proposalRepositoryProvider)
+          .withdrawProposal(e.entryId, e.jobId);
+    } catch (err) {
+      if (mounted) setState(() => _withdrawing.remove(e.entryId));
+      toast.error(friendlyError(err));
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _withdrawing.remove(e.entryId));
+    // Regra T4 (sem navegação): aviso → invalidar.
+    toast.show('Proposta retirada.');
+    invalidateWorkerLists(ref, jobId: e.jobId);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Página 0 das 3 tabs é sempre observada: as contagens das tabs vêm do
-    // `total_count` de cada uma e as três listas ficam montadas (cada tab
-    // guarda o seu scroll).
+    // Página 0 das 2 listas é sempre observada: a contagem de Propostas vem
+    // do `total_count` e as listas ficam montadas (cada tab guarda o seu
+    // scroll).
     final page0ByTab = {
-      for (final t in view.WorkerJobsTab.values)
+      for (final t in _boardTabs)
         t: ref.watch(workerJobBoardPageProvider((_tabParam(t), 0))),
     };
 
     // Reinicia a paginação de uma tab sempre que a respetiva página 0 for
     // invalidada externamente (ex.: notificationSyncProvider), para não
     // misturar páginas extra antigas com dados novos.
-    for (final t in view.WorkerJobsTab.values) {
+    for (final t in _boardTabs) {
       ref.listen(workerJobBoardPageProvider((_tabParam(t), 0)), (prev, next) {
         if (next.isLoading && mounted) {
           setState(() => _resetPagination(t));
@@ -413,6 +555,16 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     final serviceTypes =
         ref.watch(serviceTypesProvider).asData?.value ?? const <ServiceType>[];
     final now = DateTime.now();
+
+    // Avisos da tab Propostas: a Agenda dos próximos 62 dias (o máximo da
+    // RPC). Sem a 0064 ou fora desse período, o cartão fica sem aviso.
+    final agenda =
+        ref
+            .watch(agendaRangeProvider(_proposalsAgendaRange(now)))
+            .asData
+            ?.value ??
+        const <AgendaEntry>[];
+    final schedules = <String, WorkerProposalSchedule>{};
 
     int totalCountFor(view.WorkerJobsTab tab) {
       final page0 = page0ByTab[tab]!.asData?.value ?? const [];
@@ -427,12 +579,39 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       final extra = _extraByTab[tab] ?? const <WorkerJobBoardEntry>[];
       entriesByTab[tab] = [...page0, ...extra];
 
-      final items = [
-        for (final e in page0)
-          (e, _toViewData(e, tab, now, serviceTypes, animateEntrance: true)),
-        for (final e in extra)
-          (e, _toViewData(e, tab, now, serviceTypes, animateEntrance: false)),
+      if (tab == view.WorkerJobsTab.pending) {
+        for (final e in entriesByTab[tab]!) {
+          final schedule = workerProposalSchedule(
+            e,
+            agenda: agenda,
+            serviceTypes: serviceTypes,
+            now: now,
+          );
+          if (schedule != null) schedules[e.entryId] = schedule;
+        }
+      }
+
+      view.WorkerJobListItemViewData item(
+        WorkerJobBoardEntry e, {
+        required bool animate,
+      }) => _toViewData(
+        e,
+        tab,
+        now,
+        serviceTypes,
+        animateEntrance: animate,
+        schedule: schedules[e.entryId],
+        withdrawing: _withdrawing.contains(e.entryId),
+      );
+
+      var items = [
+        for (final e in page0) (e, item(e, animate: true)),
+        for (final e in extra) (e, item(e, animate: false)),
       ];
+      // Com aviso primeiro, depois pela data mais próxima (R1).
+      if (tab == view.WorkerJobsTab.pending) {
+        items = sortWorkerProposals(items, (i) => schedules[i.$1.entryId]);
+      }
 
       final List<view.WorkerJobsSectionViewData> sections;
       if (tab == view.WorkerJobsTab.history) {
@@ -441,8 +620,9 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
         for (final (entry, item) in items) {
           final label = workerHistoryMonthLabel(workerHistoryDate(entry), now);
           if (sections.isEmpty || sections.last.label != label) {
-            sections
-                .add(view.WorkerJobsSectionViewData(label: label, items: []));
+            sections.add(
+              view.WorkerJobsSectionViewData(label: label, items: []),
+            );
           }
           sections.last.items.add(item);
         }
@@ -466,25 +646,21 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
     }
 
     final pending = tabData(view.WorkerJobsTab.pending);
-    final scheduled = tabData(view.WorkerJobsTab.scheduled);
     final history = tabData(view.WorkerJobsTab.history);
-
-    String countLabel(String label, view.WorkerJobsTab tab) {
-      final count = totalCountFor(tab);
-      return count > 0 ? '$label $count' : label;
-    }
+    _schedules = schedules;
 
     return view.WorkerJobsScreen(
-      selectedTab: _selectedTab,
-      pendingTabLabel: countLabel('Pendentes', view.WorkerJobsTab.pending),
-      scheduledTabLabel: countLabel('Agendados', view.WorkerJobsTab.scheduled),
-      // Sem contagem: o histórico só cresce, o número não ajuda a decidir.
-      historyTabLabel: 'Histórico',
+      selectedSection: _selectedSection,
+      agenda: WorkerAgendaTab(savedResult: widget.agendaResult),
+      // Sem contagem no histórico: só cresce, o número não ajuda a decidir.
+      proposalsCount: totalCountFor(view.WorkerJobsTab.pending),
       pending: pending,
-      scheduled: scheduled,
       history: history,
+      hasUnreadNotifications: ref.watch(unreadCountProvider) > 0,
+      onNotificationsPressed: () => context.push('/notifications'),
+      onColorsPressed: () => showAgendaLegendSheet(context),
       onRetry: () {
-        for (final t in view.WorkerJobsTab.values) {
+        for (final t in _boardTabs) {
           ref.invalidate(workerJobBoardPageProvider((_tabParam(t), 0)));
         }
       },
@@ -494,8 +670,16 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       // devolvido pela RPC (COUNT(*) OVER()), não de um heurístico de
       // "página cheia".
       onLoadMore: _loadMore,
-      onTabSelected: (tab) => setState(() => _selectedTab = tab),
+      onSectionSelected: (section) =>
+          setState(() => _selectedSection = section),
       onFindJobsPressed: () => context.go('/worker/available-jobs'),
+      onOpenDayPreview: _openDayPreview,
+      onWithdraw: (id) {
+        final entry = entriesByTab[view.WorkerJobsTab.pending]
+            ?.where((e) => e.entryId == id)
+            .firstOrNull;
+        if (entry != null) _withdraw(entry, serviceTypes);
+      },
       onJobPressed: (id) {
         final entry = entriesByTab.values
             .expand((list) => list)

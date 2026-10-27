@@ -51,6 +51,9 @@ import '../../features/worker/presentation/worker_setup_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../widgets/app_launch_screen.dart';
+import '../../features/agenda/application/agenda_entry_form.dart';
+import '../../features/agenda/presentation/agenda_entry_detail_screen.dart';
+import '../../features/agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../features/admin/presentation/admin_gate_screen.dart';
 import '../../features/admin/presentation/admin_worker_detail_screen.dart';
 
@@ -65,10 +68,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
-      GoRoute(
-        path: '/loading',
-        builder: (_, _) => const AppLaunchScreen(),
-      ),
+      GoRoute(path: '/loading', builder: (_, _) => const AppLaunchScreen()),
       // Fade-through, não shared-axis: chega sempre de /loading (só um
       // spinner, sem conteúdo real a "avançar de"), nunca de um passo
       // anterior com sentido de progressão — ver nota no relatório.
@@ -193,9 +193,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => buildSharedAxisPage(
           context,
           state,
-          AdminWorkerDetailScreen(
-            workerId: state.pathParameters['workerId']!,
-          ),
+          AdminWorkerDetailScreen(workerId: state.pathParameters['workerId']!),
         ),
       ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
@@ -448,6 +446,61 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               : buildContainerTransformPage(context, state, child);
         },
       ),
+      // Agenda do jardineiro (0064): adicionar e editar trabalhos de fora da
+      // app e indisponibilidades. Fora do ShellRoute (sub-fluxo, sem bottom
+      // nav); abre de baixo e volta com um AgendaEditorResult. Origens: a
+      // Agenda (Hoje, Semana, Mês) e o "+" central. `?date=` é o dia já
+      // escolhido (novo) ou a ocorrência tocada (editar); `?type=block`
+      // abre em Indisponível.
+      GoRoute(
+        path: '/worker/agenda/new',
+        pageBuilder: (context, state) {
+          final params = state.uri.queryParameters;
+          return buildSlideUpPage<AgendaEditorResult>(
+            context,
+            state,
+            AgendaEntryEditorScreen(
+              initialDate: DateTime.tryParse(params['date'] ?? ''),
+              initialType: params['type'] == 'block'
+                  ? AgendaFormType.unavailable
+                  : AgendaFormType.work,
+            ),
+          );
+        },
+      ),
+      // Detalhe de um trabalho de fora da app ou de uma indisponibilidade
+      // (A8E): entra da direita, a partir de um cartão da Agenda. Volta com
+      // um AgendaEditorResult ao apagar, editar ou "Ver o dia".
+      GoRoute(
+        path: '/worker/agenda/:id',
+        pageBuilder: (context, state) {
+          return buildSharedAxisPage<AgendaEditorResult>(
+            context,
+            state,
+            AgendaEntryDetailScreen(
+              entryId: state.pathParameters['id']!,
+              occurrenceDate: DateTime.tryParse(
+                state.uri.queryParameters['date'] ?? '',
+              ),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/worker/agenda/:id/edit',
+        pageBuilder: (context, state) {
+          return buildSlideUpPage<AgendaEditorResult>(
+            context,
+            state,
+            AgendaEntryEditorScreen(
+              entryId: state.pathParameters['id'],
+              occurrenceDate: DateTime.tryParse(
+                state.uri.queryParameters['date'] ?? '',
+              ),
+            ),
+          );
+        },
+      ),
       // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
       // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
       // Cadeia sequencial de fluxo único: shared-axis.
@@ -480,9 +533,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => ClientShell(child: child),
         routes: [
-          GoRoute(path: '/client/home', builder: (_, _) => const ClientHomeScreen()),
-          GoRoute(path: '/client/jobs', builder: (_, _) => const ClientJobsScreen()),
-          GoRoute(path: '/client/profile', builder: (_, _) => const ClientProfileScreen()),
+          GoRoute(
+            path: '/client/home',
+            builder: (_, _) => const ClientHomeScreen(),
+          ),
+          GoRoute(
+            path: '/client/jobs',
+            builder: (_, _) => const ClientJobsScreen(),
+          ),
+          GoRoute(
+            path: '/client/profile',
+            builder: (_, _) => const ClientProfileScreen(),
+          ),
           // Sem /client/messages: não há mensagens dentro da app, o
           // contacto é só por WhatsApp.
         ],
@@ -490,12 +552,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => WorkerShell(child: child),
         routes: [
-          GoRoute(path: '/worker/home', builder: (_, _) => const WorkerDashboardScreen()),
+          GoRoute(
+            path: '/worker/home',
+            builder: (_, _) => const WorkerDashboardScreen(),
+          ),
           GoRoute(
             path: '/worker/available-jobs',
             builder: (_, _) => const WorkerAvailableJobsScreen(),
           ),
-          GoRoute(path: '/worker/profile', builder: (_, _) => const WorkerProfileScreen()),
+          GoRoute(
+            path: '/worker/profile',
+            builder: (_, _) => const WorkerProfileScreen(),
+          ),
           GoRoute(
             path: '/worker/jobs',
             builder: (_, state) {
@@ -503,6 +571,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return WorkerJobsScreen(
                 highlightedJobId: extra?['highlightedJobId'] as String?,
                 initialTab: extra?['initialTab'] as String?,
+                agendaResult: extra?['agendaResult'] as AgendaEditorResult?,
               );
             },
           ),

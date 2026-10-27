@@ -3,6 +3,209 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-26 — Agenda do jardineiro: primeira abertura e ecrãs existentes (A8G, A10)
+
+- **Primeira abertura:** cartão no topo da lista da Agenda, não um ecrã por cima. Fechar
+  (✕, "Agora não") ou guardar o primeiro trabalho por ele grava
+  `agenda_intro_v1_done_<uid>` nas SharedPreferences. É por conta e por aparelho; sem
+  sessão ou com erro conta como visto, para nunca aparecer em ciclo.
+- **Lógica partilhada** em `agenda_slot_check.dart`: `checkAgendaSlot` devolve a nota
+  (verde livre, azul leve ou proposta, âmbar forte) e, só no forte, os dados do diálogo.
+  `agendaRequestAvailability` faz o chip do detalhe do pedido. Os dois usam
+  `conflictsForSlot`, como a Agenda.
+- O diálogo de conflito é o mesmo do formulário (`AgendaConflictDialog`), agora com
+  `continueLabel` ("Enviar mesmo assim", "Pedir mesmo assim") e sem texto quando o resumo
+  vem vazio. A nota do formulário passou a widget público (`AgendaInlineWarning`), com o
+  tom verde novo.
+- **Enviar proposta:** a proposta conta com a hora do período (09:00, 14:00, 18:00) e a
+  duração máxima em horas; em dias, conta com a duração por omissão de uma proposta.
+  "Mudar a hora" só fecha o diálogo, sem saltar para o período.
+- **Detalhe do pedido:** o pedido só tem dia, por isso o chip só fica âmbar com o dia
+  indisponível ou ocupado todo; de resto conta os trabalhos desse dia (sem propostas).
+  Fica por baixo dos cartões Prazo, Área e Orçamento, porque o detalhe não tem a linha de
+  data do design.
+- **Remarcar:** só no lado do jardineiro (o diálogo é partilhado com o cliente, que não
+  tem Agenda). O próprio trabalho não conta.
+- **"+":** a folha perdeu o título e as cores por ação, como no design. "Encontrar
+  trabalho" passou a "Procurar trabalho". O botão central e o do rail ficam escuros com
+  ✕ enquanto a folha está aberta.
+
+## 2026-10-26 — Agenda do jardineiro: tab Propostas (R1 a R3)
+
+Design A9 integrado no ecrã Trabalhos que já existia (`worker_jobs_view.dart`). Não é um
+ecrã novo. O dia e a hora de uma proposta vêm da linha `proposal` de `get_worker_agenda`
+(o board não os tem), lida para hoje mais 61 dias. Assim não foi preciso uma migration
+nova. O aviso usa `conflictsForSlot` e só conta quando as horas se cruzam ou o dia está
+ocupado. Outra proposta à mesma hora não faz aviso.
+
+- **Sem "Desfazer" ao retirar** (escolha do Henrique, 26/10). O backend avisa o cliente
+  logo, e num pedido direto termina a reserva. Fica o diálogo "Retirar a proposta?",
+  com "Retirar proposta" e "Manter", e depois o aviso "Proposta retirada.".
+- A ordem (aviso primeiro, depois a data) é feita na app sobre as páginas já lidas. A RPC
+  continua a ordenar por envio, porque o aviso depende da Agenda.
+- A candidatura a ajudante não tem "Retirar" aqui, como no design.
+- O nome do cliente não aparece no cartão da proposta, ao contrário do design. Até o
+  cliente aceitar, a app não mostra o nome dele ao jardineiro nas listas.
+- O estado continua no canto do cartão, como no resto do Trabalhos.
+
+## 2026-10-26 — Agenda do jardineiro: folha "Ver o dia" (V1 a V3)
+
+Design A8F integrado com os componentes da app. `showAgendaDayPreview(context, day:,
+ghost:)` abre a folha por cima de qualquer formulário; o formulário fica montado por
+baixo, e mudar de dia na folha não muda a data dele. O fantasma
+(`AgendaDayPreviewGhost`) traz a etiqueta ("O teu trabalho", "A tua proposta"), a hora e
+a duração, e nunca é gravado. Tudo é calculado em `agenda_day_preview_presenter.dart`
+com as mesmas regras de sobreposição do resto da Agenda (`conflictsForSlot`).
+
+Diferenças em relação ao design, de propósito:
+- A frase de cima fica fixa por cima da lista, para não sair de vista quando a folha
+  faz scroll até ao fantasma.
+- Além de "cabe" (verde) e "choca" (âmbar) há mais dois tons, das regras que já existiam:
+  info para pouco intervalo ou mesmo dia sem hora, e neutro quando coincide com uma
+  proposta enviada (decisão 3: propostas não contam como compromisso).
+- Num dia sem nada além do fantasma o texto é "Nada mais neste dia / O resto do dia está
+  livre."; noutro dia vazio é "Nada neste dia / O dia está todo livre.".
+- Um trabalho de vários dias mostra o fantasma em todos os dias que ocupa; uma série
+  que se repete só no primeiro dia.
+- A troca de dia usa 200 ms (`AppMotionDuration.fast`) e não 180 ms, para ficar nos
+  tokens.
+
+## 2026-10-26 — Agenda do jardineiro: detalhe de um trabalho de fora da app (D1 a D6)
+
+Design A8E integrado com os componentes da app. Rota `/worker/agenda/:id?date=` (entra
+da direita); o formulário passou para `/worker/agenda/:id/edit`. Tocar num cartão de
+fora da app ou de indisponibilidade abre o detalhe; o "Mudar datas" continua a ir
+direto ao formulário. As ações (feito, cancelar, repor, apagar) estão em
+`agenda_entry_actions.dart`, partilhadas com o formulário.
+
+Mudanças na 0064 (ainda não aplicada, por isso mudada no próprio ficheiro):
+- Cancelar já não tira da agenda: o cancelado aparece riscado, com "Cancelado", e pode
+  ser reposto. Apagar só um dia passou a ser a exceção `skipped` (antes `cancelled`).
+- A exceção ganhou `status` (feito ou cancelado só nesse dia) e `status_at`; a ação
+  `done` passou a `status`. Assim marcar como feito um dia que já tinha sido mudado
+  não perde a mudança.
+- `status_at` na série e na exceção, posto por trigger quando o estado muda, para
+  "Marcado como feito a 28 out, às 17:40".
+- `is_exception` só conta mudanças de data, horas, título ou notas.
+
+Diferenças do design, e porquê:
+- "Marcar como feito" numa série é sempre só este dia, sem a folha: marcar como
+  feitos dias que ainda não aconteceram não faz sentido. Cancelar e apagar passam
+  pela folha (um toque escolhe, como no design).
+- "Editar" numa série vai direto ao formulário, que pergunta os dias ao guardar,
+  porque só aí se sabe o que mudou (e se "Só este dia" chega).
+- Menu "⋯", folha e confirmações são `PopupMenuButton`, `AgendaScopeSheet` e
+  `AppConfirmDialog`, não camadas na vista.
+- O texto da indisponibilidade segue a decisão 4 ("os pedidos novos continuam a
+  chegar"), não "não recebes pedidos novos".
+- Depois de apagar, a Agenda mostra "Apagado da agenda." sem desfazer (como no
+  formulário).
+- "Ver o dia" abre o Hoje nesse dia, nos que coincidem, com o cartão realçado.
+
+## 2026-10-26 — Agenda do jardineiro: formulário Adicionar / Editar (F1 a F8)
+
+Design A8D integrado com os componentes da app, não com o código do design. Rotas
+`/worker/agenda/new` e `/worker/agenda/:id`, fora do ShellRoute, a abrir de baixo.
+Estado em `AgendaEntryForm` (lógica pura, testada); grava direto em
+`worker_calendar_entries` e `worker_calendar_exceptions` (RLS do dono, `worker_id` do
+DEFAULT `auth.uid()`); sem migration nova.
+
+Diferenças do design, e porquê:
+- Horas escolhem-se no relógio da app (`showAppTimePicker`), não a escrever: evita
+  horas inválidas. "Mudar a hora" (F4) abre logo esse relógio.
+- "Outra" duração usa o mesmo relógio, com o título "Duração".
+- Confirmação forte, folha da série e "Sair sem guardar?" são diálogos/folhas
+  (`AgendaConflictDialog`, `AgendaScopeSheet`, `AppConfirmDialog`), não camadas na
+  vista: o botão de voltar do sistema fecha-os.
+- Motivo da indisponibilidade fica no `title` ("Férias", "Folga", "Consulta";
+  "Outro" grava "Indisponível"), porque a 0064 não tem coluna de motivo.
+- "Só este dia" só guarda data, horas, título e notas (o que a exceção da 0064
+  sabe). Se mudou o cliente, o valor, a morada ou a repetição, essa opção fica
+  desligada na folha.
+- "Este e os seguintes" usa `split_calendar_series` e depois atualiza a série nova;
+  "Todos" muda a série inteira e, se a data mudou, a série anda com ela.
+- O texto da indisponibilidade segue a decisão 4 (não esconde pedidos), não a nota
+  11 do design ("bloqueio para novos pedidos").
+- "Desfazer" (F8B) só depois de criar (apaga a entrada); ao editar aparece
+  "Alterações guardadas" sem desfazer.
+- "Ver o dia" é por agora uma folha com a lista do dia (o desenho é o Prompt 7).
+- O "+" central ganhou "Adicionar à agenda" (adiantado do Prompt 10).
+
+## 2026-10-26 — Agenda do jardineiro: vista Mês (M1 a M3)
+
+Design "ProJardim Agenda Mes" integrado com as mesmas peças da Semana (célula do dia,
+pontos, linhas e grupos que coincidem passaram para `agenda_day_cells.dart`). Pontos a
+saber:
+- Lê só o mês mostrado (a mesma cache do Hoje): os dias dos meses ao lado aparecem a
+  cinzento, sem pontos, e tocar num deles muda de mês.
+- Tocar no título abre o mesmo calendário do Hoje e da Semana (escolher um dia, com
+  setas de mês), em vez de um seletor só de mês e ano.
+- Toque escolhe o dia; duplo toque ou "Ver dia" abre-o no Hoje. As entradas sem
+  detalhe (fora da app, indisponível) também abrem o dia no Hoje.
+- Cor do ajudante igual à da Semana e da legenda (verde claro), não azul como dizia o
+  código do design.
+- Sem formulário ainda: o dia livre mostra "Nada marcado neste dia." sem o botão
+  "Adicionar neste dia".
+- A carregar, a grelha mostra os dias sem pontos e só a lista é esqueleto.
+
+## 2026-10-26 — Agenda do jardineiro: vista Semana (S1 a S3)
+
+Design "ProJardim Agenda Semana" integrado com os mesmos componentes e regras do Hoje
+(não com o código do design, que repetia cartões, faixas e cores). Pontos a saber:
+- Leitura: a Semana usa a mesma cache por mês do Hoje; uma semana que atravessa o fim
+  do mês lê os dois meses.
+- Sobreposições iguais às do Hoje: só trabalhos com hora num único dia. Um trabalho de
+  vários dias não entra no grupo "Coincidem" (o design S2 punha-o lá).
+- O aviso de sobreposição e a faixa "Sem rede" ficam fixos por cima da lista: a semana
+  atual abre em hoje e o aviso não pode ficar escondido nos dias de cima.
+- Entradas sem detalhe (fora da app, indisponível) e o cabeçalho de cada dia abrem esse
+  dia no Hoje. "Ver o dia" abre o Hoje já nos que coincidem.
+- Sem formulário ainda: o "+" das linhas "Livre" e o "Adicionar à agenda" da semana
+  livre não aparecem; na semana livre, tocar num dia abre esse dia no Hoje.
+- A carregar, a faixa mostra os dias (sem pontos) em vez de esqueleto: as datas já são
+  conhecidas e continua tocável.
+- Indisponível sem descrição mostra "Marcado por ti".
+- Corrigido no Hoje: as chaves do "agora" e do grupo que coincide passaram a ser por dia
+  (com o fade, dois dias com sobreposição ficavam com a mesma chave).
+
+## 2026-10-26 — Agenda do jardineiro: vista Hoje (H1 a H7)
+
+Design "ProJardim Agenda Hoje" integrado com os componentes A1 a A9 (não com o código do
+design, que repetia cartões e cores próprias). Pontos que não seguem o design à letra:
+- Texto do dia indisponível: o design dizia "Não recebes pedidos novos"; a decisão 4 é que
+  a indisponibilidade não esconde pedidos, por isso diz "Só aparece na tua agenda: os
+  pedidos novos continuam a chegar".
+- Valores: "60 €" quando é fechado, "≈ 45 a 60 €" quando é estimado (o design mostrava
+  só "≈ 60 €"), como no resto da app.
+- "Iniciar" abre a mesma folha do detalhe (fotos de antes e `start_job`) sem sair da
+  Agenda; regra de 1 h antes e só no próprio dia, como no detalhe.
+- "Mudar a hora" de um grupo que coincide abre o trabalho escolhido (é lá que se pede a
+  remarcação); as entradas de fora da app ainda não abrem (detalhe no Prompt 6).
+- Semana e Mês ficam no seletor mas mostram um aviso até haver design.
+- Leitura por mês inteiro (`agendaMonthRange`): deslizar entre dias não faz novo pedido e
+  o calendário do mês reaproveita os dados.
+- 0064 (ainda não aplicada) passou a devolver `proposal_id` (para abrir
+  `/worker/my-job/:proposalId`), `location_lat/lng` (mapa; nulos numa proposta pendente,
+  que só mostra a zona) e o telefone do responsável ao ajudante aceite (como no detalhe
+  da ajuda). Nova RPC `free_calendar_day` para "Já estou livre": liberta só um dia
+  (encurta, apaga ou divide a indisponibilidade; numa série cancela essa ocorrência).
+
+## 2026-10-26 — Agenda do jardineiro: dados, sobreposições e componentes (0064)
+
+Plano em `projardim/design/2026-10-26-plano-agenda-jardineiro.md` (pasta partilhada).
+Decisões do Henrique: a bottom nav não muda; "Trabalhos" passa a ter as tabs Agenda,
+Propostas e Histórico e abre na Agenda (Hoje, Semana, Mês); Semana em faixa de dias e
+lista por dia; propostas pendentes aparecem a tracejado, com interruptor; indisponibilidade
+só na agenda dele; repetição completa já na fase 1 ("Só este dia", "Este e os seguintes",
+"Todos"); nota de sobreposição sempre e confirmação só quando as horas se cruzam (nunca
+bloqueia); nome e telefone do cliente de fora opcionais (política de privacidade
+atualizada na pasta partilhada, a publicar quando a Agenda sair).
+Técnica: uma só leitura (`get_worker_agenda`, uma linha por dia) para a Agenda, o Início
+e os avisos; deteção de sobreposições em Dart puro (`agenda_conflicts.dart`, com testes):
+sem fim usa 2 h na app e 60 min fora; menos de 30 min entre trabalhos é aviso leve;
+indisponível e trabalhos de vários dias ocupam o dia todo. Componentes da folha de design
+(A1 a A9) em `features/agenda/presentation/widgets/`; ecrãs ainda por desenhar.
+
 ## 2026-10-26 — Data do cliente no ecrã de enviar proposta
 
 O formulário de proposta mostra "O cliente pediu: …" junto à data de início e abre já

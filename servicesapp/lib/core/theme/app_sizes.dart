@@ -56,6 +56,10 @@ abstract final class AppSizes {
   static const double jobMapHeight = 164.0;
   static const double mapPin = 36.0;
   static const double inlineIcon = 18.0;
+
+  /// Ícone de destaque num botão de 44 px ("Iniciar" da Agenda) e o visto
+  /// de concluído na linha compacta.
+  static const double emphasisIcon = 20.0;
   static const double inlineSpinner = 16.0;
 
   // Fluxo do ajudante e equipa (U4).
@@ -91,6 +95,10 @@ abstract final class AppSizes {
   /// Logo no diálogo "Sobre a ProJardim".
   static const double aboutLogo = 72.0;
   static const double heroIcon = 28.0;
+
+  /// Quadrado do ícone grande no topo de um detalhe (Agenda, A8E).
+  static const double detailHeroBox = 64.0;
+  static const double detailHeroIcon = 36.0;
   static const double infoRowIcon = 20.0;
 
   // Propostas recebidas (A3).
