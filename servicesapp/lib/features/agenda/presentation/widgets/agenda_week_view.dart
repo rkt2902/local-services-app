@@ -196,7 +196,9 @@ class _AgendaWeekViewState extends State<AgendaWeekView> {
         ? initial
         : content.days.first.date;
     final day = _selected!;
-    if (day == content.days.first.date) return;
+    // Com o cartão da primeira abertura, a lista fica no topo para ele se
+    // ver; o dia continua escolhido na faixa.
+    if (day == content.days.first.date || widget.intro != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _scrollTo(day, duration: Duration.zero);
     });
@@ -347,10 +349,11 @@ class _AgendaWeekViewState extends State<AgendaWeekView> {
                     ),
                   ),
                 // Fixos por cima da lista: a semana atual abre em hoje e o
-                // aviso não pode ficar escondido nos dias de cima.
+                // aviso não pode ficar escondido nos dias de cima. O cartão
+                // da primeira abertura não: é alto e, fixo, não cabia no
+                // ecrã (overflow). Vai no topo da lista, ver [_list].
                 if (_hasList && widget.offlineLabel != null)
                   _fixed(AgendaOfflineBanner(label: widget.offlineLabel!)),
-                if (_hasList && widget.intro != null) _fixed(widget.intro!),
                 if (_hasList && content!.overlap != null)
                   _fixed(
                     AgendaOverlapBanner(
@@ -446,6 +449,11 @@ class _AgendaWeekViewState extends State<AgendaWeekView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.intro != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: widget.intro,
+            ),
           for (var i = 0; i < content.sections.length; i++)
             KeyedSubtree(
               key: _keyFor(content.sections[i].date),
