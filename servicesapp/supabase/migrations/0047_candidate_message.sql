@@ -2,7 +2,7 @@
 -- 0047 — Mensagem do candidato a ajudante visível ao principal
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor. Pode ser
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor. Pode ser
 -- aplicada várias vezes sem erro, antes ou depois da app nova (a app
 -- nova lê a coluna se existir; a antiga ignora-a).
 --

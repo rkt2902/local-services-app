@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0043_job_location_privacy.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0042.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0042.
 --
 -- Contexto: decisão do Henrique a 2026-10-16 (review de segurança, S10):
 -- até haver proposta aceite, o jardineiro vê só a zona aproximada do

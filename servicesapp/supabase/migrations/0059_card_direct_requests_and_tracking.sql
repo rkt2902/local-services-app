@@ -2,7 +2,7 @@
 -- 0059 — Pedido direto pelo cartão do jardineiro e registo de visitas
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0058
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0058
 -- (e da 0057, que criou o pedido direto). Pode correr-se mais do que uma
 -- vez sem erro.
 --

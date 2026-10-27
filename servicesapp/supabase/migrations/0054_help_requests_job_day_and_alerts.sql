@@ -3,7 +3,7 @@
 --        trabalhos e ajudas novas, foto dos ajudantes da equipa
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0053
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0053
 -- (usa today_pt() da 0046, help_request_open_for_candidate e
 -- get_help_requests_in_radius da 0048). Pode correr-se mais do que uma
 -- vez sem erro.

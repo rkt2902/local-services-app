@@ -2,7 +2,7 @@
 -- 0064 — Agenda do jardineiro: trabalhos fora da app e leitura única
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, depois da 0058
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, depois da 0058
 -- (usa job_proposals.pricing_mode/total_price/estimated_days_*) e da 0043
 -- (job_requests.location_area). Pode correr-se mais do que uma vez.
 --

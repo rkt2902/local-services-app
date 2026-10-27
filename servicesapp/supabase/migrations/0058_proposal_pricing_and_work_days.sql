@@ -2,7 +2,7 @@
 -- 0058 — Propostas por hora ou valor total, validade e dias de trabalho
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0057
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0057
 -- (redefine get_worker_job_board a partir da versão da 0056 e usa
 -- today_pt() da 0054). Pode correr-se mais do que uma vez sem erro.
 --

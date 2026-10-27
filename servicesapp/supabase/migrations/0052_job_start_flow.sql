@@ -2,7 +2,7 @@
 -- 0052 — Iniciar trabalho, fotos de antes e depois, tempo e 48h
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0049
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0049
 -- (redefine send_job_reminders e auto_confirm_completed_jobs da 0049) e da
 -- 0051. A 0050 ficou reservada para outra thread; não depende dela.
 -- Pode correr-se mais do que uma vez sem erro.

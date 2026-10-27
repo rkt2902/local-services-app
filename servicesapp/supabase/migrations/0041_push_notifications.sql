@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0041_push_notifications.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor.
 --
 -- Contexto: notificações push grátis via Firebase Cloud Messaging (FCM).
 -- Até aqui as notificações só existiam na tabela `notifications` e só

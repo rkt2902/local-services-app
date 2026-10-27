@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0039_help_request_principal_avatar.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor.
 --
 -- Contexto: auditoria de avatar/nome em falta (2026-09-28) encontrou que o
 -- card de descoberta de pedidos de ajuda (_HelpRequestCard, tab "Descobrir"

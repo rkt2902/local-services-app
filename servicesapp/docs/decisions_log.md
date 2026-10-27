@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-27 — Docs alinhados com o `main` e todas as migrations aplicadas
+
+- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0065`
+  (confirmado pelo Henrique). A `0050` nunca foi usada. Próxima: `0066`. Os cabeçalhos
+  dos `.sql` que diziam "NOVA, NÃO APLICADA" passaram a "APLICADA na BD viva".
+- `supabase/migrations/README.md` reescrito como uma tabela única (ficheiro, o que faz,
+  estado) com as regras das migrations e os passos para um projeto novo.
+- `STATUS.md` reescrito como retrato atual (o que funciona por área, o que falta
+  configurar, gaps, segurança, o que testar). O histórico dos itens resolvidos fica no
+  git e neste ficheiro.
+- `ARCHITECTURE.md`: RPCs das 0048, 0049 e 0065 que faltavam na tabela, tabelas e
+  colunas novas (0049, 0052, 0062, 0065), 38 tipos de notificação, 50 rotas (8 nas
+  shells), 46 widgets partilhados com os do A11, geocoding Photon/Nominatim/nativo,
+  dependências novas (Firebase, Font Awesome), testes, e o ponto 9 da secção 16 (código
+  de compatibilidade com migrations por aplicar que já pode sair).
+- `SETUP.md`: os passos 0.1 a 0.17 (aplicar cada migration) saíram; ficaram o acesso ao
+  `/admin` (feito a 23/10) e a nota das dicas da época. O deploy web é à mão.
+- `database_schema.md`, `state_machine.md`, `improvements.md`, `project_overview.md`,
+  `business_strategy.md` e o `CLAUDE.md` da raiz alinhados com o código e com as
+  decisões de 22/10 (planos, preço por proposta) e 26/10 (Agenda).
+  `implementation_plan.md` passa a documento histórico.
+
 ## 2026-10-27 — Ecrãs principais coerentes (A11)
 
 - **Cabeçalho comum** em `core/widgets/app_tab_header.dart`: `AppTabHeader` (separadores

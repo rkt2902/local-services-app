@@ -10,6 +10,53 @@
 
 ---
 
+## 🧹 Revisão de 2026-10-27: estado depois da Agenda e do A11
+
+Todas as migrations do repo (até à 0065) estão aplicadas na BD viva (confirmado pelo
+Henrique). Itens desta lista que entretanto ficaram feitos:
+
+| Item | Onde |
+|---|---|
+| **Vista de agenda do worker** e **Trabalhos externos** | Agenda do jardineiro (0064, PR #34): Hoje, Semana, Mês, trabalhos de fora da app, indisponibilidades, avisos de sobreposição. O "+" central tem "Adicionar à agenda" |
+| **Orçamento por projeto** | Proposta a valor total em qualquer pedido (0058, A6) |
+| **Lembretes sazonais** | Dicas da época (0062), editáveis em `seasonal_campaigns`, com interruptor do cliente |
+| **RC5** pedido expira sem propostas | Cartão "Ainda sem propostas" e alargar a zona (0062) |
+| **Perfil público partilhável** | Cartão `/w/:id` com "Pedir orçamento" (0033, 0051, 0059); falta só o domínio final |
+| **Restrição de "marcar concluído" antes da data** | 0046 (só a partir do dia) e 0052 (exige ter iniciado) |
+| **Rating do worker nos cards de proposta** | Propostas recebidas mostram a média e destacam a "Recomendada" (3+ avaliações) |
+| **Timeline de estados temporária** | `StatusTimelineHorizontal` é o componente final desde 2026-10-15 |
+| **Relações persistentes, camada mínima** | "Pedir de novo" e "Os teus jardineiros" (0057), sem chat |
+
+Abertos, novos ou que ganharam contexto:
+
+- **Limpar código de compatibilidade com migrations por aplicar** (baixa). Com tudo
+  aplicado, os caminhos "antes da 00xx" já não correm: `PGRST202` em
+  `help_request_repository.dart` e `helper_job_state.dart`, `WorkerPlan.unavailable`,
+  filtro de `cleared_at` no Dart, comentários em `job_repository.dart`,
+  `proposal_repository.dart`, `worker_profile_model.dart`, `worker_jobs_screen.dart`.
+  Manter `isMissingRpcError` para migrations futuras. Ver `ARCHITECTURE.md` secção 16,
+  ponto 9.
+- **RGPD: `delete_my_account` incompleto** (alta antes de publicar). Só foi revisto na
+  0049: não limpa `highlights`/`social_links` (0051), `worker_card_visits` e
+  `client_referrals` (0059), `notification_preferences` (0062), `worker_plans` (0060),
+  as entradas da Agenda (0064, nomes e telefones de terceiros), nem moradas,
+  coordenadas e fotos de pedidos antigos; os ficheiros do Storage também ficam. A
+  Política de Privacidade ainda não menciona o registo de visitas ao cartão, as dicas da
+  época, Photon/tiles do OSM e o geocoder nativo. Auditoria de 26/10 nas notas do
+  projeto.
+- **A11, o que ficou por fazer:** cartão "Agora" com Iniciar e Mapa no Início do
+  jardineiro, cartões J4/C5 novos, linha "Serviço · data" nas notificações.
+- **A12** (fluxo do pedido em 3 vistas, stepper Pedido · Proposta · Equipa · No dia ·
+  Feito, banner que muda com ou sem ajudantes): recebido a 27/10, por integrar.
+- **Selo Pro** nas propostas e no cartão público: o plano existe (0060), o selo ainda
+  não aparece. As flags do cartão (`can_use_public_card`, `can_receive_direct_requests`)
+  estão todas ligadas.
+- **"Ver o local primeiro"** (visita paga antes do orçamento): fase 2, decidido a 22/10.
+- **Dashboard de ganhos:** as horas já existem (temporizador da 0052) e os valores das
+  propostas e da Agenda também; falta o ecrã.
+
+---
+
 ## ✅ Revisão de 2026-10-18 — itens que já estavam resolvidos
 
 Confirmado por leitura do código e das migrations (não de memória):
@@ -362,7 +409,7 @@ Após o worker marcar como concluído (`awaiting_confirmation`), o job é automa
 
 > Documentados em 2026-07-09 após auditoria B1-B4/C1-C4. Revisitar antes do lançamento público.
 
-### SA1 ✅ RESOLVIDO (migration 0042, NÃO aplicada) — auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado
+### SA1 ✅ RESOLVIDO (migration 0042, aplicada a 2026-10-16) — auto_confirm_completed_jobs e auto_expire_jobs chamáveis por qualquer autenticado
 
 > 2026-10-16: na prática passavam com a anon key (auth.uid() NULL). A 0042 faz REVOKE EXECUTE de anon e authenticated; só a cron as corre.
 
@@ -372,7 +419,7 @@ Ambas as funções são SECURITY DEFINER sem verificação de `auth.uid()`. Qual
 
 ---
 
-### SA2 ✅ RESOLVIDO (migration 0042, NÃO aplicada) — Ratings INSERT sem verificação de participação
+### SA2 ✅ RESOLVIDO (migration 0042, aplicada a 2026-10-16) — Ratings INSERT sem verificação de participação
 
 > 2026-10-16: era pior do que estava descrito. A policy não validava o ratee_id e o cliente podia inserir um pedido já `completed`, por isso avaliava qualquer jardineiro. A 0042 apaga a policy de INSERT (só as RPCs submit_*_rating escrevem) e restringe o INSERT de job_requests ao estado inicial.
 
@@ -394,7 +441,7 @@ A policy `"Utilizador cria a sua avaliação"` em `ratings` verifica apenas `aut
 
 ### Muito Alta prioridade
 
-**Push notifications (FCM)**
+**Push notifications (FCM)** (código feito e 0041 aplicada; falta configurar o Firebase, `SETUP.md` passo 4)
 Realtime in-app funciona, mas não notifica fora da app. Firebase Cloud Messaging + Supabase Edge Function que dispara push quando entra notificação na tabela. **Workers vão perder pedidos sem isto — pós-MVP imediato.**
 
 **Relações persistentes Worker ↔ Cliente + Jobs recorrentes**
@@ -424,7 +471,7 @@ Política de Privacidade que a administração vê moradas e posições base.
 **Mini-chat por proposta (modelo Vinted)**
 Cada job_proposal tem um chat associado — cliente e worker trocam mensagens dentro dessa proposta específica. Realtime via Supabase Realtime (infraestrutura já existe). Modelo de dados: `proposal_messages(id, proposal_id, sender_id, content, created_at)`. RLS: só client e worker da proposta veem as mensagens. UI: bottom sheet da proposta com tabs "Detalhes" e "Chat". Após proposta rejeitada/retirada, chat fica em modo leitura. **Diferenciador forte vs contacto por WhatsApp.**
 
-**Vista de agenda do worker**
+**~~Vista de agenda do worker~~ ✅ FEITO 2026-10-26 (Agenda, 0064)**
 Worker com vários jobs agendados precisa de hierarquia temporal. Vista alternativa em calendário (semana/mês) com slots ocupados. Divisores "Hoje" / "Esta semana" / "Mais tarde" na lista. **Essencial assim que workers tiverem 5+ jobs simultâneos.**
 
 **Perfil de worker visitável (em camadas)**
@@ -441,13 +488,13 @@ URL público `/p/<worker-slug>` com perfil, fotos, avaliações, serviços, zona
 **Dashboard do jardineiro**
 "Quanto fiz este mês? Quantos km? Quantos trabalhos?" Ecrã com estatísticas mensais — ganhos, km, jobs feitos, % avaliação. Alimenta sentido de "isto é o meu negócio".
 
-**Trabalhos externos (agenda)**
+**~~Trabalhos externos (agenda)~~ ✅ FEITO 2026-10-26 (Agenda, 0064)**
 Worker adiciona trabalhos que não vieram pela app à sua agenda. Permite organizar rotas e ter visão completa do dia. Botão `+` do worker já está reservado para isto.
 
 **Verificação de identidade Nível 2**
 Upload de documento de identidade, verificação manual no início, selo visível no perfil. **Pós-MVP imediato** — para serviços em casa de pessoas, confiança é tudo.
 
-**Nome próprio em português**
+**Nome próprio em português** (a UI já diz ProJardim; falta o domínio)
 "LocalServices" é genérico e mau para SEO. Considerar nome memorável antes do lançamento público. Mudar agora é barato, depois é caro.
 
 **Logo e identidade visual**
@@ -463,7 +510,7 @@ Para 3+ propostas, vista em tabela (worker, preço, horas, data). Toggle entre v
 **Badge de "novas propostas" na tab Propostas**
 Badge colorido se houver propostas não vistas desde a última visualização.
 
-**Orçamento por projeto**
+**~~Orçamento por projeto~~ ✅ FEITO 2026-10-22 (valor total por proposta, 0058)**
 Novo tipo de pedido "Orçamento", worker envia proposta com valor total + descrição. Abre mercado de trabalhos maiores.
 
 **Otimização de rotas**
@@ -475,13 +522,13 @@ Parceria com InvoiceXpress ou similar, ou guias práticos dentro da app.
 **Chat in-app (genérico)**
 Chat simples (Supabase Realtime, tabela `messages`) para negociar antes/durante o trabalho sem sair da app.
 
-**Lembretes sazonais**
+**~~Lembretes sazonais~~ ✅ FEITO 2026-10-23 (dicas da época, 0062)**
 Notificações por categoria/serviço em datas específicas. Ex: outubro → "Está na altura de preparar o jardim para o inverno."
 
 **Contador de cancelamentos tardios**
 "Cumpre compromissos: 95%" no perfil público. Depende das avaliações estarem prontas.
 
-**Restrição de "marcar concluído" antes da data**
+**~~Restrição de "marcar concluído" antes da data~~ ✅ FEITO (0046 e 0052)**
 Bloquear ou avisar "Tens a certeza? O trabalho está marcado para o dia X."
 
 **Idade visual das propostas pendentes**
@@ -516,17 +563,17 @@ Quando (e se) surgir uma parceria real de combustível/seguro, isto pode evoluir
 
 ### Avaliações — Pós-Fase 11 (Fase 12+)
 
-As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021 — aplicar manualmente se ainda não aplicado). Ver `decisions_log.md` 2026-06-26.
+As 4 relações de avaliação, 3 RPCs SECURITY DEFINER e UI inline estão implementadas (migration 0021, aplicada e na baseline consolidada). Ver `decisions_log.md` 2026-06-26.
 
-**Exibir média de estrelas no perfil do worker:** ✅ RESOLVIDO — confirmado na auditoria de 2026-09-08. `ratingSummaryProvider` já alimenta o ecrã de conta do próprio worker (`worker_profile_screen.dart` → `WorkerAccountViewData.ratingLabel`/`reviewsLabel`) e o cartão público (`worker_public_card`, migration 0033, expõe `avg_rating`/`rating_count`). **Ainda em falta:** os cards de proposta (`proposals/`) continuam sem mostrar a rating do worker — um cliente a comparar propostas não vê a nota de nenhum dos candidatos.
+**Exibir média de estrelas no perfil do worker:** ✅ RESOLVIDO — confirmado na auditoria de 2026-09-08. `ratingSummaryProvider` já alimenta o ecrã de conta do próprio worker (`worker_profile_screen.dart` → `WorkerAccountViewData.ratingLabel`/`reviewsLabel`) e o cartão público (`worker_public_card`, migration 0033, expõe `avg_rating`/`rating_count`). ~~Ainda em falta: os cards de proposta sem a rating do worker.~~ Resolvido: as propostas recebidas mostram a média e a "Recomendada" (revisão de 2026-10-27).
 
 **Resposta a avaliações:** worker responde publicamente a uma avaliação. Requer nova coluna `reply_text` na tabela `ratings` e UI dedicada.
 
 ---
 
-### Nota: Timeline de estados — implementação temporária
+### ~~Nota: timeline de estados temporária~~ ✅ RESOLVIDO 2026-10-15
 
-`lib/core/widgets/status_timeline.dart` — primeira versão funcional, será refeita do zero no redesign visual. Não investir em polish visual — só correção de bugs funcionais reais. A lógica de derivação (`job_timeline.dart`) provavelmente sobrevive ao redesign.
+`StatusTimelineHorizontal`/`StatusTimelineCard` em `status_timeline.dart` são o componente final (a versão vertical foi removida).
 
 ---
 
@@ -555,7 +602,7 @@ Select auditado: `'*, rater:profiles!rater_id(full_name)'`. O `*` aplica-se apen
 
 ---
 
-### F10-S4 ✅ RESOLVIDO (migrations 0031 + 0030 — NOT APLICADAS) — `worker_profiles` USING(true) expunha base_lat/base_lng
+### F10-S4 ✅ RESOLVIDO (migrations 0031 + 0030, aplicadas; estão na baseline consolidada) — `worker_profiles` USING(true) expunha base_lat/base_lng
 
 Alta severidade: `base_lat`/`base_lng` (coordenadas de casa do worker) expostas a qualquer utilizador autenticado via REST direto (`GET /worker_profiles`). Policy de cliente (0027) também expunha as coords a clientes com job confirmado.
 

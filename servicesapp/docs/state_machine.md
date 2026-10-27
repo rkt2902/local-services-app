@@ -2,14 +2,16 @@
 
 > Referência única de todas as transições de estado, notificações e providers invalidados.
 > Cada transição: (1) muda estado na BD via RPC, (2) insere notificação, (3) invalida providers.
-> Atualizado após Fases 8A–9 (cancellation handling gaps fechados 2026-06-24).
+> Revisto contra o código e as migrations a 2026-10-27 (todas aplicadas na BD viva, até à
+> 0065). Os estados vivem em `job_requests.status` e afins; os enums Dart estão em
+> `core/constants/enums.dart`.
 
 ## Estados do job (`job_status`)
 
 | Estado | Significado |
 |---|---|
 | `open` | Pedido criado, a receber propostas |
-| `confirmed` | Proposta aceite, data agendada |
+| `confirmed` | Proposta aceite, data agendada. "Em curso" não é um estado: é `confirmed` com `started_at` preenchido (0052) |
 | `awaiting_confirmation` | Worker marcou como concluído, à espera do cliente |
 | `completed` | Cliente confirmou conclusão |
 | `no_response` | 48h sem propostas |
@@ -73,12 +75,16 @@
 | 9 | Propor remarcação | Cliente ou Worker | `propose_reschedule` | outro lado → `reschedule_proposed` | `confirmed` (inalterado) | `accepted` (inalterado) |
 | 10 | Aceitar remarcação | outro lado | `accept_reschedule` | quem propôs → `reschedule_accepted` | `confirmed` (nova data) | `accepted` (inalterado) |
 | 11 | Recusar remarcação | outro lado | `reject_reschedule` | quem propôs → `reschedule_rejected` | `confirmed` (data original) | `accepted` (inalterado) |
-| 12 | Marcar concluído (desde 0046 só a partir de `confirmed_date`, foto opcional) | Worker | `mark_job_done` | Cliente → `job_marked_done` | `awaiting_confirmation` | `accepted` |
+| 11b | Editar pedido aberto (0049) | Cliente | `update_job_request` | Quem já propôs → `job_updated` | `open` (inalterado) | inalterado |
+| 11c | Iniciar trabalho (0052, a partir de 1h antes da hora, fotos de antes opcionais) | Worker | `start_job` | Cliente → `job_started`; ajudantes → `help_job_started` | `confirmed` (`started_at` preenchido) | `accepted` |
+| 12 | Marcar concluído (desde 0052 exige ter iniciado; até 3 fotos de depois) | Worker | `mark_job_done` | Cliente → `job_marked_done`; ajudantes → `help_job_done` | `awaiting_confirmation` | `accepted` |
 | 13 | Confirmar conclusão | Cliente | `confirm_job_completion` | Worker → `job_completed` | `completed` | `accepted` |
 | 14 | Sem resposta 48h, ou data fixa passada (0046) | Sistema | `auto_expire_jobs` (cron) | Cliente → `job_no_response` | `no_response` | `pending` → `rejected` |
 | 15 | Confirmado, 3 dias depois da data sem conclusão (0046) | Sistema | `auto_expire_jobs` (cron) | Cliente e worker → `job_cancelled`; ajudantes → `help_job_cancelled` | `cancelled` (`cancel_reason = expired`) | `accepted` |
-| 16 | Marcado concluído, 3 dias sem confirmação | Sistema | `auto_confirm_completed_jobs` (cron) | Os dois → `job_completed` | `completed` | `accepted` |
+| 16 | Marcado concluído, 48h sem confirmação nem problema reportado (0052; lembrete às 24h) | Sistema | `auto_confirm_completed_jobs` (cron de hora a hora) | Os dois → `job_completed`; ajudantes → `help_job_completed` | `completed` | `accepted` |
 | — | Lembretes (0046): manhã do dia, data passada, conclusão por confirmar | Sistema | `send_job_reminders` (cron) | `job_reminder` | inalterado | inalterado |
+| — | Pedido aberto sem propostas (0062): às 6h lembrete aos jardineiros; às 24h mostrado 10 km mais longe e prazo +24h | Sistema | `process_open_job_followups` (cron, 8h a 21h) | `job_opportunity_reminder`; anel novo → `new_job_in_radius`; cliente → `job_no_proposals_yet` | `open` (inalterado) | — |
+| — | "Mostrar a jardineiros mais longe" (0062, +10 km até 30) | Cliente | `widen_job_search` | anel novo → `new_job_in_radius` | `open` (inalterado) | — |
 
 ## Proposta: validade e formato do preço (0058)
 
@@ -122,13 +128,42 @@ recusar (`declined`) não. Cancelar continua a ser `cancel_job`.
 
 | # | Transição | Quem | RPC | Notifica | help_request_status | help_acceptance_status |
 |---|---|---|---|---|---|---|
-| T1 | Criar pedido de ajuda | Worker principal | — (INSERT direto) | — | `open` ou `pending_approval` | — |
+| T1 | Criar pedido de ajuda | Worker principal | — (INSERT direto, `WITH CHECK` apertado na 0042) | Cliente → `help_request_pending_approval` se precisa de aprovação; jardineiros no raio que fazem o serviço → `new_help_request_in_radius` quando abre (0054) | `open` ou `pending_approval` | — |
 | T2 | Aprovar pedido de ajuda | Cliente | `approve_help_request` | Worker principal → `help_request_approved` | `open` | — |
-| T3 | Candidatar-se | Worker ajudante | — (INSERT direto) | — | inalterado | `pending` |
+| T3 | Candidatar-se (com mensagem opcional) | Worker ajudante | `apply_to_help_request` (0048) | Principal → `help_candidate_applied` | inalterado | `pending` |
 | T4 | Rejeitar candidatura | Worker principal | `reject_help_candidate` | Ajudante → `help_rejected` | inalterado | `rejected` |
 | T5 | Aceitar candidatura | Worker principal | `accept_help_candidate` | Ajudante → `help_accepted`; se slots preenchidos → `filled` | `open` ou `filled` | `accepted` |
 | T6 | Ajudante retira-se | Worker ajudante | `withdraw_help_acceptance` | Principal → `help_withdrew`; candidatos rejeitados → `help_request_reopened` (se era filled) | `filled → open` ou inalterado | `cancelled` |
 | T7 | Job cancelado (cascade) | Sistema via cancel_job | — | Ajudantes `accepted` → `help_job_cancelled` | `cancelled` | `rejected` (pending) / `accepted` (inalterado) |
+| T8 | Cancelar o pedido de ajuda / mudar vagas (0049) | Worker principal | `cancel_help_request` / `update_help_request_slots` | candidatos e ajudantes afetados | `cancelled` / `open` ou `filled` | `rejected` ou inalterado |
+| T9 | Retirar um ajudante (0049, revisto na 0055) | Worker principal | `remove_help_helper` | Ajudante → `help_removed`; no dia do trabalho a vaga não reabre | `filled → open` (antes do dia) | `cancelled` |
+| T10 | Fecho no dia do trabalho (0054) | Sistema | `close_help_requests_on_job_day` (cron) | Pendentes recusados; principal → `help_request_closed` | `filled` (com aceites) ou `cancelled` | `pending → rejected` |
+| T11 | Aprovação automática ao fim de 24h (0055) | Sistema | `process_help_request_deadlines` (cron) | Principal → `help_request_approved`; cliente → `help_request_auto_approved` | `pending_approval → open` | — |
+| T12 | Aviso da véspera, a partir das 18h (0055) | Sistema | `process_help_request_deadlines` (cron) | Principal → `help_request_closing_soon`; cliente que não aprovou → `help_request_pending_approval` | inalterado | — |
+
+Regras da equipa desde a 0054/0055: a descoberta e as candidaturas fecham à meia-noite
+do dia do trabalho; o ajudante aceite só pode desistir até à véspera; o cliente vê a
+equipa (`get_accepted_helpers_for_job`). Remarcar o trabalho avisa os ajudantes
+(`help_job_rescheduled`).
+
+## Agenda do jardineiro (0064)
+
+Não mexe nos estados acima. Os trabalhos da app aparecem na Agenda pelo estado que já
+têm (`get_worker_agenda` devolve `app_job`, `helper_job`, `proposal` a tracejado e
+`reschedule` por aceitar). O que vive só na Agenda são os trabalhos de fora da app e as
+indisponibilidades (`worker_calendar_entries`):
+
+| Transição | Ação na app | Estado |
+|---|---|---|
+| Criar | "Adicionar à agenda" / "Marcar indisponível" | `scheduled` |
+| Marcar como feito (com "Desfazer") | detalhe | `done` (`status_at` por trigger) |
+| Cancelar / repor | detalhe | `cancelled` (fica na agenda, riscado) / `scheduled` |
+| Só este dia numa série | detalhe ou formulário | exceção em `worker_calendar_exceptions` (`skipped`, `moved`, `changed` ou `status`) |
+| Este e os seguintes | formulário | `split_calendar_series` corta a série e cria uma nova |
+| "Já estou livre" num dia de indisponibilidade | detalhe | `free_calendar_day` (exceção `skipped`) |
+| Apagar | detalhe | linha apagada |
+
+Sobreposições só avisam, nunca bloqueiam (`agenda_conflicts.dart`, `agenda_slot_check.dart`).
 
 ## Regras de cancelamento
 
@@ -166,36 +201,40 @@ recusar (`declined`) não. Cancelar continua a ser `cancel_job`.
 
 ## Providers invalidados por notificação
 
+Fonte: `notificationSyncProvider` em `notification_providers.dart` (2026-10-27). "Board" =
+`_invalidateWorkerJobBoard`: página 0 das 3 tabs de `workerJobBoardPageProvider` e
+`agendaRangeProvider`. Todas as notificações invalidam também `allNotificationsProvider`.
+
 | Tipo de notificação | Providers invalidados |
 |---|---|
-| `new_job_in_radius` | `jobsInRadiusProvider` |
-| `proposal_received` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider` |
-| `proposal_withdrawn` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `jobsInRadiusProvider`, `workerProposalForJobProvider` |
-| `proposal_accepted` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider`, `workerProposalForJobProvider`, `jobByIdProvider` |
-| `proposal_rejected` | `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `proposalByIdProvider` |
-| `job_cancelled` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`, `jobByIdProvider` |
-| `job_reopened` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobsInRadiusProvider`, `jobByIdProvider` |
-| `reschedule_proposed` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
-| `reschedule_accepted` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
-| `reschedule_rejected` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider` |
-| `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
-| `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider`, `jobByIdProvider`, `clientJobsProvider` |
-| `job_no_response` | `clientJobsProvider` |
-| `job_reminder` (0046) | igual a `reschedule_*` |
+| `new_job_in_radius`, `direct_job_request`, `job_opportunity_reminder` | `jobsInRadiusProvider` |
+| `proposal_received` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `jobByIdProvider(id)` |
+| `proposal_withdrawn` | `clientJobsProvider`, `pendingProposalsForJobProvider`, `jobsInRadiusProvider`, `workerProposalForJobProvider`, `jobByIdProvider(id)` |
+| `proposal_accepted` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `proposalByIdProvider`, `workerProposalForJobProvider`, `jobByIdProvider`, `myWorkerPlanProvider` (limite do Grátis) |
+| `proposal_rejected` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `proposalByIdProvider`, `workerProposalForJobProvider` |
+| `job_cancelled`, `job_reopened` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `jobsInRadiusProvider`, `jobByIdProvider` |
+| `reschedule_proposed/accepted/rejected`, `job_reminder` | `clientJobsProvider`, `pendingWorkerProposalsProvider`, `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `jobByIdProvider` |
+| `job_started`, `job_marked_done` | `clientJobsProvider`, `jobByIdProvider` |
+| `job_completed` | `scheduledWorkerProposalsProvider`, `completedWorkerProposalsProvider(0)`, Board, `jobByIdProvider`, `clientJobsProvider`, `myRatingForJobProvider(id)`, `myRatingForJobAndRateeProvider` |
+| `job_no_response`, `direct_request_released`, `job_no_proposals_yet` | `clientJobsProvider`, `jobByIdProvider(id)` |
+| `job_updated` | `jobsInRadiusProvider`, `pendingWorkerProposalsProvider`, `workerProposalForJobProvider`, Board, `jobByIdProvider(id)` |
 | `help_request_approved` | `helpRequestsForJobProvider` |
-| `help_accepted` | `jobByIdProvider`, `myHelpAcceptancesProvider` |
+| `help_accepted` | `jobByIdProvider`, `myHelpAcceptancesProvider`, Board |
 | `help_rejected` | `myHelpAcceptancesProvider` |
-| `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider`, `myHelpAcceptancesProvider` |
-| `help_request_reopened` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
-| `help_withdrew` | `helpRequestsForJobProvider` |
-| `direct_job_request` (0057) | igual a `new_job_in_radius` |
-| `direct_request_released` (0057) | igual a `job_no_response` |
+| `help_job_cancelled` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider`, `myHelpAcceptancesProvider`, Board |
+| `help_request_reopened`, `new_help_request_in_radius` | `helpRequestSummariesInRadiusProvider`, `helpRequestsInRadiusProvider` |
+| `help_withdrew`, `help_candidate_applied`, `help_request_closed`, `help_request_closing_soon` | `helpRequestsForJobProvider`, `candidatesForHelpRequestProvider` |
+| `help_request_pending_approval`, `help_request_auto_approved` | `clientJobsProvider`, `helpRequestsForJobProvider`, `jobByIdProvider(id)` |
+| `help_removed`, `help_job_rescheduled`, `help_job_done`, `help_job_started` | `myHelpAcceptancesProvider`, `helpRequestSummariesInRadiusProvider`, Board |
+| `help_job_completed` | `myHelpAcceptancesProvider`, Board, `myRatingForJobProvider(id)` |
+| `seasonal_tip` | nenhum (só a lista de notificações) |
 
-> **`myHelpAcceptancesProvider` — invalidação:** invalidado por `notificationSyncProvider`
-> para `help_accepted`, `help_rejected` e `help_job_cancelled` (ver tabela acima).
-> Também invalidado directamente por: acção "Desistir" na tab "As minhas candidaturas"
-> (`_withdraw` em `WorkerHelpRequestsScreen`) e pull-to-refresh na mesma tab (`_onRefresh`).
+> **Invalidação de `myHelpAcceptancesProvider`:** além da tabela, é invalidado
+> diretamente pela ação "Desistir" e pelo pull-to-refresh na tab "As minhas candidaturas"
+> (`WorkerHelpRequestsScreen`).
 
-## Sub-fases pendentes
+## Pendente
 
-- **8E.5** — Timeline de estados no detalhe do job
+Nada nesta máquina de estados. A timeline (antigo 8E.5) está feita desde 2026-10-15
+(`StatusTimelineHorizontal`). "Ver o local primeiro" (visita paga antes do orçamento) foi
+adiado para a fase 2 a 2026-10-22 e não tem estado nenhum ainda.

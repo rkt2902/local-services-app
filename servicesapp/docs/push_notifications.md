@@ -69,7 +69,8 @@ supabase functions deploy send-push --no-verify-jwt
      'push_function_url');
    select vault.create_secret('<SEGREDO_ALEATORIO>', 'push_webhook_secret');
    ```
-3. Correr `supabase/migrations/0041_push_notifications.sql`.
+3. A `0041_push_notifications.sql` já está aplicada (2026-10-16): não é preciso voltar a
+   corrê-la, só os segredos do passo 2.
 
 ### 6. Testar
 1. `flutter run` num telemóvel real (Android: emulador com Google Play

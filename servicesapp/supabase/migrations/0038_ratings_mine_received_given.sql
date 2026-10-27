@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0038_ratings_mine_received_given.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor.
 --
 -- Contexto: novo ecrã "As minhas avaliações" (2 tabs — Recebidas/Dadas),
 -- partilhado entre cliente e worker. Precisa de duas coisas que ainda não

@@ -2,7 +2,7 @@
 -- 0048 — Correções aos fluxos do jardineiro e dos ajudantes
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0047.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0047.
 -- Pode correr-se mais do que uma vez sem erro. A app nova precisa dela
 -- para: candidatar-se de novo, retirar candidatura pendente, contacto
 -- dos ajudantes no lobby e estado do trabalho na aba Trabalhos. A app

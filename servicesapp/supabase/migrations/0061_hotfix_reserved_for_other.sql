@@ -1,4 +1,4 @@
--- 0061: correção urgente de job_reserved_for_other (aplicar já, sozinha).
+-- 0061: correção urgente de job_reserved_for_other (aplicada na BD viva, confirmado a 2026-10-27).
 --
 -- O problema (desde a 0057, aplicada a 22/10): num pedido normal
 -- direct_status é NULL, a função devolve NULL em vez de false, e

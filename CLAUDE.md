@@ -25,7 +25,9 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 
 - **Nunca aplicar migrations.** Só criar o ficheiro `.sql` em `supabase/migrations/`.
   Dizer sempre, no relatório, se a migration foi só criada ou se foi (ou deve ser)
-  aplicada manualmente via SQL Editor.
+  aplicada manualmente via SQL Editor. A 2026-10-27 estavam todas aplicadas até à
+  `0065`; confirmar o próximo número com `ls supabase/migrations` no `main` (estado em
+  `supabase/migrations/README.md`).
 - **RPCs nunca recebem `worker_id`/`client_id`/`user_id` vindos da app.** Identidade
   é sempre `auth.uid()` dentro da função. Isto já causou 3 vulnerabilidades reais
   (migration 0032) — nunca reintroduzir a classe.
@@ -42,7 +44,7 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 - **Motion obrigatório em ecrãs novos** — ver `servicesapp/docs/motion_spec.md` e os
   widgets em `core/widgets/app_motion.dart`.
 - **Ecrãs de sub-fluxo ficam fora dos `ShellRoute`**, com `SafeArea` própria — só os
-  10 ecrãs de topo (dentro de `ClientShell`/`WorkerShell`) mostram a bottom nav.
+  8 ecrãs de topo (4 em `ClientShell`, 4 em `WorkerShell`) mostram a bottom nav.
 - **`doc.txt`** (raiz do workspace) é referência para adaptar, nunca para copiar
   literalmente, e não se apaga.
 - **Serviços e categorias vêm sempre de `serviceTypesProvider`**, nunca hardcoded —

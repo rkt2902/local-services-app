@@ -3,8 +3,10 @@
 Guia único, por ordem. Cada passo tem o que fazer, como confirmar que ficou bem e a frase
 para dizeres ao Claude quando acabares. Marca as caixas à medida que avanças.
 
-Estado de partida (17/10/2026): migrations até à 0046 aplicadas, 0047, 0048 e 0049 por aplicar (passos 0.1 a 0.3); código da versão web,
-do push FCM e do domínio por `--dart-define` já está no `main`. Nada daqui mexe em código.
+Estado de partida (27/10/2026): **todas as migrations do repo estão aplicadas na BD viva**
+(até à 0065, confirmado por ti a 27/10); código da versão web, do push FCM, do login
+social, do painel `/admin` e do domínio por `--dart-define` já está no `main`. Nada daqui
+mexe em código.
 
 Ordem recomendada e porquê:
 
@@ -25,215 +27,32 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 - [ ] Ter à mão o `SUPABASE_URL` e a `SUPABASE_ANON_KEY` (os mesmos do
       `.vscode/launch.json`; também em Supabase > Project Settings > API).
 - [ ] Ter o Flutter a correr no PC (`flutter doctor` sem erros em Android e Chrome).
-- [ ] Supabase CLI instalada (só para o passo 4): `npm i -g supabase` ou
-      [instruções](https://supabase.com/docs/guides/cli). **Corre sempre os comandos
+- [ ] Supabase CLI (só para o passo 4): `npx supabase ...` ou, no Windows, Scoop
+      ([instruções](https://supabase.com/docs/guides/cli)). `npm i -g supabase` não
+      funciona. **Corre sempre os comandos
       `supabase` de dentro de `servicesapp/`**, nunca da raiz, senão cria uma pasta
       `supabase/` duplicada.
 
-### 0.1 Migration por aplicar: 0047
+### 0.1 Migrations: todas aplicadas
 
-- [ ] Supabase > SQL Editor: colar o conteúdo de
-      `supabase/migrations/0047_candidate_message.sql` e correr. Pode correr-se mais do
-      que uma vez sem erro.
-- [ ] Testar: num pedido de ajuda teu com candidatos, o candidato que escreveu uma
-      mensagem ao candidatar-se tem um bloco "Mensagem" no cartão do lobby. Quem não
-      escreveu nada aparece como antes.
+A 27/10/2026 todas as migrations de `supabase/migrations/` estão aplicadas na BD viva,
+da `0001` à `0065` (a `0050` não existe). A lista com o que cada uma faz está em
+`supabase/migrations/README.md`. Os passos de aplicação e de teste de cada uma (antigos
+0.1 a 0.17) saíram daqui; ficam no histórico do git se precisares deles.
 
-### 0.2 Migration por aplicar: 0048 (depois da 0047)
+Quando o Claude criar uma migration nova (a próxima é a `0066`): SQL Editor, colar o
+ficheiro, correr, e dizer ao Claude "00xx aplicada". As migrations recentes podem
+correr-se mais do que uma vez sem erro.
 
-- [ ] SQL Editor: colar `supabase/migrations/0048_worker_helper_flow_fixes.sql` e
-      correr. Também pode correr-se mais do que uma vez.
-- [ ] Testar com dois jardineiros (A responsável, B ajudante):
-  - B candidata-se a um pedido de ajuda de A: A recebe "Novo candidato a ajudante" e,
-    ao tocar, abre a equipa.
-  - A recusa B; B pode voltar a candidatar-se se a vaga reabrir. B também consegue
-    retirar uma candidatura pendente.
-  - A aceita B: no cartão de B na equipa aparece "Falar por WhatsApp".
-  - A pede ajudantes: o cliente recebe "Pedido de ajudantes" e não dá para pedir
-    outra vez enquanto esse estiver à espera.
-  - O cliente cancela um pedido com propostas pendentes: cada jardineiro recebe
-    "Pedido cancelado". Na aba Trabalhos, "Histórico" mostra-o como "Cancelado".
+### 0.2 Acesso ao painel /admin
 
-### 0.3 Migration por aplicar: 0049 (depois da 0048)
-
-- [ ] SQL Editor: colar `supabase/migrations/0049_pending_decisions.sql` e correr.
-- [ ] Testar:
-  - Conta > Eliminar conta com um trabalho em curso: recusa com a explicação. Sem
-    trabalho em curso: sai da app e o login com essa conta deixa de funcionar.
-  - Cliente edita um pedido aberto com propostas: os jardineiros recebem "Pedido
-    alterado".
-  - Jardineiro responsável, na equipa: alterar vagas, fechar o pedido de ajuda, retirar
-    um ajudante (o ajudante é avisado).
-  - Os avisos passam a dizer o serviço e a data, por exemplo "(Corte de relva, 21/10)".
-  - Num trabalho com a data já passada, remarcar passa a funcionar.
-  - No SQL Editor: `SELECT send_job_reminders(); SELECT auto_expire_jobs(); SELECT
-    auto_confirm_completed_jobs();` correm sem erro.
-
-**Diz ao Claude:** "0047, 0048 e 0049 aplicadas".
-
-### 0.4 Migration por aplicar: 0051 (depois da 0049)
-
-- [ ] SQL Editor: colar `supabase/migrations/0051_worker_showcase.sql` e correr. Pode
-      correr-se mais do que uma vez. (A 0050, se existir, é de outra tarefa e não depende
-      desta.)
-- [ ] Testar:
-  - Jardineiro: Editar perfil > Destaques e redes sociais. Adicionar 2 destaques, pôr
-    `@nome` no Instagram e `www.site.pt` no site, guardar: os campos passam a links
-    completos `https://`. "Ver como o cliente vê" abre o cartão com tudo.
-  - Um link inválido (ex. `ola` no site, ou um link do Facebook no campo Instagram)
-    mostra erro e não grava.
-  - Cliente: nas propostas recebidas, tocar no jardineiro abre o perfil com "Sobre",
-    "Em destaque", os botões das redes e as avaliações. Cada botão abre fora da app.
-
-**Diz ao Claude:** "0051 aplicada".
-
-### 0.5 Migration por aplicar: 0052 (depois da 0049 e da 0051)
-
-- [ ] SQL Editor: colar `supabase/migrations/0052_job_start_flow.sql` e correr. Pode
-      correr-se mais do que uma vez. As consultas de verificação estão no fim do ficheiro.
-- [ ] Testar:
-  - Jardineiro, trabalho marcado para hoje: "Iniciar trabalho" só fica ativo 1h antes da
-    hora. Iniciar com 1 foto de antes: aparece o temporizador e o cliente recebe "O
-    trabalho começou".
-  - "Marcar como concluído" com fotos de depois: o cliente vê o tempo registado e as
-    fotos de antes e depois, e o aviso diz que fica confirmado em 48 horas.
-  - `SELECT auto_confirm_completed_jobs();` corre sem erro e
-    `SELECT schedule FROM cron.job WHERE jobname = 'auto-confirm-completed-jobs';` dá
-    `15 * * * *`.
-
-**Diz ao Claude:** "0052 aplicada".
-
-### 0.6 Migration por aplicar: 0053 (depois da 0048 e da 0052)
-
-- [ ] SQL Editor: colar `supabase/migrations/0053_worker_jobs_board_cards.sql` e correr.
-      Pode correr-se mais do que uma vez.
-- [ ] Testar, como jardineiro, em Trabalhos:
-  - Cada cartão tem o ícone do serviço e só a localidade ("Cascais").
-  - Um trabalho iniciado aparece como "Em curso"; um marcado como concluído diz "Feito a
-    dd/MM · confirma automaticamente em Nh".
-  - No Histórico, os cartões ficam agrupados por mês e um cancelado diz "cancelado pelo
-    cliente" ou "cancelaste".
-
-**Diz ao Claude:** "0053 aplicada".
-
-### 0.7 Migration por aplicar: 0054 (depois da 0053)
-
-- [ ] SQL Editor: colar `supabase/migrations/0054_help_requests_job_day_and_alerts.sql` e
-      correr. Pode correr-se mais do que uma vez. Cria o cron
-      `close-help-requests-on-job-day` (de hora a hora).
-- [ ] Se o push já estiver configurado (passo do FCM mais abaixo), voltar a fazer deploy da
-      função para as notificações usarem o ícone e a cor da app:
-      `supabase functions deploy send-push --no-verify-jwt` (de dentro de `servicesapp/`).
-- [ ] Testar:
-  - Jardineiro com o serviço do pedido, dentro do raio, recebe "Novo pedido perto de ti";
-    um que só faz outros serviços não recebe.
-  - Pedido de ajuda aprovado pelo cliente: os jardineiros da zona recebem "Pedido de ajuda
-    perto de ti" e o toque abre a candidatura.
-  - No dia do trabalho o pedido de ajuda desaparece da descoberta e o responsável já não vê
-    "Preciso de ajudantes".
-  - O cartão "Equipa" mostra a foto dos ajudantes aceites.
-
-**Diz ao Claude:** "0054 aplicada".
-
-### 0.8 Migration por aplicar: 0055 (depois da 0054)
-
-- [ ] SQL Editor: colar `supabase/migrations/0055_team_flow_improvements.sql` e correr. Pode
-      correr-se mais do que uma vez. Junta a coluna `help_requests.eve_reminder_sent_at` e cria
-      o cron `process-help-request-deadlines` (de hora a hora).
-- [ ] Testar:
-  - O cliente vê no pedido agendado o cartão "Equipa" com o nome e a foto dos ajudantes.
-  - No dia do trabalho o ajudante já não vê "Desistir"; o responsável retira-o e a vaga não
-    volta a abrir.
-  - Pedido de ajudantes sem resposta do cliente fica aprovado 24h depois.
-  - Na véspera, depois das 18h, o responsável com vagas ou candidatos recebe "O pedido de
-    ajudantes fecha hoje".
-  - Ao iniciar o trabalho, os ajudantes recebem "O trabalho começou".
-
-**Diz ao Claude:** "0055 aplicada".
-
-### 0.9 Migration por aplicar: 0056 (depois da 0053)
-
-- [ ] SQL Editor: colar `supabase/migrations/0056_worker_job_board_team_estimate.sql` e
-      correr. Pode correr-se mais do que uma vez. Só redefine `get_worker_job_board` para
-      devolver a equipa da proposta.
-- [ ] Testar: em "Os meus trabalhos", uma proposta pendente com ajudantes mostra o mesmo total
-      estimado que o cliente vê em "Propostas recebidas". Antes de aplicar, a app continua a
-      funcionar e mostra o total só do responsável.
-
-**Diz ao Claude:** "0056 aplicada".
-
-### 0.10 Migration por aplicar: 0057 (depois da 0056)
-
-- [ ] SQL Editor: colar `supabase/migrations/0057_direct_requests.sql` e correr. Pode
-      correr-se mais do que uma vez. Precisa do `pg_cron` (já ativo) e cria o cron
-      `expire-direct-job-requests` (de 5 em 5 minutos). As consultas do fim do ficheiro
-      mostram as colunas novas e o cron.
-- [ ] Testar:
-  - Num trabalho concluído (sem avaliação ou com 4 ou 5 estrelas), "Pedir de novo a {nome}"
-    abre o pedido já preenchido e só pede a data.
-  - Só esse jardineiro vê o pedido, com "Pedido só para ti · faltam X h"; outro jardineiro
-    da zona não o vê.
-  - "Não posso desta vez" abre o pedido a todos e o cliente recebe o aviso.
-  - "Mostrar já a todos" no pedido do cliente faz o mesmo, sem aviso ao cliente.
-  - "Os teus jardineiros" aparece no Início do cliente.
-
-Antes de aplicar, o "Pedir de novo" e "Os teus jardineiros" dão erro ou não aparecem; o
-resto da app funciona como antes.
-
-**Diz ao Claude:** "0057 aplicada". (Feito a 2026-10-22.)
-
-### 0.11 Migration por aplicar: 0058 (depois da 0057)
-
-- [ ] SQL Editor: colar `supabase/migrations/0058_proposal_pricing_and_work_days.sql` e
-      correr. Pode correr-se mais do que uma vez. As consultas comentadas no fim mostram
-      as colunas e as tabelas novas.
-- [ ] Testar:
-  - "Enviar proposta" com "Valor total": escolher o que inclui, a duração em dias e a
-    validade, e enviar.
-  - O cliente vê a proposta por hora e a de valor total lado a lado, abre o detalhe e
-    aceita com "Aceitar por X".
-  - Num trabalho de 2 a 3 dias: iniciar, "Terminar o dia 1", "Começar o dia 2",
-    "Concluir trabalho". A folha de conclusão mostra os dias, o tempo e o valor fechado.
-
-Antes de aplicar, enviar proposta dá erro (a app já manda a validade). As propostas
-recebidas e o trabalho em curso continuam a funcionar, sem validade nem dias.
-
-**Diz ao Claude:** "0058 aplicada".
-
-### 0.12 Migration por aplicar: 0059 (depois da 0051 e da 0057)
-
-- [ ] SQL Editor: colar `supabase/migrations/0059_card_direct_requests_and_tracking.sql` e
-      correr. Pode correr-se mais do que uma vez.
-- [ ] Testar:
-  - Abrir o QR da conta de um jardineiro sem sessão: "Pedir orçamento a {nome}" leva ao
-    registo com a faixa "Vais pedir orçamento a...", a conta nasce de cliente e volta ao
-    passo 1 só com os serviços desse jardineiro.
-  - No passo 4, desligar "Se não puder, mostrar a outros jardineiros" e enviar. O
-    jardineiro vê o pedido fixo no topo, mesmo fora da área; "Não posso desta vez" deixa o
-    pedido parado e o cliente tem "Mostrar a todos" e "Cancelar pedido".
-- [ ] Ver os números (SQL Editor):
-      `select * from worker_card_funnel order by visits desc;` mostra, por jardineiro,
-      visitas por QR, link e dentro da app, aparelhos diferentes, clientes novos e pedidos
-      pelo cartão. `select * from client_referrals order by created_at desc;` lista cada
-      cliente novo e o jardineiro que o trouxe. Mais consultas no fim da migration.
-
-Antes de aplicar, o cartão abre como antes mas pedir orçamento pelo cartão dá erro; o
-"Pedir de novo" continua a funcionar.
-
-**Diz ao Claude:** "0059 aplicada".
-
-### 0.13 Migration por aplicar: 0060 (depois da 0058 e da 0059 do passo 0.12) e acesso ao painel /admin
-
-A 0060 usa colunas e tabelas que a `0058_proposal_pricing_and_work_days.sql` cria
-(PR das propostas por hora ou valor total e do cartão). Aplica primeiro a 0058 e a
-`0059_card_direct_requests_and_tracking.sql` desse PR, por esta ordem, e só depois esta.
+Feito a 23/10 (o `/admin` já funciona). Fica aqui para referência, por exemplo para dar
+acesso a outra conta ou trocar de telemóvel.
 
 Painel de administração em `https://<o teu site>/admin` (o mesmo link da app). A
 segurança está toda na BD: só entra uma conta que esteja na tabela `admin_users` e que
 tenha confirmado o código de uma app autenticadora nesta sessão.
 
-- [ ] SQL Editor: colar `supabase/migrations/0060_admin_and_worker_plans.sql` e correr.
-      Pode correr-se mais do que uma vez.
 - [ ] Supabase > Authentication > Users > **Add user > Create new user**: cria uma conta
       só para administrar (um email teu que não uses como cliente nem como jardineiro),
       com uma palavra-passe forte e "Auto Confirm User" ligado. Não entres com ela na
@@ -249,7 +68,7 @@ tenha confirmado o código de uma app autenticadora nesta sessão.
 - [ ] Abre `/admin`, entra com essa conta e lê o código QR com o Google Authenticator
       (ou outra app autenticadora). A partir daí pede sempre o código de 6 dígitos.
 - [ ] Testar:
-  - Na conta de um jardineiro de teste, "A minha conta > Plano" mostra "Grátis · 0 de 5
+  - No Perfil de um jardineiro de teste, a linha "Plano" mostra "Grátis · 0 de 5
     este mês".
   - No painel, "Jardineiros" > esse jardineiro > "Mudar plano" > Pro com 12 meses.
     A conta dele passa a mostrar "Pro · até ...".
@@ -275,66 +94,22 @@ QR novo.
 
 Para tirar o acesso a uma conta: `delete from public.admin_users where user_id = ...`.
 
-Antes de aplicar a 0060, `/admin` dá erro ao confirmar o acesso e a linha "Plano" da conta
-do jardineiro mostra só "Grátis"; o resto da app funciona como antes.
+**Diz ao Claude:** "admin configurado".
 
-**Diz ao Claude:** "0060 aplicada".
+### 0.3 Dicas da época (0062)
 
-### 0.14 Correção urgente: 0061 (aplicar já, em qualquer ordem)
-
-- [ ] SQL Editor: colar `supabase/migrations/0061_hotfix_reserved_for_other.sql` e correr.
-      Não depende de nenhuma outra e pode correr-se mais do que uma vez.
-- [ ] Verificar: `select public.job_reserved_for_other(null, null, null, gen_random_uuid());`
-      tem de dar `false`.
-- [ ] Testar: um jardineiro volta a ver os pedidos normais da zona em "Pedidos disponíveis".
-
-**Diz ao Claude:** "0061 aplicada".
-
-### 0.15 Migration por aplicar: 0062 (depois da 0058 e da 0059)
-
-- [ ] SQL Editor: colar `supabase/migrations/0062_job_followups_and_better_notifications.sql`
-      e correr. Pode correr-se mais do que uma vez.
-- [ ] Atenção: aplicada em outubro, a dica "Prepara o jardim para o inverno" sai às 10h
-      seguintes para todos os clientes (uma vez por ano). Para não sair este ano:
-      `update seasonal_campaigns set active = false where slug = 'preparar-inverno';` e
-      voltar a pôr `true` depois de outubro.
-- [ ] Testar:
-  - Pedido novo: o jardineiro recebe "Pedido novo em {zona}, a X km de ti".
-  - Proposta: o cliente recebe "Nova proposta de {nome}" com o valor.
-  - Para não esperar 24h: `update job_requests set visible_to_all_at = now() - interval '25 hours' where id = '<id>';`
-    e `select process_open_job_followups();` (entre as 8h e as 21h). O cliente vê o cartão
-    "Ainda sem propostas" no pedido.
-  - Definições do cliente: "Dicas da época" liga e desliga.
-
-**Diz ao Claude:** "0062 aplicada".
-
-### 0.16 Migration por aplicar: 0063 (depois da 0058)
-
-- [ ] SQL Editor: colar `supabase/migrations/0063_direct_context_fixed_price.sql` e correr.
-      Pode correr-se mais do que uma vez.
-- [ ] Testar: "Pedir de novo" de um trabalho feito a valor fechado. O jardineiro vê
-      "Já trabalhaste com {nome} ..., 1000 € no total" em vez de um preço por hora.
-
-**Diz ao Claude:** "0063 aplicada".
-
-### 0.17 Migration por aplicar: 0064 (depois da 0058)
-
-- [ ] SQL Editor: colar `supabase/migrations/0064_worker_agenda.sql` e correr.
-      Pode correr-se mais do que uma vez.
-- [ ] Testar no SQL Editor:
-      `select * from get_worker_agenda(current_date, current_date + 30);` dá erro
-      "Sessão inválida" (normal, no SQL Editor não há utilizador).
-- [ ] Testar na app (jardineiro): Trabalhos abre na Agenda, no dia de hoje, com os
-      trabalhos marcados, a linha de agora e "Iniciar" a partir de 1 h antes. Sem a 0064
-      a Agenda mostra "Não foi possível carregar a agenda".
-
-**Diz ao Claude:** "0064 aplicada".
+As dicas saem uma vez por ano a cada cliente (outubro e fevereiro, às 10h). Para
+desligar uma campanha: `update seasonal_campaigns set active = false where slug =
+'preparar-inverno';` (ou `limpeza-terrenos`). O texto muda-se na mesma tabela.
 
 ---
 
-## 1. Netlify e deploy automático
+## 1. Netlify e deploy (à mão)
 
 Detalhe extra em `docs/web.md`, secção 2.
+
+Desde 26/10 (PR #32) o deploy da web só corre à mão (GitHub > Actions > Deploy web >
+Run workflow), para não gastar créditos do Netlify a cada merge.
 
 ### 1.1 Primeiro deploy (à mão)
 
@@ -381,8 +156,7 @@ Detalhe extra em `docs/web.md`, secção 2.
 - [ ] No jardineiro: Conta > cartão partilhável. O link tem de começar por
       `https://projardim.netlify.app/w/` e abrir o cartão numa janela anónima.
 
-**Diz ao Claude:** "Netlify feito, o site está em `<endereço>` e o deploy automático
-ficou verde."
+**Diz ao Claude:** "Netlify feito, o site está em `<endereço>` e o deploy ficou verde."
 
 ---
 
