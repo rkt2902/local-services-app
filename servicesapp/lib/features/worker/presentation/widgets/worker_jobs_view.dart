@@ -740,7 +740,22 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
                                 : AppColors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xxs),
+                        // Papel e estado por baixo do título, e não ao lado:
+                        // ao lado roubavam a largura e cortavam a data, a
+                        // hora e o preço.
+                        const SizedBox(height: AppSpacing.xs),
+                        Wrap(
+                          spacing: AppSpacing.xxs,
+                          runSpacing: AppSpacing.xxs,
+                          children: [
+                            if (job.roleLabel != null)
+                              _RoleChip(label: job.roleLabel!),
+                            AppStatusBadge.fromPresentation(
+                              presentation: job.status,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
                         Text(
                           job.metaLabel,
                           maxLines: 2,
@@ -753,6 +768,8 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             job.amountLabel!,
+                            maxLines: 1,
+                            softWrap: false,
                             style: textTheme.bodyMedium?.copyWith(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w700,
@@ -761,18 +778,6 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
                         ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  // Papel e estado empilhados à direita, como no design.
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (job.roleLabel != null) ...[
-                        _RoleChip(label: job.roleLabel!),
-                        const SizedBox(height: AppSpacing.xxs),
-                      ],
-                      AppStatusBadge.fromPresentation(presentation: job.status),
-                    ],
                   ),
                 ],
               ),
