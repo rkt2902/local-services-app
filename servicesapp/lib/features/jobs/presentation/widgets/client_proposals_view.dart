@@ -82,7 +82,7 @@ class ClientProposalCardViewData {
   /// Ex.: "Válido até 06/11".
   final String? validUntilLabel;
 
-  /// Ex.: "Equipa de 2"; `null` quando é só o jardineiro.
+  /// Ex.: "Leva 2 ajudantes"; `null` quando é só o jardineiro.
   final String? teamLabel;
 
   /// Nota que o jardineiro escreveu na proposta.

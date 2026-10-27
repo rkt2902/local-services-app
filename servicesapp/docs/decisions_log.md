@@ -17,11 +17,17 @@
   com e sem ajudantes (pedido do Henrique): sem ajudantes não aparece antes de começar
   e, em curso, não fala de equipa. Nomes sem artigo ("João vem com Pedro e Tiago"),
   porque não sabemos o género.
-- A aprovação continua a regra atual (`approve_help_request`, antes de abrir vagas),
-  agora no aviso do topo. A mudança do A12 (aprovar a equipa escolhida) espera pela
-  decisão do Henrique.
-- Por fazer do A12: stepper nos detalhes aberto e "Feito" da cliente, lado do
-  responsável (J1 a J8) e do ajudante (A4 a A8), "Leva N ajudantes" nas propostas.
+- **Sem ajudantes não há fase Equipa** (Henrique, 27/10): o stepper fica com 4 fases
+  (`JobFlowStepper.showTeam`) e o detalhe não tem separadores, só o resumo. No pedido
+  aberto ainda não se sabe, por isso também fica sem Equipa.
+- **A aprovação fica como está** (decisão do Henrique, 27/10): a cliente aprova o
+  pedido de ajudantes antes de as vagas abrirem (`approve_help_request`, aprovação
+  automática às 24h), agora no aviso do topo. A regra do A12 (aprovar a equipa já
+  escolhida, "À espera da cliente") não entra; o A12 é só visual.
+- Stepper também nos detalhes aberto, "feito" e concluído da cliente (no AppBar);
+  cancelado e expirado ficam com o timeline. Propostas: "Leva N ajudantes" em vez de
+  "Equipa de N".
+- Por fazer do A12: lado do responsável (J1 a J8) e do ajudante (A4 a A8).
 
 ## 2026-10-27 — Docs alinhados com o `main` e todas as migrations aplicadas
 

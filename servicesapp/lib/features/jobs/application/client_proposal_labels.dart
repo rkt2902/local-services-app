@@ -52,9 +52,13 @@ String? proposalRatingLabel(RatingSummary? summary) {
       '$count ${count == 1 ? 'avaliação' : 'avaliações'}';
 }
 
-/// "Equipa de 2" quando a proposta inclui ajudantes.
-String? proposalTeamLabel(JobProposal p) =>
-    p.peopleNeeded > 1 ? 'Equipa de ${p.peopleNeeded}' : null;
+/// "Leva 2 ajudantes" quando a proposta inclui ajudantes (design A12, C2):
+/// a cliente sabe antes de escolher. `people_needed` conta o responsável.
+String? proposalTeamLabel(JobProposal p) {
+  final helpers = p.peopleNeeded - 1;
+  if (helpers < 1) return null;
+  return 'Leva $helpers ${helpers == 1 ? 'ajudante' : 'ajudantes'}';
+}
 
 /// "Recomendada" é só um destaque da app, não um estado: a melhor média
 /// entre jardineiros com pelo menos 3 avaliações (empate fica a primeira

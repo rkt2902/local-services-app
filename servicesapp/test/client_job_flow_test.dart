@@ -248,4 +248,21 @@ void main() {
       contains('Equipa, 3 de 5'),
     );
   });
+
+  testWidgets('sem ajudantes o stepper não tem a fase Equipa', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: JobFlowStepper(stage: JobFlowStage.team, showTeam: false),
+        ),
+      ),
+    );
+    expect(find.text('Equipa'), findsNothing);
+    expect(find.text('No dia'), findsOneWidget);
+    // Quem estaria em Equipa já está à espera do dia.
+    expect(
+      tester.getSemantics(find.byType(JobFlowStepper)).label,
+      contains('No dia, 3 de 4'),
+    );
+  });
 }

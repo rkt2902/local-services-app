@@ -604,11 +604,7 @@ class _ClientScheduledJobDetailScreenState
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
-            ] else
-              AppStaggeredEntrance(
-                index: 2,
-                child: _EmptyHelpers(label: 'Este trabalho não tem ajudantes.'),
-              ),
+            ],
           ],
         );
 
@@ -624,26 +620,36 @@ class _ClientScheduledJobDetailScreenState
                     workerName: workerName,
                   ),
                   onBack: () => goBackOrToRoleHome(context),
+                  // Sem ajudantes não há fase Equipa nem separador Equipa
+                  // (pedido do Henrique, 27/10): só o resumo.
                   bottom: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      JobFlowStepper(stage: stage),
-                      AppTabs(
-                        items: [
-                          const AppTabItem(label: 'Resumo'),
-                          AppTabItem(label: 'Equipa', badge: flowTeam.countLabel),
-                        ],
-                        selectedIndex: _tab,
-                        onSelected: (i) => setState(() => _tab = i),
+                      JobFlowStepper(
+                        stage: stage,
+                        showTeam: flowTeam.hasHelpers,
                       ),
+                      if (flowTeam.hasHelpers)
+                        AppTabs(
+                          items: [
+                            const AppTabItem(label: 'Resumo'),
+                            AppTabItem(label: 'Equipa', badge: flowTeam.countLabel),
+                          ],
+                          selectedIndex: _tab,
+                          onSelected: (i) => setState(() => _tab = i),
+                        )
+                      else
+                        const SizedBox(height: AppSpacing.xs),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: IndexedStack(
-                    index: _tab,
-                    children: [summaryTab, teamTab],
-                  ),
+                  child: flowTeam.hasHelpers
+                      ? IndexedStack(
+                          index: _tab,
+                          children: [summaryTab, teamTab],
+                        )
+                      : summaryTab,
                 ),
                 BottomActionsBar(children: [
                   PrimaryActionButton(
@@ -910,8 +916,7 @@ class _TeamCard extends StatelessWidget {
   }
 }
 
-/// Vagas por preencher ("À procura de 2 ajudantes") ou trabalho sem
-/// ajudantes.
+/// Vagas por preencher ("À procura de 2 ajudantes").
 class _EmptyHelpers extends StatelessWidget {
   const _EmptyHelpers({required this.label});
 

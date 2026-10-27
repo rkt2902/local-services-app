@@ -34,7 +34,9 @@ import '../../../core/widgets/status_timeline.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../application/job_labels.dart';
+import '../application/client_job_flow.dart';
 import '../application/job_timeline.dart';
+import '../../../core/widgets/job_flow_stepper.dart';
 import '../../../core/widgets/app_bar_title.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/submit_rating_sheet.dart';
@@ -704,9 +706,32 @@ class _ClientJobDetailScreenState
         // "Publicado→Propostas→Escolher→Confirmado" só faz sentido enquanto
         // o pedido ainda não tem worker escolhido — para os restantes
         // estados usa-se buildJobTimeline (partilhado com o lado do worker).
-        final timelineSteps = job.status == JobStatus.open
-            ? _buildOpenStepperSteps(job)
-            : buildJobTimeline(job);
+        // Stepper do fluxo (A12) no aberto, no feito e no concluído; o
+        // cancelado e o expirado ficam com o timeline, que diz o que
+        // aconteceu.
+        final usesFlowStepper = job.status == JobStatus.open ||
+            job.status == JobStatus.awaitingConfirmation ||
+            job.status == JobStatus.completed;
+        // A fase Equipa só aparece quando houve ajudantes; no pedido aberto
+        // ainda não se sabe, por isso fica de fora.
+        final hadHelpers = job.status != JobStatus.open &&
+            (ref
+                    .watch(acceptedHelpersForJobProvider(widget.jobId))
+                    .asData
+                    ?.value
+                    .isNotEmpty ??
+                false);
+        final flowStepper = PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: JobFlowStepper(
+            stage: clientJobFlowStage(
+              job,
+              const ClientJobTeam(helpersNeeded: 0, helperNames: []),
+            ),
+            showTeam: hadHelpers,
+          ),
+        );
+        final timelineSteps = buildJobTimeline(job);
 
         // Shared: banners + timeline + resumo + metadata + descrição + fotos
         final detailChildren = <Widget>[
@@ -733,16 +758,21 @@ class _ClientJobDetailScreenState
                 ],
               ),
             ),
-          AppStaggeredEntrance(
-            index: 0,
-            child: StatusTimelineCard(
-              steps: timelineSteps,
-              supportingLabel:
-                  job.status == JobStatus.open ? openJobExpiryNotice(job) : null,
-              supportingLabelColor: statusPresentation.color.foreground,
+          if (!usesFlowStepper) ...[
+            AppStaggeredEntrance(
+              index: 0,
+              child: StatusTimelineCard(steps: timelineSteps),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
+          ] else if (job.status == JobStatus.open &&
+              openJobExpiryNotice(job) != null) ...[
+            Text(
+              openJobExpiryNotice(job)!,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: statusPresentation.color.foreground),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           AppStaggeredEntrance(
             index: 1,
             child: _ServiceSummaryRow(
@@ -824,6 +854,7 @@ class _ClientJobDetailScreenState
                 title: serviceTypeName,
                 subtitle: jobDistinguisherLabel(job),
               ),
+              bottom: flowStepper,
               actions: [
                 statusBadge,
                 IconButton(
@@ -1044,14 +1075,17 @@ class _ClientJobDetailScreenState
         return Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor:
+                usesFlowStepper ? AppColors.surface : AppColors.background,
+            surfaceTintColor:
+                usesFlowStepper ? AppColors.surface : AppColors.background,
             elevation: 0,
             leading: const AppBackButton(),
             title: AppBarTitle(
               title: serviceTypeName,
               subtitle: jobDistinguisherLabel(job),
             ),
+            bottom: usesFlowStepper ? flowStepper : null,
             actions: [statusBadge],
           ),
           body: Stack(
@@ -1225,48 +1259,6 @@ String _formatConfirmedSchedule(JobRequest job) {
     return 'Agendado para: $date às ${job.confirmedTime}';
   }
   return 'Agendado para: $date';
-}
-
-// ── Ecrã 5 — timeline de 4 estágios (só JobStatus.open) ───────────────────
-
-/// "Publicado → Propostas → Escolher → Confirmado".
-///
-/// Propostas/Escolher são dois estágios visuais sobre o mesmo
-/// `JobStatus.open` — distinguidos só por `job.proposalCount`, sem estado
-/// novo no backend. "Confirmado" está sempre `future` aqui porque, por
-/// definição, um job com este stepper ainda não tem proposta aceite.
-List<StatusTimelineStepData> _buildOpenStepperSteps(JobRequest job) {
-  final hasProposals = job.proposalCount > 0;
-  return [
-    StatusTimelineStepData(
-      label: 'Publicado',
-      statusColor: AppStatusColor.success,
-      state: StatusTimelineStepState.completed,
-      subtitle: DateFormat('dd/MM/yyyy').format(job.createdAt),
-    ),
-    StatusTimelineStepData(
-      label: 'Propostas',
-      statusColor: AppStatusColor.waiting,
-      state: hasProposals
-          ? StatusTimelineStepState.completed
-          : StatusTimelineStepState.current,
-      subtitle: hasProposals
-          ? '${job.proposalCount} ${job.proposalCount == 1 ? 'proposta' : 'propostas'}'
-          : null,
-    ),
-    StatusTimelineStepData(
-      label: 'Escolher',
-      statusColor: AppStatusColor.waiting,
-      state: hasProposals
-          ? StatusTimelineStepState.current
-          : StatusTimelineStepState.future,
-    ),
-    const StatusTimelineStepData(
-      label: 'Confirmado',
-      statusColor: AppStatusColor.neutral,
-      state: StatusTimelineStepState.future,
-    ),
-  ];
 }
 
 /// Ecrã de erro/pedido inexistente com saída (voltar ou ir para o início)
