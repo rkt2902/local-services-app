@@ -715,7 +715,8 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppPulseScale` | `child`; `enabled=true`, `color=AppColors.primary` — pulso do nó atual da timeline |
 | `AppSuccessFeedback` | `visible`, `message` |
 | `AppSkeletonShimmer` | `child` |
-| `AppTabHeader` / `AppBackHeader` / `AppTabs` (A11, `app_tab_header.dart`) | cabeçalho comum dos ecrãs de topo (título, sino ou ação) / cabeçalho com voltar dos sub-fluxos / tabs com sublinhado verde que desliza, 48 px, `AppTabItem(label, count?)`. Usados em Trabalhos, Pedidos do cliente, Pedidos de ajuda, Equipa e Alertas |
+| `AppTabHeader` / `AppBackHeader` / `AppTabs` (A11, `app_tab_header.dart`) | cabeçalho comum dos ecrãs de topo (título, sino ou ação) / cabeçalho com voltar dos sub-fluxos / tabs com sublinhado verde que desliza, 48 px, `AppTabItem(label, count?, badge?)`. Usados em Trabalhos, Pedidos do cliente, Pedidos de ajuda, Equipa e Alertas |
+| `JobFlowStepper` (A12, `job_flow_stepper.dart`) | stepper do fluxo do pedido, 5 fases de `JobFlowStage` (`core/models/job_flow_stage.dart`); a fase vem do presenter (`client_job_flow.dart` para a cliente). No detalhe `confirmed` da cliente, com os separadores Resumo · Equipa |
 | `AppProfileCard` (A11) | cartão do topo do Perfil nos dois papéis: avatar com iniciais, nome, linha de contexto, 3 `AppProfileMetric` e, no jardineiro, `actions` do cartão partilhável |
 | `HomeNotificationButton` (A11) | sino dos cabeçalhos do jardineiro com o número de não lidas |
 | `AppNotificationsView` | vista pura de Notificações (secções, itens, "Limpar tudo"), igual nos dois papéis |

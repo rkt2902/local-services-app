@@ -3,6 +3,26 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-27 — Fluxo do pedido (A12), parte 1: detalhe da cliente com stepper e Equipa
+
+- **Stepper partilhado** `JobFlowStepper` (`core/widgets/job_flow_stepper.dart`) com
+  `JobFlowStage` (`core/models/job_flow_stage.dart`): Pedido · Proposta · Equipa · No
+  dia · Feito. É só apresentação; a fase vem do presenter de cada papel, nunca da data.
+- **Detalhe `confirmed` da cliente** (`client_scheduled_job_detail_screen.dart`):
+  `AppBackHeader` com "João Silva · Sáb, 31/10 · 08:30", stepper e separadores
+  Resumo · Equipa (`AppTabs`, contador "1/2" pelo novo `AppTabItem.badge`). Saem o
+  `StatusTimelineCard` e o badge de estado do cabeçalho.
+- **Presenter** `client_job_flow.dart`: vagas (as do pedido de ajudantes ativo, senão
+  as previstas na proposta, `people_needed - 1`), fase, aviso e textos. O aviso muda
+  com e sem ajudantes (pedido do Henrique): sem ajudantes não aparece antes de começar
+  e, em curso, não fala de equipa. Nomes sem artigo ("João vem com Pedro e Tiago"),
+  porque não sabemos o género.
+- A aprovação continua a regra atual (`approve_help_request`, antes de abrir vagas),
+  agora no aviso do topo. A mudança do A12 (aprovar a equipa escolhida) espera pela
+  decisão do Henrique.
+- Por fazer do A12: stepper nos detalhes aberto e "Feito" da cliente, lado do
+  responsável (J1 a J8) e do ajudante (A4 a A8), "Leva N ajudantes" nas propostas.
+
 ## 2026-10-27 — Docs alinhados com o `main` e todas as migrations aplicadas
 
 - **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0065`

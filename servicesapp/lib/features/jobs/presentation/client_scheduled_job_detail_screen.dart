@@ -10,18 +10,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
-import '../../../core/theme/app_status_presentation.dart';
-import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/address_map_link.dart';
 import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_motion.dart';
-import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/bottom_actions_bar.dart';
 import '../../../core/widgets/photo_viewer_screen.dart';
 import '../../../core/widgets/primary_action_button.dart';
-import '../../../core/widgets/status_timeline.dart';
+import '../../../core/widgets/job_flow_stepper.dart';
+import '../../../core/widgets/app_tab_header.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
@@ -32,9 +30,8 @@ import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../application/job_providers.dart';
 import '../application/job_labels.dart';
-import '../application/job_timeline.dart';
+import '../application/client_job_flow.dart';
 import '../../../core/utils/price_labels.dart';
-import '../../../core/widgets/app_bar_title.dart';
 import '../data/job_model.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
@@ -60,6 +57,9 @@ class _ClientScheduledJobDetailScreenState
   bool _proposingReschedule = false;
   bool _respondingReschedule = false;
   final Set<String> _approvingHelp = {};
+
+  /// Separador aberto: 0 Resumo, 1 Equipa (design A12).
+  int _tab = 0;
 
   Future<void> _cancelJob() async {
     final result = await CancelJobDialog.show(context, isClient: true);
@@ -160,17 +160,22 @@ class _ClientScheduledJobDetailScreenState
     }
   }
 
-  Future<void> _approveHelpRequest(String helpRequestId) async {
-    setState(() => _approvingHelp.add(helpRequestId));
+  Future<void> _approveHelpRequests(List<HelpRequest> requests) async {
+    final ids = [for (final hr in requests) hr.id];
+    if (ids.isEmpty) return;
+    setState(() => _approvingHelp.addAll(ids));
     final toast = AppToast.of(context);
     try {
-      await ref.read(helpRequestRepositoryProvider).approveHelpRequest(helpRequestId);
+      final repo = ref.read(helpRequestRepositoryProvider);
+      for (final id in ids) {
+        await repo.approveHelpRequest(id);
+      }
+      toast.show('Aprovado. O jardineiro pode agora procurar ajudantes.');
       ref.invalidate(helpRequestsForJobProvider(widget.jobId));
-      toast.show('Equipa aprovada! O jardineiro responsável pode agora procurar ajudantes.');
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
-      if (mounted) setState(() => _approvingHelp.remove(helpRequestId));
+      if (mounted) setState(() => _approvingHelp.removeAll(ids));
     }
   }
 
@@ -406,140 +411,238 @@ class _ClientScheduledJobDetailScreenState
                 workDays.last.dayNumber, plannedWorkDays(proposal))
             : null;
 
+        final workerName = workerInfoAsync.asData?.value['full_name'] ?? '';
+        final helpRequests =
+            ref.watch(helpRequestsForJobProvider(widget.jobId)).asData?.value ??
+                const <HelpRequest>[];
+        final flowTeam = clientJobTeam(
+          proposalPeopleNeeded: proposal?.peopleNeeded,
+          helpRequests: helpRequests,
+          helperNames: [
+            for (final h in team) h.fullName == '—' ? '' : h.fullName,
+          ],
+        );
+        final stage = clientJobFlowStage(job, flowTeam);
+        final banner = clientJobFlowBanner(
+          job: job,
+          team: flowTeam,
+          workerName: workerName,
+        );
+        final approving = pendingHelpRequests
+            .any((hr) => _approvingHelp.contains(hr.id));
+        Widget? bannerWidget(int entrance) => banner == null
+            ? null
+            : AppStaggeredEntrance(
+                index: entrance,
+                child: _FlowBanner(
+                  banner: banner,
+                  approving: approving,
+                  onApprove: banner.kind == ClientJobFlowBannerKind.approveTeam
+                      ? () => _approveHelpRequests(pendingHelpRequests)
+                      : null,
+                ),
+              );
+
+        final summaryTab = ListView(
+          key: const PageStorageKey('client-job-summary'),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          children: [
+            if (job.reopenedFrom != null) ...[
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.input),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: AppColors.primary, size: 18),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Este pedido foi criado automaticamente após o cancelamento '
+                        'de um pedido anterior.',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: AppColors.primaryPressed),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (rescheduleIncomingBanner != null) ...[
+              rescheduleIncomingBanner,
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (banner != null) ...[
+              bannerWidget(0)!,
+              const SizedBox(height: AppSpacing.md),
+            ],
+            AppStaggeredEntrance(
+              index: 1,
+              child: _WorkerContactCard(
+                workerInfoAsync: workerInfoAsync,
+                ratingAsync: ratingAsync,
+                onOpenWhatsApp: () => _openWhatsApp(workerPhone),
+              ),
+            ),
+            if (rescheduleOutgoingNotice != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              rescheduleOutgoingNotice,
+            ],
+            const SizedBox(height: AppSpacing.md),
+            AppStaggeredEntrance(
+              index: 2,
+              child: _ScheduledSummary(
+                serviceLabel: serviceLabel,
+                dateTimeLabel: _scheduleLabel(job),
+                addressLabel: job.addressText.isNotEmpty
+                    ? job.addressText
+                    : 'Localização não especificada',
+                peopleLabel: flowTeam.hasHelpers
+                    ? clientTeamSummaryLabel(flowTeam, workerName)
+                    : null,
+                priceLabel: priceLabel,
+                priceRowLabel: fixed ? 'Valor fechado' : 'Valor acordado',
+                durationLabel: durationLabel.isEmpty ? null : durationLabel,
+                workDayLabel: workDayLabel,
+                includesLabel: includesLabel == null
+                    ? null
+                    : 'Inclui ${includesLabel[0].toLowerCase()}${includesLabel.substring(1)}',
+                fixedNote:
+                    fixed ? 'Não muda com as horas nem com os dias.' : null,
+              ),
+            ),
+            if (job.locationLat != 0 || job.locationLng != 0) ...[
+              const SizedBox(height: AppSpacing.sm),
+              AddressMapLink(
+                address: job.addressText,
+                lat: job.locationLat,
+                lng: job.locationLng,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1, color: AppColors.divider),
+            const SizedBox(height: AppSpacing.md),
+            AppStaggeredEntrance(
+              index: 3,
+              child: _Description(description: job.description),
+            ),
+            photosWidget,
+          ],
+        );
+
+        final teamTab = ListView(
+          key: const PageStorageKey('client-job-team'),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.lg,
+          ),
+          children: [
+            if (banner != null) ...[
+              bannerWidget(0)!,
+              const SizedBox(height: AppSpacing.md),
+            ],
+            const _SectionLabel('Responsável'),
+            const SizedBox(height: AppSpacing.xs),
+            AppStaggeredEntrance(
+              index: 1,
+              child: _TeamCard(
+                child: _WorkerContactCard(
+                  workerInfoAsync: workerInfoAsync,
+                  ratingAsync: ratingAsync,
+                  onOpenWhatsApp: () => _openWhatsApp(workerPhone),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (flowTeam.hasHelpers) ...[
+              _SectionLabel(clientTeamHelpersHeading(flowTeam)),
+              const SizedBox(height: AppSpacing.xs),
+              if (team.isNotEmpty)
+                AppStaggeredEntrance(
+                  index: 2,
+                  child: _TeamCard(
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < team.length; i++) ...[
+                          if (i > 0)
+                            const Divider(height: AppSpacing.md, color: AppColors.divider),
+                          UserAvatarWithName(
+                            name: team[i].fullName == '—' ? '' : team[i].fullName,
+                            avatarUrl: team[i].avatarUrl,
+                            radius: 18,
+                            fallbackLabel: 'Ajudante',
+                            nameStyle: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              if (flowTeam.joined < flowTeam.helpersNeeded) ...[
+                if (team.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+                AppStaggeredEntrance(
+                  index: 3,
+                  child: _EmptyHelpers(label: clientTeamSearchingLabel(flowTeam)),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Os ajudantes vêm com o responsável. Qualquer dúvida, fala com ele.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ] else
+              AppStaggeredEntrance(
+                index: 2,
+                child: _EmptyHelpers(label: 'Este trabalho não tem ajudantes.'),
+              ),
+          ],
+        );
+
         return Scaffold(
           backgroundColor: AppColors.background,
           body: SafeArea(
             child: Column(
               children: [
-                _ScheduledHeader(
-                  title: serviceTypes
-                          .where((s) => s.id == job.serviceTypeId)
-                          .map((s) => s.name)
-                          .firstOrNull ??
-                      '—',
-                  subtitle: jobDistinguisherLabel(job),
-                  presentation: job.isInProgress
-                      ? const AppStatusPresentation(
-                          label: 'Em curso', color: AppStatusColor.info)
-                      : job.status.presentation(),
+                AppBackHeader(
+                  title: serviceLabel,
+                  subtitle: clientJobFlowSubtitle(
+                    job: job,
+                    workerName: workerName,
+                  ),
                   onBack: () => goBackOrToRoleHome(context),
+                  bottom: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      JobFlowStepper(stage: stage),
+                      AppTabs(
+                        items: [
+                          const AppTabItem(label: 'Resumo'),
+                          AppTabItem(label: 'Equipa', badge: flowTeam.countLabel),
+                        ],
+                        selectedIndex: _tab,
+                        onSelected: (i) => setState(() => _tab = i),
+                      ),
+                    ],
+                  ),
                 ),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.md,
-                      AppSpacing.lg,
-                    ),
-                    children: [
-                      if (job.reopenedFrom != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.sm),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            borderRadius: BorderRadius.circular(AppRadius.input),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.info_outline, color: AppColors.primary, size: 18),
-                              const SizedBox(width: AppSpacing.xs),
-                              Expanded(
-                                child: Text(
-                                  'Este pedido foi criado automaticamente após o cancelamento '
-                                  'de um pedido anterior.',
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: AppColors.primaryPressed),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                      if (rescheduleIncomingBanner != null) ...[
-                        rescheduleIncomingBanner,
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                      AppStaggeredEntrance(
-                        index: 0,
-                        child: StatusTimelineCard(
-                          steps: buildJobTimeline(job),
-                          supportingLabel: _timelineSupportingLabel(job),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppStaggeredEntrance(
-                        index: 1,
-                        child: _WorkerContactCard(
-                          workerInfoAsync: workerInfoAsync,
-                          ratingAsync: ratingAsync,
-                          onOpenWhatsApp: () => _openWhatsApp(workerPhone),
-                        ),
-                      ),
-                      if (team.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        AppStaggeredEntrance(
-                          index: 1,
-                          child: _ClientTeamCard(helpers: team),
-                        ),
-                      ],
-                      if (pendingHelpRequests.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        ...pendingHelpRequests.map((hr) => _PendingHelpRequestCard(
-                              helpRequest: hr,
-                              approving: _approvingHelp.contains(hr.id),
-                              onApprove: () => _approveHelpRequest(hr.id),
-                            )),
-                      ],
-                      if (rescheduleOutgoingNotice != null) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        rescheduleOutgoingNotice,
-                      ],
-                      const SizedBox(height: AppSpacing.md),
-                      AppStaggeredEntrance(
-                        index: 2,
-                        child: _ScheduledSummary(
-                          serviceLabel: serviceLabel,
-                          dateTimeLabel: _scheduleLabel(job),
-                          addressLabel: job.addressText.isNotEmpty
-                              ? job.addressText
-                              : 'Localização não especificada',
-                          peopleLabel:
-                              proposal != null && proposal.peopleNeeded > 1
-                                  ? '${proposal.peopleNeeded} pessoas'
-                                  : null,
-                          priceLabel: priceLabel,
-                          priceRowLabel:
-                              fixed ? 'Valor fechado' : 'Valor acordado',
-                          durationLabel:
-                              durationLabel.isEmpty ? null : durationLabel,
-                          workDayLabel: workDayLabel,
-                          includesLabel: includesLabel == null
-                              ? null
-                              : 'Inclui ${includesLabel[0].toLowerCase()}${includesLabel.substring(1)}',
-                          fixedNote: fixed
-                              ? 'Não muda com as horas nem com os dias.'
-                              : null,
-                        ),
-                      ),
-                      if (job.locationLat != 0 || job.locationLng != 0) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        AddressMapLink(
-                          address: job.addressText,
-                          lat: job.locationLat,
-                          lng: job.locationLng,
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.md),
-                      const Divider(height: 1, color: AppColors.divider),
-                      const SizedBox(height: AppSpacing.md),
-                      AppStaggeredEntrance(
-                        index: 3,
-                        child: _Description(description: job.description),
-                      ),
-                      photosWidget,
-                    ],
+                  child: IndexedStack(
+                    index: _tab,
+                    children: [summaryTab, teamTab],
                   ),
                 ),
                 BottomActionsBar(children: [
@@ -601,59 +704,11 @@ String _scheduleLabel(JobRequest job) {
   if (job.confirmedDate == null) return 'A combinar';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return '$date (horário flexível)';
-  if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
-  return date;
-}
-
-/// Substitui a legenda de apoio do timeline (obrigatória em doc.txt, ao
-/// contrário de `StatusTimelineCard` em `client_job_detail_screen.dart` —
-/// lá só existe para `open`). Deriva de `confirmedDate`, dado real, em vez
-/// de inventar uma frase estática.
-String _timelineSupportingLabel(JobRequest job) {
-  if (job.confirmedDate == null) return 'Data a combinar com o jardineiro.';
-  final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
-  if (job.confirmedFlexible) return 'Serviço agendado para $date (horário flexível).';
-  if (job.confirmedTime != null) return 'Serviço agendado para $date às ${job.confirmedTime}.';
-  return 'Serviço agendado para $date.';
-}
-
-class _ScheduledHeader extends StatelessWidget {
-  const _ScheduledHeader({
-    required this.title,
-    required this.presentation,
-    required this.onBack,
-    this.subtitle,
-  });
-
-  final String title;
-  final String? subtitle;
-  final AppStatusPresentation presentation;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xs, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: 'Voltar',
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: AppBarTitle(title: title, subtitle: subtitle),
-          ),
-          // trailingMargin: 0 — o padding do Container já dá a margem
-          // direita (AppSpacing.md).
-          AppBarStatusBadge.fromPresentation(presentation: presentation, trailingMargin: 0),
-        ],
-      ),
-    );
+  final time = job.confirmedTime;
+  if (time != null) {
+    return '$date às ${time.length >= 5 ? time.substring(0, 5) : time}';
   }
+  return date;
 }
 
 class _WorkerContactCard extends StatelessWidget {
@@ -730,55 +785,84 @@ class _WorkerContactCard extends StatelessWidget {
   }
 }
 
-/// Quem vem com o jardineiro responsável: ajudantes aceites, com nome e
-/// foto. O contacto continua a ser só com o responsável (WhatsApp).
-class _ClientTeamCard extends StatelessWidget {
-  const _ClientTeamCard({required this.helpers});
+/// Aviso do topo do Resumo e da Equipa (design A12, C4 a C7). Cor pelo
+/// momento: em curso e equipa completa a verde, à espera da cliente a
+/// amarelo, equipa a formar a azul.
+class _FlowBanner extends StatelessWidget {
+  const _FlowBanner({
+    required this.banner,
+    required this.approving,
+    this.onApprove,
+  });
 
-  final List<AcceptedHelper> helpers;
+  final ClientJobFlowBanner banner;
+  final bool approving;
+
+  /// Só no pedido de ajudantes por aprovar.
+  final VoidCallback? onApprove;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final (tone, icon) = switch (banner.kind) {
+      ClientJobFlowBannerKind.started => (
+          AppStatusColor.success,
+          Icons.play_circle_outline_rounded,
+        ),
+      ClientJobFlowBannerKind.approveTeam => (
+          AppStatusColor.waiting,
+          Icons.group_add_outlined,
+        ),
+      ClientJobFlowBannerKind.formingTeam => (
+          AppStatusColor.info,
+          Icons.group_add_outlined,
+        ),
+      ClientJobFlowBannerKind.teamReady => (
+          AppStatusColor.success,
+          Icons.groups_outlined,
+        ),
+    };
+    final body = banner.body;
+    final onApprove = this.onApprove;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: tone.background,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(children: [
-            const Icon(Icons.groups_outlined, color: AppColors.primary, size: 20),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                'Equipa · ${helpers.length} '
-                'ajudante${helpers.length == 1 ? '' : 's'}',
-                style: textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: tone.foreground, size: 22),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: banner.title,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      if (body != null) TextSpan(text: '\n$body'),
+                    ],
+                  ),
+                  style: textTheme.bodyMedium?.copyWith(color: tone.foreground),
+                ),
               ),
-            ),
-          ]),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Vêm com o jardineiro responsável. Qualquer dúvida, fala com ele.',
-            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ],
           ),
-          for (final helper in helpers) ...[
+          if (onApprove != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            UserAvatarWithName(
-              name: helper.fullName == '—' ? '' : helper.fullName,
-              avatarUrl: helper.avatarUrl,
-              radius: 18,
-              fallbackLabel: 'Ajudante',
-              nameStyle: textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+            PrimaryActionButton(
+              label: 'Aprovar',
+              icon: Icons.check_rounded,
+              isLoading: approving,
+              onPressed: approving ? null : onApprove,
             ),
           ],
         ],
@@ -787,78 +871,72 @@ class _ClientTeamCard extends StatelessWidget {
   }
 }
 
-class _PendingHelpRequestCard extends StatelessWidget {
-  const _PendingHelpRequestCard({
-    required this.helpRequest,
-    required this.approving,
-    required this.onApprove,
-  });
+/// "RESPONSÁVEL", "AJUDANTES · 1 DE 2".
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
 
-  final HelpRequest helpRequest;
-  final bool approving;
-  final VoidCallback onApprove;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label.toUpperCase(),
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+    );
+  }
+}
+
+class _TeamCard extends StatelessWidget {
+  const _TeamCard({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppStatusColor.waiting.background,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(children: [
-            Icon(Icons.group_add_outlined, color: AppStatusColor.waiting.foreground, size: 20),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                'O jardineiro responsável pediu ajuda extra para este trabalho',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(color: AppStatusColor.waiting.foreground),
-              ),
-            ),
-          ]),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '${helpRequest.slotsNeeded} '
-            'ajudante${helpRequest.slotsNeeded == 1 ? '' : 's'}'
-            '${helpRequest.equipmentRequired ? ' · Equipamento exigido' : ''}',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppStatusColor.waiting.foreground),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Sem resposta, fica aprovado automaticamente 24 horas depois do pedido.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppStatusColor.waiting.foreground),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FilledButton(
-            onPressed: approving ? null : onApprove,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.input)),
-            ),
-            child: approving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.surface),
-                  )
-                : const Text('Aprovar equipa'),
-          ),
-        ],
+      child: child,
+    );
+  }
+}
+
+/// Vagas por preencher ("À procura de 2 ajudantes") ou trabalho sem
+/// ajudantes.
+class _EmptyHelpers extends StatelessWidget {
+  const _EmptyHelpers({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.agendaDashed),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: Theme.of(context)
+            .textTheme
+            .bodyMedium
+            ?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
