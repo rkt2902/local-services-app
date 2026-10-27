@@ -78,6 +78,9 @@ abstract final class AppSizes {
   static const double authHeaderIcon = 56.0;
   static const double authHeaderGlyph = 28.0;
 
+  /// Avatar do cartão do topo do Perfil (A11, C4 e J6).
+  static const double profileAvatarRadius = 32.0;
+
   // Perfil do jardineiro: destaques, redes e cartão público (U6).
   static const double linkButtonHeight = 44.0;
   static const double publicAvatar = 76.0;

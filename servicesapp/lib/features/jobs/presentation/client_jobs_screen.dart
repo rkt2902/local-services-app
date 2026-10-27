@@ -135,8 +135,6 @@ class ClientJobsScreen extends ConsumerWidget {
         }
 
         return AsyncValue.data(view.ClientJobsViewData(
-          activeTabLabel: 'Ativos · ${activeJobs.length}',
-          historyTabLabel: 'Histórico · ${historyJobs.length}',
           activeJobs: activeJobs.map(mapJob).toList(),
           historyJobs: historyJobs.map(mapJob).toList(),
         ));

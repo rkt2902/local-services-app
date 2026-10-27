@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/widgets/app_whatsapp_button.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/app_tab_header.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/utils/phone_utils.dart';
 
@@ -585,48 +586,11 @@ class _LobbyHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final sub = subtitle;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            tooltip: 'Voltar',
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Equipa',
-                  style: textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                if (sub != null && sub.isNotEmpty)
-                  Text(
-                    sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return AppBackHeader(
+      title: 'Equipa',
+      subtitle: sub != null && sub.isNotEmpty ? sub : null,
+      onBack: onBack,
     );
   }
 }

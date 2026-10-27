@@ -299,7 +299,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                         children: [
                           _SectionHeader(
                             title: 'Próximo trabalho',
-                            actionLabel: 'Ver todos',
+                            actionLabel: 'Ver agenda',
                             onActionPressed: () => context.go(
                               '/worker/jobs',
                               extra: {
@@ -324,8 +324,8 @@ class WorkerDashboardScreen extends ConsumerWidget {
                     AppStaggeredEntrance(
                       index: 4,
                       child: _SectionHeader(
-                        title: 'Oportunidades perto de ti',
-                        actionLabel: 'Ver todas',
+                        title: 'Pedidos perto de ti',
+                        actionLabel: 'Ver todos',
                         onActionPressed: () =>
                             context.go('/worker/available-jobs'),
                       ),

@@ -46,6 +46,14 @@ final workerPublicCardProvider =
   return ref.read(workerRepositoryProvider).fetchPublicCard(workerId);
 });
 
+/// Números do Perfil do jardineiro (0065). `null` sem a migration.
+final myProfileStatsProvider = FutureProvider.autoDispose<
+    ({int completedJobs, DateTime? memberSince})?>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return null;
+  return ref.read(workerRepositoryProvider).fetchMyProfileStats();
+});
+
 /// Plano do jardineiro com sessão e trabalhos aceites este mês (0060).
 /// Invalidado quando uma proposta é aceite (ver notification_providers).
 final myWorkerPlanProvider = FutureProvider.autoDispose<WorkerPlan>((ref) {

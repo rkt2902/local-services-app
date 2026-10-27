@@ -5,11 +5,13 @@ import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
+import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/core/widgets/next_step_row.dart';
+import 'package:servicesapp/core/widgets/todo_row.dart';
 
 import 'your_gardeners_section.dart';
 
@@ -22,6 +24,7 @@ class ClientHomeViewData {
     required this.firstName,
     required this.greeting,
     required this.activeJobs,
+    this.attention = const [],
     this.activeJobsTotal = 0,
     this.loadingActiveJobs = false,
   });
@@ -31,6 +34,9 @@ class ClientHomeViewData {
   /// "Bom dia" / "Boa tarde" / "Boa noite" (`dayGreeting`).
   final String greeting;
 
+  /// "Precisa de ti" (A11): uma linha por pedido à espera do cliente.
+  final List<ClientHomeAttentionViewData> attention;
+
   /// Pedidos em curso (`open`/`confirmed`/`awaitingConfirmation`), já
   /// ordenados com o que precisa do cliente primeiro. Mostram-se numa só
   /// lista; pode vir cortada (ver [activeJobsTotal]).
@@ -39,6 +45,28 @@ class ClientHomeViewData {
   /// Total de pedidos em curso, mesmo os que não cabem em [activeJobs].
   final int activeJobsTotal;
   final bool loadingActiveJobs;
+}
+
+/// Linha de "Precisa de ti": as mesmas linhas do "O que falta fazer" do
+/// jardineiro ([TodoRow]).
+class ClientHomeAttentionViewData {
+  const ClientHomeAttentionViewData({
+    required this.jobId,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.tone,
+  });
+
+  final String jobId;
+
+  /// "3 propostas para ver", "Nova data proposta".
+  final String title;
+
+  /// O serviço ("Corte de relva").
+  final String subtitle;
+  final IconData icon;
+  final AppStatusColor tone;
 }
 
 class ClientHomeActiveJobViewData {
@@ -141,6 +169,16 @@ class ClientHomeScreen extends StatelessWidget {
                         onRetry: onRetryGardeners,
                       ),
                     ),
+                    if (data.attention.isNotEmpty) ...[
+                      AppStaggeredEntrance(
+                        index: 3,
+                        child: _AttentionSection(
+                          items: data.attention,
+                          onPressed: onActiveJobPressed,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     AppStaggeredEntrance(
                       index: 3,
                       child: _SectionHeader(
@@ -170,6 +208,8 @@ class ClientHomeScreen extends StatelessWidget {
                           ],
                         ],
                       )
+                    else if (data.activeJobs.isEmpty && data.attention.isNotEmpty)
+                      const SizedBox.shrink()
                     else if (data.activeJobs.isEmpty)
                       AppStaggeredEntrance(
                         index: 4,
@@ -258,6 +298,51 @@ class _CreateJobButton extends StatelessWidget {
         ),
         label: const Text('Criar pedido'),
       ),
+    );
+  }
+}
+
+class _AttentionSection extends StatelessWidget {
+  const _AttentionSection({required this.items, required this.onPressed});
+
+  final List<ClientHomeAttentionViewData> items;
+  final ValueChanged<String> onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Precisa de ti',
+          style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.s10),
+        Material(
+          color: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            side: const BorderSide(color: AppColors.divider),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: AppColors.divider),
+                TodoRow(
+                  icon: items[i].icon,
+                  tone: items[i].tone,
+                  title: items[i].title,
+                  subtitle: items[i].subtitle,
+                  onPressed: () => onPressed(items[i].jobId),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

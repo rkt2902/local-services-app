@@ -10,26 +10,21 @@ import '../../../../core/widgets/address_map_link.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/app_tab_header.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
 
 enum ClientJobsTab { active, history }
 
-/// Dados de apresentação de "Os meus pedidos" (cliente).
+/// Dados de apresentação do separador "Pedidos" (cliente).
 ///
 /// A integração (client_jobs_screen.dart) mapeia `clientJobsProvider` +
 /// `serviceTypesProvider` para esta estrutura. Este widget não consulta
 /// providers, repositories ou Supabase diretamente.
 class ClientJobsViewData {
   const ClientJobsViewData({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
     required this.activeJobs,
     required this.historyJobs,
   });
-
-  /// Já formatado pela integração. Ex.: "Ativos · 3".
-  final String activeTabLabel;
-  final String historyTabLabel;
 
   final List<ClientJobListItemViewData> activeJobs;
   final List<ClientJobListItemViewData> historyJobs;
@@ -128,17 +123,43 @@ class _ClientJobsScreenState extends State<ClientJobsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: widget.dataAsync.when(
-          loading: () => const _ClientJobsLoading(),
-          error: (_, _) => _ClientJobsError(onRetry: widget.onRetry),
-          data: (data) => _ClientJobsContent(
-            data: data,
-            selectedTab: _selectedTab,
-            onSelectTab: _selectTab,
-            onOpenJob: widget.onOpenJob,
-            onCreateJob: widget.onCreateJob,
-            onRefresh: widget.onRefresh,
-          ),
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTabHeader(
+              title: 'Pedidos',
+              bottom: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                ),
+                child: AppTabs(
+                  items: [
+                    AppTabItem(
+                      label: 'Ativos',
+                      count: widget.dataAsync.value?.activeJobs.length,
+                    ),
+                    const AppTabItem(label: 'Histórico'),
+                  ],
+                  selectedIndex: _selectedTab.index,
+                  onSelected: (i) => _selectTab(ClientJobsTab.values[i]),
+                ),
+              ),
+            ),
+            Expanded(
+              child: widget.dataAsync.when(
+                loading: () => const _ClientJobsLoading(),
+                error: (_, _) => _ClientJobsError(onRetry: widget.onRetry),
+                data: (data) => _ClientJobsContent(
+                  data: data,
+                  selectedTab: _selectedTab,
+                  onOpenJob: widget.onOpenJob,
+                  onCreateJob: widget.onCreateJob,
+                  onRefresh: widget.onRefresh,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -149,7 +170,6 @@ class _ClientJobsContent extends StatelessWidget {
   const _ClientJobsContent({
     required this.data,
     required this.selectedTab,
-    required this.onSelectTab,
     required this.onOpenJob,
     required this.onCreateJob,
     this.onRefresh,
@@ -158,7 +178,6 @@ class _ClientJobsContent extends StatelessWidget {
   final ClientJobsViewData data;
   final ClientJobsTab selectedTab;
 
-  final ValueChanged<ClientJobsTab> onSelectTab;
   final ValueChanged<String> onOpenJob;
   final VoidCallback onCreateJob;
   final Future<void> Function()? onRefresh;
@@ -170,12 +189,7 @@ class _ClientJobsContent extends StatelessWidget {
 
     return Column(
       children: [
-        _Header(
-          activeTabLabel: data.activeTabLabel,
-          historyTabLabel: data.historyTabLabel,
-          selectedTab: selectedTab,
-          onSelectTab: onSelectTab,
-        ),
+        const SizedBox(height: AppSpacing.sm),
         Expanded(
           // Chave = a tab (índice), não os dados — um refresh em segundo
           // plano na mesma tab não reanima nada, só a troca de tab o faz
@@ -216,140 +230,6 @@ class _Refreshable extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: refresh,
       child: child,
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
-    required this.selectedTab,
-    required this.onSelectTab,
-  });
-
-  final String activeTabLabel;
-  final String historyTabLabel;
-  final ClientJobsTab selectedTab;
-
-  final ValueChanged<ClientJobsTab> onSelectTab;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      width: double.infinity,
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Os meus pedidos',
-            style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _JobsTabs(
-            activeTabLabel: activeTabLabel,
-            historyTabLabel: historyTabLabel,
-            selectedTab: selectedTab,
-            onSelectTab: onSelectTab,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _JobsTabs extends StatelessWidget {
-  const _JobsTabs({
-    required this.activeTabLabel,
-    required this.historyTabLabel,
-    required this.selectedTab,
-    required this.onSelectTab,
-  });
-
-  final String activeTabLabel;
-  final String historyTabLabel;
-  final ClientJobsTab selectedTab;
-
-  final ValueChanged<ClientJobsTab> onSelectTab;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xxs),
-      decoration: BoxDecoration(
-        color: AppColors.divider,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _TabButton(
-              label: activeTabLabel,
-              selected: selectedTab == ClientJobsTab.active,
-              onPressed: () => onSelectTab(ClientJobsTab.active),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: _TabButton(
-              label: historyTabLabel,
-              selected: selectedTab == ClientJobsTab.history,
-              onPressed: () => onSelectTab(ClientJobsTab.history),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: selected ? AppColors.surface : AppColors.background,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.bodyMedium?.copyWith(
-              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -617,37 +497,9 @@ class _ClientJobsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Os meus pedidos',
-                style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppSkeletonShimmer(
-                child: Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.input),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const SizedBox(height: AppSpacing.sm),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(

@@ -208,3 +208,86 @@ class AppTabHeader extends StatelessWidget {
     );
   }
 }
+
+/// Cabeçalho de um ecrã à parte (design A11, "Ecrã à parte"): seta, título,
+/// linha de contexto opcional e, por baixo, tabs ou ações ([bottom]).
+/// Mesmo fundo branco e linha do [AppTabHeader].
+class AppBackHeader extends StatelessWidget {
+  const AppBackHeader({
+    required this.title,
+    required this.onBack,
+    this.subtitle,
+    this.bottom,
+    super.key,
+  });
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback onBack;
+  final Widget? bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final subtitle = this.subtitle;
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              AppSpacing.xs,
+              AppSpacing.md,
+              bottom == null ? AppSpacing.xs : 0,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  tooltip: 'Voltar',
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleLarge
+                              ?.copyWith(color: AppColors.textPrimary),
+                        ),
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ?bottom,
+        ],
+      ),
+    );
+  }
+}

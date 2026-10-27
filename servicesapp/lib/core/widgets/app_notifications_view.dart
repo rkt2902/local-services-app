@@ -188,7 +188,7 @@ class _AppNotificationsViewState extends State<AppNotificationsView> {
         if (onBack == null)
           AppTabHeader(title: widget.title, bottom: toolbar)
         else
-          _BackHeader(title: widget.title, onBack: onBack, bottom: toolbar),
+          AppBackHeader(title: widget.title, onBack: onBack, bottom: toolbar),
         if (hasItems)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -230,70 +230,6 @@ class _AppNotificationsViewState extends State<AppNotificationsView> {
                 ),
         ),
       ],
-    );
-  }
-}
-
-/// Ecrã à parte (jardineiro): seta, título e, por baixo, as ações.
-class _BackHeader extends StatelessWidget {
-  const _BackHeader({
-    required this.title,
-    required this.onBack,
-    required this.bottom,
-  });
-
-  final String title;
-  final VoidCallback onBack;
-  final Widget bottom;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xs,
-              AppSpacing.xs,
-              AppSpacing.md,
-              0,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  tooltip: 'Voltar',
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                Expanded(
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleLarge
-                          ?.copyWith(color: AppColors.textPrimary),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          bottom,
-        ],
-      ),
     );
   }
 }

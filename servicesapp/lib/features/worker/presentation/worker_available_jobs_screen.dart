@@ -260,30 +260,8 @@ class _WorkerAvailableJobsScreenState
       jobsErrorMessage:
           jobsAsync.hasError ? friendlyError(jobsAsync.error!) : null,
       onRetryJobs: () => ref.invalidate(jobsInRadiusProvider),
-      appBarActions: [
-        IconButton(
-          icon: const Icon(Icons.group_add_outlined),
-          tooltip: 'Pedidos de ajuda',
-          onPressed: () => context.push('/worker/help-requests'),
-        ),
-        _NotificationButton(),
-      ],
-    );
-  }
-}
-
-class _NotificationButton extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(unreadCountProvider);
-    return IconButton(
-      tooltip: 'Notificações',
-      icon: Badge(
-        label: Text('$count'),
-        isLabelVisible: count > 0,
-        child: const Icon(Icons.notifications_outlined),
-      ),
-      onPressed: () => context.push('/notifications'),
+      unreadNotifications: ref.watch(unreadCountProvider),
+      onNotificationsPressed: () => context.push('/notifications'),
     );
   }
 }

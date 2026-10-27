@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
 import '../../../core/utils/day_greeting.dart';
@@ -57,9 +58,31 @@ class ClientHomeScreen extends ConsumerWidget {
             (serviceTypesAsync.isLoading && !serviceTypesAsync.hasValue);
 
     var activeJobs = <view.ClientHomeActiveJobViewData>[];
+    var attention = <view.ClientHomeAttentionViewData>[];
     var activeTotal = 0;
     if (jobsAsync.hasValue) {
-      final activeRaw = clientHomeActiveJobs(jobsAsync.value!);
+      final allActive = clientHomeActiveJobs(jobsAsync.value!);
+      String serviceOf(JobRequest job) =>
+          serviceTypes
+              .where((t) => t.id == job.serviceTypeId)
+              .map((t) => t.name)
+              .firstOrNull ??
+          'Desconhecido';
+      // "Precisa de ti" (A11): o que espera pelo cliente sai da lista de
+      // pedidos em curso e fica numa linha própria por cima.
+      attention = [
+        for (final job in allActive)
+          if (clientJobAttention(job) case final kind?)
+            view.ClientHomeAttentionViewData(
+              jobId: job.id,
+              title: clientJobAttentionTitle(kind, job),
+              subtitle: serviceOf(job),
+              icon: _attentionIcon(kind),
+              tone: _attentionTone(kind),
+            ),
+      ];
+      final activeRaw =
+          allActive.where((j) => clientJobAttention(j) == null).toList();
       activeTotal = activeRaw.length;
       activeJobs = [
         for (final job in activeRaw.take(_homeMaxJobs))
@@ -84,6 +107,7 @@ class ClientHomeScreen extends ConsumerWidget {
     final data = view.ClientHomeViewData(
       firstName: profile?.fullName.split(' ').first ?? '',
       greeting: dayGreeting(DateTime.now()),
+      attention: attention,
       activeJobs: activeJobs,
       activeJobsTotal: activeTotal,
       loadingActiveJobs: loadingActiveJobs,
@@ -183,3 +207,15 @@ String _metadataLabel(JobRequest job) {
       job.addressText.isEmpty ? 'Localização por definir' : job.addressText;
   return '$dateLabel · $address';
 }
+
+IconData _attentionIcon(ClientJobAttention kind) => switch (kind) {
+      ClientJobAttention.seeProposals => Icons.request_quote_outlined,
+      ClientJobAttention.answerReschedule => Icons.edit_calendar_outlined,
+      ClientJobAttention.confirmDone => Icons.task_alt_rounded,
+    };
+
+AppStatusColor _attentionTone(ClientJobAttention kind) => switch (kind) {
+      ClientJobAttention.seeProposals => AppStatusColor.info,
+      ClientJobAttention.answerReschedule => AppStatusColor.waiting,
+      ClientJobAttention.confirmDone => AppStatusColor.info,
+    };
