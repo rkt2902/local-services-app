@@ -93,52 +93,44 @@ class AgendaRangeSelector extends StatelessWidget {
   }
 }
 
-/// Botão "Hoje": volta ao dia atual; atenuado quando já lá está.
+/// Botão "Hoje": volta ao dia atual; atenuado quando já lá está. Só o
+/// ícone, redondo, para caber ao lado do seletor sem o encolher.
 class AgendaTodayButton extends StatelessWidget {
   const AgendaTodayButton({required this.onPressed, super.key});
 
   /// Nulo = já está em hoje (atenuado).
   final VoidCallback? onPressed;
 
-  static const double _height = 40;
+  static const double size = 40;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
     final fg = enabled ? AppColors.primary : AppColors.agendaDashed;
-    final shape = StadiumBorder(
+    final shape = CircleBorder(
       side: BorderSide(
         color: enabled ? AppColors.agendaAppBorder : AppColors.divider,
         width: 1.5,
       ),
     );
-    return SizedBox(
-      height: _height,
-      child: Material(
-        color: enabled ? AppColors.surface : AppColors.background,
-        shape: shape,
-        child: InkWell(
-          onTap: onPressed,
-          customBorder: shape,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s14),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.today_outlined,
-                  size: AppSizes.inlineIcon,
-                  color: fg,
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                Text(
-                  'Hoje',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: fg,
-                  ),
-                ),
-              ],
+    return Tooltip(
+      message: 'Ir para hoje',
+      child: Semantics(
+        button: true,
+        label: 'Ir para hoje',
+        child: SizedBox.square(
+          dimension: size,
+          child: Material(
+            color: enabled ? AppColors.surface : AppColors.background,
+            shape: shape,
+            child: InkWell(
+              onTap: onPressed,
+              customBorder: shape,
+              child: Icon(
+                Icons.today_outlined,
+                size: AppSizes.inlineIcon,
+                color: fg,
+              ),
             ),
           ),
         ),
@@ -189,8 +181,9 @@ class AgendaPeriodNav extends StatelessWidget {
                     child: Text(
                       label,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   // Toque abre o calendário: a seta diz que há mais.
@@ -232,48 +225,63 @@ class AgendaProposalsToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
+  /// Abaixo disto o texto não cabe nem em duas linhas: fica só o
+  /// interruptor (o nome continua no leitor de ecrã e na dica).
+  static const double _minWidthForLabel = 110;
+
   @override
   Widget build(BuildContext context) {
-    return MergeSemantics(
-      child: InkWell(
-        onTap: () => onChanged(!value),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppSizes.headerIconButton,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Em ecrãs estreitos parte em duas linhas, como no design.
-              Flexible(
-                child: Text(
-                  'Mostrar propostas',
-                  textAlign: TextAlign.end,
-                  maxLines: 2,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textStrong,
-                    height: 1.15,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showLabel = constraints.maxWidth >= _minWidthForLabel;
+        final toggle = MergeSemantics(
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppSizes.headerIconButton,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Em ecrãs estreitos parte em duas linhas, como no design.
+                  if (showLabel) ...[
+                    Flexible(
+                      child: Text(
+                        'Mostrar propostas',
+                        textAlign: TextAlign.end,
+                        maxLines: 2,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textStrong,
+                          height: 1.15,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                  ] else
+                    Semantics(label: 'Mostrar propostas'),
+                  Switch(
+                    value: value,
+                    onChanged: onChanged,
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: AppColors.agendaExternalBorder,
+                    thumbColor: const WidgetStatePropertyAll(AppColors.surface),
+                    trackOutlineColor: const WidgetStatePropertyAll(
+                      Colors.transparent,
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Switch(
-                value: value,
-                onChanged: onChanged,
-                activeTrackColor: AppColors.primary,
-                inactiveTrackColor: AppColors.agendaExternalBorder,
-                thumbColor: const WidgetStatePropertyAll(AppColors.surface),
-                trackOutlineColor: const WidgetStatePropertyAll(
-                  Colors.transparent,
-                ),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+        return showLabel
+            ? toggle
+            : Tooltip(message: 'Mostrar propostas', child: toggle);
+      },
     );
   }
 }

@@ -47,7 +47,7 @@ class WorkerAgendaTab extends ConsumerStatefulWidget {
 }
 
 class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
-  AgendaRange _range = AgendaRange.day;
+  AgendaRange _range = AgendaRange.week;
 
   /// Dia mostrado no Hoje; na Semana, o dia preenchido (a semana é a dele).
   late DateTime _day = DateUtils.dateOnly(DateTime.now());
@@ -571,6 +571,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
       initialDay: _day,
       loading: loading,
       offlineLabel: offline,
+      intro: _intro(),
       onRetry: onRetry,
       onPreviousWeek: () => _goToWeek(
         DateTime(weekStart.year, weekStart.month, weekStart.day - 7),
