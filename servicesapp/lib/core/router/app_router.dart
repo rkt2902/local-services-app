@@ -541,6 +541,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/client/jobs',
             builder: (_, _) => const ClientJobsScreen(),
           ),
+          // Alertas (A11): as notificações do cliente são um separador da
+          // shell, sem seta. O jardineiro continua a abrir /notifications
+          // pelo sino.
+          GoRoute(
+            path: '/client/alerts',
+            builder: (_, _) => const NotificationsScreen(inShell: true),
+          ),
           GoRoute(
             path: '/client/profile',
             builder: (_, _) => const ClientProfileScreen(),

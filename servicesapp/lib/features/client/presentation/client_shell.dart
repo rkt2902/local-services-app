@@ -43,7 +43,7 @@ class _ClientShellState extends ConsumerState<ClientShell> {
           case 1:
             context.go('/client/jobs');
           case 2:
-            context.push('/notifications');
+            context.go('/client/alerts');
           case 3:
             context.go('/client/profile');
         }
@@ -71,7 +71,7 @@ class _ClientShellState extends ConsumerState<ClientShell> {
           selectedIcon: Icons.notifications_rounded,
         ),
         AppBottomNavigationItem(
-          label: 'Conta',
+          label: 'Perfil',
           icon: Icons.person_outline_rounded,
           selectedIcon: Icons.person_rounded,
         ),
@@ -82,7 +82,7 @@ class _ClientShellState extends ConsumerState<ClientShell> {
 
   int _indexFromLocation(String location) {
     if (location == '/client/jobs') return 1;
-    if (location.startsWith('/notifications')) return 2;
+    if (location.startsWith('/client/alerts')) return 2;
     if (location.startsWith('/client/profile')) return 3;
     return 0;
   }

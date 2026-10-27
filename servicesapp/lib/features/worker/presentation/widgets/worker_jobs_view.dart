@@ -10,8 +10,8 @@ import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/core/widgets/app_status_badge.dart';
+import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/core/widgets/home_notification_button.dart';
-import 'package:servicesapp/features/agenda/presentation/widgets/agenda_controls.dart';
 
 enum WorkerJobsTab { pending, scheduled, history }
 
@@ -113,7 +113,7 @@ class WorkerJobsScreen extends StatelessWidget {
     required this.onColorsPressed,
     super.key,
     this.proposalsCount,
-    this.hasUnreadNotifications = false,
+    this.unreadNotifications = 0,
     this.onRetry,
     this.onRefresh,
     this.highlightedJobId,
@@ -133,7 +133,8 @@ class WorkerJobsScreen extends StatelessWidget {
   final WorkerJobsTabViewData pending;
   final WorkerJobsTabViewData history;
 
-  final bool hasUnreadNotifications;
+  /// Número no sino; 0 = sem número.
+  final int unreadNotifications;
   final VoidCallback onNotificationsPressed;
 
   /// "Cores": folha "O que significam as cores".
@@ -165,8 +166,6 @@ class WorkerJobsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     Widget tab(WorkerJobsTab t, WorkerJobsTabViewData data) => _JobsTabContent(
       key: PageStorageKey<String>('worker_jobs_${t.name}'),
       tab: t,
@@ -187,63 +186,30 @@ class WorkerJobsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(bottom: BorderSide(color: AppColors.divider)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                      AppSpacing.xxs,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Trabalhos',
-                            style: textTheme.displaySmall?.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (selectedSection == WorkerJobsSection.agenda) ...[
-                          _ColorsButton(onPressed: onColorsPressed),
-                          const SizedBox(width: AppSpacing.xs),
-                        ],
-                        HomeNotificationButton(
-                          hasUnread: hasUnreadNotifications,
-                          onPressed: onNotificationsPressed,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    child: AgendaTabs(
-                      items: [
-                        const AgendaTabItem(label: 'Agenda'),
-                        AgendaTabItem(
-                          label: 'Propostas',
-                          count: (proposalsCount ?? 0) > 0
-                              ? proposalsCount
-                              : null,
-                        ),
-                        const AgendaTabItem(label: 'Histórico'),
-                      ],
-                      selectedIndex: selectedSection.index,
-                      onSelected: (i) =>
-                          onSectionSelected(WorkerJobsSection.values[i]),
-                    ),
-                  ),
-                ],
+            AppTabHeader(
+              title: 'Trabalhos',
+              actions: [
+                if (selectedSection == WorkerJobsSection.agenda)
+                  _ColorsButton(onPressed: onColorsPressed),
+                HomeNotificationButton(
+                  unreadCount: unreadNotifications,
+                  onPressed: onNotificationsPressed,
+                ),
+              ],
+              bottom: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                ),
+                child: AppTabs(
+                  items: [
+                    const AppTabItem(label: 'Agenda'),
+                    AppTabItem(label: 'Propostas', count: proposalsCount),
+                    const AppTabItem(label: 'Histórico'),
+                  ],
+                  selectedIndex: selectedSection.index,
+                  onSelected: (i) =>
+                      onSectionSelected(WorkerJobsSection.values[i]),
+                ),
               ),
             ),
             // IndexedStack e não um fade: cada tab guarda o scroll e as

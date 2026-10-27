@@ -34,9 +34,12 @@ abstract final class AppSizes {
   /// Caixa do ícone nos cartões de atalho (folha do "+" do jardineiro).
   static const double actionIconBox = 44.0;
 
-  /// Botão redondo das notificações no cabeçalho do Início.
+  /// Botões do cabeçalho dos separadores (sino, definições, mapa).
   static const double headerIconButton = 44.0;
   static const double unreadDot = 9.0;
+
+  /// Círculo com o número de notificações por ler no sino.
+  static const double unreadBadge = 18.0;
 
   /// Sombra do cabeçalho fixo quando o conteúdo passa por baixo
   /// (ex.: "A minha conta").

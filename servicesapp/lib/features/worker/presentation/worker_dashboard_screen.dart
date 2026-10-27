@@ -17,6 +17,7 @@ import '../../../core/utils/day_greeting.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/app_tab_header.dart';
 import '../../../core/widgets/home_notification_button.dart';
 import '../../../core/widgets/service_icon.dart';
 import '../../../core/widgets/todo_row.dart';
@@ -45,7 +46,7 @@ class WorkerDashboardViewData {
     required this.pendingCount,
     required this.scheduledCount,
     required this.opportunities,
-    this.hasUnreadNotifications = false,
+    this.unreadNotifications = 0,
     this.nextJob,
   });
 
@@ -57,7 +58,8 @@ class WorkerDashboardViewData {
   final int pendingCount;
   final int scheduledCount;
 
-  final bool hasUnreadNotifications;
+  /// Número no sino.
+  final int unreadNotifications;
 
   final WorkerDashboardJobSummary? nextJob;
 
@@ -222,9 +224,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
       workerFirstName: fullName.isEmpty ? '' : fullName.split(' ').first,
       greeting: dayGreeting(DateTime.now()),
       pendingCount: pendingCount,
-      scheduledCount: scheduledRaw.length,
+      scheduledCount: _scheduledThisWeek(scheduledRaw, DateTime.now()),
       opportunities: opportunities,
-      hasUnreadNotifications: unreadCount > 0,
+      unreadNotifications: unreadCount,
       nextJob: nextJob,
     );
 
@@ -232,7 +234,23 @@ class WorkerDashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTabHeader(
+              overline: data.greeting,
+              title: data.workerFirstName.isEmpty
+                  ? 'Olá'
+                  : 'Olá, ${data.workerFirstName}',
+              actions: [
+                HomeNotificationButton(
+                  unreadCount: data.unreadNotifications,
+                  onPressed: () => context.push('/notifications'),
+                ),
+              ],
+            ),
+            Expanded(
+              child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: () => _refresh(ref),
           child: CustomScrollView(
@@ -247,17 +265,6 @@ class WorkerDashboardScreen extends ConsumerWidget {
                 ),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    AppStaggeredEntrance(
-                      index: 0,
-                      child: _DashboardHeader(
-                        workerFirstName: data.workerFirstName,
-                        greeting: data.greeting,
-                        hasUnreadNotifications: data.hasUnreadNotifications,
-                        onNotificationsPressed: () =>
-                            context.push('/notifications'),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 1,
                       child: _DashboardMetrics(
@@ -334,6 +341,9 @@ class WorkerDashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -456,6 +466,24 @@ class WorkerDashboardScreen extends ConsumerWidget {
   }
 }
 
+/// Trabalhos marcados (com data) de segunda a domingo da semana de [now].
+int _scheduledThisWeek(List<Map<String, dynamic>> scheduledRaw, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  final monday = today.subtract(Duration(days: today.weekday - 1));
+  final nextMonday = monday.add(const Duration(days: 7));
+  var count = 0;
+  for (final row in scheduledRaw) {
+    final jobJson = row['job_requests'];
+    if (jobJson is! Map) continue;
+    final date = JobRequest.fromJson(Map<String, dynamic>.from(jobJson))
+        .confirmedDate;
+    if (date == null) continue;
+    final day = DateTime(date.year, date.month, date.day);
+    if (!day.isBefore(monday) && day.isBefore(nextMonday)) count++;
+  }
+  return count;
+}
+
 String _confirmedScheduleLabel(JobRequest job) {
   if (job.confirmedDate == null) return 'Data a combinar';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
@@ -477,58 +505,8 @@ String _distanceLabel(WorkerProfile? workerProfile, JobRequest job) {
       : '${decimalLabel(distanceMeters / 1000, 1)} km';
 }
 
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({
-    required this.workerFirstName,
-    required this.greeting,
-    required this.hasUnreadNotifications,
-    required this.onNotificationsPressed,
-  });
-
-  final String workerFirstName;
-  final String greeting;
-  final bool hasUnreadNotifications;
-  final VoidCallback onNotificationsPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                workerFirstName.isEmpty ? 'Olá' : 'Olá, $workerFirstName',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        HomeNotificationButton(
-          hasUnread: hasUnreadNotifications,
-          onPressed: onNotificationsPressed,
-        ),
-      ],
-    );
-  }
-}
-
-/// Só 2 cartões (Pendentes / Agendados), cada um abre a sua aba em "Os
-/// meus trabalhos". Sem dados agregados de propostas enviadas nem de receita
+/// Só 2 cartões (Propostas / Marcados esta semana), cada um abre a sua aba
+/// em Trabalhos. Sem dados agregados de propostas enviadas nem de receita
 /// mensal (nenhum dos dois existe hoje no backend; ver
 /// docs/improvements.md, "Dashboard do jardineiro").
 class _DashboardMetrics extends StatelessWidget {
@@ -551,7 +529,7 @@ class _DashboardMetrics extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             value: pendingCount.toString(),
-            label: 'Pendentes',
+            label: 'Propostas',
             onPressed: onPendingPressed,
           ),
         ),
@@ -559,7 +537,7 @@ class _DashboardMetrics extends StatelessWidget {
         Expanded(
           child: _MetricCard(
             value: scheduledCount.toString(),
-            label: 'Agendados',
+            label: 'Marcados esta semana',
             onPressed: onScheduledPressed,
           ),
         ),

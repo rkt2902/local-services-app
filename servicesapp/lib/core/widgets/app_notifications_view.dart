@@ -10,6 +10,7 @@ import '../theme/app_status_color.dart';
 import 'app_empty_state.dart';
 import 'app_filter_chip.dart';
 import 'app_motion.dart';
+import 'app_tab_header.dart';
 
 enum AppNotificationsFilter { all, jobs }
 
@@ -72,25 +73,44 @@ class AppNotificationItemViewData {
   final String? actionLabel;
 }
 
+/// Notificações (design A11, N1 a N3). Dois cabeçalhos: no cliente é o
+/// separador "Alertas" da shell, sem seta ([onBack] nulo); no jardineiro é
+/// um ecrã à parte, aberto pelo sino, com seta.
 class AppNotificationsView extends StatefulWidget {
   const AppNotificationsView({
     super.key,
+    required this.title,
     required this.dataAsync,
-    required this.onBack,
     required this.onOpen,
     required this.onAction,
     required this.onMarkAllAsRead,
+    required this.onClearAll,
     required this.onRefresh,
     required this.onRetry,
+    this.onBack,
+    this.undoMessage,
+    this.onUndo,
   });
 
+  final String title;
   final AsyncValue<AppNotificationsViewData> dataAsync;
-  final VoidCallback onBack;
+
+  /// Nulo dentro da shell (separador Alertas do cliente).
+  final VoidCallback? onBack;
   final ValueChanged<AppNotificationItemViewData> onOpen;
   final ValueChanged<AppNotificationItemViewData> onAction;
 
   /// Acaba quando o servidor responde; a lista atualiza pelos providers.
   final Future<void> Function() onMarkAllAsRead;
+
+  /// "Limpar tudo": o host pede confirmação (N2) e só limpa depois de o
+  /// servidor responder.
+  final VoidCallback onClearAll;
+
+  /// Faixa "9 notificações apagadas · Desfazer" (N3). O host conta os 6 s e
+  /// põe-na a nulo.
+  final String? undoMessage;
+  final VoidCallback? onUndo;
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
 
@@ -151,22 +171,31 @@ class _AppNotificationsViewState extends State<AppNotificationsView> {
       body = const _LoadingList();
     }
 
+    final hasItems = data != null && data.all.any((s) => s.items.isNotEmpty);
+    final toolbar = _Toolbar(
+      canMarkAll: (data?.hasUnread ?? false) && !_marking,
+      marking: _marking,
+      canClear: hasItems,
+      onMarkAll: _markAll,
+      onClear: widget.onClearAll,
+    );
+    final onBack = widget.onBack;
+    final undoMessage = widget.undoMessage;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Header(
-          canMarkAll: (data?.hasUnread ?? false) && !_marking,
-          marking: _marking,
-          onBack: widget.onBack,
-          onMarkAll: _markAll,
-        ),
-        if (data != null)
+        if (onBack == null)
+          AppTabHeader(title: widget.title, bottom: toolbar)
+        else
+          _BackHeader(title: widget.title, onBack: onBack, bottom: toolbar),
+        if (hasItems)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
-              0,
+              AppSpacing.sm,
               AppSpacing.md,
-              AppSpacing.xs,
+              0,
             ),
             child: Wrap(
               spacing: AppSpacing.xs,
@@ -188,23 +217,186 @@ class _AppNotificationsViewState extends State<AppNotificationsView> {
             ),
           ),
         Expanded(child: body),
+        AnimatedSwitcher(
+          duration: (MediaQuery.maybeOf(context)?.disableAnimations ?? false)
+              ? Duration.zero
+              : AppMotionDuration.fast,
+          child: undoMessage == null
+              ? const SizedBox.shrink()
+              : _UndoBar(
+                  key: ValueKey(undoMessage),
+                  message: undoMessage,
+                  onUndo: widget.onUndo,
+                ),
+        ),
       ],
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
+/// Ecrã à parte (jardineiro): seta, título e, por baixo, as ações.
+class _BackHeader extends StatelessWidget {
+  const _BackHeader({
+    required this.title,
+    required this.onBack,
+    required this.bottom,
+  });
+
+  final String title;
+  final VoidCallback onBack;
+  final Widget bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              AppSpacing.xs,
+              AppSpacing.md,
+              0,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  tooltip: 'Voltar',
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xxs),
+                Expanded(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleLarge
+                          ?.copyWith(color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          bottom,
+        ],
+      ),
+    );
+  }
+}
+
+/// "Marcar lidas" e "Limpar tudo" lado a lado (N1). "Limpar tudo" é
+/// vermelho e nunca a ação principal; os dois desligam com a lista vazia.
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({
     required this.canMarkAll,
     required this.marking,
-    required this.onBack,
+    required this.canClear,
     required this.onMarkAll,
+    required this.onClear,
   });
 
   final bool canMarkAll;
   final bool marking;
-  final VoidCallback onBack;
+  final bool canClear;
   final VoidCallback onMarkAll;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = AppStatusColor.cancelled.foreground;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ToolbarButton(
+              icon: Icons.done_all_rounded,
+              label: marking ? 'A marcar...' : 'Marcar lidas',
+              color: AppColors.primary,
+              onPressed: canMarkAll ? onMarkAll : null,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: _ToolbarButton(
+              icon: Icons.delete_sweep_outlined,
+              label: 'Limpar tudo',
+              color: danger,
+              onPressed: canClear ? onClear : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolbarButton extends StatelessWidget {
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final enabled = onPressed != null;
+    final foreground = enabled ? color : color.withValues(alpha: 0.4);
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: foreground,
+        disabledForegroundColor: foreground,
+        minimumSize: const Size(0, AppSizes.headerIconButton),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        side: BorderSide(
+          color: enabled ? color.withValues(alpha: 0.35) : AppColors.divider,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.input),
+        ),
+        textStyle: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      icon: Icon(icon, size: AppSizes.emphasisIcon),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+}
+
+/// "9 notificações apagadas · Desfazer" (N3), escura, em baixo.
+class _UndoBar extends StatelessWidget {
+  const _UndoBar({super.key, required this.message, required this.onUndo});
+
+  final String message;
+  final VoidCallback? onUndo;
 
   @override
   Widget build(BuildContext context) {
@@ -212,55 +404,48 @@ class _Header extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xs,
-        AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.md,
       ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            tooltip: 'Voltar',
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: AppColors.textPrimary,
-            ),
+      child: Material(
+        color: AppColors.textPrimary,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xxs,
+            AppSpacing.xs,
+            AppSpacing.xxs,
           ),
-          const SizedBox(width: AppSpacing.xxs),
-          Expanded(
-            child: Text(
-              'Notificações',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: TextButton(
-              onPressed: canMarkAll ? onMarkAll : null,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xxs,
+          child: Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    message,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.surface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
-              child: Text(
-                marking ? 'A marcar...' : 'Marcar todas como lidas',
-                textAlign: TextAlign.end,
-                style: textTheme.labelMedium?.copyWith(
-                  color: canMarkAll
-                      ? AppColors.primary
-                      : AppStatusColor.neutral.foreground,
-                  fontWeight: FontWeight.w700,
+              TextButton(
+                onPressed: onUndo,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accent,
+                  minimumSize: const Size(0, AppSizes.headerIconButton),
+                  textStyle: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
+                child: const Text('Desfazer'),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -312,8 +497,8 @@ class _NotificationsList extends StatelessWidget {
               height: constraints.maxHeight,
               child: const _CenteredState(
                 child: AppEmptyState(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Ainda sem notificações',
+                  icon: Icons.notifications_off_outlined,
+                  title: 'Sem notificações',
                   message: 'Quando houver novidades sobre os teus trabalhos, '
                       'avisamos-te aqui.',
                 ),

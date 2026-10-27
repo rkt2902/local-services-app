@@ -232,8 +232,12 @@ void main() {
 
     test('rotas próprias e partilhadas ficam', () {
       expect(_go('/client/jobs', _client), isNull);
-      expect(_go('/notifications', _client), isNull);
+      expect(_go('/client/alerts', _client), isNull);
       expect(_go('/w/abc', _client), isNull);
+    });
+
+    test('/notifications cai no separador Alertas', () {
+      expect(_go('/notifications', _client), '/client/alerts');
     });
   });
 

@@ -93,7 +93,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (notification == null) return;
     final router = ref.read(appRouterProvider);
     // No ecrã de notificações a lista já mostra a nova.
-    if (router.state.uri.path == '/notifications') return;
+    final path = router.state.uri.path;
+    if (path == '/notifications' || path == '/client/alerts') return;
     final navContext = router.routerDelegate.navigatorKey.currentContext;
     if (navContext == null || !navContext.mounted) return;
 

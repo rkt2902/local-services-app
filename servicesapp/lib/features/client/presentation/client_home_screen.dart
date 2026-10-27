@@ -16,7 +16,6 @@ import '../../jobs/application/client_job_next_step.dart';
 import '../../jobs/application/client_jobs_refresh.dart';
 import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
-import '../../notifications/application/notification_providers.dart';
 import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/data/direct_request_models.dart';
 import 'repeat_hire_launcher.dart';
@@ -49,7 +48,6 @@ class ClientHomeScreen extends ConsumerWidget {
   ) {
     final jobsAsync = ref.watch(clientJobsProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
-    final unreadCount = ref.watch(unreadCountProvider);
 
     final serviceTypes = serviceTypesAsync.asData?.value ?? const [];
     // Só o primeiro carregamento mostra o esqueleto: num pull-to-refresh a
@@ -86,7 +84,6 @@ class ClientHomeScreen extends ConsumerWidget {
     final data = view.ClientHomeViewData(
       firstName: profile?.fullName.split(' ').first ?? '',
       greeting: dayGreeting(DateTime.now()),
-      hasUnreadNotifications: unreadCount > 0,
       activeJobs: activeJobs,
       activeJobsTotal: activeTotal,
       loadingActiveJobs: loadingActiveJobs,
@@ -128,7 +125,6 @@ class ClientHomeScreen extends ConsumerWidget {
         ref.read(clientCreateJobWizardProvider.notifier).clearDirectWorker();
         context.push('/client/create-job');
       },
-      onNotificationsPressed: () => context.push('/notifications'),
       onViewAllJobsPressed: () => context.go('/client/jobs'),
       onActiveJobPressed: (jobId) => context.push('/client/job/$jobId'),
       onRefresh: () {

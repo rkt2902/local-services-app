@@ -8,7 +8,7 @@ import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/widgets/app_empty_state.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
-import 'package:servicesapp/core/widgets/home_notification_button.dart';
+import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/core/widgets/next_step_row.dart';
 
 import 'your_gardeners_section.dart';
@@ -23,7 +23,6 @@ class ClientHomeViewData {
     required this.greeting,
     required this.activeJobs,
     this.activeJobsTotal = 0,
-    this.hasUnreadNotifications = false,
     this.loadingActiveJobs = false,
   });
 
@@ -31,7 +30,6 @@ class ClientHomeViewData {
 
   /// "Bom dia" / "Boa tarde" / "Boa noite" (`dayGreeting`).
   final String greeting;
-  final bool hasUnreadNotifications;
 
   /// Pedidos em curso (`open`/`confirmed`/`awaitingConfirmation`), já
   /// ordenados com o que precisa do cliente primeiro. Mostram-se numa só
@@ -74,7 +72,6 @@ class ClientHomeScreen extends StatelessWidget {
   const ClientHomeScreen({
     required this.data,
     required this.onCreateJobPressed,
-    required this.onNotificationsPressed,
     required this.onActiveJobPressed,
     required this.onViewAllJobsPressed,
     this.gardeners = const AsyncValue.data([]),
@@ -92,7 +89,6 @@ class ClientHomeScreen extends StatelessWidget {
   final VoidCallback? onRetryGardeners;
 
   final VoidCallback onCreateJobPressed;
-  final VoidCallback onNotificationsPressed;
   final VoidCallback onViewAllJobsPressed;
 
   final ValueChanged<String> onActiveJobPressed;
@@ -106,7 +102,17 @@ class ClientHomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: _refreshable(CustomScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Sem sino: as notificações do cliente são o separador Alertas.
+            AppTabHeader(
+              overline: data.greeting,
+              title:
+                  data.firstName.isEmpty ? 'Olá' : 'Olá, ${data.firstName}',
+            ),
+            Expanded(
+              child: _refreshable(CustomScrollView(
           // Rolável mesmo com pouco conteúdo, para o pull-to-refresh.
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -120,16 +126,6 @@ class ClientHomeScreen extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    AppStaggeredEntrance(
-                      index: 0,
-                      child: _ClientHeader(
-                        firstName: data.firstName,
-                        greeting: data.greeting,
-                        hasUnreadNotifications: data.hasUnreadNotifications,
-                        onNotificationsPressed: onNotificationsPressed,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
                     AppStaggeredEntrance(
                       index: 1,
                       child: _CreateJobButton(
@@ -198,6 +194,9 @@ class ClientHomeScreen extends StatelessWidget {
             ),
           ],
         )),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -209,56 +208,6 @@ class ClientHomeScreen extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: refresh,
       child: scrollable,
-    );
-  }
-}
-
-class _ClientHeader extends StatelessWidget {
-  const _ClientHeader({
-    required this.firstName,
-    required this.greeting,
-    required this.hasUnreadNotifications,
-    required this.onNotificationsPressed,
-  });
-
-  final String firstName;
-  final String greeting;
-  final bool hasUnreadNotifications;
-  final VoidCallback onNotificationsPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greeting,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                firstName.isEmpty ? 'Olá' : 'Olá, $firstName',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        HomeNotificationButton(
-          hasUnread: hasUnreadNotifications,
-          onPressed: onNotificationsPressed,
-        ),
-      ],
     );
   }
 }

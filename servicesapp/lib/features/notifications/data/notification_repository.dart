@@ -12,7 +12,7 @@ class NotificationRepository {
         .eq('user_id', userId)
         .order('created_at', ascending: false)
         .limit(50);
-    return (data as List).map((e) => AppNotification.fromJson(e)).toList();
+    return _visible(data);
   }
 
   Future<AppNotification?> fetchById(String notificationId) async {
@@ -38,6 +38,26 @@ class NotificationRepository {
         .eq('read', false);
   }
 
+  /// "Limpar tudo" (0065): esconde e marca como lidas todas as do próprio.
+  /// Devolve os ids limpos, para o "Desfazer".
+  Future<List<String>> clearAll() async {
+    final data = await _client.rpc('clear_my_notifications');
+    return [for (final id in (data as List? ?? const [])) id as String];
+  }
+
+  /// "Desfazer" do [clearAll].
+  Future<void> restore(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _client.rpc('restore_my_notifications', params: {'p_ids': ids});
+  }
+
+  /// Tira as limpas no Dart e não na query: assim a lista continua a
+  /// funcionar antes de a 0065 (coluna `cleared_at`) estar aplicada.
+  static List<AppNotification> _visible(dynamic data) => [
+        for (final e in data as List)
+          if (AppNotification.fromJson(e) case final n when !n.cleared) n,
+      ];
+
   /// Streams only unread notifications — keeps the channel lightweight and
   /// ensures the badge count shrinks automatically when items are marked read.
   ///
@@ -55,7 +75,7 @@ class NotificationRepository {
         .limit(50)
         .map((data) => data
             .map((e) => AppNotification.fromJson(e))
-            .where((n) => !n.read)
+            .where((n) => !n.read && !n.cleared)
             .toList());
   }
 
@@ -67,7 +87,7 @@ class NotificationRepository {
         .eq('user_id', userId)
         .order('created_at', ascending: false)
         .limit(50);
-    return (data as List).map((e) => AppNotification.fromJson(e)).toList();
+    return _visible(data);
   }
 
   /// "Dicas da época" (0062). Sem linha guardada vale `true`.

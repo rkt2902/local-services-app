@@ -36,7 +36,9 @@ Widget _screen(
   return MaterialApp(
     home: Scaffold(
       body: AppNotificationsView(
+        title: 'Notificações',
         dataAsync: data,
+        onClearAll: () {},
         onBack: () {},
         onOpen: (_) {},
         onAction: onAction ?? (_) {},
@@ -137,7 +139,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Novo pedido perto de ti'), findsNothing);
 
-    await tester.tap(find.text('Marcar todas como lidas'));
+    await tester.tap(find.text('Marcar lidas'));
     await tester.pumpAndSettle();
     expect(calls, 1);
   });
@@ -149,10 +151,10 @@ void main() {
       _now,
     ))));
     await tester.pumpAndSettle();
-    final button = tester.widget<TextButton>(
+    final button = tester.widget<OutlinedButton>(
       find.ancestor(
-        of: find.text('Marcar todas como lidas'),
-        matching: find.byType(TextButton),
+        of: find.text('Marcar lidas'),
+        matching: find.byWidgetPredicate((w) => w is OutlinedButton),
       ),
     );
     expect(button.onPressed, isNull);
@@ -160,7 +162,7 @@ void main() {
     await tester
         .pumpWidget(_screen(AsyncData(notificationsViewData(const [], _now))));
     await tester.pumpAndSettle();
-    expect(find.text('Ainda sem notificações'), findsWidgets);
+    expect(find.text('Sem notificações'), findsWidgets);
 
     await tester
         .pumpWidget(_screen(AsyncError(Exception('x'), StackTrace.empty)));

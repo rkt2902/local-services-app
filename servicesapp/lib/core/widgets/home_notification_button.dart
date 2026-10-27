@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_status_color.dart';
 
-/// Sino do cabeçalho do Início, igual nos dois papéis (design U2): círculo
-/// branco e um ponto vermelho quando há notificações por ler (sem número).
+/// Sino dos cabeçalhos do jardineiro (Início, Pedidos e Trabalhos, design
+/// A11): o mesmo nos três, com o número de notificações por ler num círculo
+/// vermelho. O cliente não tem sino: as notificações dele são o separador
+/// Alertas.
 class HomeNotificationButton extends StatelessWidget {
   const HomeNotificationButton({
     super.key,
-    required this.hasUnread,
+    required this.unreadCount,
     required this.onPressed,
   });
 
-  final bool hasUnread;
+  final int unreadCount;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final countLabel = unreadCount > 9 ? '9+' : '$unreadCount';
+
     return Semantics(
       button: true,
-      label: hasUnread ? 'Notificações, há novas' : 'Notificações',
+      label: unreadCount > 0
+          ? 'Notificações, $unreadCount por ler'
+          : 'Notificações',
+      excludeSemantics: true,
       child: Material(
-        color: AppColors.surface,
-        shape: const CircleBorder(side: BorderSide(color: AppColors.divider)),
+        color: Colors.transparent,
+        shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
@@ -32,23 +41,38 @@ class HomeNotificationButton extends StatelessWidget {
             dimension: AppSizes.headerIconButton,
             child: Stack(
               alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
                 const Icon(
                   Icons.notifications_none_rounded,
                   color: AppColors.textPrimary,
                 ),
-                if (hasUnread)
+                if (unreadCount > 0)
                   Positioned(
-                    top: AppSpacing.s10,
-                    right: AppSpacing.s10 + AppSpacing.xxs / 2,
+                    top: AppSpacing.s6,
+                    right: AppSpacing.s6,
                     child: Container(
-                      width: AppSizes.unreadDot,
-                      height: AppSizes.unreadDot,
+                      constraints: const BoxConstraints(
+                        minWidth: AppSizes.unreadBadge,
+                        minHeight: AppSizes.unreadBadge,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxs,
+                      ),
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppStatusColor.cancelled.foreground,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         border:
                             Border.all(color: AppColors.surface, width: 1.5),
+                      ),
+                      child: Text(
+                        countLabel,
+                        style: textTheme.labelMedium?.copyWith(
+                          color: AppColors.surface,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
                       ),
                     ),
                   ),
