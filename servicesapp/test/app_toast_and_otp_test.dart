@@ -54,6 +54,28 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('navegar com o aviso aberto não o faz entrar outra vez',
+      (tester) async {
+    final navKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: navKey, home: const Scaffold()),
+    );
+
+    // Contexto do Navigator raiz, como em app.dart (avisos de notificações).
+    // Regra T4: navegar e logo a seguir o aviso. A transição da rota volta a
+    // construir o Overlay; o aviso tem de manter o seu tempo.
+    AppToast.of(navKey.currentContext!).show('Guardado.');
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    navKey.currentState!.push(
+      MaterialPageRoute<void>(builder: (_) => const Scaffold()),
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('Guardado.'), findsNothing);
+  });
+
   testWidgets('AppOtpInput cabe num ecrã estreito sem overflow', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
