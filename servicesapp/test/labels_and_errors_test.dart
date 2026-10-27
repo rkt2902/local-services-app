@@ -117,6 +117,13 @@ void main() {
       );
     });
 
+    test('email de conta eliminada há menos de 90 dias', () {
+      expect(
+        friendlyError(const AuthException('Database error saving new user')),
+        recentlyDeletedEmailMessage,
+      );
+    });
+
     test('regra da véspera de cancelar e remarcar', () {
       expect(
         friendlyError(Exception(
