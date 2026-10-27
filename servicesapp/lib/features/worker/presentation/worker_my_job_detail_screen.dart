@@ -36,6 +36,7 @@ import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
+import '../application/worker_job_flow.dart';
 import '../application/worker_job_rules.dart';
 import '../application/worker_list_invalidation.dart';
 import '../../proposals/application/proposal_price_labels.dart';
@@ -742,6 +743,10 @@ class _WorkerMyJobDetailScreenState
         ? _completedViewData(job, clientName)
         : null;
 
+    final helpTeam = _teamViewData(
+      team.summary,
+      helpersForRatingAsync.asData?.value ?? const [],
+    );
     final data = view.WorkerMyJobDetailViewData(
       jobId: job.id,
       proposalStatus: proposal.status,
@@ -818,10 +823,16 @@ class _WorkerMyJobDetailScreenState
       helpTeamLoaded: team.loaded,
       // Mesma regra da BD (0054): pedir ajudantes só até à véspera.
       canRequestHelpers: confirmedDay == null || confirmedDay.isAfter(today),
-      helpTeam: _teamViewData(
-        team.summary,
-        helpersForRatingAsync.asData?.value ?? const [],
+      helpTeam: helpTeam,
+      flowStage: workerJobFlowStage(
+        proposalStatus: proposal.status,
+        jobStatus: job.status,
+        startedAt: job.startedAt,
+        teamPending: helpTeam != null &&
+            (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
       ),
+      // Fase Equipa só com ajudantes (previstos na proposta ou pedidos).
+      flowShowTeam: helpTeam != null || proposal.peopleNeeded > 1,
       // Aceite: "Sofia Marques · Cascais" (design A1); antes disso o nome
       // do cliente pode não estar acessível (RLS), fica zona e data.
       titleSubtitle: accepted

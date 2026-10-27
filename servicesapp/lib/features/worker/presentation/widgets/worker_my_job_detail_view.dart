@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/enums.dart';
+import '../../../../core/models/job_flow_stage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -15,6 +16,7 @@ import '../../../../core/widgets/app_whatsapp_button.dart';
 import '../../../../core/widgets/app_bar_title.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/job_flow_stepper.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/status_timeline.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
@@ -77,6 +79,8 @@ class WorkerMyJobDetailViewData {
     this.helpTeam,
     this.canRequestHelpers = true,
     this.titleSubtitle,
+    this.flowStage,
+    this.flowShowTeam = false,
     this.sizeLabel,
     this.estimatedHoursLabel,
     this.notes,
@@ -115,6 +119,14 @@ class WorkerMyJobDetailViewData {
   final String? notes;
 
   final List<StatusTimelineStepData> timelineSteps;
+
+  /// Fase do stepper do fluxo (A12). Com fase, o stepper fica no cabeçalho
+  /// e substitui o timeline; `null` (proposta recusada ou retirada, pedido
+  /// cancelado) mantém o timeline.
+  final JobFlowStage? flowStage;
+
+  /// Mostra a fase Equipa: só quando o trabalho tem ajudantes.
+  final bool flowShowTeam;
 
   final String clientId;
   final String clientName;
@@ -518,6 +530,15 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             presentation: data.statusPresentation,
           ),
         ],
+        bottom: data.flowStage == null
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(44),
+                child: JobFlowStepper(
+                  stage: data.flowStage!,
+                  showTeam: data.flowShowTeam,
+                ),
+              ),
       ),
       body: Stack(
         children: [
@@ -553,10 +574,11 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AppStaggeredEntrance(
-                  index: 0,
-                  child: StatusTimelineHorizontal(steps: data.timelineSteps),
-                ),
+                if (data.flowStage == null)
+                  AppStaggeredEntrance(
+                    index: 0,
+                    child: StatusTimelineHorizontal(steps: data.timelineSteps),
+                  ),
                 if (data.overdueMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
@@ -813,11 +835,13 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppStaggeredEntrance(
-              index: 0,
-              child: StatusTimelineCard(steps: data.timelineSteps),
-            ),
-            const SizedBox(height: AppSpacing.md),
+            if (data.flowStage == null) ...[
+              AppStaggeredEntrance(
+                index: 0,
+                child: StatusTimelineCard(steps: data.timelineSteps),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
             AppStaggeredEntrance(
               index: 1,
               child: _JobSummaryCard(data: data),

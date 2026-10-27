@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/models/job_flow_stage.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/date_labels.dart';
@@ -18,6 +19,7 @@ import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/job_flow_stepper.dart';
 import '../../../core/widgets/status_timeline.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../ratings/presentation/worker_ratings_sheet.dart';
@@ -141,10 +143,17 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
           const SizedBox(height: AppSpacing.md),
           AppStaggeredEntrance(
             index: index++,
-            child: _TimelineCard(
-              steps: helperTimelineSteps(acceptance, stage),
-              closed: stage == HelperJobStage.closed,
-            ),
+            // Mesmo stepper da cliente e do responsável (A12); a candidatura
+            // fechada fica com o timeline, que diz porquê.
+            child: helperJobFlowStage(stage) == null
+                ? _TimelineCard(
+                    steps: helperTimelineSteps(acceptance, stage),
+                    closed: true,
+                  )
+                : _FlowCard(
+                    stage: helperJobFlowStage(stage)!,
+                    message: _stageSubtitle(stage, acceptance),
+                  ),
           ),
           const SizedBox(height: AppSpacing.sm),
           AppStaggeredEntrance(
@@ -342,6 +351,48 @@ String helperRateLabel(HelpAcceptanceSummary a) {
 }
 
 /// "Ajudas Miguel", o serviço e o estado, sem cartão (design U4).
+/// Stepper do fluxo e o que se passa agora, no lugar do timeline.
+class _FlowCard extends StatelessWidget {
+  const _FlowCard({required this.stage, required this.message});
+
+  final JobFlowStage stage;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          JobFlowStepper(stage: stage),
+          if (message.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.md,
+                0,
+              ),
+              child: Text(
+                message,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeaderRow extends StatelessWidget {
   const _HeaderRow({required this.acceptance, required this.stage});
 

@@ -27,7 +27,14 @@
 - Stepper também nos detalhes aberto, "feito" e concluído da cliente (no AppBar);
   cancelado e expirado ficam com o timeline. Propostas: "Leva N ajudantes" em vez de
   "Equipa de N".
-- Por fazer do A12: lado do responsável (J1 a J8) e do ajudante (A4 a A8).
+- **Jardineiro e ajudante com o mesmo stepper**: no detalhe do trabalho do responsável
+  (`worker_job_flow.dart`, stepper no AppBar, Equipa só com ajudantes previstos ou
+  pedidos) e no trabalho como ajudante (`helperJobFlowStage`: candidatura em Equipa,
+  aceite em No dia). Proposta recusada ou retirada, pedido cancelado e candidatura
+  fechada ficam com o timeline, que diz o que aconteceu.
+- Por fazer do A12: separadores Resumo · Equipa no detalhe do responsável (hoje a equipa
+  continua no cartão e no ecrã Equipa), cartões novos dos pedidos de ajuda e da Agenda
+  do ajudante.
 
 ## 2026-10-27 — Docs alinhados com o `main` e todas as migrations aplicadas
 
