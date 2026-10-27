@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion_tokens.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -42,7 +45,10 @@ class AgendaViewControls extends StatelessWidget {
   final VoidCallback onGoToToday;
   final ValueChanged<bool> onShowProposalsChanged;
 
-  static const _rangeSelectorWidth = 200.0;
+  static const _rangeSelectorWidth = 180.0;
+
+  /// "Hoje", o interruptor e os espaços entre eles.
+  static const _reservedRight = 120.0;
 
   @override
   Widget build(BuildContext context) {
@@ -66,42 +72,46 @@ class AgendaViewControls extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(left: AppSpacing.xs),
-            child: Row(
-              children: [
-                Flexible(
-                  flex: 3,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: _rangeSelectorWidth,
-                          child: AgendaRangeSelector(
-                            selected: range,
-                            onSelected: onRangeChanged,
-                          ),
-                        ),
-                        if (showToday) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          AgendaTodayButton(onPressed: onGoToToday),
-                        ],
-                      ],
+            child: LayoutBuilder(
+              builder: (context, constraints) => Row(
+                children: [
+                  // O seletor tem sempre a mesma largura: o botão "Hoje" é só
+                  // um ícone e aparece ao lado sem o encolher; quem cede espaço
+                  // é o "Mostrar propostas", que parte em duas linhas.
+                  SizedBox(
+                    // Num ecrã muito estreito cede um pouco para o
+                    // interruptor e o "Hoje" caberem.
+                    width: math.min(
+                      _rangeSelectorWidth,
+                      constraints.maxWidth - _reservedRight,
+                    ),
+                    child: AgendaRangeSelector(
+                      selected: range,
+                      onSelected: onRangeChanged,
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  flex: 2,
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: AgendaProposalsToggle(
-                      value: showProposals,
-                      onChanged: onShowProposalsChanged,
+                  AnimatedSize(
+                    duration: AppMotionDuration.fast,
+                    curve: AppMotionCurve.standard,
+                    child: showToday
+                        ? Padding(
+                            padding: const EdgeInsets.only(left: AppSpacing.xs),
+                            child: AgendaTodayButton(onPressed: onGoToToday),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: AgendaProposalsToggle(
+                        value: showProposals,
+                        onChanged: onShowProposalsChanged,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
