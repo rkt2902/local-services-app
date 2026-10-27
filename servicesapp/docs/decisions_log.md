@@ -3,6 +3,36 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-27 — Ecrãs principais coerentes (A11)
+
+- **Cabeçalho comum** em `core/widgets/app_tab_header.dart`: `AppTabHeader` (separadores
+  de topo: fundo branco, título 26, ações, tabs por baixo; também os dois Inícios, com a
+  saudação por cima), `AppBackHeader` (ecrã à parte: seta, título 19, linha de contexto) e
+  `AppTabs` (as tabs sublinhadas com contador, antes `AgendaTabs`). Usados em Início,
+  Pedidos, Trabalhos, Alertas, Perfil, Notificações, Pedidos de ajuda e Equipa. Os
+  segmentados cinzentos de "Os meus pedidos" e "Pedidos de ajuda" acabaram.
+- **Alertas do cliente dentro da shell:** rota `/client/alerts` no `ClientShell`
+  (`NotificationsScreen(inShell: true)`, sem seta). `/notifications` com papel cliente
+  redireciona para lá (`route_guard.dart`). O Início do cliente deixou de ter sino.
+- **Sino do jardineiro** igual em Início, Pedidos e Trabalhos (`HomeNotificationButton`,
+  agora com o número por ler). O ícone de "Pedidos de ajuda" saiu da AppBar de Pedidos:
+  fica no "+" e no Perfil.
+- **"Perfil"** nos dois papéis (nav e título). Cartão comum `AppProfileCard` com três
+  números. Cliente: Pedidos, Em curso, Concluídos. Jardineiro: Avaliação, Concluídos e Na
+  ProJardim, vindos de `get_my_profile_stats` (0065; "—" sem a migration). "Partilhar" e
+  "QR" só com `can_use_public_card` do plano. Definições só na roda dentada. "As minhas
+  avaliações" fica no cliente (Henrique, 27/10, contra o texto do A11).
+- **Notificações:** "Marcar lidas" e "Limpar tudo" lado a lado. Limpar pede confirmação
+  com o número real, só esconde depois de o servidor responder (`clear_my_notifications`,
+  0065, `cleared_at` + lidas) e mostra "Desfazer" durante 6 s
+  (`restore_my_notifications`). As limpas apagam-se de vez na limpeza seguinte depois de
+  1 dia. A app filtra `cleared_at` no Dart, para funcionar antes da 0065.
+- **Início do cliente:** "Precisa de ti" (`clientJobAttention`) com as mesmas linhas do
+  "O que falta fazer" do jardineiro; esses pedidos saem de "Pedidos em curso".
+- **Início do jardineiro:** "Propostas" e "Marcados esta semana" (segunda a domingo).
+  O cartão "Agora" com Iniciar e Mapa do A11 ficou por fazer.
+- Avaliar o trabalho (cliente) só fala dos ajudantes quando houve ajudantes aceites.
+
 ## 2026-10-26 — Agenda do jardineiro: primeira abertura e ecrãs existentes (A8G, A10)
 
 - **Primeira abertura:** cartão no topo da lista da Agenda, não um ecrã por cima. Fechar

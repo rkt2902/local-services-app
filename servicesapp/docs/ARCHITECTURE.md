@@ -219,7 +219,7 @@ Os 3 builders também envolvem a página num `PopScope` interno (`_wrapWithBackF
 que cobre o botão/gesto de voltar do sistema para TODAS as rotas de uma vez — ver
 secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 
-### Tabela de rotas (44 no total: 35 fora dos shells + 4 + 5)
+### Tabela de rotas (45 no total: 35 fora dos shells + 5 + 5)
 
 | Path | Ecrã | Shell | Transição |
 |---|---|---|---|
@@ -267,6 +267,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/fleet-card/confirm` | `FleetCardConfirmDataScreen` | fora | shared-axis |
 | `/client/home` | `ClientHomeScreen` | **ClientShell** | sem transição própria (IndexedStack do shell) |
 | `/client/jobs` | `ClientJobsScreen` | **ClientShell** | idem |
+| `/client/alerts` | `NotificationsScreen(inShell: true)` (separador Alertas, A11) | **ClientShell** | idem |
 | `/client/profile` | `ClientProfileScreen` | **ClientShell** | idem |
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
@@ -274,7 +275,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje, Semana e Mês; extra `agendaResult` abre o dia guardado no "+"; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
 Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
-`AppBottomNavigation` — só os 9 dentro dos 2 `ShellRoute` a mostram.
+`AppBottomNavigation` — só os 10 dentro dos 2 `ShellRoute` a mostram.
 
 ### Botão de voltar
 
