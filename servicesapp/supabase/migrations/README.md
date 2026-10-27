@@ -227,3 +227,13 @@ ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viv
 (`notifications.cleared_at`, `clear_my_notifications`, `restore_my_notifications`) e os
 números do Perfil do jardineiro (`get_my_profile_stats`). A app funciona sem ela: só o
 "Limpar tudo" dá erro e o Perfil mostra "—" em Concluídos e Na ProJardim.
+
+**`0066_account_deletion_erase_and_email_block.sql`: criada, NÃO aplicada** (aplicar
+depois da 0065). Eliminar conta passa a apagar o que ficava para trás (destaques, redes
+sociais, agenda, plano, visitas ao cartão, preferências, morada exata, descrição e fotos
+dos pedidos, notas das propostas, comentários das avaliações escritas) e guarda o hash
+SHA-256 do email durante 90 dias em `deleted_account_emails`. Um trigger em `auth.users`
+recusa um registo novo com esse email, e o cron `cleanup-deleted-account-emails` apaga os
+hashes fora do prazo. RPC nova `check_can_delete_my_account()`. Aplica também a limpeza
+às contas já eliminadas. Testada num Postgres 16 local com as migrations 0001 a 0065.
+Pode correr-se mais do que uma vez. **Próxima migration: `0067`.**

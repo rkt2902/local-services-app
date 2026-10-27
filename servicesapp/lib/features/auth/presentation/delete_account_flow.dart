@@ -76,8 +76,10 @@ class _ExplainDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // O que `delete_my_account` (0049) faz: anonimiza o perfil, o nome
-    // passa a "Conta eliminada" e recusa se houver trabalhos em curso.
+    // O que `delete_my_account` (0049, revista na 0066) faz: apaga os dados
+    // pessoais, o nome passa a "Conta eliminada", os comentários das
+    // avaliações saem, o email fica bloqueado 90 dias e recusa se houver
+    // trabalhos em curso.
     return AppConfirmDialog(
       icon: null,
       title: 'Eliminar conta?',
@@ -99,7 +101,14 @@ class _ExplainDialog extends StatelessWidget {
           _ImpactRow(
             icon: Icons.visibility_off_outlined,
             color: AppStatusColor.neutral.foreground,
-            label: 'As avaliações ficam como "Conta eliminada".',
+            label: 'As avaliações ficam como "Conta eliminada", só com as '
+                'estrelas.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ImpactRow(
+            icon: Icons.mail_lock_outlined,
+            color: AppStatusColor.neutral.foreground,
+            label: 'O teu email só pode criar uma conta nova daqui a 90 dias.',
           ),
           const SizedBox(height: AppSpacing.sm),
           _ImpactRow(
