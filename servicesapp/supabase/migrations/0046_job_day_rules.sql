@@ -2,7 +2,7 @@
 -- 0046 — Regras do dia do trabalho: concluir, expirar e lembrar
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0044
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0044
 -- (redefine get_jobs_in_radius com a assinatura de 3 parâmetros da 0044).
 -- Pode ser aplicada várias vezes sem erro.
 --

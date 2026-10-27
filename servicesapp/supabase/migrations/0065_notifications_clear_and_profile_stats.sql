@@ -3,7 +3,7 @@
 --        e números do Perfil do jardineiro (J6)
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor. Independente da
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor. Independente da
 -- 0064. Pode correr-se mais do que uma vez.
 --
 -- 1. `notifications.cleared_at`: limpar não apaga logo. As notificações

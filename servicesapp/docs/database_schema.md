@@ -3,8 +3,8 @@
 > Schema Supabase (PostgreSQL). Ler antes de criar migrations ou alterar tabelas.
 > Toda alteração de schema deve ser refletida aqui E em `decisions_log.md`.
 >
-> **Alinhado com a BD a 2026-10-17** (todas as migrations até à `0046` aplicadas,
-> confirmado pelo Henrique). Para a lista completa e atual de RPCs, policies e views,
+> **Alinhado com a BD a 2026-10-27** (todas as migrations do repo, até à `0065`,
+> aplicadas na BD viva, confirmado pelo Henrique). Para a lista completa e atual de RPCs, policies e views,
 > `ARCHITECTURE.md` secção 7 e os ficheiros de `supabase/migrations/` são a referência;
 > este ficheiro descreve as tabelas e colunas.
 
@@ -71,6 +71,7 @@ Dados base de qualquer utilizador. 1:1 com `auth.users`.
 | full_name    | text        |                                           |
 | phone        | text        | nullable, usado para contacto pós-confirmação |
 | avatar_url   | text        | nullable. Texto livre na BD; a app só mostra URLs do Storage do próprio projeto (`core/config/storage_urls.dart`) |
+| deleted_at   | timestamptz | nullable (0049): conta eliminada por `delete_my_account` (anonimizada, sem login, fora do cartão público) |
 | created_at   | timestamptz | default `now()`                           |
 | updated_at   | timestamptz | default `now()`                           |
 
@@ -266,6 +267,7 @@ Propostas de workers para jobs.
 | includes                     | text[]      | 0058, default `{}`: slugs de `proposal_include_options`    |
 | estimated_days_min/max       | int         | 0058, nullable: duração em dias (max nulo = "mais de uma semana") |
 | valid_until                  | date        | 0058, nullable: último dia em que pode ser aceite          |
+| accepted_at                  | timestamptz | 0060, nullable: preenchido por trigger quando passa a `accepted` (conta para o limite de 5 por mês do plano Grátis) |
 
 ### proposal_include_options (0058)
 Opções do "O que inclui" da proposta. `slug` PK, `label`, `sort_order`, `active`. Leitura por
@@ -300,10 +302,21 @@ Notificações persistidas por triggers na BD. Lidas via Supabase Realtime.
 --        reschedule_proposed, reschedule_accepted, reschedule_rejected,
 --        help_request_approved, help_accepted, help_rejected,
 --        help_job_cancelled, help_request_reopened, help_withdrew,
---        job_reminder (0046)
+--        job_reminder (0046),
+--        help_candidate_applied, help_request_pending_approval (0048),
+--        job_updated, help_removed, help_job_rescheduled, help_job_done,
+--        help_job_completed (0049),
+--        job_started (0052),
+--        new_help_request_in_radius, help_request_closed (0054),
+--        help_job_started, help_request_closing_soon,
+--        help_request_auto_approved (0055),
+--        direct_job_request, direct_request_released (0057),
+--        job_opportunity_reminder, job_no_proposals_yet, seasonal_tip (0062)
 ```
 
-20 tipos. Cada INSERT dispara o trigger `notifications_send_push` (0041), que chama a
+38 tipos (espelhados em `notification_types.dart`). Desde a 0062 o trigger BEFORE
+INSERT `notifications_add_job_context` reescreve os textos (nomes, valores, distância,
+por tu) e junta " (Serviço, DD/MM)". Cada INSERT dispara o trigger `notifications_send_push` (0041), que chama a
 Edge Function `send-push` se o destinatário tiver dispositivos em `device_tokens` e o
 Vault tiver os segredos (ver `SETUP.md`). Notificações lidas com mais de 90 dias, ou
 quaisquer com mais de 180, são apagadas pelo cron `cleanup-old-notifications` (0042).
@@ -318,6 +331,7 @@ quaisquer com mais de 180, são apagadas pelo cron `cleanup-old-notifications` (
 | related_id   | uuid        | nullable — id do job, proposta, etc.        |
 | related_type | text        | nullable — `job_request`, `job_proposal`    |
 | read         | bool        | default false                               |
+| cleared_at   | timestamptz | nullable (0065): "Limpar tudo". A app esconde-as e o sino não as conta; `clear_my_notifications` apaga de vez as limpas há mais de 1 dia |
 | created_at   | timestamptz |                                             |
 
 ### help_requests
@@ -332,6 +346,7 @@ Pedido de ajudantes feito pelo worker principal.
 | status                    | text        | CHECK in help_request_status                                                   |
 | equipment_required        | boolean     | default false — o helper deve trazer equipamento próprio                       |
 | created_post_confirmation | boolean     | default false — true se criado após job `confirmed` (implica `pending_approval`) |
+| eve_reminder_sent_at      | timestamptz | nullable (0055): aviso da véspera já enviado                                   |
 | created_at                | timestamptz |                                                                                |
 
 ### help_acceptances
@@ -382,9 +397,65 @@ Um token FCM por dispositivo. Escrita só pelas RPCs `register_device_token` /
 Pedidos de cartão frota (demo). O worker só insere com `status = 'pending'` e só vê os
 seus; a ativação é manual por SQL (service role). Ver a migration para as colunas.
 
+### worker_plans, admin_users, admin_actions (0060)
+
+- `worker_plans`: plano do jardineiro, uma linha por jardineiro. `tier` CHECK in
+  (`free`,`pro`,`pro_plus`), `starts_at`, `ends_at` (nulo = sem fim), `verified_at`
+  (documentos vistos na assinatura do contrato), `notes`. Sem linha ou fora de validade =
+  Grátis. O `role` em `profiles` não muda. O jardineiro lê o seu por `get_my_plan` (sem as
+  notas).
+- `admin_users`: `user_id` (FK `auth.users`). Só se escreve no SQL Editor.
+- `admin_actions`: registo de cada mudança feita no painel (`admin_id`, `action`,
+  `target_id`, `details` jsonb, `created_at`).
+
+As três têm RLS ligado sem policies: só RPCs (`get_my_plan`, `admin_*`) e SQL Editor. O
+limite do Grátis (5 trabalhos aceites por mês, hora de Lisboa) é o trigger
+`trg_enforce_free_plan_limit` em `job_proposals` (BEFORE INSERT).
+
+### worker_calendar_entries, worker_calendar_exceptions (0064)
+
+Agenda do jardineiro: só o que não vem da app (os trabalhos da app vêm de
+`job_requests`/`job_proposals`/`help_acceptances` pela RPC `get_worker_agenda`).
+
+`worker_calendar_entries`:
+
+| coluna | tipo | notas |
+|---|---|---|
+| id | uuid PK | |
+| worker_id | uuid | DEFAULT `auth.uid()`, FK → `profiles.id` ON DELETE CASCADE |
+| kind | text | `job` (trabalho de fora da app) ou `block` (indisponível) |
+| title | text | 1 a 80 caracteres |
+| service_type_id | uuid | nullable, FK → `service_types.id` |
+| starts_on / ends_on | date | `ends_on` para vários dias seguidos (no máximo 6 numa série) |
+| start_time | time | nullable (dia inteiro) |
+| duration_minutes | int | nullable, 15 a 1440 |
+| recurrence | text | `none`/`weekly`/`biweekly`/`monthly` |
+| recurrence_until | date | nullable |
+| person_name / person_phone | text | nullable, opcionais, só para o WhatsApp |
+| location_label, location_lat, location_lng | text, numeric | nullable |
+| amount | numeric | nullable, ≥ 0. Uma indisponibilidade não tem pessoa, valor nem serviço (CHECK) |
+| notes | text | nullable |
+| status | text | `scheduled`/`done`/`cancelled`; cancelado continua visível, riscado |
+| status_at | timestamptz | preenchido por trigger |
+
+`worker_calendar_exceptions`: `entry_id`, `occurrence_date`, `action`
+(`skipped`/`moved`/`changed`/`status`), `new_*` para o dia mudado e `status`/`status_at`
+para "feito" ou "cancelado" só nesse dia. "Este e os seguintes" divide a série com
+`split_calendar_series`; "Já estou livre" num dia de indisponibilidade usa
+`free_calendar_day`.
+
+RLS das duas: só o dono lê e escreve; INSERT só com papel `worker`. Os nomes e telefones
+dos clientes de fora da app estão na Política de Privacidade (secções 3.7 e 8).
+
 ---
 
 ## RPC Functions (security definer)
+
+> **Agenda, notificações e Perfil (0064, 0065):** `get_worker_agenda(p_from, p_to)` (uma linha por dia, máximo 62 dias), `split_calendar_series`, `free_calendar_day`; `clear_my_notifications`, `restore_my_notifications`, `get_my_profile_stats`.
+
+> **Planos e admin (0060):** `get_my_plan`, `admin_whoami`, `admin_overview`, `admin_list_workers`, `admin_get_worker`, `admin_set_worker_plan` (as `admin_*` exigem `admin_users` e segundo fator, aal2).
+
+> **Avisos e pedidos sem propostas (0062, 0063):** `widen_job_search`, `get_my_notification_preferences`, `set_seasonal_tips`; `get_direct_request_context` passa a devolver `pricing_mode` e `total_price` (0063).
 
 > **Propostas e dias de trabalho (0058):** `create_proposal` com `p_pricing_mode`, `p_total_price`, `p_includes`, `p_estimated_days_min/max`, `p_valid_until`; `get_pending_proposals_for_job` com `is_expired`; `finish_work_day`, `start_work_day`, `get_job_work_days`. Detalhe em `ARCHITECTURE.md` secção 7.
 
@@ -396,8 +467,8 @@ Todas as funções de transição de estado são `SECURITY DEFINER` e correm num
 transação: validam permissões, atualizam tabelas e inserem notificação. Identidade
 sempre por `auth.uid()`, nunca um `p_worker_id`/`p_client_id` vindo da app.
 
-> A tabela abaixo é o núcleo histórico. A lista completa e atual (incluindo as RPCs das
-> migrations 0035, 0038, 0040, 0041, 0043 e 0046) está em `ARCHITECTURE.md` secção 7.
+> A tabela abaixo é o núcleo histórico. A lista completa e atual (todas as RPCs até à
+> 0065) está em `ARCHITECTURE.md` secção 7.
 > `create_user_profile` foi apagada na 0042 (a app cria o perfil por upsert em `profiles`).
 > `mark_job_done` ganhou `p_photo_path` opcional e só funciona a partir do dia do trabalho
 > (0046). `create_proposal`, `get_jobs_in_radius` e `sync_worker_service_types` deixaram
@@ -452,6 +523,13 @@ A extensão `pg_cron` foi activada manualmente neste projecto em 2026-06-25.
 | `job-reminders` | `30 7 * * *` | `send_job_reminders()` | 0046: lembrete na manhã do dia, aviso de data passada e lembrete ao cliente para confirmar (`job_reminder`) |
 | `cleanup-old-notifications` | `30 3 * * *` | `cleanup_old_notifications()` | 0042: apaga notificações antigas |
 | `expire-direct-job-requests` | `*/5 * * * *` | `expire_direct_job_requests()` | 0057: reserva de 24h do pedido direto passou → abre a todos (`expired`) e avisa o cliente |
+| `close-help-requests-on-job-day` | `5 * * * *` | `close_help_requests_on_job_day()` | 0054: fecha os pedidos de ajuda no dia do trabalho |
+| `process-help-request-deadlines` | `10 * * * *` | `process_help_request_deadlines()` | 0055: aprovação automática ao fim de 24h e aviso da véspera (`help_requests.eve_reminder_sent_at`) |
+| `open-job-followups` | `15 * * * *` (só das 8h às 21h de Portugal) | `process_open_job_followups()` | 0062: lembrete às 6h, pedido mais longe e aviso ao cliente às 24h |
+| `seasonal-campaigns` | `0 10 * * *` | `send_seasonal_campaigns()` | 0062: dicas da época, uma vez por ano por cliente |
+
+Desde a 0052 `auto-confirm-completed-jobs` corre `15 * * * *` (lembrete às 24h e
+confirmação às 48h). Detalhe completo em `ARCHITECTURE.md` secção 7 (pg_cron).
 
 **Verificar registo do cron após aplicar migration 0014:**
 ```sql
@@ -481,6 +559,10 @@ Todas as tabelas têm índices `_pkey` gerados automaticamente pelas constraints
 | `on_job_created` | `job_requests` | AFTER INSERT FOR EACH ROW | `notify_workers_new_job()` |
 | `tg_prevent_profile_role_change` | `profiles` | BEFORE UPDATE | `prevent_profile_role_change()` |
 | `notifications_send_push` | `notifications` | AFTER INSERT | `notifications_send_push()` (0041, via `pg_net`) |
+
+Desde a 0048 há muitos mais triggers (avisos de ajudantes, pedido direto, validade das
+propostas, dias de trabalho, limite do plano Grátis, Agenda, textos das notificações). A
+tabela completa está em `ARCHITECTURE.md` secção 7 (Triggers).
 
 Nota: na BD viva o trigger de `job_requests` chama-se `on_job_created`; o ficheiro
 `0001_consolidated_baseline.sql` chama-lhe `trigger_notify_workers_new_job`. Mesma
@@ -534,10 +616,10 @@ e WebP; o SELECT por policy ficou só para o dono (para não se poder listar o b
 
 ## Migrations
 
-**Estado a 2026-10-17:** `0001_consolidated_baseline.sql` (estado da BD a 2026-07-09) e
-todas as migrations de `0033` a `0046` estão aplicadas na BD viva. A `0047`
-(`get_candidates_for_help_request` passa a devolver `message`) está criada mas por aplicar.
-A próxima é a `0048`.
+**Estado a 2026-10-27:** `0001_consolidated_baseline.sql` (estado da BD a 2026-07-09) e
+todas as migrations de `0033` a `0065` estão aplicadas na BD viva (confirmado pelo
+Henrique; a `0050` não existe). A próxima é a `0066`. Lista com o que cada uma faz em
+`supabase/migrations/README.md`.
 As 32 migrations incrementais antigas estão em `supabase/migrations/archive/`, só para
 histórico (não aplicar). O histórico abaixo é anterior à consolidação.
 

@@ -2,7 +2,7 @@
 -- 0057 — Pedir de novo ao mesmo jardineiro (pedido direto)
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0056
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0056
 -- (redefine notify_workers_new_job da 0054 e get_jobs_in_radius da 0046).
 -- Pode correr-se mais do que uma vez sem erro.
 --

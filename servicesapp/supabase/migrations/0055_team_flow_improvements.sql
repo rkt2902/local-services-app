@@ -2,7 +2,7 @@
 -- 0055 — Ligação entre cliente, jardineiro e ajudantes
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0054
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0054
 -- (usa job_day_reached, help_request_before_update_job_day e
 -- get_accepted_helpers_for_job da 0054). Pode correr-se mais do que uma
 -- vez sem erro.

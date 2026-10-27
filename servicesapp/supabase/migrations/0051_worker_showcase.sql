@@ -2,7 +2,7 @@
 -- 0051 — Destaques e redes sociais no perfil do jardineiro
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0049
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0049
 -- (a view worker_public_card abaixo mantém o filtro p.deleted_at da 0049,
 -- coluna que só existe a partir dela). Pode correr-se mais do que uma vez
 -- sem erro. (A 0050 fica reservada para outra thread.)

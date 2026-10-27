@@ -2,7 +2,7 @@
 -- 0053 — "Os meus trabalhos" do jardineiro (design A2)
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0048
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0048
 -- (redefine get_worker_job_board a partir da versão da 0048) e da 0052
 -- (lê `job_requests.started_at`). Pode correr-se mais do que uma vez sem
 -- erro.

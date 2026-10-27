@@ -2,7 +2,7 @@
 -- 0049 — Decisões pendentes: conta, edição de pedido, equipa e avisos
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0048
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor, DEPOIS da 0048
 -- (redefine notify_proposal_closed_with_job, que nasce na 0048, e conta
 -- com o trigger trg_notify_proposal_closed_with_job da 0048 para avisar
 -- os jardineiros das propostas rejeitadas aqui).

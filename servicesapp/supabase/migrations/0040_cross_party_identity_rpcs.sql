@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0040_cross_party_identity_rpcs.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor.
 --
 -- Contexto: auditoria de foto/nome em falta nos dois sentidos (worker ↔
 -- cliente), 2026-10-15. A migration 0032 (hardening de segurança, aplicada

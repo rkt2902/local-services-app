@@ -1,13 +1,13 @@
 # LocalServices (ProJardim) — Architecture Reference
 
-> Referência técnica de como a app funciona, extraída do código real em 2026-10-16
-> (router, migrations, providers, widgets, enums lidos diretamente — não de memória
-> de sessões anteriores). Complementa `STATUS.md` (o que funciona/não funciona hoje)
+> Referência técnica de como a app funciona, extraída do código real em 2026-10-16 e
+> revista contra o `main` a 2026-10-27 (depois do PR #37: Agenda, A11, avisos).
+> Router, migrations, providers, widgets e enums lidos diretamente, não de memória de
+> sessões anteriores. Complementa `STATUS.md` (o que funciona/não funciona hoje)
 > sem repetir o seu conteúdo. Funde também o antigo `architecture.md` (regras de
-> organização do projeto) — ver os Princípios na secção 4. Sem acesso a MCP/CLI/
-> credenciais de service role do Supabase nesta sessão — a secção 7 vem dos
-> ficheiros de migration, não de queries à BD viva; onde isso importa, está
-> assinalado.
+> organização do projeto), ver os Princípios na secção 4. A secção 7 vem dos
+> ficheiros de migration, não de queries à BD viva. **Todas as migrations do repo
+> (até à 0065) estão aplicadas na BD viva**, confirmado pelo Henrique a 2026-10-27.
 
 ---
 
@@ -29,6 +29,23 @@ cliente aceita uma → `confirmed` → worker marca concluído → `awaiting_con
 cliente confirma → `completed` → avaliações bilaterais. Sem pagamentos nem chat
 dentro da app — contacto só por WhatsApp, depois da confirmação.
 
+Por cima deste fluxo (estado a 2026-10-27):
+
+- **Proposta por hora ou valor total** (0058): o jardineiro escolhe em cada proposta;
+  validade de 7, 15 ou 30 dias; trabalhos em vários dias.
+- **Pedido direto** (0057, 0059): "Pedir de novo" a um jardineiro anterior ou pelo
+  cartão público `/w/:id`; 24h só para esse jardineiro, depois abre a todos (ou fica
+  parado, se o cliente desligou "mostrar a outros").
+- **Início do trabalho** (0052): "Iniciar" com fotos de antes, tempo em curso, fotos de
+  depois, confirmação automática em 48h.
+- **Planos** (0060): Grátis (5 trabalhos aceites por mês), Pro e Pro+, atribuídos no
+  painel `/admin`. Contrato e pagamento fora da app; a app não mostra preços.
+- **Agenda do jardineiro** (0064): Hoje, Semana e Mês dentro de Trabalhos, com trabalhos
+  da app, propostas pendentes, trabalhos de fora da app e indisponibilidades; avisa
+  sobreposições, nunca bloqueia.
+- **Avisos que ajudam a fechar** (0062): lembretes aos jardineiros, pedido mostrado mais
+  longe às 24h sem propostas, dicas da época.
+
 ---
 
 ## 2. Stack e versões
@@ -49,7 +66,7 @@ Dependências principais (`pubspec.yaml`):
 | `image_picker` | ^1.2.2 | Seleção de fotos (avatar, job, fleet card) |
 | `flutter_image_compress` | ^2.4.0 | Compressão de fotos antes do upload |
 | `geolocator` | ^14.0.2 | GPS (raio do worker, distância) |
-| `geocoding` | ^4.0.0 | Pacote presente mas `GeocodingService` usa `http` diretamente contra Nominatim (ver secção 12), não este pacote |
+| `geocoding` | ^4.0.0 | Geocoder nativo em `GeocodingService.searchAddress`; o resto vai por `http` a Photon/Nominatim (secção 12) |
 | `flutter_map` + `latlong2` | ^8.3.0 / ^0.9.1 | Mapa (seleção de localização) |
 | `http` | ^1.2.2 | Chamadas REST diretas (Nominatim) |
 | `intl` | ^0.20.2 | Datas |
@@ -59,7 +76,10 @@ Dependências principais (`pubspec.yaml`):
 | `qr_flutter` | ^4.1.0 | QR do cartão partilhável do worker e do cartão frota |
 | `share_plus` | ^11.0.0 | Partilhar o cartão do worker |
 | `google_mlkit_text_recognition` | ^0.15.0 | OCR local do cartão frota |
-| `url_launcher` | ^6.3.2 | WhatsApp, Google Maps |
+| `url_launcher` | ^6.3.2 | WhatsApp, Google Maps, links legais, `mailto:` do suporte |
+| `firebase_core` + `firebase_messaging` | ^5.0.0 / ^17.0.0 | Push FCM (`PushNotificationService`); desliga-se sozinho sem os ficheiros do Firebase e na web |
+| `font_awesome_flutter` | ^11.0.0 | Só o logótipo do WhatsApp (`appWhatsAppIcon`) |
+| `flutter_localizations` / `flutter_web_plugins` | SDK | Textos do Material em português e hora em 24h / URLs sem `#` na web (`usePathUrlStrategy`) |
 
 Dev: `flutter_lints` ^6.0.0 (`analysis_options.yaml` na raiz do projeto Flutter).
 
@@ -74,12 +94,16 @@ lib/
   core/
     config/                 app_links.dart, storage_urls.dart, supabase_config.dart (env via --dart-define)
     constants/              enums.dart, password_policy.dart
-    router/                 app_router.dart, app_page_transitions.dart, app_back_navigation.dart
+    models/                 worker_public_card_feature_access.dart (flags do cartão vindas do servidor)
+    router/                 app_router.dart, route_guard.dart, app_page_transitions.dart, app_back_navigation.dart
     services/               geocoding_service.dart
-    theme/                  app_colors/spacing/radius/typography/motion_tokens/status_color/theme.dart
-    utils/                  error_utils.dart, app_status_presenters.dart, date_labels.dart, provider_cache.dart
-    widgets/                22 widgets partilhados (secção 10)
+    theme/                  app_colors/spacing/radius/sizes/breakpoints/typography/motion_tokens/status_color/status_presentation/theme.dart
+    utils/                  error_utils.dart, app_status_presenters.dart, date_labels.dart, day_greeting.dart,
+                            phone_utils.dart, picked_photo.dart, price_labels.dart, provider_cache.dart
+    widgets/                46 ficheiros partilhados (secção 10)
   features/
+    admin/            application/ data/ presentation/   (painel /admin, 0060)
+    agenda/           application/ data/ presentation/   (Agenda do jardineiro, 0064)
     auth/            application/ data/ presentation/
     client/           + presentation/widgets/
     worker/            + presentation/widgets/
@@ -219,7 +243,7 @@ Os 3 builders também envolvem a página num `PopScope` interno (`_wrapWithBackF
 que cobre o botão/gesto de voltar do sistema para TODAS as rotas de uma vez — ver
 secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 
-### Tabela de rotas (45 no total: 35 fora dos shells + 5 + 5)
+### Tabela de rotas (50 no total: 42 fora dos shells + 4 + 4, contagem de `app_router.dart` a 2026-10-27)
 
 | Path | Ecrã | Shell | Transição |
 |---|---|---|---|
@@ -274,8 +298,11 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
 | `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje, Semana e Mês; extra `agendaResult` abre o dia guardado no "+"; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
-Todos os ecrãs de sub-fluxo (35 fora do shell) usam `SafeArea` próprio e não mostram a
-`AppBottomNavigation` — só os 10 dentro dos 2 `ShellRoute` a mostram.
+Todos os ecrãs de sub-fluxo (42 fora do shell) usam `SafeArea` próprio e não mostram a
+`AppBottomNavigation`; só os 8 dentro dos 2 `ShellRoute` a mostram (cliente: Início,
+Pedidos, Alertas, Perfil; jardineiro: Início, Pedidos, Trabalhos, Perfil). O jardineiro
+não tem separador de Alertas: tem o sino com número (`HomeNotificationButton`) nos
+cabeçalhos de Início, Pedidos e Trabalhos, que abre `/notifications`.
 
 ### Botão de voltar
 
@@ -330,12 +357,14 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 ## 7. Backend Supabase
 
 **Fonte:** `supabase/migrations/0001_consolidated_baseline.sql` (schema completo até
-2026-07-09, reconstruído de um snapshot da BD viva) + migrations numeradas 0033–0046
-aplicadas por cima (todas aplicadas na BD viva, confirmado pelo Henrique a 2026-10-17). `archive/` tem as 32 migrations incrementais originais — não
+2026-07-09, reconstruído de um snapshot da BD viva) + migrations numeradas 0033–0065
+aplicadas por cima (a 0050 não existe). **Todas aplicadas na BD viva, confirmado pelo
+Henrique a 2026-10-27.** `archive/` tem as 32 migrations incrementais originais — não
 aplicar, só para git blame. **Verificado em 2026-10-16 contra um dump real da BD
 viva** (`supabase db dump`, projeto `twpflvcoyeiysnychkom`): as 37 funções, 14
-tabelas e 3 views da BD viva coincidem exatamente com a soma das migrations
-0001+0033–0040, incluindo as 4 RPCs de 0040. Único drift encontrado: o trigger
+tabelas e 3 views da BD viva coincidiam exatamente com a soma das migrations
+0001+0033–0040, incluindo as 4 RPCs de 0040. Da 0041 em diante a confirmação é a
+palavra do Henrique, sem dump novo. Único drift encontrado: o trigger
 em `job_requests` chama-se `on_job_created` na BD viva, não
 `trigger_notify_workers_new_job` como no ficheiro da migration (mesma função,
 provavelmente renomeado manualmente no Studio — ver secção 16).
@@ -344,18 +373,20 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 
 | Tabela | Propósito | Colunas-chave |
 |---|---|---|
-| `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` (texto livre; a app só mostra URLs do Storage do projeto, `StorageUrls`) |
+| `profiles` | 1:1 com `auth.users` | `id` (FK→auth.users, `ON DELETE CASCADE` desde 0036), `role`, `full_name`, `phone`, `avatar_url` (texto livre; a app só mostra URLs do Storage do projeto, `StorageUrls`), `deleted_at` (0049: conta eliminada, anonimizada e sem login) |
 | `worker_profiles` | dados de quem presta serviço | `profile_id` PK, `base_lat/lng`, `radius_km`, `tools[]`, `location_name` (0030), `highlights[]` e `social_links` jsonb (0051, com CHECK: até 5 destaques de 80 caracteres, até 4 links só `https://`) |
 | `service_categories`/`service_types` | catálogo | `slug`, `name`, `icon`, `sort_order`; desde 0045: Jardinagem, Agricultura e Floresta, 33 tipos (ícone traduzido em `core/widgets/service_icon.dart`) |
 | `worker_service_types` | N:N worker↔serviço | PK composta |
-| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057); desde a 0059 `direct_card_worker_id` (pedido pelo cartão), `direct_auto_release` (interruptor do passo 4), `direct_origin` (`public_card`/`repeat_hire`/`your_gardeners`), `direct_hold_reason` e `card_visit_id`, e `direct_status` aceita `on_hold` |
+| `job_requests` | pedidos | `status`, `accepted_proposal_id`, `confirmed_*`, `reschedule_*`, `excluded_worker_ids[]`, `expires_at`, `location_area` (0043), `completion_photo_path`/`marked_done_at` + controlo de lembretes (0046), `started_at`/`before_photo_paths`/`after_photo_paths` (0052), `search_extra_km`/`visible_to_all_at`/`followup_stage`/`no_proposals_nudged_at` (0062, só o servidor muda), pedido direto `direct_worker_id`/`direct_source_job_id`/`direct_until`/`direct_status` (0057); desde a 0059 `direct_card_worker_id` (pedido pelo cartão), `direct_auto_release` (interruptor do passo 4), `direct_origin` (`public_card`/`repeat_hire`/`your_gardeners`), `direct_hold_reason` e `card_visit_id`, e `direct_status` aceita `on_hold` |
 | `job_photos` | até 2 por job | `storage_path` (bucket `job-photos`) |
 | `job_proposals` | propostas de workers | `status`, `people_needed`, `estimated_hours_min/max`, `helpers_equipment_required`; desde a 0058 `pricing_mode` (`hourly`/`fixed_total`), `total_price`, `includes[]`, `estimated_days_min/max`, `valid_until`. No valor total, `hourly_rate` é uma taxa de referência calculada no servidor (só para o pagamento dos ajudantes) |
 | `proposal_include_options` (0058) | opções do "O que inclui" | `slug`, `label`, `sort_order`, `active`; leitura por autenticados |
 | `job_work_days` (0058) | dias de um trabalho em vários dias | `job_id`, `day_number`, `started_at`, `ended_at` (no máximo um aberto); só por RPC |
 | `worker_card_visits` (0059) | aberturas do cartão público `/w/:id` | `worker_id`, `source` (`qr`/`link`/`app`), `device_key` (id aleatório do aparelho), `visitor_id`; RLS sem políticas, só por RPC e SQL Editor |
 | `client_referrals` (0059) | clientes novos trazidos por um cartão | `client_id` PK, `worker_id`, `visit_id`, `source`; RLS sem políticas, só por RPC e SQL Editor |
-| `notifications` | 20 tipos (secção 9) | `type`, `related_id`, `read` |
+| `notifications` | 38 tipos (secção 9) | `type`, `related_id`, `read`, `cleared_at` (0065: "Limpar tudo"; escondidas na app e apagadas de vez 1 dia depois) |
+| `seasonal_campaigns` / `seasonal_campaign_sends` (0062) | dicas da época (outubro e fevereiro) e registo de envio por ano | `slug`, `month`, `day`, `audience`, `title`, `body`, `active`; só SQL Editor e cron |
+| `notification_preferences` (0062) | interruptor "Dicas da época" | `user_id` PK, `seasonal_tips` (ligado por omissão); só por RPC |
 | `device_tokens` (0041) | tokens FCM | `token` PK, `user_id`, `platform`; escrita só por RPC |
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
 | `help_acceptances` | candidaturas de ajudantes | `agreed_rate`, `brought_equipment`, `message` (0034 — ver secção 16) |
@@ -428,15 +459,21 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `submit_helper_rating` | `p_job_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `submit_principal_rating` | `p_job_id, p_ratee_id, p_stars, p_comment?` | `void` | `RatingRepository` |
 | `withdraw_help_acceptance` | `p_help_acceptance_id` | `void` (aceite só até à véspera, 0055) | `HelpRequestRepository.withdrawHelpAcceptance` |
+| `apply_to_help_request` (0048) | `p_help_request_id, p_brought_equipment, p_message?` | `uuid` (permite voltar a candidatar depois de desistir) | `HelpRequestRepository` |
+| `cancel_help_request` / `update_help_request_slots` / `remove_help_helper` (0049; `remove_help_helper` revista na 0055) | `p_help_request_id` / `p_help_request_id, p_slots` / `p_help_acceptance_id` | `void` (só o jardineiro responsável: cancelar o pedido de ajuda, mudar vagas, retirar um ajudante) | `HelpRequestRepository` |
+| `update_job_request` (0049) | `p_job_id, p_description, p_date_mode, p_preferred_date, p_availability_text, p_address_text, p_location_lat/lng, p_location_area` | `void` (só o dono, pedido `open`; avisa quem já propôs com `job_updated`) | `JobRepository` ("Editar pedido") |
+| `delete_my_account` (0049) | — | `void` (anonimiza o perfil, marca `deleted_at` e bloqueia o login) | `AuthRepository` |
+| `clear_my_notifications` / `restore_my_notifications` (0065) | — / `p_ids uuid[]` | `uuid[]` limpos / `integer` repostos | `NotificationRepository.clearAll` / `restore` ("Limpar tudo" e "Desfazer" de 6 s) |
+| `get_my_profile_stats` (0065) | — | `TABLE(completed_jobs, member_since)` | `WorkerRepository` (números do Perfil do jardineiro) |
 | `get_worker_agenda` (0064) | `p_from, p_to` (máx. 62 dias) | `TABLE(entry_kind, source_id, job_id, occurrence_date, series_date, start_time, end_time, day_index, day_count, title, service_type_id, location_label, person_name, person_phone, status, is_tentative, amount_min, amount_max, recurrence, is_exception, notes, proposal_id, location_lat, location_lng)`, uma linha por dia; `entry_kind` app_job/helper_job/proposal/reschedule/external/block | `AgendaRepository` (Agenda do jardineiro; sobreposições em `agenda_conflicts.dart`) |
 | `split_calendar_series` (0064) | `p_entry_id, p_from_date` | `uuid` da série nova | `AgendaRepository.splitSeries` ("Este e os seguintes") |
 | `free_calendar_day` (0064) | `p_entry_id, p_series_date, p_day` | `void` | `AgendaRepository.freeDay` ("Já estou livre": só esse dia de uma indisponibilidade) |
 | `get_worker_job_board` (0035, última 0058: `pricing_mode`, `total_price` no fim) | `p_tab, p_page?, p_page_size?` | `TABLE(... person_name, total_count, ..., people_needed, helpers_equipment_required)` | `WorkerJobBoardRepository` — unifica "Os meus trabalhos" (responsável+ajudante) |
-| `get_my_ratings_received`/`get_my_ratings_given` (0038, aplicada) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
-| `get_open_job_client_identity` (0040, aplicada) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
-| `get_pending_proposals_for_job` (0040, aplicada) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
-| `get_candidates_for_help_request` (0040, aplicada; 0047 por aplicar junta `message`) | `p_help_request_id` | colunas de `help_acceptances` + `worker_name/avatar_url` + `message` (0047) | `HelpRequestRepository.fetchCandidatesForHelpRequest` |
-| `get_ratings_with_rater_identity` (0040, aplicada) | `p_ratee_id` | colunas de `ratings` + `rater_name/avatar_url` | `RatingRepository.fetchRatingsWithRaterNames` |
+| `get_my_ratings_received`/`get_my_ratings_given` (0038) | — | `TABLE(... party_name, party_avatar_url, service_type_name)` | `RatingRepository` — alimenta `my_ratings_screen.dart` |
+| `get_open_job_client_identity` (0040) | `p_job_id` | `TABLE(client_name, client_avatar_url)` | `JobRepository.fetchOpenJobClientIdentity` |
+| `get_pending_proposals_for_job` (0040) | `p_job_id` | colunas de `job_proposals` + `worker_name/avatar_url` | `ProposalRepository.fetchPendingProposalsForJob` |
+| `get_candidates_for_help_request` (0040; a 0047 junta `message`) | `p_help_request_id` | colunas de `help_acceptances` + `worker_name/avatar_url` + `message` (0047) | `HelpRequestRepository.fetchCandidatesForHelpRequest` |
+| `get_ratings_with_rater_identity` (0040) | `p_ratee_id` | colunas de `ratings` + `rater_name/avatar_url` | `RatingRepository.fetchRatingsWithRaterNames` |
 | `register_device_token` / `unregister_device_token` (0041) | `p_token, p_platform` / `p_token` | `void` | `PushNotificationService` |
 | `send_job_reminders` (0046) | — | `void` | **pg_cron só** (`job-reminders`), só `service_role` |
 | `cleanup_old_notifications` (0042) | — | `void` | **pg_cron só** (`cleanup-old-notifications`) |
@@ -446,7 +483,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `decline_direct_job_request` (0057) | `p_job_id` | `void` (jardineiro escolhido diz "Não posso desta vez"; recusa se já tem proposta pendente) | `JobRepository.declineDirectJobRequest` |
 | `get_repeat_hire_for_job` (0057) | `p_job_id` (trabalho concluído do cliente) | `TABLE(worker_id, worker_name, worker_avatar_url, service_type_id, job_date, can_request, my_stars)` | `JobRepository.fetchRepeatHireForJob` |
 | `get_my_previous_workers` (0057) | — | `TABLE(worker_id, worker_name, worker_avatar_url, last_job_id, service_type_id, job_date)` (último trabalho concluído por jardineiro, sem os avaliados abaixo de 4, até 10) | `JobRepository.fetchMyPreviousWorkers` |
-| `get_direct_request_context` (0057) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate)` | `JobRepository.fetchDirectRequestContext` |
+| `get_direct_request_context` (0057, última 0063) | `p_job_id` (só o jardineiro escolhido) | `TABLE(client_name, job_date, service_type_id, hourly_rate, pricing_mode, total_price)` ("Já trabalhaste com..." mostra o valor fechado quando foi a valor total) | `JobRepository.fetchDirectRequestContext` |
 | `expire_direct_job_requests` (0057, última 0059) | — | `void` | **pg_cron só** (`expire-direct-job-requests`, `*/5 * * * *`); desde a 0059 respeita o interruptor (abre a todos ou deixa parado, `on_hold`) |
 | `log_worker_card_visit` (0059) | `p_worker_id` (o cartão aberto, não a identidade), `p_source`, `p_device_key?` | `uuid` da visita, ou `null` (o próprio, cartão desligado); o mesmo aparelho no mesmo cartão em 30 min conta uma vez. `anon` e `authenticated` | `WorkerRepository.logCardVisit` |
 | `claim_worker_card_visit` (0059) | `p_visit_id` | `void`: liga a visita a `auth.uid()` e, se a conta de cliente nasceu até 7 dias depois, cria `client_referrals` | `WorkerRepository.claimCardVisit` |
@@ -504,34 +541,11 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### Estado das migrations
 
-| Ficheiro | Estado |
-|---|---|
-| `0001_consolidated_baseline.sql` | aplicada (é a reconstrução do estado em 2026-07-09) |
-| `0033`–`0037` | aplicadas — confirmado por dump real da BD viva em 2026-10-16 |
-| `0038_ratings_mine_received_given.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
-| `0039_help_request_principal_avatar.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
-| `0040_cross_party_identity_rpcs.sql` | aplicada — confirmado por dump real da BD viva em 2026-10-16 |
-| `0041_push_notifications.sql` | aplicada a 2026-10-16 |
-| `0042_security_hardening.sql` | aplicada a 2026-10-16 (review de segurança) |
-| `0043_job_location_privacy.sql` | aplicada a 2026-10-16 (precisa da app nova, que usa `get_job_by_id`) |
-| `0044_rpc_identity_and_policy_perf.sql` | aplicada (confirmado pelo Henrique a 2026-10-17) |
-| `0045_service_catalog.sql` | aplicada (confirmado a 2026-10-17) |
-| `0046_job_day_rules.sql` | aplicada (confirmado a 2026-10-17) |
-| `0047_candidate_message.sql` | **criada, NÃO aplicada** (mensagem do candidato no lobby) |
-| `0048_worker_helper_flow_fixes.sql` | **criada, NÃO aplicada** (`apply_to_help_request`, triggers de avisos, `job_status` no board, telefone dos ajudantes aceites) |
-| `0049_pending_decisions.sql` | **criada, NÃO aplicada** (`delete_my_account`, `update_job_request`, gestão da equipa, contexto nas notificações, avisos aos ajudantes, remarcar atrasado, fecho aos 14 dias, report trava auto-confirmação) |
-| `0051_worker_showcase.sql` | **criada, NÃO aplicada**, depois da 0049 (destaques e redes sociais do jardineiro em `worker_profiles` + `worker_public_card`). A 0050 ficou para outra thread |
-| `0052_job_start_flow.sql` | **criada, NÃO aplicada**, depois da 0049 e da 0051 (`start_job`, `started_at`, fotos de antes e depois, `mark_job_done` novo, confirmação automática em 48h com lembrete às 24h, `job_started`) |
-| `0057_direct_requests.sql` | aplicada (confirmado a 2026-10-22) (pedido direto "Pedir de novo": colunas `direct_*`, triggers, RPCs do cliente e do jardineiro, cron de 5 em 5 min, avisos `direct_job_request` e `direct_request_released`) |
-| `0058_proposal_pricing_and_work_days.sql` | **criada, NÃO aplicada**, depois da 0057 (propostas com valor total ou por hora, "O que inclui", duração em dias, validade, bloqueio de aceitar expiradas, dias de trabalho com `finish_work_day`/`start_work_day`) |
-| `0059_card_direct_requests_and_tracking.sql` | **criada, NÃO aplicada**, depois da 0051 e da 0057 (pedido direto pelo cartão público, interruptor "mostrar a outros" com `on_hold`, origem do pedido, flags do cartão para o futuro plano Pro, tracking de visitas QR/link/app e clientes trazidos por cada jardineiro) |
-| `0060_admin_and_worker_plans.sql` | **criada, NÃO aplicada**, depois da `0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql` (painel `/admin`, planos dos jardineiros, limite de 5 trabalhos aceites por mês no Grátis) |
-| `0061_hotfix_reserved_for_other.sql` | **criada, aplicar já** e sozinha: `job_reserved_for_other` dava NULL nos pedidos normais e `NOT ...` escondia-os aos jardineiros desde a 0057. Corrige a versão que existir (4 ou 5 argumentos) |
-| `0063_direct_context_fixed_price.sql` | **criada, NÃO aplicada**, depois da 0058 (`get_direct_request_context` com `pricing_mode` e `total_price`) |
-| `0064_worker_agenda.sql` | **criada, NÃO aplicada**, depois da 0058 (Agenda: `worker_calendar_entries`, `worker_calendar_exceptions`, `get_worker_agenda`, `split_calendar_series`, `free_calendar_day`) |
-| `0062_job_followups_and_better_notifications.sql` | **criada, NÃO aplicada**, depois da 0058 e da 0059 (lembrete às 6h aos jardineiros, 24h sem propostas: pedido mostrado mais longe e aviso ao cliente, "Mostrar a jardineiros mais longe", dicas da época, textos das notificações reescritos no trigger) |
+**Todas aplicadas na BD viva** (confirmado pelo Henrique a 2026-10-27): `0001`, `0033` a
+`0049` e `0051` a `0065`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
+em `supabase/migrations/README.md`.
 
-Próxima migration: `0064`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Próxima migration: `0066`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -551,6 +565,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | worker marca concluído → `awaiting_confirmation` | `mark_job_done` | `job_marked_done` |
 | cliente confirma → `completed` | `confirm_job_completion` | `job_completed` |
 | 3 dias (48h desde a 0052) sem confirmação nem problema reportado → `completed` | `auto_confirm_completed_jobs` (cron) | `job_completed` |
+| pedido aberto sem propostas (continua `open`, 0062) | `process_open_job_followups` (cron): às 6h lembra os jardineiros da zona, às 24h mostra o pedido 10 km mais longe e estende o prazo 24h; o cliente pode alargar até 30 km (`widen_job_search`) | `job_opportunity_reminder`, `new_job_in_radius` ao anel novo, `job_no_proposals_yet` ao cliente |
 | 48h sem proposta → `no_response` | `auto_expire_jobs` (cron) | `job_no_response` |
 | cancelar | `cancel_job` | `job_cancelled` (+ `job_reopened` se reaberto) |
 
@@ -564,21 +579,35 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 `cancel_job`). `approve_help_request` move `pending_approval → open`.
 
 ### `HelpAcceptanceStatus`: `pending → accepted/rejected`, + `cancelled` (desistência) —
-`accept_help_candidate`, `reject_help_candidate`, `withdraw_help_acceptance`.
+`accept_help_candidate`, `reject_help_candidate`, `withdraw_help_acceptance`,
+`remove_help_helper`.
+
+### Trabalhos em vários dias (0058): `job_work_days`, um dia aberto de cada vez. O trigger
+cria o dia 1 em `start_job`; `finish_work_day` fecha o dia, `start_work_day` abre o
+seguinte; marcar concluído ou cancelar fecha o que estiver aberto.
+
+### Agenda (0064, `worker_calendar_entries.status`): `scheduled → done/cancelled`, e
+volta a `scheduled` ao repor. Numa série, "Só este dia" grava o estado na exceção
+(`worker_calendar_exceptions.status`), sem mexer na série. Cancelado continua visível,
+riscado; apagar é outra ação. Os trabalhos da app não têm estado próprio na Agenda: vêm
+de `job_requests`/`job_proposals`/`help_acceptances` através de `get_worker_agenda`.
 
 ---
 
 ## 9. Notificações
 
-20 tipos (`notification_types.dart`; o 20.º é `job_reminder`, da 0046), todos inseridos por RPCs `SECURITY DEFINER`, pelo cron
-ou pelo trigger `notify_workers_new_job` — nunca por INSERT direto do Flutter (sem policy
+38 tipos (`notification_types.dart`, contagem a 2026-10-27), todos inseridos por RPCs `SECURITY DEFINER`, pelo cron
+ou por triggers — nunca por INSERT direto do Flutter (sem policy
 INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 (`notificationsStreamProvider`, Realtime sobre `notifications`):
 
-1. **`notification_handler.dart`** — navegação ao tocar numa notificação. 16 dos 19
-   tipos usam `context.go()` (substitui a stack — ver secção 13 para o porquê e o
-   fallback de voltar); 3 (`helpRequestApproved`, `helpRequestReopened`, `helpWithdrew`)
-   usam `context.push()` de propósito, para preservar o botão de recuar.
+1. **`notification_handler.dart`** — navegação ao tocar numa notificação. A maioria
+   usa `context.go()` (substitui a stack — ver secção 13 para o porquê e o fallback de
+   voltar); os do lobby e da descoberta de ajudantes (`help_request_approved`,
+   `help_candidate_applied`, `help_withdrew`, `help_request_closed`,
+   `help_request_closing_soon`, `help_request_reopened`, `new_help_request_in_radius`) e
+   a dica da época do cliente usam `context.push()` de propósito, para preservar o
+   botão de recuar.
 2. **`notification_providers.dart`** (`notificationSyncProvider`) — invalida os
    providers de dados certos para cada tipo novo que chega, sem esperar por
    pull-to-refresh. Tabela completa em `state_machine.md`; o código também invalida
@@ -598,17 +627,22 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_no_response` | `auto_expire_jobs` (cron) | `/client/job/:id` | go |
+| `job_reminder` (0046) | `send_job_reminders` (cron: manhã do dia, data passada sem conclusão, conclusão à espera do cliente) | `/client/job/:id` ou `/worker/my-job/:id` | go |
+| `job_updated` (0049) | `update_job_request` (a quem já propôs) | `/worker/job/:id` | go |
 | `reschedule_proposed/accepted/rejected` | `propose/accept/reject_reschedule` | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `help_request_approved` | `approve_help_request` | `/worker/job/:id/help-requests` | **push** |
-| `help_accepted`/`help_rejected` | `accept/reject_help_candidate` | `/worker/help-requests` (tab 1) | go |
-| `help_job_cancelled` | `cancel_job` (cascade) | `/worker/help-requests` (tab 1) | go |
+| `help_accepted`/`help_rejected` | `accept/reject_help_candidate` | `/worker/help/:id` (ou `/worker/help-requests` tab 1 se não encontrar a candidatura) | go |
+| `help_job_cancelled` | `cancel_job` (cascade) | idem | go |
+| `help_removed` / `help_job_rescheduled` / `help_job_done` / `help_job_completed` (0049) | `remove_help_helper`, trigger `notify_helpers_on_job_change` | idem (ajudante) | go |
+| `help_candidate_applied` (0048) | `apply_to_help_request` (ao responsável) | `/worker/job/:id/help-requests` | **push** |
+| `help_request_pending_approval` (0048, véspera desde a 0055) | trigger em `help_requests` / `process_help_request_deadlines` (ao cliente) | `/client/job/:id` | go |
 | `help_request_reopened` | `withdraw_help_acceptance` | `/worker/help-requests` | **push** |
 | `help_withdrew` | `withdraw_help_acceptance` | `/worker/job/:id/help-requests` | **push** |
 | `new_help_request_in_radius` (0054) | trigger em `help_requests` | `/worker/help-requests/:id/apply` | **push** |
 | `help_request_closed` (0054) | `close_help_requests_on_job_day` (cron) | `/worker/job/:id/help-requests` | **push** |
 | `help_request_closing_soon` (0055) | `process_help_request_deadlines` (cron, véspera) | `/worker/job/:id/help-requests` | **push** |
 | `help_request_auto_approved` (0055) | `process_help_request_deadlines` (cron, 24h) | `/client/job/:id` | go |
-| `help_job_started` (0055) | trigger `trg_notify_helpers_on_job_change` (`started_at`) | `/worker/help/:id` | go |
+| `help_job_started` (0055) | trigger `trg_notify_helpers_on_job_change` (`started_at`) | `/worker/help/:id` (como os outros avisos do ajudante) | go |
 | `direct_job_request` (0057) | trigger `notify_workers_new_job` (pedido direto) | `/worker/job/:id` | go |
 | `direct_request_released` (0057) | `open_direct_job_to_all` (recusa, retirada ou cron) | `/client/job/:id` | go |
 | `job_opportunity_reminder` (0062) | `process_open_job_followups` (cron, 6h sem propostas, no máximo 1 por jardineiro em 20h; vários pedidos juntos num só com `related_id` null) | `/worker/job/:id` ou `/worker/available-jobs` | go |
@@ -617,7 +651,14 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 
 **Textos (0062):** o trigger BEFORE INSERT `notifications_add_job_context` reescreve os textos genéricos antigos (nome da outra pessoa, valor da proposta, distância, sempre por tu) antes de juntar " (Serviço, DD/MM)". As funções que criam notificações não mudam; texto novo de um tipo antigo muda-se aí.
 
-Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStreamProvider` e mostra a notificação nova no topo (`AppToast.notification`, ícone e tom de `notificationLook`); tocar abre o mesmo destino e marca como lida. Não aparece no primeiro carregamento nem no ecrã `/notifications`.
+Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStreamProvider` e mostra a notificação nova no topo (`AppToast.notification`, ícone e tom de `notificationLook`); tocar abre o mesmo destino e marca como lida. Não aparece no primeiro carregamento nem no ecrã `/notifications`. Desde o PR #37 (2026-10-27) `AppToast.maybeOf` usa o Overlay do próprio Navigator quando recebe o contexto do Navigator raiz (antes devolvia `null` e este aviso nunca aparecia), e o `OverlayEntry` guarda a sua chave fora do builder, para o aviso não reentrar nem recomeçar os 4 s a cada rebuild do Overlay.
+
+**Onde se veem (A11, 2026-10-27):** o cliente tem o separador Alertas na shell
+(`/client/alerts`, `NotificationsScreen(inShell: true)`); o jardineiro tem o sino com o
+número de não lidas (`HomeNotificationButton`) e abre `/notifications` fora da shell. Os
+dois têm "Limpar tudo" (`clear_my_notifications`, 0065) com "Desfazer" durante 6 s; as
+limpas ficam marcadas como lidas, a app filtra-as no Dart e o servidor apaga-as de vez 1
+dia depois.
 
 ---
 
@@ -636,7 +677,7 @@ Com a app aberta o push do sistema não aparece: `App` ouve `notificationsStream
 `standard`/`emphasized`/`enter`/`exit`/`reward`. `prefers-reduced-motion` tratado
 localmente em cada widget via `MediaQuery.disableAnimations`.
 
-**Widgets partilhados** (`core/widgets/`, 22 ficheiros) — assinatura resumida:
+**Widgets partilhados** (`core/widgets/`, 46 ficheiros a 2026-10-27) — assinatura resumida:
 
 | Widget | Parâmetros principais |
 |---|---|
@@ -674,6 +715,20 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppPulseScale` | `child`; `enabled=true`, `color=AppColors.primary` — pulso do nó atual da timeline |
 | `AppSuccessFeedback` | `visible`, `message` |
 | `AppSkeletonShimmer` | `child` |
+| `AppTabHeader` / `AppBackHeader` / `AppTabs` (A11, `app_tab_header.dart`) | cabeçalho comum dos ecrãs de topo (título, sino ou ação) / cabeçalho com voltar dos sub-fluxos / tabs com sublinhado verde que desliza, 48 px, `AppTabItem(label, count?)`. Usados em Trabalhos, Pedidos do cliente, Pedidos de ajuda, Equipa e Alertas |
+| `AppProfileCard` (A11) | cartão do topo do Perfil nos dois papéis: avatar com iniciais, nome, linha de contexto, 3 `AppProfileMetric` e, no jardineiro, `actions` do cartão partilhável |
+| `HomeNotificationButton` (A11) | sino dos cabeçalhos do jardineiro com o número de não lidas |
+| `AppNotificationsView` | vista pura de Notificações (secções, itens, "Limpar tudo"), igual nos dois papéis |
+| `AppInitialsAvatar` | avatar sem nome ao lado (foto ou inicial); com nome usar `UserAvatarWithName` |
+| `AppInlineError` | erro pequeno com "Tentar novamente" para uma secção que carrega à parte |
+| `AppBarTitle` | título de AppBar com segunda linha opcional |
+| `showAppTimePicker` | `showTimePicker` com o tema da app, sempre 24h, `helpText` opcional |
+| `AppSupportSheet` | "Contacto e suporte": copiar email ou `mailto:` (canal de suporte da app, não contacto entre utilizadores) |
+| `AppAboutDialog` | "Sobre a ProJardim": logo, versão, Termos, Privacidade, licenças |
+| `AppLegalConsentText` (`app_legal_links.dart`) | frase com Termos e Política com toque; `openTermsOfUse`/`openPrivacyPolicy` |
+| `AddressSuggestionsList` | sugestões de morada por baixo de um campo (a carregar, sem resultados, lista) |
+| `ServiceCategorySection` / `serviceIcon` | categoria de serviços que abre e fecha, com "Selecionar todos" / ícone por nome vindo da BD |
+| `AppAdaptiveShell` / `AppContentWidth` | scaffold das 2 shells (bottom nav no telemóvel, `NavigationRail` a partir de `AppBreakpoints.expanded`) / largura máxima centrada |
 
 ---
 
@@ -703,7 +758,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 
 | Integração | Onde | Como |
 |---|---|---|
-| Geocoding (Nominatim) | `core/services/geocoding_service.dart` | `http.get` direto a `nominatim.openstreetmap.org/reverse` com `addressdetails=1` (sem isto a resposta nunca tem o campo `address`) e `User-Agent` identificável; usado em `client_create_job_schedule_screen.dart` e nos 2 ecrãs de perfil/setup do worker |
+| Geocoding (OpenStreetMap) | `core/services/geocoding_service.dart` | Sugestões ao escrever (`suggestAddresses`): Photon (`photon.komoot.io`) e, se falhar, Nominatim `/search` (PR #28, 2026-10-23; Google Places só se continuarem a faltar moradas). Pesquisa de uma morada (`searchAddress`): geocoder nativo do telemóvel (`package:geocoding`) com Nominatim como alternativa. Morada a partir do GPS (`reverseGeocode`): Nominatim `/reverse` com `addressdetails=1` e `User-Agent` identificável. Usado em criar/editar pedido e nos ecrãs de perfil/setup do worker |
 | Link de mapa | `AddressMapLink` → `url_launcher` para `google.com/maps/search/?api=1&query=lat,lng`, `LaunchMode.externalApplication` |
 | WhatsApp | `url_launcher` para `https://wa.me/<telefone sem espaços/hífens>`, com `canLaunchUrl` antes — em `client_job_detail_screen.dart`, `client_job_confirmed_screen.dart`, `client_scheduled_job_detail_screen.dart`, `worker_my_job_detail_screen.dart`, `worker_help_requests_screen.dart`. Único canal de contacto da app |
 | OCR (ML Kit) | `fleet_card_text_extractor.dart` | `google_mlkit_text_recognition`, local, a foto é apagada logo depois de extrair os 3 campos — nunca vai a Storage |
@@ -778,16 +833,21 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 
 ## 14. Testes
 
-67 testes em `test/` (2026-10-17), todos sem rede nem Supabase:
+62 ficheiros e cerca de 560 testes em `test/` (contagem de `test(`/`testWidgets(` a 2026-10-27), todos sem rede nem Supabase:
 - lógica: redirects do router (`route_guard_test.dart`, sobre `resolveRedirect` em
   `core/router/route_guard.dart`, para onde saiu a decisão de `RouterNotifier.redirect`),
   política de password, `friendlyError`, preços, datas, enums da BD, telefone/WhatsApp,
   `StorageUrls`, catálogo de serviços e `HelpAcceptance.fromJson`;
 - widgets: shell adaptativo e bottom nav, largura de conteúdo, secção de categorias e
-  cartões do lobby de ajudantes (`help_lobby_view_test.dart`).
-Ecrãs ligados ao Supabase não têm teste (precisavam de mocks dos repositórios). `flutter analyze`
-(2026-10-17): **0 issues** (os 5 avisos antigos, `control_flow_in_finally` e
-`unused_field`, foram corrigidos).
+  cartões do lobby de ajudantes (`help_lobby_view_test.dart`);
+- desde 2026-10-18: regras do pedido e do trabalho (cliente e jardineiro), início do
+  trabalho, propostas por hora e valor total, pedido direto e pelo cartão, avisos de
+  pedidos sem propostas, equipa e estimativas, destaques do jardineiro, planos e admin,
+  notificações, `AppToast`, e a Agenda inteira (`agenda_*_test.dart`: sobreposições,
+  Hoje, Semana, Mês, formulário, detalhe, "Ver o dia", avisos nos ecrãs existentes).
+Ecrãs ligados ao Supabase não têm teste (precisavam de mocks dos repositórios); as vistas
+puras (`*_view.dart`) e os presenters sim. `flutter analyze` mantém-se a **0 issues** (o CI
+falha com qualquer aviso, também `info`).
 
 Para correr: `flutter analyze` (raiz de `servicesapp/`), `flutter test`. **CI**:
 `.github/workflows/ci.yml` corre os dois em cada PR e em cada push para `main` que mexa
@@ -840,16 +900,15 @@ em português — não é um marcador TODO.)
    duas versões de "garden_setup" está semeada na BD viva. Precisa de um
    `supabase db dump --data-only` (ou query direta) para fechar.
 4. ~~**`help_acceptances.message` (migration 0034) é escrito mas nunca lido.**~~
-   Resolvido a 2026-10-17: a migration 0047 (criada, por aplicar) acrescenta `message` ao
+   Resolvido a 2026-10-17: a migration 0047 (aplicada) acrescenta `message` ao
    `RETURNS TABLE` de `get_candidates_for_help_request`; `HelpAcceptance.message` lê-a e o
    cartão do candidato no lobby (`worker_help_requests_lobby_view.dart`) mostra-a.
 5. **`features/proposals/presentation/` está vazia.** Todos os ecrãs de proposta vivem
    em `features/jobs/presentation/` ou `features/worker/presentation/` — convenção real,
    nunca documentada antes deste ficheiro.
-6. **Contagem de rotas em `STATUS.md` ("39 rotas ao todo", auditoria de 2026-09-08) está
-   desatualizada.** Contagem direta de `app_router.dart` nesta sessão dá 43 (rotas como
-   `/worker/ratings`, `/client/ratings` e o 3.º passo do fleet card parecem ter sido
-   adicionadas depois dessa auditoria).
+6. ~~Contagem de rotas em `STATUS.md` ("39 rotas ao todo") desatualizada.~~ **Resolvido a
+   2026-10-27**: `STATUS.md` foi reescrito e já não conta rotas; a contagem certa (50) está
+   na secção 5 deste ficheiro.
 7. ~~Nenhum dos dois documentos de estado (`STATUS.md`, `supabase/migrations/README.md`)
    foi verificado contra a BD viva.~~ **Resolvido em 2026-10-16**: o utilizador extraiu
    um dump real da BD viva via `supabase db dump` (projeto `twpflvcoyeiysnychkom`, plano
@@ -862,3 +921,11 @@ em português — não é um marcador TODO.)
    (dump 2026-10-16) tem-no como `on_job_created` — mesma função (`notify_workers_new_job`),
    mesmo evento (`AFTER INSERT`). Provavelmente renomeado manualmente no Supabase Studio em
    algum momento, sem passar por migration. Sem impacto funcional, só cosmético/histórico.
+9. **Código de compatibilidade com migrations por aplicar ainda existe** (2026-10-27).
+   Como todas as migrations estão aplicadas, os caminhos "antes da 00xx" já não correm:
+   `PGRST202` em `help_request_repository.dart` (0048) e `helper_job_state.dart`,
+   `WorkerPlan.unavailable` (0060), leitura de `cleared_at` no Dart em vez de na query
+   (0065), comentários em `job_repository.dart` (0059), `proposal_repository.dart` (0058),
+   `worker_profile_model.dart` (0051), `worker_jobs_screen.dart` (0064). Não fazem mal, mas
+   podem ser removidos numa limpeza (registado em `improvements.md`). O
+   `isMissingRpcError` de `error_utils.dart` fica: protege qualquer migration futura.

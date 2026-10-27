@@ -1,7 +1,9 @@
 # LocalServices — Implementation Plan
 
-> Ordem de trabalho e estado atual. Atualizar à medida que se avança.
-> O Claude Code lê este ficheiro para saber em que passo está.
+> **Documento histórico** (plano das Fases 0 a 11, até 2026-07). Já não é atualizado:
+> o estado atual está em `STATUS.md` e as migrations em
+> `supabase/migrations/README.md` (todas aplicadas a 2026-10-27, incluindo as 0016–0021
+> referidas abaixo).
 
 ## Estado atual — MVP feature-complete (2026-06-27)
 

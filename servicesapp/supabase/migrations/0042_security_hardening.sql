@@ -1,6 +1,6 @@
 -- ============================================================
 -- 0042_security_hardening.sql
--- NOVA — NÃO APLICADA. Aplicar manualmente via SQL Editor.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-10-27). Num projeto novo, aplicar via SQL Editor.
 --
 -- Contexto: review de código de 2026-10-16
 -- (/mnt/project-files/projardim/review/2026-10-16-review-codigo.md).

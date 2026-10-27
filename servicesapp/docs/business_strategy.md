@@ -92,7 +92,16 @@ da equipa. Só expandir quando a zona tiver pulso (pedidos respondidos em <24h).
 
 ## 6. Monetização faseada
 
-**Fase atual (validação):** tudo grátis, sem comissão.
+**Decidido a 2026-10-22 (feito no código, 0060):** três planos para jardineiros.
+Grátis com limite de 5 trabalhos **aceites** por mês (não propostas), Pro (app sem
+limite, inclui a verificação: documentos vistos na assinatura do contrato) e Pro+ (Pro
+com os benefícios de parceiros: combustível, seguros, etc.). Contrato, pagamento e
+ativação fora da app, no painel `/admin`; a app não mostra preços nem links de pagamento
+(regras da Play). Sem selo "Verificado" à parte. Fundadores com Pro grátis. Sem pagar
+por lead ou proposta, sem destaque pago, sem comissão enquanto não houver pagamentos na
+app. O cliente nunca paga.
+
+**Fase atual (validação):** sem comissão; os planos existem mas são atribuídos à mão.
 
 **Caminhos futuros por ordem de fricção:**
 
@@ -102,7 +111,8 @@ da equipa. Só expandir quando a zona tiver pulso (pedidos respondidos em <24h).
 3. **Destaque pago** — perfil ou proposta em destaque
 4. **Comissão por trabalho** — só se trouxerem pagamentos para a app (complexo)
 
-O modelo mais compatível com pagamentos fora da app é o **freemium**.
+O modelo mais compatível com pagamentos fora da app é o **freemium** (escolhido, ver
+acima). O destaque pago (ponto 3) foi posto de lado a 22/10.
 
 ---
 
@@ -121,9 +131,10 @@ O modelo mais compatível com pagamentos fora da app é o **freemium**.
 
 ## 8. Verificação e confiança
 
-- **Nível 1:** telefone confirmado (já implementado via Supabase Auth)
+- **Nível 1:** telefone validado no formato (`phone_utils.dart`), não confirmado por SMS; email confirmado por código quando a confirmação for ligada no Supabase
 - **Nível 2:** documento de identidade (pós-MVP)
-- Selo de verificação visível no perfil
+- Selo de verificação visível no perfil: decidido a 22/10 que vem com o selo Pro, sem
+  selo "Verificado" à parte (o selo Pro ainda não aparece nas propostas nem no cartão)
 - Botão de denúncia
 - Avaliações bilaterais com resposta pública
 

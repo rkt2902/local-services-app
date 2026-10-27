@@ -1,239 +1,92 @@
 # supabase/migrations
 
-## Active migrations
+## Estado a 2026-10-27
 
-| File | Description |
-|------|-------------|
-| `0001_consolidated_baseline.sql` | Complete live DB state as of 2026-07-09. Apply to a fresh Supabase project to reproduce the schema exactly. |
+**Todas as migrations deste diretório estão aplicadas na BD viva** (projeto
+`twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-10-27. Isto inclui a
+`0065_notifications_clear_and_profile_stats.sql`. A `0050` nunca foi usada (o
+número ficou reservado para uma thread que não chegou a criar a migration).
 
-## Archive
+**Próxima migration nova: `0066`.** Antes de numerar, confirmar com
+`ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
+migrations.
 
-`archive/` contains the original 31 incremental migrations (0001_baseline … 0032_audit_fixes). They are kept for historical reference and git blame context. **Do not apply them** — `0001_consolidated_baseline.sql` supersedes them.
+O Claude Code nunca aplica migrations: só cria o `.sql`. O Henrique aplica-as no SQL
+Editor do Supabase e confirma.
 
-## How to apply
+## Ficheiros
 
-1. Create a fresh Supabase project.
-2. Enable the `pg_cron` extension (Database → Extensions → pg_cron).
-3. Create storage buckets `avatars` and `job-photos` (Storage → New Bucket, set Public).
-4. Run `0001_consolidated_baseline.sql` via the Supabase SQL Editor.
-5. Verify: `SELECT COUNT(*) FROM service_types;` should return 3 rows.
-6. After applying, reload the PostgREST schema cache:
-   `NOTIFY pgrst, 'reload schema';`
+| Ficheiro | O que faz | Estado |
+|---|---|---|
+| `0001_consolidated_baseline.sql` | Schema completo da BD viva a 2026-07-09 (substitui `archive/`) | aplicada |
+| `0033`–`0037` | Cartão público do worker, descoberta de ajudantes com pagamento, RPC única de "Os meus trabalhos", cascade de `profiles`, cartão frota | aplicadas (2026-09-09) |
+| `0038`–`0040` | "As minhas avaliações", foto do principal nos pedidos de ajuda, 4 RPCs de identidade da contraparte | aplicadas (confirmado por dump a 2026-10-16) |
+| `0041_push_notifications.sql` | `device_tokens`, registo de tokens, trigger que chama a Edge Function `send-push` | aplicada (2026-10-16) |
+| `0042_security_hardening.sql` | Review de segurança: autorização em `cancel_job`/`reject_proposal`, escritas só por RPC, REVOKE a anon, índices | aplicada (2026-10-16) |
+| `0043_job_location_privacy.sql` | Morada exata escondida até a proposta ser aceite (`location_area`, `get_job_by_id`) | aplicada (2026-10-16) |
+| `0044_rpc_identity_and_policy_perf.sql` | RPCs sem `p_worker_id`, policies com `(SELECT auth.uid())` | aplicada (2026-10-17) |
+| `0045_service_catalog.sql` | Jardinagem, Agricultura e Floresta, 33 tipos com ícone e ordem | aplicada (2026-10-17) |
+| `0046_job_day_rules.sql` | Concluir só a partir do dia, foto de conclusão, expiração, lembretes | aplicada (2026-10-17) |
+| `0047_candidate_message.sql` | Mensagem do candidato a ajudante no lobby | aplicada |
+| `0048_worker_helper_flow_fixes.sql` | `apply_to_help_request`, avisos novos, histórico no quadro, telefone dos ajudantes | aplicada |
+| `0049_pending_decisions.sql` | Eliminar conta, editar pedido, gestão da equipa, avisos com contexto, fecho aos 14 dias | aplicada |
+| `0051_worker_showcase.sql` | Destaques e redes sociais do jardineiro | aplicada |
+| `0052_job_start_flow.sql` | Iniciar trabalho, fotos de antes e depois, confirmação automática em 48h | aplicada |
+| `0053_worker_jobs_board_cards.sql` | Colunas novas em `get_worker_job_board` (design A2) | aplicada |
+| `0054_help_requests_job_day_and_alerts.sql` | Pedidos de ajuda fecham no dia, avisos só a quem faz o serviço | aplicada |
+| `0055_team_flow_improvements.sql` | Equipa visível ao cliente, desistir até à véspera, aprovação automática em 24h | aplicada |
+| `0056_worker_job_board_team_estimate.sql` | Total estimado com a equipa no quadro | aplicada |
+| `0057_direct_requests.sql` | "Pedir de novo" ao mesmo jardineiro (reserva de 24h) | aplicada (2026-10-22) |
+| `0058_proposal_pricing_and_work_days.sql` | Proposta por hora ou valor total, validade, dias de trabalho | aplicada |
+| `0059_card_direct_requests_and_tracking.sql` | Pedido direto pelo cartão `/w/:id`, `on_hold`, visitas e clientes trazidos | aplicada |
+| `0060_admin_and_worker_plans.sql` | Painel `/admin`, planos Grátis/Pro/Pro+, limite de 5 no Grátis | aplicada |
+| `0061_hotfix_reserved_for_other.sql` | Corrige `job_reserved_for_other` (NULL escondia pedidos normais) | aplicada |
+| `0062_job_followups_and_better_notifications.sql` | Lembrete às 6h, pedido mais longe às 24h, dicas da época, textos das notificações | aplicada |
+| `0063_direct_context_fixed_price.sql` | "Já trabalhaste com..." com valor fechado | aplicada |
+| `0064_worker_agenda.sql` | Agenda do jardineiro (trabalhos fora da app, indisponibilidades, `get_worker_agenda`) | aplicada |
+| `0065_notifications_clear_and_profile_stats.sql` | "Limpar tudo" com "Desfazer", números do Perfil | aplicada (2026-10-27) |
 
-## Live DB delta
+O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
+secção 7.
 
-**UPDATE 2026-09-09:** `archive/0032_audit_fixes.sql` has been applied to the
-live DB, confirmed by the user. The live DB now has the post-0032 FK targets
-for `job_proposals.worker_id` and `help_acceptances.worker_id` (pointing to
-`profiles(id)`), matching `0001_consolidated_baseline.sql`. Migrations
-0033–0037 (worker public card, helper discovery payment/message, unified
-worker job board RPC, profiles cascade + confirm backfill, worker fleet
-cards) have also been applied — see each file's own header.
+## Regras
 
-No known delta between the live DB and `0001_consolidated_baseline.sql` as
-of 2026-09-09.
+- Identidade sempre por `auth.uid()` dentro da função; nenhuma RPC recebe
+  `worker_id`/`client_id`/`user_id` vindo da app (classe corrigida na 0032).
+- `DROP FUNCTION` explícito antes de recriar quando o `RETURNS TABLE` muda de forma, ou
+  quando a lista de parâmetros muda (senão fica um overload).
+- Desde a 0042, cada função nova faz `REVOKE EXECUTE ... FROM PUBLIC, anon` e
+  `GRANT EXECUTE ... TO authenticated` (o Postgres dá EXECUTE a PUBLIC por omissão).
+- Escritas de negócio só por RPC.
+- `RETURNING` com RLS precisa de policy de INSERT e de SELECT.
+- Sublinks `(SELECT auth.uid())` nas policies de SELECT de `job_requests` dão recursão
+  infinita no INSERT (ciclo `job_requests` → `profiles` → `job_requests`); não os pôr lá.
+- As migrations recentes podem correr-se mais do que uma vez sem erro. Dá para as
+  validar num Postgres 16 local com stubs de `auth`, `storage` e `cron`; a 0041 falha aí
+  por falta de `pg_net`, o resto aplica.
 
-**UPDATE 2026-10-16:** confirmado via dump real da BD viva (`supabase db
-dump`, projeto `twpflvcoyeiysnychkom`) que `0038_ratings_mine_received_given.sql`,
-`0039_help_request_principal_avatar.sql` e `0040_cross_party_identity_rpcs.sql`
-**estão todas aplicadas** — as 7 funções que introduzem
-(`get_my_ratings_received`, `get_my_ratings_given`, `get_help_requests_in_radius`
-no shape pós-0039, `get_open_job_client_identity`, `get_pending_proposals_for_job`,
-`get_candidates_for_help_request`, `get_ratings_with_rater_identity`) existem
-todas na BD viva com a assinatura esperada. As 37 funções, 14 tabelas e 3 views
-da BD viva coincidem exatamente com a soma de `0001_consolidated_baseline.sql` +
-0033–0040, sem funções/tabelas extra nem em falta.
+## Projeto novo
 
-**Drift encontrado (cosmético, não aplicado por nenhuma migration deste repo):**
-o trigger em `job_requests` chama-se `on_job_created` na BD viva, mas
-`0001_consolidated_baseline.sql` define-o como `trigger_notify_workers_new_job`
-(mesma função `notify_workers_new_job()`, mesmo comportamento). Foi provavelmente
-renomeado manualmente no Supabase Studio em algum momento. Não requer migration
-nova — é só nome, sem impacto funcional — mas ficou registado para não
-confundir quem for ler o nome do trigger na dashboard.
+1. Criar o projeto Supabase e ativar `pg_cron` (e `pg_net` + Vault para a 0041, ver
+   `docs/push_notifications.md`).
+2. Criar os buckets públicos `avatars` e `job-photos`.
+3. Correr `0001_consolidated_baseline.sql` no SQL Editor. Não corre de uma vez num
+   projeto vazio: 4 policies (linhas 384, 444, 572 e 587) usam funções helper criadas
+   mais abaixo, na secção 7. Correr o ficheiro e depois de novo só essas 4 policies.
+4. Correr `0033` a `0065` por ordem numérica.
+5. `NOTIFY pgrst, 'reload schema';`
 
-**APLICADA — `0041_push_notifications.sql`** — aplicada a 2026-10-16.
-Tabela `device_tokens`, RPCs `register_device_token`/`unregister_device_token`
-e trigger em `notifications` que chama a Edge Function `send-push`. Antes de
-aplicar: ativar `pg_net` e criar os segredos no Vault — passos completos em
-`docs/push_notifications.md`.
+## Drift conhecido
 
-**APLICADA — `0042_security_hardening.sql`** — aplicada a 2026-10-16. Corrige as
-falhas do review de 2026-10-16: `cancel_job` e `reject_proposal` sem
-autorização, `create_user_profile` aberta a anon (apagada), escritas diretas
-que saltavam as RPCs (`job_proposals` INSERT/UPDATE, `job_requests` UPDATE,
-`ratings` INSERT, `help_acceptances` UPDATE), WITH CHECK apertado em
-`job_requests`, `help_requests`, `help_acceptances` e `worker_fleet_cards`,
-limites nos buckets, REVOKE de anon nas funções, `acos` partido em
-`get_jobs_in_radius`, limpeza de notificações e 7 índices. Não muda nenhuma
-assinatura de RPC, pode ser aplicada antes ou depois da app nova. Pode ser
-aplicada antes da 0041 (o REVOKE do trigger de push é condicional).
-Verificação no fim do próprio ficheiro.
+O trigger em `job_requests` chama-se `on_job_created` na BD viva, mas a baseline
+define-o como `trigger_notify_workers_new_job` (mesma função `notify_workers_new_job()`,
+mesmo evento). Renomeado à mão no Studio em algum momento; só cosmético.
 
-**APLICADA — `0043_job_location_privacy.sql`** — aplicada a 2026-10-16. Aplicar
-DEPOIS da 0042 e junto com a app nova (que lê o detalhe do pedido pela RPC
-`get_job_by_id`). Até haver proposta aceite, o jardineiro vê só a localidade
-(`job_requests.location_area`, coluna nova) e coordenadas arredondadas a ~1 km.
-A morada exata fica para o cliente, o worker aceite e os ajudantes aceites.
-Os workers deixam de ler `job_requests` diretamente (exceto o aceite).
+## Arquivo
 
-**APLICADA — `0044_rpc_identity_and_policy_perf.sql`** — aplicada (confirmado pelo Henrique a 2026-10-17).
-Aplicar junto com a app nova: `create_proposal`, `get_jobs_in_radius` e
-`sync_worker_service_types` deixam de receber `p_worker_id` (DROP das versões
-antigas), por isso a app antiga deixa de conseguir enviar propostas, ver
-oportunidades e guardar serviços. Também troca `auth.uid()` por
-`(SELECT auth.uid())` nas policies do public (exceto `job_requests`, que daria
-recursão), pré-filtra o raio por uma caixa de lat/lng com um índice parcial, e
-no fim verifica que nenhuma policy ficou com recursão; se ficar, falha inteira
-e não aplica nada.
-
-**APLICADA — `0045_service_catalog.sql`** — aplicada (confirmado a 2026-10-17). Aplicar ANTES
-da app nova (a app nova lê `service_categories.sort_order`). Junta as
-categorias Agricultura e Floresta, 33 tipos de serviço no total, e as colunas
-`service_types.icon` e `sort_order`. Os 3 tipos que já existiam mantêm o id e
-o nome. Um ícone novo na BD tem de ser acrescentado ao mapa de
-`lib/core/widgets/service_icon.dart`, senão aparece o ícone genérico.
-
-**APLICADA — `0046_job_day_rules.sql`** — aplicada (confirmado a 2026-10-17). Aplicar DEPOIS
-da 0044 (redefine `get_jobs_in_radius` de 3 parâmetros). Concluir só a partir
-do dia, foto de conclusão, expiração de pedidos com data passada, lembretes
-(cron novo `job-reminders`). Compatível com a app antiga (`p_photo_path` tem
-DEFAULT).
-
-**Regra a partir da 0042:** cada função nova faz
-`REVOKE EXECUTE ... FROM PUBLIC, anon` e `GRANT EXECUTE ... TO authenticated`
-(o Postgres dá EXECUTE a PUBLIC por defeito).
-
-**Nota sobre a baseline:** `0001_consolidated_baseline.sql` não corre de uma
-vez num projeto vazio: 4 policies (linhas 384, 444, 572 e 587) usam funções
-helper que só são criadas mais abaixo, na secção 7. Num projeto novo, correr
-o ficheiro, e depois correr de novo só essas 4 policies.
-
-## Sources used for consolidation
-
-- `supabase/snapshot_tables.csv` — sections 1–6 (columns, constraints,
-  indexes, RLS policies, functions, views), taken 2026-07-09.
-- `archive/0001_baseline.sql` — service_categories, job_photos, functions
-  not in snapshot query (reject_proposal, withdraw_proposal,
-  confirm_job_completion, worker_has_proposal_for_job, notify_workers_new_job),
-  storage bucket creation, seed data.
-- `archive/0032_audit_fixes.sql` — corrected FK targets, auth-checked RPCs
-  (accept_proposal, create_proposal, sync_worker_service_types), role-change
-  trigger, missing indexes, profiles SELECT policies.
-
-**Note:** `snapshot_a.csv` and `snapshot_b.csv` do not exist in this repo.
-All snapshot data came from a single `snapshot_tables.csv` file.
-
-**`0048_worker_helper_flow_fixes.sql`: criada, NÃO aplicada** (aplicar depois da
-0047). Correções aos fluxos dos ajudantes, avisos novos e histórico na aba Trabalhos.
-Ver o cabeçalho do ficheiro.
-
-**`0052_job_start_flow.sql`: criada, NÃO aplicada** (aplicar depois da 0049 e da 0051).
-"Iniciar trabalho" (`start_job`, a partir de 1h antes da hora), fotos de antes e depois
-(`before_photo_paths`/`after_photo_paths`, até 3), `started_at`, `mark_job_done` com
-`p_photo_paths text[]` e a exigir início, confirmação automática em 48h com lembrete às
-24h (cron de hora a hora), aviso novo `job_started`.
-
-**`0053_worker_jobs_board_cards.sql`: criada, NÃO aplicada** (aplicar depois da 0048 e
-da 0052). `get_worker_job_board` passa a devolver o serviço, a localidade, quando foi
-iniciado e marcado como feito, quem cancelou (dois booleanos) e a data da última
-alteração, para os cartões de "Os meus trabalhos" (design A2).
-
-**`0058_proposal_pricing_and_work_days.sql`: criada, NÃO aplicada** (aplicar depois da
-0057). Propostas com valor total ou preço por hora (design A6): `pricing_mode`,
-`total_price`, `includes`, duração em dias e `valid_until` em `job_proposals`, tabela
-`proposal_include_options`, `create_proposal` com os parâmetros novos (todos com
-omissão), trigger que recusa aceitar propostas expiradas, `get_pending_proposals_for_job`
-e `get_worker_job_board` com as colunas novas (DROP + CREATE), e os dias de trabalho
-(`job_work_days`, `finish_work_day`, `start_work_day`, `get_job_work_days`). Pode
-correr-se mais do que uma vez.
-
-**`0059_card_direct_requests_and_tracking.sql`: criada, NÃO aplicada** (aplicar depois
-da 0051 e da 0057; a ordem com a 0058 não importa). Pedido direto pelo cartão público
-(design A7): `direct_card_worker_id`, `direct_auto_release`, `direct_origin`,
-`direct_hold_reason`, `card_visit_id` e o estado `on_hold` em `job_requests`; flags
-`worker_can_use_public_card`/`worker_can_receive_direct_requests` (hoje sempre ligadas,
-lugar do futuro plano Pro); `worker_public_card` com serviços por id, flags e a última
-avaliação boa; tracking `worker_card_visits` e `client_referrals` com as RPCs
-`log_worker_card_visit` e `claim_worker_card_visit`; vista `worker_card_funnel` só para o
-SQL Editor. Pode correr-se mais do que uma vez.
-
-**`0060_admin_and_worker_plans.sql`: criada, NÃO aplicada** (aplicar depois da
-`0058_proposal_pricing_and_work_days.sql` e da `0059_card_direct_requests_and_tracking.sql`,
-que vêm no PR das propostas por valor total e do cartão).
-Painel `/admin`: `admin_users` (quem é admin, só por SQL), `admin_actions` (registo),
-`worker_plans` (Grátis, Pro, Pro+ com validade, verificação e notas), `job_proposals.accepted_at`,
-limite de 5 trabalhos aceites por mês no Grátis (trigger BEFORE INSERT em
-`job_proposals`), `get_my_plan()` e as RPCs `admin_*` (exigem `admin_users` + aal2).
-Pode correr-se mais do que uma vez.
-
-**`0061_hotfix_reserved_for_other.sql`: aplicar já, sozinha.** Desde a 0057,
-`job_reserved_for_other` devolvia NULL num pedido normal (`direct_status` NULL) e
-`NOT job_reserved_for_other(...)` escondia esses pedidos aos jardineiros
-(`get_jobs_in_radius`, `can_see_job_summary`, `get_open_job_client_identity`). Corrige com
-`COALESCE(..., false)` a versão que existir (4 argumentos da 0057 ou 5 da 0059), nunca as
-duas. A 0059 também passou a criar a versão corrigida. Pode correr-se mais do que uma vez.
-
-**`0062_job_followups_and_better_notifications.sql`: criada, NÃO aplicada** (depois da
-0058 e da 0059). Colunas `search_extra_km`, `visible_to_all_at`, `followup_stage`,
-`no_proposals_nudged_at` em `job_requests` (a app não as muda); `get_jobs_in_radius`
-com o raio alargado; `widen_job_search`; cron `open-job-followups` (lembrete às 6h,
-alargar e avisar o cliente às 24h) e `seasonal-campaigns` (tabelas
-`seasonal_campaigns`, `seasonal_campaign_sends`, `notification_preferences`); textos das
-notificações reescritos no trigger `notifications_add_job_context`. Os pedidos já abertos
-há mais de 6h ficam marcados como tratados, para não haver rajada ao aplicar. Pode
-correr-se mais do que uma vez.
-
-**`0063_direct_context_fixed_price.sql`: criada, NÃO aplicada** (depois da 0058).
-`get_direct_request_context` (DROP + CREATE) devolve também `pricing_mode` e
-`total_price`, para "Já trabalhaste com..." mostrar o valor fechado em vez da taxa de
-referência. Antes de aplicar, a app mostra a taxa como até aqui. Pode correr-se mais do
-que uma vez.
-
-**`0064_worker_agenda.sql`: criada, NÃO aplicada** (depois da 0058). Agenda do
-jardineiro: tabelas `worker_calendar_entries` (trabalhos fora da app e
-indisponibilidades, com repetição semanal, quinzenal e mensal) e
-`worker_calendar_exceptions` ("Só este dia"), RLS só do dono, `split_calendar_series`
-("Este e os seguintes") e `get_worker_agenda(p_from, p_to)`, que junta trabalhos da app
-(responsável e ajudante), propostas pendentes e remarcações por aceitar, trabalhos de
-fora e indisponibilidades, uma linha por dia. Testada num Postgres 16 local com as
-migrations 0001 a 0063. Pode correr-se mais do que uma vez. **Próxima migration:
-`0065`.**
-
-**`0057_direct_requests.sql`: aplicada (2026-10-22).** Pedido
-direto "Pedir de novo ao mesmo jardineiro" (design A5): colunas `direct_*` em
-`job_requests`, reserva de 24h só para o jardineiro escolhido, recusa, "Mostrar já a
-todos", cron `expire-direct-job-requests` de 5 em 5 minutos, avisos `direct_job_request` e
-`direct_request_released`, e as RPCs de leitura do cartão, de "Os teus jardineiros" e do
-histórico do jardineiro. Pode correr-se mais do que uma vez.
-
-**`0051_worker_showcase.sql`: criada, NÃO aplicada** (aplicar depois da 0049).
-Destaques (`highlights text[]`) e redes sociais (`social_links jsonb`) em
-`worker_profiles`, com CHECK na BD (só `https://`), e as duas colunas no fim de
-`worker_public_card`. A 0050 ficou reservada para outra thread.
-
-**`0049_pending_decisions.sql`: criada, NÃO aplicada** (aplicar depois da 0048).
-Eliminar conta, editar pedido, gestão da equipa, avisos com o trabalho e a data, avisos
-aos ajudantes, remarcar trabalho atrasado, fecho ao fim de 14 dias sem escolha, report
-trava a confirmação automática, avaliação do cliente deixa de ser copiada para os
-ajudantes. **Próxima migration: `0050`.**
-
-**`0047_candidate_message.sql`: criada, NÃO aplicada.** Aplicar no SQL Editor (pode
-ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viva
-(2026-10-17). **Próxima migration: `0048`.**
-
-**`0065_notifications_clear_and_profile_stats.sql`: criada, NÃO aplicada**
-(independente da 0064). "Limpar tudo" das notificações com "Desfazer"
-(`notifications.cleared_at`, `clear_my_notifications`, `restore_my_notifications`) e os
-números do Perfil do jardineiro (`get_my_profile_stats`). A app funciona sem ela: só o
-"Limpar tudo" dá erro e o Perfil mostra "—" em Concluídos e Na ProJardim.
-
-**`0066_account_deletion_erase_and_email_block.sql`: criada, NÃO aplicada** (aplicar
-depois da 0065). Eliminar conta passa a apagar o que ficava para trás (destaques, redes
-sociais, agenda, plano, visitas ao cartão, preferências, morada exata, descrição e fotos
-dos pedidos, notas das propostas, comentários das avaliações escritas) e guarda o hash
-SHA-256 do email durante 90 dias em `deleted_account_emails`. Um trigger em `auth.users`
-recusa um registo novo com esse email, e o cron `cleanup-deleted-account-emails` apaga os
-hashes fora do prazo. RPC nova `check_can_delete_my_account()`. Aplica também a limpeza
-às contas já eliminadas. Testada num Postgres 16 local com as migrations 0001 a 0065.
-Pode correr-se mais do que uma vez. **Próxima migration: `0067`.**
+`archive/` tem as 31 migrations incrementais originais (0001_baseline … 0032_audit_fixes),
+só para histórico e git blame. **Não aplicar**: `0001_consolidated_baseline.sql`
+substitui-as. A baseline foi consolidada a partir de `supabase/snapshot_tables.csv`
+(2026-07-09), de `archive/0001_baseline.sql` (funções fora do snapshot, buckets, seed) e
+de `archive/0032_audit_fixes.sql` (FKs, RPCs com verificação de identidade, trigger de
+papel, índices, policies de `profiles`).
