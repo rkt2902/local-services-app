@@ -34,12 +34,30 @@ class AppToast {
 
   static OverlayEntry? _current;
 
-  static AppToast of(BuildContext context) =>
-      AppToast._(Overlay.of(context, rootOverlay: true));
+  static AppToast of(BuildContext context) {
+    final toast = maybeOf(context);
+    if (toast == null) {
+      // Mesma mensagem de erro do Flutter quando não há Overlay.
+      Overlay.of(context, rootOverlay: true);
+    }
+    return toast!;
+  }
 
   static AppToast? maybeOf(BuildContext context) {
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true) ??
+        _navigatorOverlay(context);
     return overlay == null ? null : AppToast._(overlay);
+  }
+
+  /// O contexto do próprio Navigator raiz (o `navigatorKey.currentContext`
+  /// que `app.dart` usa para os avisos de notificações e o toque no push)
+  /// fica ACIMA do Overlay dele, e `Overlay.maybeOf` não o encontra. Sem
+  /// isto, o aviso de uma notificação com a app aberta nunca aparecia.
+  static OverlayState? _navigatorOverlay(BuildContext context) {
+    if (context is StatefulElement && context.state is NavigatorState) {
+      return (context.state as NavigatorState).overlay;
+    }
+    return null;
   }
 
   /// Confirmação ou informação (verde).
@@ -82,10 +100,15 @@ class AppToast {
   }) {
     if (!_overlay.mounted) return;
     _removeCurrent();
+    // Chave criada uma vez, fora do builder: o Overlay volta a chamar o
+    // builder sempre que muda (navegar, abrir uma folha), e uma chave nova
+    // em cada chamada recriava o aviso, que voltava a entrar e a contar os
+    // 4 s do início. Era isso que fazia os avisos repetirem-se.
+    final key = UniqueKey();
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => _ToastHost(
-        key: UniqueKey(),
+        key: key,
         title: title,
         message: message,
         icon: icon,
