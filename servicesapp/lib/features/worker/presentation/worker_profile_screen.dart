@@ -10,6 +10,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_about_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -124,10 +125,23 @@ class WorkerProfileScreen extends ConsumerWidget {
         : professionLocationParts.join(' · ');
 
     final summary = ratingSummaryAsync?.asData?.value;
-    final ratingLabel =
-        summary == null ? '—' : summary.avgRating.toStringAsFixed(1);
-    final reviewsLabel =
-        summary == null ? '0 avaliações' : '${summary.ratingCount} avaliações';
+    // Mesmo formato do Perfil do cliente ("4,9", com vírgula).
+    final ratingLabel = summary == null || summary.ratingCount == 0
+        ? '—'
+        : decimalLabel(summary.avgRating, 1);
+    final reviewsLabel = summary == null || summary.ratingCount == 0
+        ? 'Sem avaliações'
+        : summary.ratingCount == 1
+            ? '1 avaliação'
+            : '${summary.ratingCount} avaliações';
+    final stats = ref.watch(myProfileStatsProvider).asData?.value;
+    final memberSince = stats?.memberSince;
+    final canSharePublicCard = ref
+            .watch(workerPublicCardProvider(userId))
+            .asData
+            ?.value
+            ?.canUsePublicCard ??
+        true;
 
     final publicUrl = AppLinks.publicWorkerProfileUrl(userId);
 
@@ -142,18 +156,21 @@ class WorkerProfileScreen extends ConsumerWidget {
         professionLocationLabel: professionLocationLabel,
         ratingLabel: ratingLabel,
         reviewsLabel: reviewsLabel,
-        avatarImage: profile.avatarUrl != null
-            ? NetworkImage(profile.avatarUrl!)
-            : null,
+        completedJobsLabel:
+            stats == null ? '—' : '${stats.completedJobs}',
+        memberSinceLabel: memberSince == null ? '—' : '${memberSince.year}',
+        canSharePublicCard: canSharePublicCard,
+        avatarUrl: profile.avatarUrl,
         fleetCardStatusLabel: fleetCardStatusLabel,
         planLabel: workerPlanSummaryLabel(plan),
       ),
       onSettingsPressed: () => context.push('/worker/profile/edit'),
-      onDefinitionsPressed: () => context.push('/worker/profile/edit'),
       onShareCardPressed: () => shareWorkerPublicCard(userId),
       onQrPressed: () =>
           _showQrDialog(context, workerPublicCardQrUrl(userId), publicUrl),
-      onJobsPressed: () => context.go('/worker/jobs'),
+      onAgendaPressed: () => context.go('/worker/jobs'),
+      onHelpRequestsPressed: () => context.push('/worker/help-requests'),
+      onNotificationsPressed: () => context.push('/notifications'),
       onReviewsPressed: () => context.push('/worker/ratings'),
       onFleetCardPressed: () => context.push('/worker/fleet-card'),
       onPlanPressed: () => _showPlanSheet(context, plan),

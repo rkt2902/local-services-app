@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,12 +12,17 @@ import '../application/notification_handler.dart';
 import '../application/notification_presentation.dart';
 import '../application/notification_providers.dart';
 import '../data/notification_model.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_toast.dart';
 
-/// "Notificações" (design A4), o mesmo ecrã para cliente e jardineiro. Liga
-/// `allNotificationsProvider` ao [AppNotificationsView], que só desenha.
+/// "Notificações" (design A4 e A11), o mesmo ecrã para cliente e jardineiro.
+/// Liga `allNotificationsProvider` ao [AppNotificationsView], que só desenha.
+/// No cliente é o separador "Alertas" da shell ([inShell], sem seta); no
+/// jardineiro abre pelo sino, como ecrã à parte.
 class NotificationsScreen extends ConsumerStatefulWidget {
-  const NotificationsScreen({super.key});
+  const NotificationsScreen({super.key, this.inShell = false});
+
+  final bool inShell;
 
   @override
   ConsumerState<NotificationsScreen> createState() =>
@@ -23,6 +30,68 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  static const _undoFor = Duration(seconds: 6);
+
+  /// Ids limpos pelo último "Limpar tudo", enquanto o "Desfazer" está à
+  /// vista.
+  List<String>? _clearedIds;
+  Timer? _undoTimer;
+
+  @override
+  void dispose() {
+    _undoTimer?.cancel();
+    super.dispose();
+  }
+
+  /// N2: confirmação obrigatória com o número real; só limpa quando o
+  /// servidor responde (sem apagar antes). Depois, "Desfazer" durante 6 s.
+  Future<void> _clearAll(int total) async {
+    final confirmed = await AppConfirmDialog.show(
+      context,
+      icon: Icons.delete_sweep_outlined,
+      title: total == 1
+          ? 'Apagar a notificação?'
+          : 'Apagar as $total notificações?',
+      message: 'Saem desta lista para sempre. Os teus trabalhos e pedidos '
+          'não mudam.',
+      confirmLabel: 'Apagar para sempre',
+      cancelLabel: 'Não apagar',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+    final toast = AppToast.of(context);
+    try {
+      final ids = await ref.read(notificationRepositoryProvider).clearAll();
+      if (!mounted) return;
+      _showUndo(ids);
+      ref.invalidate(allNotificationsProvider);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  }
+
+  void _showUndo(List<String> ids) {
+    _undoTimer?.cancel();
+    setState(() => _clearedIds = ids);
+    _undoTimer = Timer(_undoFor, () {
+      if (mounted) setState(() => _clearedIds = null);
+    });
+  }
+
+  Future<void> _undoClear() async {
+    final ids = _clearedIds;
+    if (ids == null) return;
+    _undoTimer?.cancel();
+    setState(() => _clearedIds = null);
+    final toast = AppToast.of(context);
+    try {
+      await ref.read(notificationRepositoryProvider).restore(ids);
+      if (!mounted) return;
+      ref.invalidate(allNotificationsProvider);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    }
+  }
   /// Sem atualização otimista: só fica tudo lido quando o servidor o
   /// confirma e a lista volta a ser lida.
   Future<void> _markAllAsRead() async {
@@ -80,12 +149,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       if (n != null) _open(n);
     }
 
+    final cleared = _clearedIds;
+    final total = async.value?.length ?? 0;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
+        bottom: !widget.inShell,
         child: AppNotificationsView(
+          title: widget.inShell ? 'Alertas' : 'Notificações',
           dataAsync: async.whenData((list) => notificationsViewData(list, now)),
-          onBack: () => goBackOrToRoleHome(context),
+          onBack: widget.inShell ? null : () => goBackOrToRoleHome(context),
+          onClearAll: () => _clearAll(total),
+          undoMessage: cleared == null
+              ? null
+              : cleared.length == 1
+                  ? '1 notificação apagada'
+                  : '${cleared.length} notificações apagadas',
+          onUndo: _undoClear,
           onOpen: openItem,
           // "Confirmar conclusão" abre o pedido, onde o cliente vê as fotos
           // e confirma (o mesmo destino do toque no aviso).

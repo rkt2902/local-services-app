@@ -124,6 +124,26 @@ class WorkerRepository {
     }
   }
 
+  /// Números do Perfil (0065): trabalhos concluídos como responsável e data
+  /// de entrada. `null` se a migration ainda não estiver aplicada.
+  Future<({int completedJobs, DateTime? memberSince})?> fetchMyProfileStats()
+      async {
+    try {
+      final data = await _client.rpc('get_my_profile_stats');
+      final rows = data as List? ?? const [];
+      if (rows.isEmpty) return null;
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      final since = row['member_since'] as String?;
+      return (
+        completedJobs: (row['completed_jobs'] as num?)?.toInt() ?? 0,
+        memberSince: since == null ? null : DateTime.parse(since),
+      );
+    } catch (e) {
+      if (isMissingRpcError(e)) return null;
+      rethrow;
+    }
+  }
+
   Future<Map<String, String>> fetchWorkerBasicInfo(String workerId) async {
     if (workerId.isEmpty) return {};
     final data = await _client

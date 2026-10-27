@@ -9,6 +9,10 @@ class AppNotification {
   final bool read;
   final DateTime createdAt;
 
+  /// "Limpar tudo" (0065): escondida da lista, pode ser reposta durante o
+  /// "Desfazer". Sem a 0065 aplicada a coluna não vem e fica `false`.
+  final bool cleared;
+
   const AppNotification({
     required this.id,
     required this.userId,
@@ -19,6 +23,7 @@ class AppNotification {
     this.relatedType,
     required this.read,
     required this.createdAt,
+    this.cleared = false,
   });
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
@@ -31,6 +36,7 @@ class AppNotification {
         relatedType: json['related_type'] as String?,
         read: json['read'] as bool,
         createdAt: DateTime.parse(json['created_at'] as String),
+        cleared: json['cleared_at'] != null,
       );
 
   AppNotification copyWith({bool? read}) => AppNotification(
@@ -43,5 +49,6 @@ class AppNotification {
         relatedType: relatedType,
         read: read ?? this.read,
         createdAt: createdAt,
+        cleared: cleared,
       );
 }

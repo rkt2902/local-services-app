@@ -22,6 +22,7 @@ import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/app_tab_header.dart';
 import '../../../core/widgets/primary_action_button.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../../../core/widgets/service_icon.dart';
@@ -176,9 +177,32 @@ class _WorkerHelpRequestsScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _HelpRequestsHeader(
-              selectedTab: _selectedTab,
-              onSelected: _selectTab,
+            AppBackHeader(
+              title: 'Pedidos de ajuda',
+              subtitle: 'Ajuda outros jardineiros',
+              onBack: () => goBackOrToRoleHome(context),
+              bottom: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                ),
+                child: AppTabs(
+                  items: [
+                    const AppTabItem(label: 'Descobrir'),
+                    AppTabItem(
+                      label: 'Candidaturas',
+                      count: ref
+                          .watch(myHelpAcceptancesProvider)
+                          .asData
+                          ?.value
+                          .where((a) =>
+                              a.status == HelpAcceptanceStatus.pending)
+                          .length,
+                    ),
+                  ],
+                  selectedIndex: _selectedTab,
+                  onSelected: _selectTab,
+                ),
+              ),
             ),
             Expanded(
               // Nota: o mockup de referência optou por NÃO usar
@@ -489,126 +513,6 @@ class _FilterPill extends StatelessWidget {
 // _PendingCard, _AcceptedCard, _HistoryCard) e os helpers que eles usam
 // (_jobStatusBadgeFromRaw, _Meta, _scheduleLabel) ficam
 // exatamente como estavam, mais abaixo neste ficheiro.
-
-class _HelpRequestsHeader extends StatelessWidget {
-  const _HelpRequestsHeader({
-    required this.selectedTab,
-    required this.onSelected,
-  });
-
-  final int selectedTab;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      width: double.infinity,
-      color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Sempre visível: aberto por notificação (context.go) não há
-              // stack, e o voltar cai para a home do papel.
-              Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xxs),
-                  child: IconButton(
-                    onPressed: () => goBackOrToRoleHome(context),
-                    tooltip: 'Voltar',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                  ),
-                ),
-              Text(
-                'Pedidos de ajuda',
-                style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.xxs),
-            decoration: BoxDecoration(
-              color: AppColors.divider,
-              borderRadius: BorderRadius.circular(AppRadius.input),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _TabPill(
-                    label: 'Descobrir',
-                    selected: selectedTab == 0,
-                    onPressed: () => onSelected(0),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xxs),
-                Expanded(
-                  child: _TabPill(
-                    label: 'As minhas candidaturas',
-                    selected: selectedTab == 1,
-                    onPressed: () => onSelected(1),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabPill extends StatelessWidget {
-  const _TabPill({
-    required this.label,
-    required this.selected,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: selected ? AppColors.surface : AppColors.divider,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(
-              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _HelpRequestsListLoading extends StatelessWidget {
   const _HelpRequestsListLoading();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_controls.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_entry_card.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_legend.dart';
@@ -261,11 +262,11 @@ void main() {
       _wrap(
         Column(
           children: [
-            AgendaTabs(
+            AppTabs(
               items: const [
-                AgendaTabItem(label: 'Agenda'),
-                AgendaTabItem(label: 'Propostas', count: 4),
-                AgendaTabItem(label: 'Histórico'),
+                AppTabItem(label: 'Agenda'),
+                AppTabItem(label: 'Propostas', count: 4),
+                AppTabItem(label: 'Histórico'),
               ],
               selectedIndex: 0,
               onSelected: (i) => tab = i,

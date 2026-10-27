@@ -1085,8 +1085,20 @@ class _ClientJobDetailScreenState
     );
   }
 
+  /// O texto da avaliação só fala dos ajudantes quando houve ajudantes
+  /// aceites neste trabalho.
+  bool get _hasHelpers =>
+      ref
+          .read(acceptedHelpersForJobProvider(widget.jobId))
+          .asData
+          ?.value
+          .isNotEmpty ??
+      false;
+
   Widget _buildClientRatingSection(
       ThemeData theme, AsyncValue<Rating?> ratingAsync) {
+    // Observa para o texto mudar quando a lista de ajudantes chega.
+    ref.watch(acceptedHelpersForJobProvider(widget.jobId));
     return ratingAsync.when(
       loading: () => AppSkeletonShimmer(
         child: Container(
@@ -1152,7 +1164,9 @@ class _ClientJobDetailScreenState
                       ?.copyWith(color: AppColors.textPrimary)),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                'Partilha a tua experiência com o jardineiro responsável e os ajudantes.',
+                _hasHelpers
+                    ? 'Partilha a tua experiência com o jardineiro responsável e os ajudantes.'
+                    : 'Partilha a tua experiência com o jardineiro.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -1179,10 +1193,12 @@ class _ClientJobDetailScreenState
     final submitted = await showSubmitRatingSheet(
       context: context,
       title: 'Avaliar o trabalho',
-      subtitle:
-          'A nota é partilhada com o jardineiro responsável e os ajudantes. O comentário aparece no perfil do jardineiro responsável.',
-      successMessage:
-          'Avaliação enviada! Cobre o jardineiro responsável e os ajudantes deste trabalho.',
+      subtitle: _hasHelpers
+          ? 'A nota é partilhada com o jardineiro responsável e os ajudantes. O comentário aparece no perfil do jardineiro responsável.'
+          : 'A nota e o comentário aparecem no perfil do jardineiro.',
+      successMessage: _hasHelpers
+          ? 'Avaliação enviada! Cobre o jardineiro responsável e os ajudantes deste trabalho.'
+          : 'Avaliação enviada! Obrigado por avaliares o jardineiro.',
       onSubmit: (stars, comment) async {
         await ref.read(ratingRepositoryProvider).submitClientRating(
               jobId: widget.jobId,

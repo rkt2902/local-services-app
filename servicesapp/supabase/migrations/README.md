@@ -221,3 +221,9 @@ ajudantes. **Próxima migration: `0050`.**
 **`0047_candidate_message.sql`: criada, NÃO aplicada.** Aplicar no SQL Editor (pode
 ser antes ou depois da app nova). Todas as anteriores estão aplicadas na BD viva
 (2026-10-17). **Próxima migration: `0048`.**
+
+**`0065_notifications_clear_and_profile_stats.sql`: criada, NÃO aplicada**
+(independente da 0064). "Limpar tudo" das notificações com "Desfazer"
+(`notifications.cleared_at`, `clear_my_notifications`, `restore_my_notifications`) e os
+números do Perfil do jardineiro (`get_my_profile_stats`). A app funciona sem ela: só o
+"Limpar tudo" dá erro e o Perfil mostra "—" em Concluídos e Na ProJardim.

@@ -9,6 +9,8 @@ import '../../../../core/widgets/app_filter_chip.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/app_tab_header.dart';
+import '../../../../core/widgets/home_notification_button.dart';
 import 'worker_direct_request_card.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 
@@ -105,7 +107,8 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
     this.isLoadingJobs = false,
     this.jobsErrorMessage,
     this.onRetryJobs,
-    this.appBarActions,
+    this.unreadNotifications = 0,
+    this.onNotificationsPressed,
     this.onFiltersPressed,
   });
 
@@ -123,6 +126,7 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
 
   final ValueChanged<String> onJobPressed;
   final ValueChanged<String> onSearchChanged;
+
   /// Botão "Filtros" (filtros extra). `null` esconde o botão: hoje os
   /// filtros úteis já estão nos chips ao lado.
   final VoidCallback? onFiltersPressed;
@@ -137,11 +141,10 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
   final String? jobsErrorMessage;
   final VoidCallback? onRetryJobs;
 
-  /// Ações extra (ex.: notificações, atalho para pedidos de ajuda) — o
-  /// mockup original não tinha AppBar; adicionado para não perder esses
-  /// dois pontos de navegação já existentes no ecrã antigo. Quando null,
-  /// não há AppBar (comportamento igual ao mockup de referência).
-  final List<Widget>? appBarActions;
+  /// Sino do cabeçalho, igual ao do Início e de Trabalhos (A11). Nulo
+  /// esconde o sino. "Pedidos de ajuda" vive no "+" e no Perfil.
+  final int unreadNotifications;
+  final VoidCallback? onNotificationsPressed;
 
   @override
   State<WorkerAvailableJobsScreen<TServiceType>> createState() {
@@ -158,14 +161,10 @@ class _WorkerAvailableJobsScreenState<TServiceType>
   void initState() {
     super.initState();
 
-    _searchController = TextEditingController(
-      text: widget.initialSearchQuery,
-    );
+    _searchController = TextEditingController(text: widget.initialSearchQuery);
 
     _filters = WorkerAvailableJobsFilters(
-      selectedServiceTypeIds: {
-        ...widget.initialFilters.selectedServiceTypeIds,
-      },
+      selectedServiceTypeIds: {...widget.initialFilters.selectedServiceTypeIds},
       urgentOnly: widget.initialFilters.urgentOnly,
     );
   }
@@ -200,9 +199,7 @@ class _WorkerAvailableJobsScreenState<TServiceType>
 
   void _toggleUrgent() {
     setState(() {
-      _filters = _filters.copyWith(
-        urgentOnly: !_filters.urgentOnly,
-      );
+      _filters = _filters.copyWith(urgentOnly: !_filters.urgentOnly);
     });
 
     widget.onFiltersChanged(_filters);
@@ -216,9 +213,7 @@ class _WorkerAvailableJobsScreenState<TServiceType>
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      barrierColor: AppColors.textPrimary.withValues(
-        alpha: 0.32,
-      ),
+      barrierColor: AppColors.textPrimary.withValues(alpha: 0.32),
       builder: (context) {
         return _CategoryFilterSheet<TServiceType>(
           serviceTypesAsync: serviceTypesAsync,
@@ -235,9 +230,7 @@ class _WorkerAvailableJobsScreenState<TServiceType>
     }
 
     setState(() {
-      _filters = _filters.copyWith(
-        selectedServiceTypeIds: selectedIds,
-      );
+      _filters = _filters.copyWith(selectedServiceTypeIds: selectedIds);
     });
 
     widget.onFiltersChanged(_filters);
@@ -255,129 +248,115 @@ class _WorkerAvailableJobsScreenState<TServiceType>
         ? 'Categoria'
         : 'Categoria ($categoryCount)';
 
+    final onNotifications = widget.onNotificationsPressed;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: widget.appBarActions == null
-          ? null
-          : AppBar(
-              backgroundColor: AppColors.background,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              actions: widget.appBarActions,
-            ),
       body: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                'Pedidos disponíveis',
-                style: textTheme.titleLarge?.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-              ),
-              child: AppSearchField(
-                controller: _searchController,
-                hintText: 'Procurar por serviço...',
-                onChanged: (value) {
-                  setState(() {});
-                  widget.onSearchChanged(value.trim());
-                },
-                onSubmitted: (value) {
-                  widget.onSearchChanged(value.trim());
-                },
-                onClear: _clearSearch,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              height: 48,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                ),
+            AppTabHeader(
+              title: 'Pedidos',
+              actions: [
+                if (onNotifications != null)
+                  HomeNotificationButton(
+                    unreadCount: widget.unreadNotifications,
+                    onPressed: onNotifications,
+                  ),
+              ],
+              bottom: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.onFiltersPressed != null) ...[
-                    FilledButton.icon(
-                      onPressed: widget.onFiltersPressed,
-                      style: ButtonStyle(
-                        elevation: const WidgetStatePropertyAll(0),
-                        backgroundColor:
-                            WidgetStateProperty.resolveWith<Color>(
-                          (states) {
-                            if (states.contains(WidgetState.pressed)) {
-                              return AppColors.primaryPressed;
-                            }
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: AppSearchField(
+                      controller: _searchController,
+                      hintText: 'Procurar por serviço...',
+                      onChanged: (value) {
+                        setState(() {});
+                        widget.onSearchChanged(value.trim());
+                      },
+                      onSubmitted: (value) {
+                        widget.onSearchChanged(value.trim());
+                      },
+                      onClear: _clearSearch,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(
+                    height: 48,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
+                      children: [
+                        if (widget.onFiltersPressed != null) ...[
+                          FilledButton.icon(
+                            onPressed: widget.onFiltersPressed,
+                            style: ButtonStyle(
+                              elevation: const WidgetStatePropertyAll(0),
+                              backgroundColor:
+                                  WidgetStateProperty.resolveWith<Color>((
+                                    states,
+                                  ) {
+                                    if (states.contains(WidgetState.pressed)) {
+                                      return AppColors.primaryPressed;
+                                    }
 
-                            return AppColors.primary;
+                                    return AppColors.primary;
+                                  }),
+                              foregroundColor: const WidgetStatePropertyAll(
+                                AppColors.surface,
+                              ),
+                              padding: const WidgetStatePropertyAll(
+                                EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                              ),
+                              shape: WidgetStatePropertyAll(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.pill,
+                                  ),
+                                ),
+                              ),
+                              textStyle: WidgetStatePropertyAll(
+                                textTheme.labelMedium,
+                              ),
+                            ),
+                            icon: const Icon(Icons.tune_rounded, size: 18),
+                            label: const Text('Filtros'),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                        ],
+                        AppFilterChip(
+                          label: categoryLabel,
+                          trailingIcon: Icons.keyboard_arrow_down_rounded,
+                          selected: categoryCount > 0,
+                          onPressed: () {
+                            _openCategoryFilter(serviceTypesAsync);
                           },
                         ),
-                        foregroundColor:
-                            const WidgetStatePropertyAll(
-                          AppColors.surface,
+                        const SizedBox(width: AppSpacing.xs),
+                        AppFilterChip(
+                          label: widget.distanceLabel,
+                          onPressed: widget.onDistancePressed,
                         ),
-                        padding: const WidgetStatePropertyAll(
-                          EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                          ),
+                        const SizedBox(width: AppSpacing.xs),
+                        AppFilterChip(
+                          label: 'Urgente',
+                          selected: _filters.urgentOnly,
+                          onPressed: _toggleUrgent,
                         ),
-                        shape: WidgetStatePropertyAll(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.pill,
-                            ),
-                          ),
-                        ),
-                        textStyle: WidgetStatePropertyAll(
-                          textTheme.labelMedium,
-                        ),
-                      ),
-                      icon: const Icon(
-                        Icons.tune_rounded,
-                        size: 18,
-                      ),
-                      label: const Text('Filtros'),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                  ],
-                  AppFilterChip(
-                    label: categoryLabel,
-                    trailingIcon: Icons.keyboard_arrow_down_rounded,
-                    selected: categoryCount > 0,
-                    onPressed: () {
-                      _openCategoryFilter(serviceTypesAsync);
-                    },
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  AppFilterChip(
-                    label: widget.distanceLabel,
-                    onPressed: widget.onDistancePressed,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  AppFilterChip(
-                    label: 'Urgente',
-                    selected: _filters.urgentOnly,
-                    onPressed: _toggleUrgent,
-                  ),
+                  const SizedBox(height: AppSpacing.xs),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Divider(
-              height: 1,
-              color: AppColors.divider,
             ),
             Expanded(
               child: _JobsContent(
@@ -460,10 +439,7 @@ class _JobsContent extends StatelessWidget {
 }
 
 class _AvailableJobCard extends StatelessWidget {
-  const _AvailableJobCard({
-    required this.job,
-    required this.onPressed,
-  });
+  const _AvailableJobCard({required this.job, required this.onPressed});
 
   final WorkerAvailableJobViewData job;
   final VoidCallback onPressed;
@@ -483,9 +459,7 @@ class _AvailableJobCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(
-              color: AppColors.divider,
-            ),
+            border: Border.all(color: AppColors.divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,9 +499,7 @@ class _AvailableJobCard extends StatelessWidget {
                   ),
                   if (job.badge != null) ...[
                     const SizedBox(width: AppSpacing.xs),
-                    AppStatusBadge.fromPresentation(
-                      presentation: job.badge!,
-                    ),
+                    AppStatusBadge.fromPresentation(presentation: job.badge!),
                   ],
                 ],
               ),
@@ -579,9 +551,7 @@ class _JobsSkeletonList extends StatelessWidget {
       itemBuilder: (context, index) {
         return AppStaggeredEntrance(
           index: index,
-          child: const AppSkeletonShimmer(
-            child: _JobCardSkeleton(),
-          ),
+          child: const AppSkeletonShimmer(child: _JobCardSkeleton()),
         );
       },
     );
@@ -643,9 +613,7 @@ class _JobCardSkeleton extends StatelessWidget {
 }
 
 class _ServiceIcon extends StatelessWidget {
-  const _ServiceIcon({
-    required this.icon,
-  });
+  const _ServiceIcon({required this.icon});
 
   final IconData icon;
 
@@ -659,11 +627,7 @@ class _ServiceIcon extends StatelessWidget {
         color: AppColors.primaryContainer,
         borderRadius: BorderRadius.circular(AppRadius.input),
       ),
-      child: Icon(
-        icon,
-        size: 22,
-        color: AppColors.primary,
-      ),
+      child: Icon(icon, size: 22, color: AppColors.primary),
     );
   }
 }
@@ -691,11 +655,7 @@ class _JobsMessageState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 40,
-              color: AppColors.textSecondary,
-            ),
+            Icon(icon, size: 40, color: AppColors.textSecondary),
             const SizedBox(height: AppSpacing.sm),
             Text(
               message,
@@ -706,10 +666,7 @@ class _JobsMessageState extends StatelessWidget {
             ),
             if (actionLabel != null && onActionPressed != null) ...[
               const SizedBox(height: AppSpacing.md),
-              TextButton(
-                onPressed: onActionPressed,
-                child: Text(actionLabel!),
-              ),
+              TextButton(onPressed: onActionPressed, child: Text(actionLabel!)),
             ],
           ],
         ),
@@ -749,9 +706,7 @@ class _CategoryFilterSheetState<TServiceType>
     super.initState();
 
     _searchController = TextEditingController();
-    _selectedIds = {
-      ...widget.initialSelectedIds,
-    };
+    _selectedIds = {...widget.initialSelectedIds};
   }
 
   @override
@@ -823,18 +778,14 @@ class _CategoryFilterSheetState<TServiceType>
                   ),
                 ),
                 TextButton(
-                  onPressed: _selectedIds.isEmpty
-                      ? null
-                      : _clearSelection,
+                  onPressed: _selectedIds.isEmpty ? null : _clearSelection,
                   child: const Text('Limpar'),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: AppSearchField(
               controller: _searchController,
               hintText: 'Procurar categoria...',
@@ -857,8 +808,9 @@ class _CategoryFilterSheetState<TServiceType>
                           height: 48,
                           decoration: BoxDecoration(
                             color: AppColors.surface,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.input),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.input,
+                            ),
                           ),
                         ),
                       ),
@@ -870,14 +822,11 @@ class _CategoryFilterSheetState<TServiceType>
               error: (_, _) {
                 return const _JobsMessageState(
                   icon: Icons.error_outline_rounded,
-                  message:
-                      'Não foi possível carregar as categorias.',
+                  message: 'Não foi possível carregar as categorias.',
                 );
               },
               data: (serviceTypes) {
-                final query = _searchController.text
-                    .trim()
-                    .toLowerCase();
+                final query = _searchController.text.trim().toLowerCase();
 
                 final filtered = serviceTypes.where((serviceType) {
                   final label = widget
@@ -894,8 +843,9 @@ class _CategoryFilterSheetState<TServiceType>
                   );
                 }
 
-                final remainingCount =
-                    filtered.length > 9 ? filtered.length - 9 : 0;
+                final remainingCount = filtered.length > 9
+                    ? filtered.length - 9
+                    : 0;
 
                 return Column(
                   children: [
@@ -907,22 +857,16 @@ class _CategoryFilterSheetState<TServiceType>
                         itemCount: filtered.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: AppSpacing.xs,
-                          mainAxisSpacing: AppSpacing.xs,
-                          childAspectRatio: 1.05,
-                        ),
+                              crossAxisCount: 3,
+                              crossAxisSpacing: AppSpacing.xs,
+                              mainAxisSpacing: AppSpacing.xs,
+                              childAspectRatio: 1.05,
+                            ),
                         itemBuilder: (context, index) {
                           final serviceType = filtered[index];
-                          final id = widget.serviceTypeIdOf(
-                            serviceType,
-                          );
-                          final label = widget.serviceTypeLabelOf(
-                            serviceType,
-                          );
-                          final icon = widget.serviceTypeIconOf(
-                            serviceType,
-                          );
+                          final id = widget.serviceTypeIdOf(serviceType);
+                          final label = widget.serviceTypeLabelOf(serviceType);
+                          final icon = widget.serviceTypeIconOf(serviceType);
 
                           return _CategoryTile(
                             label: label,
@@ -935,9 +879,7 @@ class _CategoryFilterSheetState<TServiceType>
                     ),
                     if (remainingCount > 0)
                       Padding(
-                        padding: const EdgeInsets.only(
-                          top: AppSpacing.xs,
-                        ),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: Text(
                           '+$remainingCount categorias · role para ver mais',
                           style: textTheme.labelMedium?.copyWith(
@@ -960,9 +902,9 @@ class _CategoryFilterSheetState<TServiceType>
             child: PrimaryActionButton(
               label: 'Aplicar (${_selectedIds.length})',
               onPressed: () {
-                Navigator.of(context).pop(
-                  Set<String>.unmodifiable(_selectedIds),
-                );
+                Navigator.of(
+                  context,
+                ).pop(Set<String>.unmodifiable(_selectedIds));
               },
             ),
           ),
@@ -994,9 +936,7 @@ class _CategoryTile extends StatelessWidget {
       selected: selected,
       label: label,
       child: Material(
-        color: selected
-            ? AppColors.primaryContainer
-            : AppColors.surface,
+        color: selected ? AppColors.primaryContainer : AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.card),
         child: InkWell(
           onTap: onPressed,
@@ -1006,9 +946,7 @@ class _CategoryTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.card),
               border: Border.all(
-                color: selected
-                    ? AppColors.primary
-                    : AppColors.divider,
+                color: selected ? AppColors.primary : AppColors.divider,
               ),
             ),
             child: Stack(

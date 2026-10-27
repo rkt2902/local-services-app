@@ -147,6 +147,11 @@ String? resolveRedirect({
   if (role.value == 'worker' && loc.startsWith('/client/')) {
     return '/worker/home';
   }
+  // As notificações do cliente são o separador Alertas (A11); um link antigo
+  // para /notifications cai lá, com a bottom nav.
+  if (role.value == 'client' && loc == '/notifications') {
+    return '/client/alerts';
+  }
 
   if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||
       loc == '/choose-role' || loc == sessionErrorRoute) {

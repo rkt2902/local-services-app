@@ -656,7 +656,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       proposalsCount: totalCountFor(view.WorkerJobsTab.pending),
       pending: pending,
       history: history,
-      hasUnreadNotifications: ref.watch(unreadCountProvider) > 0,
+      unreadNotifications: ref.watch(unreadCountProvider),
       onNotificationsPressed: () => context.push('/notifications'),
       onColorsPressed: () => showAgendaLegendSheet(context),
       onRetry: () {

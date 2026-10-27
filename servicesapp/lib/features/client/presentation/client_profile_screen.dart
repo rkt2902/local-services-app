@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
@@ -28,7 +29,7 @@ class ClientProfileScreen extends ConsumerWidget {
         backgroundColor: AppColors.background,
         surfaceTintColor: AppColors.background,
         elevation: 0,
-        title: const Text('A minha conta'),
+        title: const Text('Perfil'),
       ),
       body: Center(
         child: Padding(
@@ -84,25 +85,39 @@ class ClientProfileScreen extends ConsumerWidget {
     final jobs = jobsAsync.asData?.value ?? [];
 
     final ratingSummary = ratingSummaryAsync?.asData?.value;
-    final ratingLabel = ratingSummary == null
+    final ratingCount = ratingSummary?.ratingCount ?? 0;
+    final ratingLabel = ratingSummary == null || ratingCount == 0
         ? '—'
         : decimalLabel(ratingSummary.avgRating, 1);
-    final reviewsLabel = ratingSummary == null
-        ? '0 avaliações'
-        : '${ratingSummary.ratingCount} avaliações';
+    final reviewsLabel = ratingCount == 0
+        ? 'Sem avaliações'
+        : ratingCount == 1
+            ? '1 avaliação'
+            : '$ratingCount avaliações';
+
+    const activeStatuses = {
+      JobStatus.open,
+      JobStatus.confirmed,
+      JobStatus.awaitingConfirmation,
+    };
+    final memberSince = profile.createdAt;
 
     return ClientAccountScreen(
       data: ClientAccountViewData(
         name: profile.fullName,
+        subtitle: memberSince == null
+            ? 'Cliente'
+            : 'Cliente desde ${memberSince.year}',
         totalJobs: jobs.length,
+        activeJobs: jobs.where((j) => activeStatuses.contains(j.status)).length,
+        completedJobs:
+            jobs.where((j) => j.status == JobStatus.completed).length,
         ratingLabel: ratingLabel,
         reviewsLabel: reviewsLabel,
-        avatarImage: profile.avatarUrl != null
-            ? NetworkImage(profile.avatarUrl!)
-            : null,
+        avatarUrl: profile.avatarUrl,
       ),
       onSettingsPressed: () => context.push('/client/profile/edit'),
-      onDefinitionsPressed: () => context.push('/client/profile/edit'),
+      onNotificationsPressed: () => context.go('/client/alerts'),
       onJobsPressed: () => context.go('/client/jobs'),
       onReviewsPressed: () => context.push('/client/ratings'),
       onSupportPressed: () => showSupportContactSheet(context),
