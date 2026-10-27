@@ -18,6 +18,12 @@ bool isNetworkError(Object e) {
       msg.contains('timeout');
 }
 
+/// Registo com um email de uma conta eliminada há menos de 90 dias
+/// (migration 0066).
+const recentlyDeletedEmailMessage =
+    'Este email pertenceu a uma conta eliminada há pouco tempo e só pode '
+    'voltar a ser usado 90 dias depois da eliminação.';
+
 /// Ponto único de mapeamento de exceções para mensagens em português.
 /// Cobre os casos genéricos da app e os de autenticação — antes
 /// duplicados/divergentes entre esta função e `AuthController._mapError`
@@ -33,6 +39,13 @@ String friendlyError(Object e) {
   if (msg.contains('invalid login')) return 'Email ou password incorretos.';
   if (msg.contains('email already') || msg.contains('user already registered')) {
     return 'Este email já está registado.';
+  }
+  // Trigger da migration 0066 em auth.users: o GoTrue não passa a mensagem
+  // do trigger e responde só "Database error saving new user". Nada mais
+  // corre ao criar o utilizador, por isso a causa realista é esta.
+  if (msg.contains('email_recently_deleted') ||
+      msg.contains('database error saving new user')) {
+    return recentlyDeletedEmailMessage;
   }
   if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
     return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';

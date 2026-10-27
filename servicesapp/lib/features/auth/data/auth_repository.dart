@@ -184,12 +184,58 @@ class AuthRepository {
     await _client.auth.signOut();
   }
 
-  /// Eliminar a própria conta (RPC `delete_my_account`, migration 0049):
-  /// o servidor recusa (com mensagem em português) se houver trabalho em
-  /// curso; senão anonimiza o perfil e bloqueia o login. A identidade vem
-  /// de `auth.uid()` dentro da função. Depois chamar [signOutLocally].
+  /// Eliminar a própria conta, em três passos:
+  /// 1. `check_can_delete_my_account` (migration 0066) recusa, com mensagem
+  ///    em português, se houver trabalho em curso;
+  /// 2. apaga os ficheiros do próprio no Storage (o Supabase não deixa
+  ///    fazê-lo por SQL);
+  /// 3. `delete_my_account` (0049, revista na 0066) apaga os dados
+  ///    pessoais, bloqueia o email 90 dias e o login.
+  /// Sem a 0066 aplicada salta os passos 1 e 2, como antes. A identidade
+  /// vem sempre de `auth.uid()`. Depois chamar [signOutLocally].
   Future<void> deleteMyAccount() async {
+    var canEraseFiles = true;
+    try {
+      await _client.rpc('check_can_delete_my_account');
+    } on PostgrestException catch (e) {
+      if (e.code != 'PGRST202') rethrow;
+      canEraseFiles = false;
+    }
+    if (canEraseFiles) await _deleteMyStorageFiles();
     await _client.rpc('delete_my_account');
+  }
+
+  /// `avatars/<id>.jpg` e tudo em `job-photos/<id>/<job>/` (fotos dos
+  /// pedidos e de antes/depois). Melhor esforço: um ficheiro que falhe não
+  /// impede a eliminação da conta.
+  Future<void> _deleteMyStorageFiles() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      await _client.storage.from('avatars').remove(['$userId.jpg']);
+    } catch (e) {
+      debugPrint('apagar avatar falhou: $e');
+    }
+    try {
+      final jobPhotos = _client.storage.from('job-photos');
+      final paths = <String>[];
+      // Na listagem, as pastas vêm sem id.
+      const all = SearchOptions(limit: 1000);
+      for (final job in await jobPhotos.list(path: userId, searchOptions: all)) {
+        if (job.id != null) {
+          paths.add('$userId/${job.name}');
+          continue;
+        }
+        final files = await jobPhotos.list(
+          path: '$userId/${job.name}',
+          searchOptions: all,
+        );
+        paths.addAll(files.map((f) => '$userId/${job.name}/${f.name}'));
+      }
+      if (paths.isNotEmpty) await jobPhotos.remove(paths);
+    } catch (e) {
+      debugPrint('apagar fotos falhou: $e');
+    }
   }
 
   /// Fecha a sessão só neste dispositivo, sem pedir nada ao servidor. Usado

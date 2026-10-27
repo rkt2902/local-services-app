@@ -3,6 +3,27 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-27 — Eliminar conta apaga de verdade e bloqueia o email 90 dias (0066)
+
+- **Dados pessoais apagados, histórico anonimizado.** `delete_my_account` continua a não
+  apagar a linha de `profiles` (há FKs sem cascade: avaliações, reports, cancelamentos),
+  mas a limpeza passou para `erase_account_data(uuid)` (interna, sem EXECUTE para a app) e
+  cobre tudo o que a auditoria RGPD de 26/10 encontrou: destaques e redes sociais, agenda,
+  plano, visitas ao cartão e indicações, preferências de avisos, morada exata (fica a
+  localidade e coordenadas a ~1 km), descrição, disponibilidade e fotos dos pedidos,
+  notas das propostas, mensagem das candidaturas, fotos de antes/depois e o comentário das
+  avaliações escritas. As estrelas ficam, porque contam para a média de outra pessoa. Os
+  reports de problemas ficam (litígios).
+- **Bloqueio do email:** só o hash SHA-256 do email normalizado (minúsculas, sem
+  "+etiqueta") e a data, sem ligação à conta, em `deleted_account_emails`. Trigger
+  `BEFORE INSERT OR UPDATE OF email` em `auth.users` em vez do Auth Hook "Before User
+  Created" do Supabase, porque não precisa de configuração no painel e apanha também o
+  login social. Contra: o GoTrue só devolve "Database error saving new user", que a app
+  traduz em `friendlyError`. Prazo de 90 dias, cron diário apaga os hashes vencidos.
+- **Storage pela app:** o Supabase não deixa apagar `storage.objects` por SQL, por isso a
+  app chama `check_can_delete_my_account()`, apaga `avatars/<id>.jpg` e
+  `job-photos/<id>/...` com as policies de dono e só depois `delete_my_account()`.
+
 ## 2026-10-27 — Ecrãs principais coerentes (A11)
 
 - **Cabeçalho comum** em `core/widgets/app_tab_header.dart`: `AppTabHeader` (separadores
