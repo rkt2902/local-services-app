@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/picked_photo.dart';
 import 'worker_profile_model.dart';
+import 'worker_earnings_model.dart';
 import 'worker_public_card_model.dart';
 import 'worker_plan_model.dart';
 import 'service_type_model.dart';
@@ -120,6 +121,29 @@ class WorkerRepository {
       return WorkerPlan.fromJson(rows.first as Map<String, dynamic>);
     } catch (e) {
       if (isMissingRpcError(e)) return WorkerPlan.unavailable;
+      rethrow;
+    }
+  }
+
+  /// Trabalhos feitos pelo próprio entre [from] e [to], para o painel de
+  /// ganhos (0067, só Pro e Pro+; o servidor recusa no Grátis). Antes da
+  /// 0067 aplicada devolve uma lista vazia.
+  Future<List<WorkerEarningEntry>> fetchMyEarnings({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    String day(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      final data = await _client.rpc('get_my_earnings', params: {
+        'p_from': day(from),
+        'p_to': day(to),
+      });
+      return (data as List)
+          .map((e) => WorkerEarningEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (isMissingRpcError(e)) return const [];
       rethrow;
     }
   }

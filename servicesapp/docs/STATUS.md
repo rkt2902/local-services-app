@@ -88,6 +88,16 @@
   (Grátis, Pro, Pro+). Funciona desde 23/10.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
+- **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,
+  Agenda e o cartão como imagem e link. Pro tem trabalhos sem limite, selo Pro nas
+  propostas, no cartão público e no Perfil, o cartão em PDF e o painel de ganhos. Pro+
+  tem tudo isso, selo Pro+ e os Benefícios (cartão frota e parceiros). Regras num só
+  sítio: `worker_plan_features.dart`. A folha "Plano" mostra a comparação.
+- **Cartão partilhável** (`/worker/card`): cartão desenhado com QR, partilhar como
+  imagem, guardar em PDF (Pro), enviar ou copiar o link.
+- **Painel de ganhos** (`/worker/earnings`, Pro): total do mês, horas registadas, o que
+  está por confirmar, barras dos últimos 6 meses e a lista dos trabalhos (responsável e
+  ajudante). Precisa da `0067` (NÃO aplicada).
 - Visitas ao cartão e clientes trazidos por cada jardineiro: só no SQL Editor
   (`worker_card_funnel`).
 
@@ -126,10 +136,8 @@
   J4/C5, linha "Serviço · data" nas notificações.
 - A12 (fluxo do pedido em 3 vistas e stepper Pedido · Proposta · Equipa · No dia ·
   Feito): recebido a 27/10, por integrar.
-- Selo Pro nas propostas e no cartão público (o plano existe, o selo não aparece).
 - Painel `/admin` fases 2 e 3 (mapa, pedidos, moderação, funil, CSV, avisos a grupos).
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
-- Dashboard de ganhos (os dados já existem).
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.
 

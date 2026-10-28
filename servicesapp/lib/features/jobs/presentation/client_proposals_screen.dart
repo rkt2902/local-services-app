@@ -102,6 +102,7 @@ class ClientProposalsScreen extends ConsumerWidget {
       validUntilLabel: proposalValidUntilLabel(p),
       teamLabel: proposalTeamLabel(p),
       notes: p.notes,
+      workerPlanTier: p.workerPlanTier,
       recommended: recommended,
       expired: p.isExpired,
     );

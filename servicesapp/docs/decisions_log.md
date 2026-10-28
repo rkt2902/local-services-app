@@ -3,6 +3,28 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-10-28 — Planos com acessos diferentes, cartão partilhável e painel de ganhos
+
+- **O que cada plano dá** (o Henrique escolheu as opções B e C): Grátis com 5 trabalhos
+  por mês, Agenda e o cartão como imagem e link. Pro com trabalhos sem limite, selo, o
+  cartão em PDF e o painel de ganhos. Pro+ com tudo isso e os Benefícios (cartão frota
+  e parceiros). Quem já tinha pedido o cartão frota continua a vê-lo.
+- **Sem prioridade nas listas para quem paga:** o "Recomendada" continua a ser só pela
+  avaliação, para o cliente confiar nele.
+- **Selo** (`AppPlanBadge`): "Pro" contornado a dourado, "Pro+" cheio. Vem do servidor
+  (`worker_public_tier`, `plan_tier` na vista `worker_public_card`, `worker_plan_tier`
+  em `get_pending_proposals_for_job`), porque o cliente não pode ler `worker_plans`.
+- **Ganhos:** o que o jardineiro combinou receber, não pagamentos (a app não trata de
+  dinheiro). Por hora = preço × horas registadas; valor fechado = total − ajudantes;
+  ajudante = valor acordado × horas. Sem "Iniciar", usa a média da estimativa e marca
+  com "≈". O servidor recusa `get_my_earnings` no Grátis (HINT `plan_required`).
+- **PDF:** gerado na app com o pacote `pdf` (Dart puro, funciona na web), A6, a partir
+  da mesma imagem do cartão. O bloqueio do PDF no Grátis é só na app (é um ficheiro
+  gerado no telemóvel, não há nada no servidor para proteger).
+- Migration `0067_plan_badges_and_earnings.sql`, **criada e não aplicada**. Testada num
+  Postgres 16 local com as migrations todas: ganhos de responsável e ajudante, Grátis
+  recusado, anon sem acesso, plano visível no cartão público e nas propostas.
+
 ## 2026-10-27 — Fluxo do pedido (A12), parte 1: detalhe da cliente com stepper e Equipa
 
 - **Stepper partilhado** `JobFlowStepper` (`core/widgets/job_flow_stepper.dart`) com

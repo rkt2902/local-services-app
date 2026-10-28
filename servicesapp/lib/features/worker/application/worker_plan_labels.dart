@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../../../core/constants/enums.dart';
 import '../data/worker_plan_model.dart';
 
 /// Texto curto na linha "Plano" da conta: "Grátis · 3 de 5 este mês",
@@ -31,6 +32,10 @@ String workerPlanExplanation(WorkerPlan plan) {
   final verified = plan.verified
       ? ' Os teus documentos foram confirmados pela ProJardim.'
       : '';
-  return 'Estás no plano ${plan.tier.label}: trabalhos sem limite e selo '
-      '${plan.tier.label} no perfil.$verified';
+  final benefits = plan.tier == WorkerPlanTier.proPlus
+      ? ' e acesso aos Benefícios (cartão frota e parceiros)'
+      : '';
+  return 'Estás no plano ${plan.tier.label}: trabalhos sem limite, selo '
+      '${plan.tier.label} no perfil e nas propostas, cartão em PDF e painel '
+      'de ganhos$benefits.$verified';
 }

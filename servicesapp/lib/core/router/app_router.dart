@@ -18,6 +18,8 @@ import '../../features/client/presentation/client_home_screen.dart';
 import '../../features/client/presentation/client_profile_screen.dart';
 import '../../features/client/presentation/client_edit_profile_screen.dart';
 import '../../features/worker/presentation/worker_shell.dart';
+import '../../features/worker/presentation/worker_earnings_screen.dart';
+import '../../features/worker/presentation/worker_share_card_screen.dart';
 import '../../features/worker/presentation/worker_dashboard_screen.dart';
 import '../../features/worker/presentation/worker_available_jobs_screen.dart';
 import '../../features/worker/presentation/worker_job_detail_screen.dart';
@@ -504,6 +506,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Cartão frota — 3 rotas fora do ShellRoute (sub-fluxo, sem bottom
       // nav): estado atual, tirar foto, confirmar dados extraídos por OCR.
       // Cadeia sequencial de fluxo único: shared-axis.
+      // Cartão partilhável e painel de ganhos: saem do Perfil, sub-fluxo
+      // sem bottom nav.
+      GoRoute(
+        path: '/worker/card',
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const WorkerShareCardScreen()),
+      ),
+      GoRoute(
+        path: '/worker/earnings',
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const WorkerEarningsScreen()),
+      ),
       GoRoute(
         path: '/worker/fleet-card',
         pageBuilder: (context, state) =>

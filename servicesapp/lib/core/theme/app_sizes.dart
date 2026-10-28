@@ -125,4 +125,11 @@ abstract final class AppSizes {
   // Pedido pelo cartão público (A7).
   static const double directChipAvatarRadius = 14.0;
   static const double directServiceSkeleton = 76.0;
+
+  // Painel de ganhos e cartão partilhável (2026-10-28).
+  static const double earningsChartHeight = 96.0;
+  static const double earningsBarWidth = 22.0;
+  static const double shareCardWidth = 340.0;
+  static const double shareCardQr = 132.0;
+  static const double shareCardAvatarRadius = 30.0;
 }

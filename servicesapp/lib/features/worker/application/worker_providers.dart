@@ -3,6 +3,7 @@ import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/worker_repository.dart';
 import '../data/worker_profile_model.dart';
+import '../data/worker_earnings_model.dart';
 import '../data/worker_public_card_model.dart';
 import '../data/worker_plan_model.dart';
 import '../data/service_type_model.dart';
@@ -56,6 +57,19 @@ final myProfileStatsProvider = FutureProvider.autoDispose<
 
 /// Plano do jardineiro com sessão e trabalhos aceites este mês (0060).
 /// Invalidado quando uma proposta é aceite (ver notification_providers).
+/// Ganhos dos últimos 12 meses (o mês atual incluído), para o painel de
+/// ganhos. Só se pede com plano Pro ou Pro+ (o servidor recusa no Grátis).
+final myEarningsProvider =
+    FutureProvider.autoDispose<List<WorkerEarningEntry>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const [];
+  final now = DateTime.now();
+  return ref.read(workerRepositoryProvider).fetchMyEarnings(
+        from: DateTime(now.year, now.month - 11),
+        to: DateTime(now.year, now.month + 1, 0),
+      );
+});
+
 final myWorkerPlanProvider = FutureProvider.autoDispose<WorkerPlan>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return WorkerPlan.unavailable;
