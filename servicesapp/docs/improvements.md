@@ -48,12 +48,13 @@ Abertos, novos ou que ganharam contexto:
   jardineiro, cartões J4/C5 novos, linha "Serviço · data" nas notificações.
 - **A12** (fluxo do pedido em 3 vistas, stepper Pedido · Proposta · Equipa · No dia ·
   Feito, banner que muda com ou sem ajudantes): recebido a 27/10, por integrar.
-- **Selo Pro** nas propostas e no cartão público: o plano existe (0060), o selo ainda
-  não aparece. As flags do cartão (`can_use_public_card`, `can_receive_direct_requests`)
-  estão todas ligadas.
+- ~~**Selo Pro**~~ feito a 2026-10-28 (0067). As flags do cartão
+  (`can_use_public_card`, `can_receive_direct_requests`) continuam todas ligadas.
 - **"Ver o local primeiro"** (visita paga antes do orçamento): fase 2, decidido a 22/10.
-- **Dashboard de ganhos:** as horas já existem (temporizador da 0052) e os valores das
-  propostas e da Agenda também; falta o ecrã.
+- ~~**Dashboard de ganhos**~~ feito a 2026-10-28 (0067, só Pro). Fica de fora: os
+  trabalhos de fora da app da Agenda (não têm valor guardado) e km percorridos.
+- **Cartão em PDF:** sai em A6 com o cartão centrado. Se o Henrique quiser cartões de
+  visita para gráfica (85 × 55 mm, frente e verso), é outro formato.
 
 ---
 

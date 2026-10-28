@@ -13,18 +13,19 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/price_labels.dart';
 import '../../../core/widgets/app_about_dialog.dart';
 import '../../../core/widgets/app_screen_loading_skeleton.dart';
-import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_support_sheet.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/delete_account_flow.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../ratings/application/rating_providers.dart';
+import '../application/worker_plan_features.dart';
 import '../application/worker_plan_labels.dart';
 import '../application/worker_providers.dart';
 import '../data/worker_plan_model.dart';
 import 'widgets/worker_account_view.dart';
 import 'worker_card_share.dart';
+import 'worker_plan_sheet.dart';
 
 class WorkerProfileScreen extends ConsumerWidget {
   const WorkerProfileScreen({super.key});
@@ -62,23 +63,6 @@ class WorkerProfileScreen extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showPlanSheet(BuildContext context, WorkerPlan plan) {
-    AppSheet.show<void>(
-      context,
-      builder: (sheetContext) => AppSheet(
-        title: 'Plano ${plan.tier.label}',
-        onClose: () => Navigator.of(sheetContext).pop(),
-        child: Text(
-          workerPlanExplanation(plan),
-          style: Theme.of(sheetContext)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textSecondary),
         ),
       ),
     );
@@ -148,7 +132,13 @@ class WorkerProfileScreen extends ConsumerWidget {
     final fleetCard = fleetCardAsync.asData?.value;
     final fleetCardStatus =
         fleetCard == null ? FleetCardStatus.notRequested : fleetCard.status;
-    final fleetCardStatusLabel = fleetCardStatus.presentation.label;
+    // Benefícios (cartão frota) são do Pro+. Quem já pediu o cartão antes
+    // continua a vê-lo; sem pedido e sem Pro+, abre a folha do plano.
+    final fleetCardLocked = !plan.tier.hasPartnerBenefits &&
+        fleetCardStatus == FleetCardStatus.notRequested;
+    final fleetCardStatusLabel = fleetCardLocked
+        ? WorkerPlanTier.proPlus.label
+        : fleetCardStatus.presentation.label;
 
     return WorkerAccountScreen(
       data: WorkerAccountViewData(
@@ -163,17 +153,23 @@ class WorkerProfileScreen extends ConsumerWidget {
         avatarUrl: profile.avatarUrl,
         fleetCardStatusLabel: fleetCardStatusLabel,
         planLabel: workerPlanSummaryLabel(plan),
+        planTier: plan.tier,
+        earningsTrailingLabel:
+            plan.tier.hasEarnings ? null : WorkerPlanTier.pro.label,
       ),
       onSettingsPressed: () => context.push('/worker/profile/edit'),
-      onShareCardPressed: () => shareWorkerPublicCard(userId),
+      onShareCardPressed: () => context.push('/worker/card'),
       onQrPressed: () =>
           _showQrDialog(context, workerPublicCardQrUrl(userId), publicUrl),
       onAgendaPressed: () => context.go('/worker/jobs'),
       onHelpRequestsPressed: () => context.push('/worker/help-requests'),
       onNotificationsPressed: () => context.push('/notifications'),
       onReviewsPressed: () => context.push('/worker/ratings'),
-      onFleetCardPressed: () => context.push('/worker/fleet-card'),
-      onPlanPressed: () => _showPlanSheet(context, plan),
+      onFleetCardPressed: () => fleetCardLocked
+          ? showWorkerPlanSheet(context, plan)
+          : context.push('/worker/fleet-card'),
+      onPlanPressed: () => showWorkerPlanSheet(context, plan),
+      onEarningsPressed: () => context.push('/worker/earnings'),
       onSupportPressed: () => showSupportContactSheet(context),
       onSignOutPressed: () => confirmAndSignOut(context, ref),
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),

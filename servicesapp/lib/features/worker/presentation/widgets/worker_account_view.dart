@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
 import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
 import 'package:servicesapp/core/widgets/app_account_menu_group.dart';
 import 'package:servicesapp/core/widgets/app_motion.dart';
+import 'package:servicesapp/core/widgets/app_plan_badge.dart';
 import 'package:servicesapp/core/widgets/app_profile_card.dart';
 import 'package:servicesapp/core/widgets/app_tab_header.dart';
 
@@ -19,6 +21,8 @@ class WorkerAccountViewData {
     required this.memberSinceLabel,
     required this.fleetCardStatusLabel,
     required this.planLabel,
+    required this.earningsTrailingLabel,
+    this.planTier = WorkerPlanTier.free,
     this.canSharePublicCard = true,
     this.avatarUrl,
   });
@@ -43,6 +47,13 @@ class WorkerAccountViewData {
   /// `worker_plan_labels.dart`).
   final String planLabel;
 
+  /// Plano em vigor: selo ao lado do nome.
+  final WorkerPlanTier planTier;
+
+  /// À direita de "Ganhos": "Pro" quando o plano não inclui o painel,
+  /// vazio quando inclui.
+  final String? earningsTrailingLabel;
+
   /// "Partilhar" e "QR" do cartão público (A11). Vem do plano
   /// (`can_use_public_card`); sem ele os botões não aparecem.
   final bool canSharePublicCard;
@@ -63,6 +74,7 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onReviewsPressed,
     required this.onFleetCardPressed,
     required this.onPlanPressed,
+    required this.onEarningsPressed,
     required this.onNotificationsPressed,
     required this.onSupportPressed,
     required this.onAboutPressed,
@@ -83,6 +95,7 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onReviewsPressed;
   final VoidCallback onFleetCardPressed;
   final VoidCallback onPlanPressed;
+  final VoidCallback onEarningsPressed;
 
   final VoidCallback onNotificationsPressed;
   final VoidCallback onSupportPressed;
@@ -129,6 +142,9 @@ class WorkerAccountScreen extends StatelessWidget {
                         subtitle: data.professionLocationLabel,
                         avatarUrl: data.avatarUrl,
                         onPressed: onSettingsPressed,
+                        nameBadge: data.planTier.isPaid
+                            ? AppPlanBadge(tier: data.planTier)
+                            : null,
                         metrics: [
                           AppProfileMetric(
                             value: data.ratingLabel,
@@ -188,6 +204,12 @@ class WorkerAccountScreen extends StatelessWidget {
                             trailingLabel: data.reviewsLabel,
                           ),
                           AppAccountMenuItem(
+                            id: 'earnings',
+                            label: 'Ganhos',
+                            icon: Icons.insights_outlined,
+                            trailingLabel: data.earningsTrailingLabel,
+                          ),
+                          AppAccountMenuItem(
                             id: 'plan',
                             label: 'Plano',
                             icon: Icons.workspace_premium_outlined,
@@ -208,6 +230,8 @@ class WorkerAccountScreen extends StatelessWidget {
                               onHelpRequestsPressed();
                             case 'reviews':
                               onReviewsPressed();
+                            case 'earnings':
+                              onEarningsPressed();
                             case 'plan':
                               onPlanPressed();
                             case 'fleet_card':

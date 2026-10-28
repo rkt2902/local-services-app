@@ -26,6 +26,7 @@ class AppProfileCard extends StatelessWidget {
     this.avatarUrl,
     this.actions,
     this.onPressed,
+    this.nameBadge,
   });
 
   final String name;
@@ -38,6 +39,9 @@ class AppProfileCard extends StatelessWidget {
 
   /// Toque no nome: editar o perfil.
   final VoidCallback? onPressed;
+
+  /// Ao lado do nome (ex.: o selo do plano, `AppPlanBadge`).
+  final Widget? nameBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -70,14 +74,24 @@ class AppProfileCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleLarge?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (nameBadge != null) ...[
+                            const SizedBox(width: AppSpacing.xs),
+                            nameBadge!,
+                          ],
+                        ],
                       ),
                       Text(
                         subtitle,
