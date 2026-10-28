@@ -34,8 +34,10 @@ import '../../jobs/data/cancel_reasons.dart';
 import '../../jobs/data/job_model.dart';
 import '../../jobs/presentation/widgets/cancel_job_dialog.dart';
 import '../../jobs/presentation/widgets/reschedule_dialog.dart';
+import '../../help_requests/presentation/worker_help_requests_lobby_screen.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/data/help_request_model.dart';
+import '../application/worker_job_flow.dart';
 import '../application/worker_job_rules.dart';
 import '../application/worker_list_invalidation.dart';
 import '../../proposals/application/proposal_price_labels.dart';
@@ -75,8 +77,7 @@ class _WorkerMyJobDetailScreenState
   /// antigo/incompleto), o da própria proposta. Resolvido em [build].
   String _resolvedJobId = '';
 
-  String get _jobId =>
-      widget.jobId.isNotEmpty ? widget.jobId : _resolvedJobId;
+  String get _jobId => widget.jobId.isNotEmpty ? widget.jobId : _resolvedJobId;
 
   Future<void> _cancelJob() async {
     final result = await CancelJobDialog.show(context, isClient: false);
@@ -86,16 +87,20 @@ class _WorkerMyJobDetailScreenState
     final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     try {
-      final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
+      final newJobId = await ref
+          .read(jobRepositoryProvider)
+          .cancelJob(
             jobId: _jobId,
             reason: result['reason']!,
             reasonDetail: result['reasonDetail'],
           );
       // Regra T4: navegar → SnackBar → invalidar.
       router.go('/worker/home');
-      toast.show(newJobId != null
+      toast.show(
+        newJobId != null
             ? 'Pedido cancelado. O cliente foi notificado e o pedido foi reaberto.'
-            : 'Pedido cancelado.');
+            : 'Pedido cancelado.',
+      );
       invalidateWorkerLists(ref, jobId: _jobId);
     } catch (e) {
       toast.error(friendlyError(e));
@@ -160,7 +165,9 @@ class _WorkerMyJobDetailScreenState
     setState(() => _proposingReschedule = true);
     final toast = AppToast.of(context);
     try {
-      await ref.read(jobRepositoryProvider).proposeReschedule(
+      await ref
+          .read(jobRepositoryProvider)
+          .proposeReschedule(
             jobId: _jobId,
             newDate: result['date'] as DateTime,
             newTime: result['time'] as String?,
@@ -253,7 +260,9 @@ class _WorkerMyJobDetailScreenState
             setSheetState(() => loading = true);
             final toast = AppToast.of(context);
             try {
-              await ref.read(helpRequestRepositoryProvider).createHelpRequest(
+              await ref
+                  .read(helpRequestRepositoryProvider)
+                  .createHelpRequest(
                     jobId: _jobId,
                     proposalId: widget.proposalId,
                     slotsNeeded: slotsNeeded,
@@ -287,8 +296,9 @@ class _WorkerMyJobDetailScreenState
                     Expanded(
                       child: Text(
                         'Quantos ajudantes precisas?',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textPrimary),
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -312,19 +322,21 @@ class _WorkerMyJobDetailScreenState
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     'Exigir equipamento próprio',
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: AppColors.textPrimary),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   value: equipmentRequired,
                   onChanged: loading
                       ? null
                       : (v) =>
-                          setSheetState(() => equipmentRequired = v ?? false),
+                            setSheetState(() => equipmentRequired = v ?? false),
                 ),
                 Text(
                   'O pedido segue para o cliente aprovar.',
-                  style: textTheme.labelMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -347,8 +359,13 @@ class _WorkerMyJobDetailScreenState
           final repo = ref.read(jobRepositoryProvider);
           final paths = <String>[];
           for (final photo in photos) {
-            paths.add(await repo.uploadWorkPhoto(
-                jobId: _jobId, file: photo, before: true));
+            paths.add(
+              await repo.uploadWorkPhoto(
+                jobId: _jobId,
+                file: photo,
+                before: true,
+              ),
+            );
           }
           await repo.startJob(_jobId, photoPaths: paths);
           return true;
@@ -452,22 +469,26 @@ class _WorkerMyJobDetailScreenState
     final worked = workDays.isNotEmpty
         ? workedTimeLabel(workedDuration(workDays, now: now))
         : startedAt == null
-            ? 'Sem registo'
-            : durationLabel(now.difference(startedAt));
+        ? 'Sem registo'
+        : durationLabel(now.difference(startedAt));
     return MarkCompletedSheet.show(
       context,
       clientName: clientName,
       workedTimeLabel: worked,
       priceLabel: priceLabel,
-      workDaysLabel:
-          multiDay && workDays.isNotEmpty ? '${workDays.length}' : null,
+      workDaysLabel: multiDay && workDays.isNotEmpty
+          ? '${workDays.length}'
+          : null,
       fixedValue: fixedValue,
       onSend: (photos) async {
         try {
           final paths = <String>[];
           for (final photo in photos) {
-            paths.add(await ref.read(jobRepositoryProvider).uploadWorkPhoto(
-                jobId: _jobId, file: photo, before: false));
+            paths.add(
+              await ref
+                  .read(jobRepositoryProvider)
+                  .uploadWorkPhoto(jobId: _jobId, file: photo, before: false),
+            );
           }
           await ref
               .read(proposalRepositoryProvider)
@@ -530,7 +551,9 @@ class _WorkerMyJobDetailScreenState
 
     return view.WorkerCompletedJobViewData(
       metaLabel: meta,
-      beforePhotoUrls: job.beforePhotoPaths.map(repo.jobPhotoPublicUrl).toList(),
+      beforePhotoUrls: job.beforePhotoPaths
+          .map(repo.jobPhotoPublicUrl)
+          .toList(),
       afterPhotoUrls: after.map(repo.jobPhotoPublicUrl).toList(),
       receivedReview: received == null
           ? null
@@ -565,10 +588,9 @@ class _WorkerMyJobDetailScreenState
             child: Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ),
@@ -590,8 +612,10 @@ class _WorkerMyJobDetailScreenState
           hr.status == HelpRequestStatus.pendingApproval) {
         continue;
       }
-      candidates[hr.id] =
-          ref.watch(candidatesForHelpRequestProvider(hr.id)).asData?.value;
+      candidates[hr.id] = ref
+          .watch(candidatesForHelpRequestProvider(hr.id))
+          .asData
+          ?.value;
     }
     return (loaded: true, summary: helpTeamSummary(helpRequests, candidates));
   }
@@ -625,22 +649,25 @@ class _WorkerMyJobDetailScreenState
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
     final photosAsync = ref.watch(jobPhotosProvider(_jobId));
     final clientInfoAsync = ref.watch(clientBasicInfoProvider(job.clientId));
-    final helpersForRatingAsync =
-        ref.watch(acceptedHelpersForJobProvider(_jobId));
+    final helpersForRatingAsync = ref.watch(
+      acceptedHelpersForJobProvider(_jobId),
+    );
 
-    final isConfirmed = proposal.status == ProposalStatus.accepted &&
+    final isConfirmed =
+        proposal.status == ProposalStatus.accepted &&
         job.status == JobStatus.confirmed;
     // Dias de trabalho só depois de iniciado (migration 0058).
     final workDays = (isConfirmed && job.startedAt != null)
         ? ref.watch(jobWorkDaysProvider(_jobId)).asData?.value ??
-            const <JobWorkDay>[]
+              const <JobWorkDay>[]
         : const <JobWorkDay>[];
     final includeOptions = proposal.isFixedTotal
         ? ref.watch(proposalIncludeOptionsProvider).asData?.value ??
-            const <ProposalIncludeOption>[]
+              const <ProposalIncludeOption>[]
         : const <ProposalIncludeOption>[];
-    final ({bool loaded, HelpTeamSummary? summary}) team =
-        isConfirmed ? _helpTeam() : (loaded: false, summary: null);
+    final ({bool loaded, HelpTeamSummary? summary}) team = isConfirmed
+        ? _helpTeam()
+        : (loaded: false, summary: null);
 
     final serviceType = serviceTypesAsync.value
         ?.where((s) => s.id == job.serviceTypeId)
@@ -661,8 +688,9 @@ class _WorkerMyJobDetailScreenState
     // Só a partir do dia do trabalho (a RPC também valida, migration 0046).
     // Sem data confirmada (horário flexível) fica sempre disponível.
     final today = DateUtils.dateOnly(DateTime.now());
-    final confirmedDay =
-        job.confirmedDate == null ? null : DateUtils.dateOnly(job.confirmedDate!);
+    final confirmedDay = job.confirmedDate == null
+        ? null
+        : DateUtils.dateOnly(job.confirmedDate!);
     final canMarkCompleted =
         confirmedDay == null || !confirmedDay.isAfter(today);
 
@@ -689,13 +717,17 @@ class _WorkerMyJobDetailScreenState
       confirmedTime: job.confirmedTime,
       confirmedFlexible: job.confirmedFlexible,
     );
-    final startHint =
-        startJobHint(canStart: canStart, opensAt: startOpensAt, now: now);
+    final startHint = startJobHint(
+      canStart: canStart,
+      opensAt: startOpensAt,
+      now: now,
+    );
 
     final accepted = proposal.status == ProposalStatus.accepted;
-    final isCancelled = job.status == JobStatus.cancelled ||
-        job.status == JobStatus.noResponse;
-    final isExpired = job.status == JobStatus.noResponse ||
+    final isCancelled =
+        job.status == JobStatus.cancelled || job.status == JobStatus.noResponse;
+    final isExpired =
+        job.status == JobStatus.noResponse ||
         job.cancelReason == CancelReason.expired;
 
     // Badge do design A1: "Agendado" e, depois de iniciado, "Em curso";
@@ -705,12 +737,18 @@ class _WorkerMyJobDetailScreenState
     if (isConfirmed) {
       statusPresentation = job.startedAt != null
           ? const AppStatusPresentation(
-              label: 'Em curso', color: AppStatusColor.info)
+              label: 'Em curso',
+              color: AppStatusColor.info,
+            )
           : const AppStatusPresentation(
-              label: 'Agendado', color: AppStatusColor.success);
+              label: 'Agendado',
+              color: AppStatusColor.success,
+            );
     } else if (accepted && isCancelled && isExpired) {
       statusPresentation = const AppStatusPresentation(
-          label: 'Expirado', color: AppStatusColor.neutral);
+        label: 'Expirado',
+        color: AppStatusColor.neutral,
+      );
     } else if (accepted) {
       statusPresentation = job.status.presentation();
     } else {
@@ -742,6 +780,10 @@ class _WorkerMyJobDetailScreenState
         ? _completedViewData(job, clientName)
         : null;
 
+    final helpTeam = _teamViewData(
+      team.summary,
+      helpersForRatingAsync.asData?.value ?? const [],
+    );
     final data = view.WorkerMyJobDetailViewData(
       jobId: job.id,
       proposalStatus: proposal.status,
@@ -770,24 +812,23 @@ class _WorkerMyJobDetailScreenState
           ? proposalValueLabel(proposal)
           : hourlyRateLabel(proposal.hourlyRate),
       priceRowLabel: proposal.isFixedTotal ? 'Valor total' : 'Taxa/hora',
-      durationRowLabel:
-          proposal.isFixedTotal ? 'Duração' : 'Horas estimadas',
-      estimatedHoursLabel: proposal.estimatedDaysMin != null ||
-              proposal.estimatedDaysMax != null
+      durationRowLabel: proposal.isFixedTotal ? 'Duração' : 'Horas estimadas',
+      estimatedHoursLabel:
+          proposal.estimatedDaysMin != null || proposal.estimatedDaysMax != null
           ? proposalDurationLabel(proposal)
           : (proposal.estimatedHoursMin != null ||
-                  proposal.estimatedHoursMax != null)
-              ? _hoursLabel(
-                  proposal.estimatedHoursMin, proposal.estimatedHoursMax)
-              : null,
+                proposal.estimatedHoursMax != null)
+          ? _hoursLabel(proposal.estimatedHoursMin, proposal.estimatedHoursMax)
+          : null,
       estimatedTotalLabel: proposal.isFixedTotal ? '' : estimate,
       peopleNeeded: proposal.peopleNeeded,
       notes: proposal.notes,
       timelineSteps: buildJobTimeline(job, now: now),
       clientId: job.clientId,
       clientName: clientName,
-      clientAvatarUrl:
-          (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null,
+      clientAvatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty)
+          ? avatarUrl
+          : null,
       clientPhone: clientInfo?['phone'] ?? '',
       rescheduleStatus: job.rescheduleStatus,
       rescheduleProposedByMe: job.rescheduleProposedBy == currentUserId,
@@ -818,10 +859,21 @@ class _WorkerMyJobDetailScreenState
       helpTeamLoaded: team.loaded,
       // Mesma regra da BD (0054): pedir ajudantes só até à véspera.
       canRequestHelpers: confirmedDay == null || confirmedDay.isAfter(today),
-      helpTeam: _teamViewData(
-        team.summary,
-        helpersForRatingAsync.asData?.value ?? const [],
+      helpTeam: helpTeam,
+      flowStage: workerJobFlowStage(
+        proposalStatus: proposal.status,
+        jobStatus: job.status,
+        startedAt: job.startedAt,
+        teamPending:
+            helpTeam != null &&
+            (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
       ),
+      // Fase Equipa só com ajudantes (previstos na proposta ou pedidos).
+      flowShowTeam: helpTeam != null || proposal.peopleNeeded > 1,
+      teamTabBadge: helpTeam == null || helpTeam.awaitingApproval
+          ? null
+          : '${helpTeam.memberNames.length}/'
+                '${helpTeam.memberNames.length + helpTeam.emptySlots}',
       // Aceite: "Sofia Marques · Cascais" (design A1); antes disso o nome
       // do cliente pode não estar acessível (RLS), fica zona e data.
       titleSubtitle: accepted
@@ -840,6 +892,14 @@ class _WorkerMyJobDetailScreenState
       onCallClientPressed: () => _openWhatsApp(data.clientPhone),
       onRequestHelpersPressed: _showAddHelperSheet,
       onViewTeamPressed: _openTeam,
+      // Separador Equipa (A12): o mesmo lobby da rota da equipa, sem
+      // cabeçalho. "Pedir ajudantes" abre a sheet aqui, sem navegar.
+      teamTab: WorkerHelpRequestsLobbyScreen(
+        jobId: _jobId,
+        fromMyJob: true,
+        embedded: true,
+        onRequestHelpers: _showAddHelperSheet,
+      ),
       onMarkCompleted: () => _markCompleted(
         clientName: data.clientName,
         startedAt: job.startedAt,
@@ -866,19 +926,15 @@ class _WorkerMyJobDetailScreenState
       onWithdrawProposal: _withdrawProposal,
       onWorkPhotoTap: (urls, index) => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PhotoViewerScreen(
-            photoUrls: urls,
-            initialIndex: index,
-          ),
+          builder: (_) =>
+              PhotoViewerScreen(photoUrls: urls, initialIndex: index),
         ),
       ),
       onBrowseAvailableJobs: () => context.go('/worker/available-jobs'),
       onPhotoTap: (index) => Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PhotoViewerScreen(
-            photoUrls: photos,
-            initialIndex: index,
-          ),
+          builder: (_) =>
+              PhotoViewerScreen(photoUrls: photos, initialIndex: index),
         ),
       ),
     );
@@ -931,7 +987,10 @@ view.WorkerJobTeamViewData? _teamViewData(
   return view.WorkerJobTeamViewData(
     memberNames: names,
     memberAvatarUrls: avatars,
-    emptySlots: (summary.slots - (filled ?? names.length)).clamp(0, summary.slots),
+    emptySlots: (summary.slots - (filled ?? names.length)).clamp(
+      0,
+      summary.slots,
+    ),
     filledLabel: filled == null
         ? null
         : '$filled de ${summary.slots} ${summary.slots == 1 ? 'vaga' : 'vagas'}',

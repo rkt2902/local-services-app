@@ -1,4 +1,4 @@
-
+import '../../../core/models/job_flow_stage.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../worker/application/worker_job_rules.dart';
@@ -25,7 +25,8 @@ enum HelperJobStage {
 }
 
 HelperJobStage helperJobStage(HelpAcceptanceStatus status, String jobStatus) {
-  final jobDead = jobStatus == JobStatus.cancelled.value ||
+  final jobDead =
+      jobStatus == JobStatus.cancelled.value ||
       jobStatus == JobStatus.noResponse.value;
   switch (status) {
     case HelpAcceptanceStatus.pending:
@@ -44,6 +45,16 @@ HelperJobStage helperJobStage(HelpAcceptanceStatus status, String jobStatus) {
       return HelperJobStage.accepted;
   }
 }
+
+/// Fase do stepper partilhado (design A12) para o ajudante. O ajudante só
+/// entra no fluxo na fase Equipa (candidatura); `null` numa candidatura
+/// fechada, que fica com o timeline do motivo.
+JobFlowStage? helperJobFlowStage(HelperJobStage stage) => switch (stage) {
+  HelperJobStage.pending => JobFlowStage.team,
+  HelperJobStage.accepted => JobFlowStage.onTheDay,
+  HelperJobStage.workDone || HelperJobStage.completed => JobFlowStage.completed,
+  HelperJobStage.closed => null,
+};
 
 /// Etiqueta curta do estado final de uma candidatura fechada.
 String helperClosedLabel(HelpAcceptanceStatus status, String jobStatus) {
@@ -89,19 +100,22 @@ HelperJobActions helperJobActions(HelpAcceptanceSummary acceptance) {
   final stage = helperJobStage(acceptance.status, acceptance.jobStatus);
   return HelperJobActions(
     canWithdrawApplication: stage == HelperJobStage.pending,
-    canGiveUp: stage == HelperJobStage.accepted &&
+    canGiveUp:
+        stage == HelperJobStage.accepted &&
         helperCanWithdraw(
           acceptance.jobStatus,
           confirmedDate: acceptance.confirmedDate,
         ),
-    giveUpClosedByJobDay: stage == HelperJobStage.accepted &&
+    giveUpClosedByJobDay:
+        stage == HelperJobStage.accepted &&
         helperGiveUpClosedByJobDay(
           acceptance.jobStatus,
           confirmedDate: acceptance.confirmedDate,
         ),
     canRatePrincipal:
         stage == HelperJobStage.completed && acceptance.jobId.isNotEmpty,
-    showsContact: stage == HelperJobStage.accepted ||
+    showsContact:
+        stage == HelperJobStage.accepted ||
         stage == HelperJobStage.workDone ||
         stage == HelperJobStage.completed,
   );
@@ -114,10 +128,11 @@ HelpAcceptanceSummary? findHelperAcceptanceFor(
   List<HelpAcceptanceSummary> acceptances,
   String relatedId,
 ) {
-  final matches = acceptances
-      .where((a) => a.jobId == relatedId || a.helpRequestId == relatedId)
-      .toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  final matches =
+      acceptances
+          .where((a) => a.jobId == relatedId || a.helpRequestId == relatedId)
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   if (matches.isEmpty) return null;
   return matches
           .where((a) => a.status == HelpAcceptanceStatus.accepted)

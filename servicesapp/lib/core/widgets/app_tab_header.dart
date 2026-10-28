@@ -6,12 +6,20 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
 /// Uma tab do [AppTabs]. [count] mostra o contador ao lado ("Propostas 4");
-/// 0 ou null não mostra nada.
+/// 0 ou null não mostra nada. [badge] mostra um texto já formatado no
+/// mesmo sítio ("Equipa 1/2", A12) e tem prioridade sobre [count].
 class AppTabItem {
-  const AppTabItem({required this.label, this.count});
+  const AppTabItem({required this.label, this.count, this.badge});
 
   final String label;
   final int? count;
+  final String? badge;
+
+  String? get _badgeLabel {
+    if (badge != null && badge!.isNotEmpty) return badge;
+    final value = count ?? 0;
+    return value > 0 ? '$value' : null;
+  }
 }
 
 /// Tabs dos separadores (design A11): texto com sublinhado verde que desliza
@@ -72,7 +80,7 @@ class AppTabs extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                if ((items[i].count ?? 0) > 0) ...[
+                                if (items[i]._badgeLabel != null) ...[
                                   const SizedBox(width: AppSpacing.s6),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -86,7 +94,7 @@ class AppTabs extends StatelessWidget {
                                       ),
                                     ),
                                     child: Text(
-                                      '${items[i].count}',
+                                      items[i]._badgeLabel!,
                                       style: textTheme.labelMedium?.copyWith(
                                         fontWeight: FontWeight.w800,
                                         color: AppColors.textStrong,

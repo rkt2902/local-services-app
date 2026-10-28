@@ -53,7 +53,7 @@ ClientProposalCardViewData _card(
           ? 'Fechado. Não muda com as horas.'
           : 'Estimado. Depende das horas feitas.',
       scheduleLabel: 'Qui, 22/10 · 9:00',
-      teamLabel: recommended ? 'Equipa de 2' : null,
+      teamLabel: recommended ? 'Leva 1 ajudante' : null,
       recommended: recommended,
       expired: expired,
     );

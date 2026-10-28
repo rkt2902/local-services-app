@@ -36,9 +36,18 @@ class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
     super.key,
     required this.jobId,
     this.fromMyJob = false,
+    this.embedded = false,
+    this.onRequestHelpers,
   });
 
   final String jobId;
+
+  /// No separador Equipa do detalhe do trabalho (A12), sem cabeçalho.
+  final bool embedded;
+
+  /// "Pedir ajudantes" do estado vazio quando o ecrã está embutido: abre a
+  /// sheet do detalhe em vez de navegar.
+  final VoidCallback? onRequestHelpers;
 
   /// `true` quando o ecrã anterior na stack é o "O meu trabalho" deste
   /// pedido: aí basta um pop para lá voltar.
@@ -52,7 +61,10 @@ class WorkerHelpRequestsLobbyScreen extends ConsumerStatefulWidget {
 class _WorkerHelpRequestsLobbyScreenState
     extends ConsumerState<WorkerHelpRequestsLobbyScreen> {
   double _suggestedRate(
-      HelpRequest hr, HelpAcceptance candidate, JobProposal? proposal) {
+    HelpRequest hr,
+    HelpAcceptance candidate,
+    JobProposal? proposal,
+  ) {
     final rate = proposal?.hourlyRate ?? 0;
     if (hr.equipmentRequired) return rate;
     return candidate.broughtEquipment ? rate : rate * 0.7;
@@ -78,11 +90,16 @@ class _WorkerHelpRequestsLobbyScreenState
       ? value.toInt().toString()
       : decimalLabel(value, 1);
 
-  Future<bool> _acceptCandidate(String helpAcceptanceId, String rateInput) async {
+  Future<bool> _acceptCandidate(
+    String helpAcceptanceId,
+    String rateInput,
+  ) async {
     final parsed = double.tryParse(rateInput.replaceAll(',', '.'));
     if (parsed == null || parsed <= 0) return false;
     try {
-      await ref.read(helpRequestRepositoryProvider).acceptCandidate(
+      await ref
+          .read(helpRequestRepositoryProvider)
+          .acceptCandidate(
             helpAcceptanceId: helpAcceptanceId,
             agreedRate: parsed,
           );
@@ -98,7 +115,9 @@ class _WorkerHelpRequestsLobbyScreenState
 
   Future<bool> _rejectCandidate(String helpAcceptanceId) async {
     try {
-      await ref.read(helpRequestRepositoryProvider).rejectHelpCandidate(helpAcceptanceId);
+      await ref
+          .read(helpRequestRepositoryProvider)
+          .rejectHelpCandidate(helpAcceptanceId);
       _invalidateAfterAction();
       return true;
     } catch (e) {
@@ -110,7 +129,8 @@ class _WorkerHelpRequestsLobbyScreenState
   }
 
   void _invalidateAfterAction() {
-    final helpRequests = ref.read(helpRequestsForJobProvider(widget.jobId)).value ?? [];
+    final helpRequests =
+        ref.read(helpRequestsForJobProvider(widget.jobId)).value ?? [];
     ref.invalidate(helpRequestsForJobProvider(widget.jobId));
     for (final hr in helpRequests) {
       ref.invalidate(candidatesForHelpRequestProvider(hr.id));
@@ -137,23 +157,22 @@ class _WorkerHelpRequestsLobbyScreenState
   }
 
   Future<bool> _changeSlots(String helpRequestId, int slots) => _runTeamAction(
-        () => ref.read(helpRequestRepositoryProvider).updateHelpRequestSlots(
-              helpRequestId: helpRequestId,
-              slots: slots,
-            ),
-      );
+    () => ref
+        .read(helpRequestRepositoryProvider)
+        .updateHelpRequestSlots(helpRequestId: helpRequestId, slots: slots),
+  );
 
   Future<bool> _closeHelpRequest(String helpRequestId) => _runTeamAction(
-        () => ref
-            .read(helpRequestRepositoryProvider)
-            .cancelHelpRequest(helpRequestId),
-      );
+    () => ref
+        .read(helpRequestRepositoryProvider)
+        .cancelHelpRequest(helpRequestId),
+  );
 
   Future<bool> _removeHelper(String helpAcceptanceId) => _runTeamAction(
-        () => ref
-            .read(helpRequestRepositoryProvider)
-            .removeHelpHelper(helpAcceptanceId),
-      );
+    () => ref
+        .read(helpRequestRepositoryProvider)
+        .removeHelpHelper(helpAcceptanceId),
+  );
 
   String? _rateValidator(String? value) {
     final parsed = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
@@ -165,7 +184,8 @@ class _WorkerHelpRequestsLobbyScreenState
   String _jobReferenceLabel() {
     final job = ref.watch(jobByIdProvider(widget.jobId)).asData?.value;
     if (job == null) return 'Trabalho';
-    final service = ref
+    final service =
+        ref
             .watch(serviceTypesProvider)
             .asData
             ?.value
@@ -201,14 +221,22 @@ class _WorkerHelpRequestsLobbyScreenState
   @override
   Widget build(BuildContext context) {
     final workerAsync = ref.watch(workerProfileProvider);
-    final proposalAsync = ref.watch(acceptedProposalForJobProvider(widget.jobId));
+    final proposalAsync = ref.watch(
+      acceptedProposalForJobProvider(widget.jobId),
+    );
     final proposal = proposalAsync.asData?.value;
-    final helpRequestsAsync = ref.watch(helpRequestsForJobProvider(widget.jobId));
+    final helpRequestsAsync = ref.watch(
+      helpRequestsForJobProvider(widget.jobId),
+    );
     final helpRequests = helpRequestsAsync.asData?.value ?? [];
 
     var anyLoading = helpRequestsAsync.isLoading;
-    Object? anyError = helpRequestsAsync.hasError ? helpRequestsAsync.error : null;
-    StackTrace? anyStack = helpRequestsAsync.hasError ? helpRequestsAsync.stackTrace : null;
+    Object? anyError = helpRequestsAsync.hasError
+        ? helpRequestsAsync.error
+        : null;
+    StackTrace? anyStack = helpRequestsAsync.hasError
+        ? helpRequestsAsync.stackTrace
+        : null;
 
     final candidatesByHr = <String, List<HelpAcceptance>>{};
     for (final hr in helpRequests) {
@@ -228,7 +256,11 @@ class _WorkerHelpRequestsLobbyScreenState
       dataAsync = AsyncValue.error(anyError, anyStack ?? StackTrace.current);
     } else {
       final workerProfile = workerAsync.asData?.value;
-      final jobStatus = ref.watch(jobByIdProvider(widget.jobId)).asData?.value?.status;
+      final jobStatus = ref
+          .watch(jobByIdProvider(widget.jobId))
+          .asData
+          ?.value
+          ?.status;
       // Só se mexe na equipa enquanto o trabalho está por fazer.
       final jobAllowsTeamChanges =
           jobStatus == JobStatus.open || jobStatus == JobStatus.confirmed;
@@ -237,84 +269,104 @@ class _WorkerHelpRequestsLobbyScreenState
       for (final hr in helpRequests) {
         final all = List<HelpAcceptance>.from(candidatesByHr[hr.id] ?? [])
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        final accepted =
-            all.where((c) => c.status == HelpAcceptanceStatus.accepted).toList();
-        final pending =
-            all.where((c) => c.status == HelpAcceptanceStatus.pending).toList();
+        final accepted = all
+            .where((c) => c.status == HelpAcceptanceStatus.accepted)
+            .toList();
+        final pending = all
+            .where((c) => c.status == HelpAcceptanceStatus.pending)
+            .toList();
         // Guarda defensiva: se accepted_count >= slots_needed o backend
         // (migration 0017) já auto-rejeitou os pending restantes. Evita
         // mostrar "Aceitar" acionável na janela breve antes do refetch.
         final isFilled = accepted.length >= hr.slotsNeeded;
-        final isAwaitingApproval = hr.status == HelpRequestStatus.pendingApproval;
+        final isAwaitingApproval =
+            hr.status == HelpRequestStatus.pendingApproval;
 
-        sections.add(HelpRequestSectionViewData(
-          helpRequestId: hr.id,
-          slotsNeeded: hr.slotsNeeded,
-          canManage: jobAllowsTeamChanges &&
-              hr.status != HelpRequestStatus.cancelled,
-          displayMode: isAwaitingApproval
-              ? WorkerHelpSectionDisplayMode.awaitingClientApproval
-              : (isFilled
-                  ? WorkerHelpSectionDisplayMode.filled
-                  : WorkerHelpSectionDisplayMode.active),
-          statusPresentation: hr.status.presentation,
-          filledPlacesLabel:
-              '${accepted.length} de ${hr.slotsNeeded} vaga${hr.slotsNeeded == 1 ? '' : 's'} '
-              'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
-          filledCountLabel: '${accepted.length} de ${hr.slotsNeeded}',
-          filledProgress: hr.slotsNeeded == 0 ? 0 : accepted.length / hr.slotsNeeded,
-          acceptedHelpers: accepted
-              .map((c) => WorkerAcceptedHelperViewData(
+        sections.add(
+          HelpRequestSectionViewData(
+            helpRequestId: hr.id,
+            slotsNeeded: hr.slotsNeeded,
+            canManage:
+                jobAllowsTeamChanges &&
+                hr.status != HelpRequestStatus.cancelled,
+            displayMode: isAwaitingApproval
+                ? WorkerHelpSectionDisplayMode.awaitingClientApproval
+                : (isFilled
+                      ? WorkerHelpSectionDisplayMode.filled
+                      : WorkerHelpSectionDisplayMode.active),
+            statusPresentation: hr.status.presentation,
+            filledPlacesLabel:
+                '${accepted.length} de ${hr.slotsNeeded} vaga${hr.slotsNeeded == 1 ? '' : 's'} '
+                'preenchida${hr.slotsNeeded == 1 ? '' : 's'}',
+            filledCountLabel: '${accepted.length} de ${hr.slotsNeeded}',
+            filledProgress: hr.slotsNeeded == 0
+                ? 0
+                : accepted.length / hr.slotsNeeded,
+            acceptedHelpers: accepted
+                .map(
+                  (c) => WorkerAcceptedHelperViewData(
                     applicationId: c.id,
                     workerId: c.workerId,
                     name: c.fullName ?? 'Sem nome',
                     avatarUrl: c.avatarUrl,
                     ratingLabel: _ratingLabelFor(c.workerId),
-                    equipmentLabel:
-                        c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
-                    rateLabel:
-                        c.agreedRate > 0 ? hourlyRateLabel(c.agreedRate) : null,
+                    equipmentLabel: c.broughtEquipment
+                        ? 'Traz equipamento'
+                        : 'Sem equipamento',
+                    rateLabel: c.agreedRate > 0
+                        ? hourlyRateLabel(c.agreedRate)
+                        : null,
                     statusPresentation: c.status.presentation,
                     phone: c.workerPhone,
-                  ))
-              .toList(),
-          pendingCandidates: pending.map((c) {
-            final suggested = _suggestedRate(hr, c, proposal);
-            return WorkerHelpCandidateViewData(
-              applicationId: c.id,
-              workerId: c.workerId,
-              name: c.fullName ?? 'Sem nome',
-              avatarUrl: c.avatarUrl,
-              ratingLabel: _ratingLabelFor(c.workerId),
-              equipmentLabel: c.broughtEquipment ? 'Traz equipamento' : 'Sem equipamento',
-              message: c.message,
-              statusPresentation: c.status.presentation,
-              actionsBlocked: isFilled || isAwaitingApproval,
-              blockedReasonLabel: isFilled
-                  ? 'Vagas já preenchidas.'
-                  : (isAwaitingApproval ? 'À espera de aprovação do cliente.' : null),
-              acceptance: AcceptHelperViewData(
-                initialRateInput: decimalLabel(suggested, 2),
-                suggestedRateLabel: 'Sugerido: ${hourlyRateLabel(suggested)}',
-                estimateLabel: _estimateLabel(proposal, suggested),
-              ),
-            );
-          }).toList(),
-        ));
+                  ),
+                )
+                .toList(),
+            pendingCandidates: pending.map((c) {
+              final suggested = _suggestedRate(hr, c, proposal);
+              return WorkerHelpCandidateViewData(
+                applicationId: c.id,
+                workerId: c.workerId,
+                name: c.fullName ?? 'Sem nome',
+                avatarUrl: c.avatarUrl,
+                ratingLabel: _ratingLabelFor(c.workerId),
+                equipmentLabel: c.broughtEquipment
+                    ? 'Traz equipamento'
+                    : 'Sem equipamento',
+                message: c.message,
+                statusPresentation: c.status.presentation,
+                actionsBlocked: isFilled || isAwaitingApproval,
+                blockedReasonLabel: isFilled
+                    ? 'Vagas já preenchidas.'
+                    : (isAwaitingApproval
+                          ? 'À espera de aprovação do cliente.'
+                          : null),
+                acceptance: AcceptHelperViewData(
+                  initialRateInput: decimalLabel(suggested, 2),
+                  suggestedRateLabel: 'Sugerido: ${hourlyRateLabel(suggested)}',
+                  estimateLabel: _estimateLabel(proposal, suggested),
+                ),
+              );
+            }).toList(),
+          ),
+        );
       }
 
-      dataAsync = AsyncValue.data(WorkerHelpLobbyViewData(
-        jobReferenceLabel: _jobReferenceLabel(),
-        responsibleName: workerProfile?.fullName ?? '',
-        responsibleAvatarUrl: workerProfile?.avatarUrl,
-        sections: sections,
-      ));
+      dataAsync = AsyncValue.data(
+        WorkerHelpLobbyViewData(
+          jobReferenceLabel: _jobReferenceLabel(),
+          responsibleName: workerProfile?.fullName ?? '',
+          responsibleAvatarUrl: workerProfile?.avatarUrl,
+          sections: sections,
+        ),
+      );
     }
 
     return WorkerHelpRequestsLobbyView(
       dataAsync: dataAsync,
       onBack: () => goBackOrToRoleHome(context),
-      onRequestHelpers: () => _goToJobToRequestHelpers(proposal),
+      embedded: widget.embedded,
+      onRequestHelpers:
+          widget.onRequestHelpers ?? () => _goToJobToRequestHelpers(proposal),
       onAcceptCandidate: _acceptCandidate,
       onRejectCandidate: _rejectCandidate,
       onViewRatings: _viewRatings,

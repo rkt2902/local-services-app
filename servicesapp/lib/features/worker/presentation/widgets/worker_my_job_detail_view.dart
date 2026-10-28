@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/enums.dart';
+import '../../../../core/models/job_flow_stage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -15,6 +16,8 @@ import '../../../../core/widgets/app_whatsapp_button.dart';
 import '../../../../core/widgets/app_bar_title.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../core/widgets/app_tab_header.dart';
+import '../../../../core/widgets/job_flow_stepper.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/widgets/status_timeline.dart';
 import '../../../../core/widgets/user_avatar_with_name.dart';
@@ -77,6 +80,9 @@ class WorkerMyJobDetailViewData {
     this.helpTeam,
     this.canRequestHelpers = true,
     this.titleSubtitle,
+    this.flowStage,
+    this.flowShowTeam = false,
+    this.teamTabBadge,
     this.sizeLabel,
     this.estimatedHoursLabel,
     this.notes,
@@ -115,6 +121,17 @@ class WorkerMyJobDetailViewData {
   final String? notes;
 
   final List<StatusTimelineStepData> timelineSteps;
+
+  /// Fase do stepper do fluxo (A12). Com fase, o stepper fica no cabeçalho
+  /// e substitui o timeline; `null` (proposta recusada ou retirada, pedido
+  /// cancelado) mantém o timeline.
+  final JobFlowStage? flowStage;
+
+  /// Mostra a fase Equipa: só quando o trabalho tem ajudantes.
+  final bool flowShowTeam;
+
+  /// "1/2" no separador Equipa (A12); `null` sem número.
+  final String? teamTabBadge;
 
   final String clientId;
   final String clientName;
@@ -247,7 +264,10 @@ class WorkerWorkDayRowViewData {
 
 /// "Valor fechado": o total e o que inclui. Não muda com as horas.
 class WorkerFixedValueViewData {
-  const WorkerFixedValueViewData({required this.valueLabel, this.includesLabel});
+  const WorkerFixedValueViewData({
+    required this.valueLabel,
+    this.includesLabel,
+  });
 
   final String valueLabel;
 
@@ -353,6 +373,7 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
     this.onCompletionFeedbackFinished,
     this.onFinishDay,
     this.onStartNextDay,
+    this.teamTab,
   });
 
   final WorkerMyJobDetailViewData data;
@@ -395,6 +416,11 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
   /// "Começar o dia N+1" (`start_work_day`).
   final Future<void> Function()? onStartNextDay;
 
+  /// Conteúdo do separador Equipa (A12, a equipa e os candidatos). Só
+  /// aparece num trabalho marcado com ajudantes ([WorkerMyJobDetailViewData
+  /// .flowShowTeam]); sem ele não há separadores.
+  final Widget? teamTab;
+
   @override
   State<WorkerMyJobDetailScreen> createState() {
     return _WorkerMyJobDetailScreenState();
@@ -407,6 +433,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   bool _changingDay = false;
   bool _showSuccessFeedback = false;
   Timer? _successTimer;
+
+  /// Separador aberto: 0 Resumo, 1 Equipa.
+  int _tab = 0;
 
   Future<void> _handleMarkCompleted() async {
     if (_completing) return;
@@ -470,8 +499,15 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     final accepted = data.proposalStatus == ProposalStatus.accepted;
     final isConfirmed = accepted && data.jobStatus == JobStatus.confirmed;
 
+    final showTabs = isConfirmed && data.flowShowTeam && widget.teamTab != null;
+
     final Widget body;
-    if (isConfirmed) {
+    if (showTabs) {
+      body = IndexedStack(
+        index: _tab,
+        children: [_buildConfirmedBody(context), widget.teamTab!],
+      );
+    } else if (isConfirmed) {
       body = _buildConfirmedBody(context);
     } else if (accepted && data.inactive != null) {
       body = _InactiveJobBody(
@@ -518,6 +554,29 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             presentation: data.statusPresentation,
           ),
         ],
+        bottom: data.flowStage == null
+            ? null
+            : PreferredSize(
+                preferredSize: Size.fromHeight(showTabs ? 44 + 48 : 44),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    JobFlowStepper(
+                      stage: data.flowStage!,
+                      showTeam: data.flowShowTeam,
+                    ),
+                    if (showTabs)
+                      AppTabs(
+                        items: [
+                          const AppTabItem(label: 'Resumo'),
+                          AppTabItem(label: 'Equipa', badge: data.teamTabBadge),
+                        ],
+                        selectedIndex: _tab,
+                        onSelected: (i) => setState(() => _tab = i),
+                      ),
+                  ],
+                ),
+              ),
       ),
       body: Stack(
         children: [
@@ -532,6 +591,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
       ),
     );
   }
+
+  /// Com separadores, o cartão Equipa do Resumo abre o separador.
+  bool get _hasTeamTab => widget.data.flowShowTeam && widget.teamTab != null;
 
   // ── Agendado / em curso (design A1, primeira coluna) ──────────────────────
 
@@ -553,10 +615,11 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                AppStaggeredEntrance(
-                  index: 0,
-                  child: StatusTimelineHorizontal(steps: data.timelineSteps),
-                ),
+                if (data.flowStage == null)
+                  AppStaggeredEntrance(
+                    index: 0,
+                    child: StatusTimelineHorizontal(steps: data.timelineSteps),
+                  ),
                 if (data.overdueMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
@@ -582,7 +645,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
                     index: 1,
-                    child: data.workDays!.dayOpen &&
+                    child:
+                        data.workDays!.dayOpen &&
                             data.workDays!.dayStartedAt != null
                         ? _WorkTimerCard(
                             startedAt: data.workDays!.dayStartedAt!,
@@ -619,9 +683,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     priceLabel: data.agreedPriceLabel,
                     onOpenMap: hasMap
                         ? () => AddressMapLink.openInMaps(
-                              data.locationLat,
-                              data.locationLng,
-                            )
+                            data.locationLat,
+                            data.locationLng,
+                          )
                         : null,
                   ),
                 ),
@@ -651,7 +715,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     child: data.helpTeam != null
                         ? _TeamCard(
                             team: data.helpTeam!,
-                            onViewTeam: widget.onViewTeamPressed,
+                            onViewTeam: _hasTeamTab
+                                ? () => setState(() => _tab = 1)
+                                : widget.onViewTeamPressed,
                           )
                         : _HelpersActionButton(
                             onPressed: widget.onRequestHelpersPressed,
@@ -699,16 +765,18 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                       ? Icons.play_arrow_rounded
                       : Icons.lock_outline_rounded,
                   isLoading: _starting,
-                  onPressed:
-                      (_starting || !data.canStart) ? null : _handleStart,
+                  onPressed: (_starting || !data.canStart)
+                      ? null
+                      : _handleStart,
                 ),
                 if (data.startHint != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     data.startHint!,
                     textAlign: TextAlign.center,
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ] else if (data.workDays != null) ...[
@@ -722,17 +790,18 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                   isLoading: _changingDay,
                   onPressed: (_changingDay || _completing)
                       ? null
-                      : () => _handleDayAction(data.workDays!.dayOpen
-                          ? widget.onFinishDay
-                          : widget.onStartNextDay),
+                      : () => _handleDayAction(
+                          data.workDays!.dayOpen
+                              ? widget.onFinishDay
+                              : widget.onStartNextDay,
+                        ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 SizedBox(
                   height: AppSizes.buttonHeight,
                   child: OutlinedButton.icon(
-                    onPressed: (_completing ||
-                            _changingDay ||
-                            !data.canMarkCompleted)
+                    onPressed:
+                        (_completing || _changingDay || !data.canMarkCompleted)
                         ? null
                         : _handleMarkCompleted,
                     icon: _completing
@@ -744,13 +813,15 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     label: const Text('Concluir trabalho'),
                   ),
                 ),
-                if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
+                if (!data.canMarkCompleted &&
+                    data.markCompletedHint != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     data.markCompletedHint!,
                     textAlign: TextAlign.center,
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
                 TextButton(
@@ -772,13 +843,15 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                       ? null
                       : _handleMarkCompleted,
                 ),
-                if (!data.canMarkCompleted && data.markCompletedHint != null) ...[
+                if (!data.canMarkCompleted &&
+                    data.markCompletedHint != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     data.markCompletedHint!,
                     textAlign: TextAlign.center,
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
                 TextButton(
@@ -813,24 +886,22 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppStaggeredEntrance(
-              index: 0,
-              child: StatusTimelineCard(steps: data.timelineSteps),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppStaggeredEntrance(
-              index: 1,
-              child: _JobSummaryCard(data: data),
-            ),
+            if (data.flowStage == null) ...[
+              AppStaggeredEntrance(
+                index: 0,
+                child: StatusTimelineCard(steps: data.timelineSteps),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            AppStaggeredEntrance(index: 1, child: _JobSummaryCard(data: data)),
             const SizedBox(height: AppSpacing.md),
             AppStaggeredEntrance(
               index: 2,
               child: Text(
                 'Descrição',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: AppColors.textPrimary),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -849,10 +920,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
               child: _ProposalSummaryCard(data: data),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppStaggeredEntrance(
-              index: 4,
-              child: _branchBody(context),
-            ),
+            AppStaggeredEntrance(index: 4, child: _branchBody(context)),
             const SizedBox(height: AppSpacing.xl),
           ],
         ),
@@ -881,7 +949,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          Text('Cliente', style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
+          Text(
+            'Cliente',
+            style: textTheme.titleMedium?.copyWith(
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           _ClientContactCard(
             name: data.clientName,
@@ -920,7 +993,9 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             Text(
               'Podes contactar o cliente para negociar e enviar uma nova proposta.',
               textAlign: TextAlign.center,
-              style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ],
@@ -968,8 +1043,11 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
 
 /// "Sofia Marques" → "SM"; um só nome → "S".
 String _initials(String name) {
-  final parts =
-      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return '?';
   final first = parts.first[0];
   final last = parts.length > 1 ? parts.last[0] : '';
@@ -1021,8 +1099,9 @@ class _InitialsAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-    final background =
-        muted ? AppStatusColor.neutral.background : AppColors.primaryContainer;
+    final background = muted
+        ? AppStatusColor.neutral.background
+        : AppColors.primaryContainer;
     final foreground = muted ? AppColors.textSecondary : AppColors.primary;
     return CircleAvatar(
       radius: size / 2,
@@ -1033,9 +1112,9 @@ class _InitialsAvatar extends StatelessWidget {
           : Text(
               _initials(name),
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: foreground,
+                fontWeight: FontWeight.w700,
+              ),
             ),
     );
   }
@@ -1143,14 +1222,17 @@ class _FactRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: textTheme.labelMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   value,
                   style: textTheme.bodyMedium?.copyWith(
-                    color: muted ? AppColors.textSecondary : AppColors.textPrimary,
+                    color: muted
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1187,9 +1269,9 @@ class _InlineLink extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -1232,13 +1314,15 @@ class _ClientWhatsAppCard extends StatelessWidget {
                   displayName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleSmall
-                      ?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 Text(
                   'Cliente',
-                  style: textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -1299,15 +1383,17 @@ class _TeamCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Equipa',
-                  style: textTheme.titleMedium
-                      ?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               if (team.filledLabel != null)
                 Text(
                   team.filledLabel!,
-                  style: textTheme.labelMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
             ],
           ),
@@ -1337,8 +1423,9 @@ class _TeamCard extends StatelessWidget {
                       child: Text(
                         team.pendingLabel!,
                         textAlign: TextAlign.center,
-                        style: textTheme.labelMedium
-                            ?.copyWith(color: pillColor.foreground),
+                        style: textTheme.labelMedium?.copyWith(
+                          color: pillColor.foreground,
+                        ),
                       ),
                     ),
                   ),
@@ -1411,8 +1498,9 @@ class _RescheduleCancelRow extends StatelessWidget {
             Expanded(
               child: Text(
                 'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.',
-                style: textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -1427,8 +1515,9 @@ class _RescheduleCancelRow extends StatelessWidget {
                   foregroundColor: AppColors.textPrimary,
                   backgroundColor: AppColors.surface,
                   side: const BorderSide(color: AppColors.divider),
-                  minimumSize:
-                      const Size.fromHeight(AppSizes.compactButtonHeight),
+                  minimumSize: const Size.fromHeight(
+                    AppSizes.compactButtonHeight,
+                  ),
                   shape: shape,
                 ),
                 child: const Text('Remarcar'),
@@ -1446,8 +1535,9 @@ class _RescheduleCancelRow extends StatelessWidget {
                         ? AppStatusColor.cancelled.background
                         : AppColors.divider,
                   ),
-                  minimumSize:
-                      const Size.fromHeight(AppSizes.compactButtonHeight),
+                  minimumSize: const Size.fromHeight(
+                    AppSizes.compactButtonHeight,
+                  ),
                   shape: shape,
                 ),
                 child: const Text('Cancelar'),
@@ -1482,8 +1572,9 @@ class _InactiveJobBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final color =
-        inactive.expired ? AppStatusColor.neutral : AppStatusColor.cancelled;
+    final color = inactive.expired
+        ? AppStatusColor.neutral
+        : AppStatusColor.cancelled;
     final displayName = clientName.isNotEmpty ? clientName : 'Cliente';
 
     return Column(
@@ -1523,15 +1614,17 @@ class _InactiveJobBody extends StatelessWidget {
                             children: [
                               Text(
                                 inactive.title,
-                                style: textTheme.titleSmall
-                                    ?.copyWith(color: AppColors.textPrimary),
+                                style: textTheme.titleSmall?.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                               if (inactive.body.isNotEmpty) ...[
                                 const SizedBox(height: AppSpacing.xxs),
                                 Text(
                                   inactive.body,
                                   style: textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary),
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ],
                             ],
@@ -1576,12 +1669,14 @@ class _InactiveJobBody extends StatelessWidget {
                               Text(
                                 displayName,
                                 style: textTheme.titleSmall?.copyWith(
-                                    color: AppColors.textSecondary),
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                               Text(
                                 'Cliente',
                                 style: textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary),
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ],
                           ),
@@ -1629,7 +1724,8 @@ class _CompletedJobBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final hasPhotos = completed.beforePhotoUrls.isNotEmpty ||
+    final hasPhotos =
+        completed.beforePhotoUrls.isNotEmpty ||
         completed.afterPhotoUrls.isNotEmpty;
     final clientName = data.clientName.isNotEmpty ? data.clientName : 'Cliente';
     final success = AppStatusColor.success;
@@ -1663,15 +1759,17 @@ class _CompletedJobBody extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Trabalho concluído',
-                    style: textTheme.titleMedium
-                        ?.copyWith(color: AppColors.textPrimary),
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   if (completed.metaLabel.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       completed.metaLabel,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ],
@@ -1709,8 +1807,9 @@ class _CompletedJobBody extends StatelessWidget {
             index: 2,
             child: Text(
               'Avaliações',
-              style:
-                  textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+              style: textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -1811,16 +1910,17 @@ class _WorkPhotoTile extends StatelessWidget {
                       decoration: hasPhoto
                           ? BoxDecoration(
                               color: AppColors.surface,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.pill),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.pill,
+                              ),
                             )
                           : null,
                       child: Text(
                         urls.length > 1 ? '$label · ${urls.length}' : label,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -1893,19 +1993,21 @@ class _RatingTargetRowState extends ConsumerState<_RatingTargetRow> {
                       existing != null ? widget.name : widget.actionTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleSmall
-                          ?.copyWith(color: AppColors.textPrimary),
+                      style: textTheme.titleSmall?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     Text(
                       existing != null
                           ? '${widget.roleLabel} · avaliação enviada'
                           : (widget.roleLabel == 'Cliente'
-                              ? widget.name
-                              : widget.roleLabel),
+                                ? widget.name
+                                : widget.roleLabel),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -1948,7 +2050,9 @@ class _RatingTargetRowState extends ConsumerState<_RatingTargetRow> {
       title: widget.actionTitle,
       successMessage: 'Avaliação enviada!',
       onSubmit: (stars, comment) async {
-        await ref.read(ratingRepositoryProvider).submitPrincipalRating(
+        await ref
+            .read(ratingRepositoryProvider)
+            .submitPrincipalRating(
               jobId: widget.jobId,
               rateeId: widget.rateeId,
               stars: stars,
@@ -1997,14 +2101,16 @@ class _ReceivedReviewCard extends StatelessWidget {
               children: [
                 Text(
                   '${review.authorFirstName} avaliou-te com ${review.stars}',
-                  style: textTheme.titleSmall
-                      ?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 if (comment.isNotEmpty)
                   Text(
                     '"$comment"',
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -2018,10 +2124,7 @@ class _ReceivedReviewCard extends StatelessWidget {
 const double _labelColumnWidth = AppSpacing.xl * 3 + AppSpacing.md;
 
 class _InformationRow extends StatelessWidget {
-  const _InformationRow({
-    required this.label,
-    required this.value,
-  });
+  const _InformationRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -2040,7 +2143,9 @@ class _InformationRow extends StatelessWidget {
           width: _labelColumnWidth,
           child: Text(
             label,
-            style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -2124,9 +2229,11 @@ class _RescheduleBanner extends StatelessWidget {
                 child: Text(
                   proposedByMe
                       ? 'À espera de resposta à remarcação que propuseste para $label'
-                          .trim()
+                            .trim()
                       : 'O cliente propôs remarcar para $label'.trim(),
-                  style: textTheme.bodyMedium?.copyWith(color: color.foreground),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: color.foreground,
+                  ),
                 ),
               ),
             ],
@@ -2236,9 +2343,7 @@ class _ClientContactCard extends StatelessWidget {
             fallbackLabel: 'Cliente',
           ),
           const SizedBox(height: AppSpacing.sm),
-          AppWhatsAppButton(
-            onPressed: phone.isEmpty ? null : onCallPressed,
-          ),
+          AppWhatsAppButton(onPressed: phone.isEmpty ? null : onCallPressed),
         ],
       ),
     );
@@ -2268,7 +2373,9 @@ class _DescriptionSection extends StatelessWidget {
         if (showTitle) ...[
           Text(
             'Descrição',
-            style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+            style: textTheme.titleMedium?.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
         ],
@@ -2328,7 +2435,9 @@ class _JobSummaryCard extends StatelessWidget {
           _InformationRow(label: 'Serviço', value: data.serviceLabel),
           const SizedBox(height: AppSpacing.sm),
           _InformationRow(label: 'Data', value: data.dateLabel),
-          if (data.addressLabel.isNotEmpty || data.locationLat != 0 || data.locationLng != 0) ...[
+          if (data.addressLabel.isNotEmpty ||
+              data.locationLat != 0 ||
+              data.locationLng != 0) ...[
             const SizedBox(height: AppSpacing.sm),
             AddressMapLink(
               address: data.addressLabel,
@@ -2410,7 +2519,6 @@ class _ProposalSummaryCard extends StatelessWidget {
   }
 }
 
-
 /// "Tempo em curso" (design 7): relógio a contar desde o início, com a hora
 /// de início e a estimativa da proposta. Atualiza de segundo a segundo.
 class _WorkTimerCard extends StatefulWidget {
@@ -2483,8 +2591,9 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
                 children: [
                   Text(
                     widget.title,
-                    style: textTheme.labelMedium
-                        ?.copyWith(color: color.foreground),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: color.foreground,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   ExcludeSemantics(
@@ -2504,14 +2613,16 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
               children: [
                 Text(
                   startedLabel,
-                  style: textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 if (widget.estimatedHoursLabel != null)
                   Text(
                     'Estimado ${widget.estimatedHoursLabel}',
-                    style: textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -2521,7 +2632,6 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
     );
   }
 }
-
 
 /// Entre dias: o dia atual terminou e o próximo ainda não começou.
 class _DayPausedCard extends StatelessWidget {
@@ -2558,7 +2668,9 @@ class _DayPausedCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             'Tempo registado: ${workDays.workedTotalLabel}. Quando voltares, começa o dia ${workDays.dayNumber + 1}.',
-            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -2599,8 +2711,9 @@ class _WorkDaysCard extends StatelessWidget {
               ),
               Text(
                 workDays.workedTotalLabel,
-                style: textTheme.labelMedium
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -2614,14 +2727,14 @@ class _WorkDaysCard extends StatelessWidget {
                     row.current
                         ? Icons.radio_button_checked_rounded
                         : row.planned
-                            ? Icons.radio_button_unchecked_rounded
-                            : Icons.check_circle_rounded,
+                        ? Icons.radio_button_unchecked_rounded
+                        : Icons.check_circle_rounded,
                     size: AppSizes.infoRowIcon,
                     color: row.planned
                         ? AppColors.textSecondary
                         : row.current
-                            ? AppStatusColor.info.foreground
-                            : AppColors.primary,
+                        ? AppStatusColor.info.foreground
+                        : AppColors.primary,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
@@ -2638,8 +2751,9 @@ class _WorkDaysCard extends StatelessWidget {
                     child: Text(
                       row.detail,
                       textAlign: TextAlign.end,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textSecondary),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -2675,8 +2789,9 @@ class _FixedValueCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Valor fechado',
-                  style:
-                      textTheme.labelMedium?.copyWith(color: AppColors.primary),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               Text(
@@ -2692,13 +2807,17 @@ class _FixedValueCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xxs),
             Text(
               fixedValue.includesLabel!,
-              style: textTheme.bodySmall?.copyWith(color: AppColors.textPrimary),
+              style: textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ],
           const SizedBox(height: AppSpacing.xxs),
           Text(
             'Não muda com as horas nem com os dias.',
-            style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),

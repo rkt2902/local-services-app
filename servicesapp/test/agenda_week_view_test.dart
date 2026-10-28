@@ -4,6 +4,7 @@ import 'package:servicesapp/features/agenda/data/agenda_entry_model.dart';
 import 'package:servicesapp/features/agenda/presentation/agenda_week_presenter.dart';
 import 'package:servicesapp/features/agenda/presentation/agenda_week_view_data.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_controls.dart';
+import 'package:servicesapp/features/agenda/presentation/widgets/agenda_intro_card.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_skeleton.dart';
 import 'package:servicesapp/features/agenda/presentation/widgets/agenda_week_view.dart';
 
@@ -89,6 +90,7 @@ Widget _view(
   bool isCurrentWeek = true,
   DateTime? initialDay,
   bool withAdd = false,
+  Widget? intro,
 }) {
   final start = weekStart ?? _monday;
   return MaterialApp(
@@ -118,6 +120,7 @@ Widget _view(
         onSearchWork: () => calls.search++,
         onAddToAgenda: withAdd ? () {} : null,
         onAddToAgendaOnDay: withAdd ? calls.addedOn.add : null,
+        intro: intro,
       ),
     ),
   );
@@ -300,4 +303,46 @@ void main() {
     await tester.tap(find.text('Tentar de novo'));
     expect(calls.retry, 1);
   });
+
+  testWidgets(
+    'cartão da primeira abertura numa semana com trabalhos: sem overflow, '
+    'no topo da lista e com scroll até "Agora não"',
+    (tester) async {
+      // Ecrã pequeno e letra grande, como no telemóvel do relatório.
+      tester.view.physicalSize = const Size(1080, 1920);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      var dismissed = 0;
+      await tester.pumpWidget(
+        _view(
+          _Calls(),
+          content: _content(_busyWeek()),
+          initialDay: _d(2),
+          intro: AgendaIntroCard(
+            onDismiss: () => dismissed++,
+            onAddFirstWork: () {},
+            onOpenColors: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('A tua agenda'), findsOneWidget);
+      // A lista fica no topo para o cartão se ver, mesmo com hoje a quarta.
+      expect(tester.getTopLeft(find.text('A tua agenda')).dy, lessThan(400));
+
+      await tester.scrollUntilVisible(
+        find.text('Agora não'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.text('Agora não'));
+      expect(dismissed, 1);
+    },
+  );
 }
