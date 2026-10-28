@@ -32,9 +32,19 @@
   pedidos) e no trabalho como ajudante (`helperJobFlowStage`: candidatura em Equipa,
   aceite em No dia). Proposta recusada ou retirada, pedido cancelado e candidatura
   fechada ficam com o timeline, que diz o que aconteceu.
-- Por fazer do A12: separadores Resumo · Equipa no detalhe do responsável (hoje a equipa
-  continua no cartão e no ecrã Equipa), cartões novos dos pedidos de ajuda e da Agenda
-  do ajudante.
+- **Parte 2 (28/10)**: separadores Resumo · Equipa no detalhe do responsável. O
+  separador Equipa é o mesmo lobby de `/worker/job/:id/help-requests`, embutido
+  (`WorkerHelpRequestsLobbyScreen(embedded: true)`, sem cabeçalho próprio); "Ver equipa"
+  do resumo muda de separador e "Pedir ajudantes" do estado vazio abre a sheet do
+  detalhe. A rota da equipa fica para as notificações. "Aceites" passa a "Na equipa".
+- Cartões dos Pedidos de ajuda: Descobrir com "responsável", vagas, "Leva equipamento",
+  chip da Agenda ("Cabe na tua agenda", ou o aviso de sobreposição de
+  `agendaRequestAvailability`) e "Por ajudante" ao lado de Candidatar-me. Aceites com
+  "Na equipa", "Já está na tua agenda com o selo Ajudante" e os botões Agenda e
+  WhatsApp. Sem avaliação nem zona do responsável no Descobrir: o RPC não as manda e o
+  A12 é só visual (sem migration).
+- O cartão de ajudante na Agenda já tinha o selo Ajudante e "com João" desde a Agenda
+  (PR #34); não mudou.
 
 ## 2026-10-27 — Docs alinhados com o `main` e todas as migrations aplicadas
 

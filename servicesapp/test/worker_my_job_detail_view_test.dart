@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/widgets/app_whatsapp_button.dart';
 import 'package:servicesapp/core/constants/enums.dart';
+import 'package:servicesapp/core/models/job_flow_stage.dart';
+import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/utils/date_labels.dart';
@@ -22,6 +24,9 @@ WorkerMyJobDetailViewData _data({
   WorkerWorkDaysViewData? workDays,
   WorkerFixedValueViewData? fixedValue,
   bool canMarkCompleted = false,
+  JobFlowStage? flowStage,
+  bool flowShowTeam = false,
+  String? teamTabBadge,
 }) {
   return WorkerMyJobDetailViewData(
     jobId: 'job-1',
@@ -64,6 +69,9 @@ WorkerMyJobDetailViewData _data({
     canRequestHelpers: canRequestHelpers,
     inactive: inactive,
     completed: completed,
+    flowStage: flowStage,
+    flowShowTeam: flowShowTeam,
+    teamTabBadge: teamTabBadge,
   );
 }
 
@@ -73,6 +81,7 @@ Widget _screen(
   Map<String, Rating?> ratings = const {},
   Future<void> Function()? onFinishDay,
   Future<void> Function()? onStartNextDay,
+  Widget? teamTab,
 }) {
   return ProviderScope(
     overrides: [
@@ -100,6 +109,7 @@ Widget _screen(
         onBrowseAvailableJobs: onBrowse ?? () {},
         onFinishDay: onFinishDay,
         onStartNextDay: onStartNextDay,
+        teamTab: teamTab,
       ),
     ),
   );
@@ -385,6 +395,52 @@ void main() {
       expect(find.text('Tempo em curso'), findsOneWidget);
       expect(find.text('Marcar como concluído'), findsOneWidget);
       expect(find.text('Concluir trabalho'), findsNothing);
+    });
+  });
+
+  group('separadores Resumo · Equipa (A12)', () {
+    const team = WorkerJobTeamViewData(
+      memberNames: ['Pedro Nunes'],
+      emptySlots: 1,
+      filledLabel: '1 de 2 vagas',
+    );
+
+    testWidgets('com ajudantes: Equipa mostra a equipa e o número',
+        (tester) async {
+      await tester.pumpWidget(_screen(
+        _data(
+          team: team,
+          flowStage: JobFlowStage.team,
+          flowShowTeam: true,
+          teamTabBadge: '1/2',
+        ),
+        teamTab: const Text('lobby da equipa'),
+      ));
+      await tester.pumpAndSettle();
+
+      final tabs = find.byType(AppTabs);
+      expect(tabs, findsOneWidget);
+      expect(
+        find.descendant(of: tabs, matching: find.text('1/2')),
+        findsOneWidget,
+      );
+      expect(find.text('Iniciar trabalho'), findsOneWidget);
+
+      await tester.tap(find.descendant(of: tabs, matching: find.text('Equipa')));
+      await tester.pumpAndSettle();
+      expect(find.text('lobby da equipa'), findsOneWidget);
+      expect(find.text('Iniciar trabalho'), findsNothing);
+    });
+
+    testWidgets('sem ajudantes: sem separadores', (tester) async {
+      await tester.pumpWidget(_screen(
+        _data(flowStage: JobFlowStage.onTheDay),
+        teamTab: const Text('lobby da equipa'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppTabs), findsNothing);
+      expect(find.text('lobby da equipa'), findsNothing);
     });
   });
 }

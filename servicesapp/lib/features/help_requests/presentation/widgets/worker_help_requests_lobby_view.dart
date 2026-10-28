@@ -187,9 +187,14 @@ class WorkerHelpRequestsLobbyView extends StatefulWidget {
     this.onChangeSlots,
     this.onCloseHelpRequest,
     this.onRemoveHelper,
+    this.embedded = false,
   });
 
   final AsyncValue<WorkerHelpLobbyViewData> dataAsync;
+
+  /// Dentro do separador Equipa do detalhe do trabalho (A12): sem Scaffold
+  /// nem cabeçalho próprio, que já são do detalhe.
+  final bool embedded;
 
   final VoidCallback onBack;
   final VoidCallback onRequestHelpers;
@@ -354,7 +359,11 @@ class _WorkerHelpRequestsLobbyViewState
       confirmLabel: 'Retirar',
     );
     if (!confirmed) return;
-    await _runTeamAction(id, () => callback(id), 'Ajudante retirado da equipa.');
+    await _runTeamAction(
+      id,
+      () => callback(id),
+      'Ajudante retirado da equipa.',
+    );
   }
 
   Future<bool> _confirm({
@@ -376,40 +385,47 @@ class _WorkerHelpRequestsLobbyViewState
 
   @override
   Widget build(BuildContext context) {
+    final showHeader = !widget.embedded;
+    final content = Stack(
+      children: [
+        widget.dataAsync.when(
+          loading: () =>
+              _LobbyLoading(onBack: widget.onBack, showHeader: showHeader),
+          error: (_, _) => _LobbyError(
+            onBack: widget.onBack,
+            onRetry: widget.onRetry,
+            showHeader: showHeader,
+          ),
+          data: (data) => _LobbyContent(
+            data: data,
+            showHeader: showHeader,
+            processingApplications: _processingApplications,
+            onBack: widget.onBack,
+            onRequestHelpers: widget.onRequestHelpers,
+            onViewRatings: widget.onViewRatings,
+            onAccept: _openAcceptSheet,
+            onReject: _reject,
+            onChangeSlots: widget.onChangeSlots == null ? null : _changeSlots,
+            onCloseHelpRequest: widget.onCloseHelpRequest == null
+                ? null
+                : _closeHelpRequest,
+            onRemoveHelper: widget.onRemoveHelper == null
+                ? null
+                : _removeHelper,
+          ),
+        ),
+        Positioned.fill(
+          child: AppSuccessFeedback(
+            visible: _successVisible,
+            message: _successMessage,
+          ),
+        ),
+      ],
+    );
+    if (widget.embedded) return content;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            widget.dataAsync.when(
-              loading: () => _LobbyLoading(onBack: widget.onBack),
-              error: (_, _) =>
-                  _LobbyError(onBack: widget.onBack, onRetry: widget.onRetry),
-              data: (data) => _LobbyContent(
-                data: data,
-                processingApplications: _processingApplications,
-                onBack: widget.onBack,
-                onRequestHelpers: widget.onRequestHelpers,
-                onViewRatings: widget.onViewRatings,
-                onAccept: _openAcceptSheet,
-                onReject: _reject,
-                onChangeSlots:
-                    widget.onChangeSlots == null ? null : _changeSlots,
-                onCloseHelpRequest:
-                    widget.onCloseHelpRequest == null ? null : _closeHelpRequest,
-                onRemoveHelper:
-                    widget.onRemoveHelper == null ? null : _removeHelper,
-              ),
-            ),
-            Positioned.fill(
-              child: AppSuccessFeedback(
-                visible: _successVisible,
-                message: _successMessage,
-              ),
-            ),
-          ],
-        ),
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
@@ -417,6 +433,7 @@ class _WorkerHelpRequestsLobbyViewState
 class _LobbyContent extends StatelessWidget {
   const _LobbyContent({
     required this.data,
+    this.showHeader = true,
     required this.processingApplications,
     required this.onBack,
     required this.onRequestHelpers,
@@ -429,6 +446,7 @@ class _LobbyContent extends StatelessWidget {
   });
 
   final WorkerHelpLobbyViewData data;
+  final bool showHeader;
   final Set<String> processingApplications;
 
   final VoidCallback onBack;
@@ -448,7 +466,8 @@ class _LobbyContent extends StatelessWidget {
 
     return Column(
       children: [
-        _LobbyHeader(onBack: onBack, subtitle: data.jobReferenceLabel),
+        if (showHeader)
+          _LobbyHeader(onBack: onBack, subtitle: data.jobReferenceLabel),
         Expanded(
           child: ListView(
             key: const PageStorageKey('worker_help_requests_lobby'),
@@ -481,9 +500,11 @@ class _LobbyContent extends StatelessWidget {
                       index: nextIndex(),
                       child: _CapacityCard(
                         section: section,
-                        busy: processingApplications
-                            .contains(section.helpRequestId),
-                        onChangeSlots: section.canManage && onChangeSlots != null
+                        busy: processingApplications.contains(
+                          section.helpRequestId,
+                        ),
+                        onChangeSlots:
+                            section.canManage && onChangeSlots != null
                             ? () => onChangeSlots!(section)
                             : null,
                         onClose: section.canManage && onCloseHelpRequest != null
@@ -494,7 +515,7 @@ class _LobbyContent extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   if (section.acceptedHelpers.isNotEmpty) ...[
                     _SectionLabel(
-                      label: 'Aceites · ${section.acceptedHelpers.length}',
+                      label: 'Na equipa · ${section.acceptedHelpers.length}',
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     for (final helper in section.acceptedHelpers)
@@ -504,10 +525,13 @@ class _LobbyContent extends StatelessWidget {
                           index: nextIndex(),
                           child: _AcceptedHelperCard(
                             helper: helper,
-                            removing: helper.applicationId != null &&
-                                processingApplications
-                                    .contains(helper.applicationId),
-                            onRemove: section.canManage &&
+                            removing:
+                                helper.applicationId != null &&
+                                processingApplications.contains(
+                                  helper.applicationId,
+                                ),
+                            onRemove:
+                                section.canManage &&
                                     helper.applicationId != null &&
                                     onRemoveHelper != null
                                 ? () => onRemoveHelper!(helper)
@@ -515,9 +539,9 @@ class _LobbyContent extends StatelessWidget {
                             onViewRatings: helper.ratingLabel == null
                                 ? null
                                 : () => onViewRatings(
-                                      helper.workerId,
-                                      helper.name,
-                                    ),
+                                    helper.workerId,
+                                    helper.name,
+                                  ),
                           ),
                         ),
                       ),
@@ -542,9 +566,9 @@ class _LobbyContent extends StatelessWidget {
                             onViewRatings: candidate.ratingLabel == null
                                 ? null
                                 : () => onViewRatings(
-                                      candidate.workerId,
-                                      candidate.name,
-                                    ),
+                                    candidate.workerId,
+                                    candidate.name,
+                                  ),
                             onAccept: () => onAccept(candidate),
                             onReject: () => onReject(candidate),
                           ),
@@ -562,8 +586,8 @@ class _LobbyContent extends StatelessWidget {
                       child: Text(
                         'Sem candidatos ainda.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   const SizedBox(height: AppSpacing.md),
@@ -701,8 +725,9 @@ class _CapacityCard extends StatelessWidget {
                   TextButton(
                     onPressed: busy ? null : onChangeSlots,
                     style: linkButtonStyle.copyWith(
-                      foregroundColor:
-                          const WidgetStatePropertyAll(AppColors.primary),
+                      foregroundColor: const WidgetStatePropertyAll(
+                        AppColors.primary,
+                      ),
                     ),
                     child: Text('Alterar vagas', style: linkStyle),
                   ),
@@ -812,8 +837,9 @@ class _AcceptedHelperCard extends StatelessWidget {
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.input),
     );
-    final buttonText =
-        textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700);
+    final buttonText = textTheme.bodyMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+    );
 
     return _LobbyCard(
       child: Column(
@@ -1069,8 +1095,9 @@ class _SlotsDialogState extends State<_SlotsDialog> {
           Text(
             '$minimumLabel · máximo $lobbyMaxSlots',
             textAlign: TextAlign.center,
-            style:
-                textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.labelMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -1154,8 +1181,9 @@ class _WorkerSummary extends StatelessWidget {
     // em vez de "—"/inicial "?".
     final displayName = name.isNotEmpty ? name : 'Jardineiro';
     final initial = displayName.trim()[0].toUpperCase();
-    final detailStyle =
-        textTheme.labelMedium?.copyWith(color: AppColors.textSecondary);
+    final detailStyle = textTheme.labelMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
 
     return Row(
       children: [
@@ -1529,15 +1557,16 @@ class _NoHelpRequestState extends StatelessWidget {
 }
 
 class _LobbyLoading extends StatelessWidget {
-  const _LobbyLoading({required this.onBack});
+  const _LobbyLoading({required this.onBack, this.showHeader = true});
 
   final VoidCallback onBack;
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _LobbyHeader(onBack: onBack),
+        if (showHeader) _LobbyHeader(onBack: onBack),
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -1560,9 +1589,14 @@ class _LobbyLoading extends StatelessWidget {
 }
 
 class _LobbyError extends StatelessWidget {
-  const _LobbyError({required this.onBack, required this.onRetry});
+  const _LobbyError({
+    required this.onBack,
+    required this.onRetry,
+    this.showHeader = true,
+  });
 
   final VoidCallback onBack;
+  final bool showHeader;
   final VoidCallback? onRetry;
 
   @override
@@ -1571,7 +1605,7 @@ class _LobbyError extends StatelessWidget {
 
     return Column(
       children: [
-        _LobbyHeader(onBack: onBack),
+        if (showHeader) _LobbyHeader(onBack: onBack),
         Expanded(
           child: Center(
             child: Padding(
