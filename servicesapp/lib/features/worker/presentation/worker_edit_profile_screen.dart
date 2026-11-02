@@ -398,6 +398,9 @@ class _WorkerEditProfileScreenState
     final profile = ref.read(workerProfileProvider).value;
     if (profile == null) return false;
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final repo = ref.read(workerRepositoryProvider);
       var draft = _currentDraft(profile);
@@ -407,8 +410,8 @@ class _WorkerEditProfileScreenState
         draft = draft.copyWith(avatarUrl: avatarUrl);
       }
       await repo.updateProfile(draft);
-      ref.invalidate(workerProfileProvider);
-      ref.invalidate(workerPublicCardProvider(profile.profileId));
+      container.invalidate(workerProfileProvider);
+      container.invalidate(workerPublicCardProvider(profile.profileId));
       return true;
     } catch (e) {
       if (mounted) {

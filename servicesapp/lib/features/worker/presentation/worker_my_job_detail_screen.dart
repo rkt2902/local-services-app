@@ -695,10 +695,12 @@ class _WorkerMyJobDetailScreenState
         confirmedDay == null || !confirmedDay.isAfter(today);
 
     // Mesma regra da BD (cancel_job/propose_reschedule): só até ao dia
-    // anterior ao trabalho, contado em dias e não em horas.
+    // anterior ao trabalho, contado em dias e não em horas, e nunca depois
+    // de iniciado (0069).
     final dayActionsBlocked = !WorkerJobDayRules.canCancelOrReschedule(
       confirmedDate: job.confirmedDate,
       today: today,
+      startedAt: job.startedAt,
     );
     final overdue = WorkerJobDayRules.isOverdue(
       confirmedDate: job.confirmedDate,
@@ -830,7 +832,11 @@ class _WorkerMyJobDetailScreenState
           ? avatarUrl
           : null,
       clientPhone: clientInfo?['phone'] ?? '',
-      rescheduleStatus: job.rescheduleStatus,
+      // Remarcação cuja data já passou deixa de bloquear (0069): a BD deixa
+      // propor outra por cima.
+      rescheduleStatus: isStaleReschedule(job, now: today)
+          ? null
+          : job.rescheduleStatus,
       rescheduleProposedByMe: job.rescheduleProposedBy == currentUserId,
       proposedRescheduleLabel: _proposedRescheduleLabel(job),
       cancelBlockedBy24h: dayActionsBlocked,

@@ -735,20 +735,23 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
-                AppStaggeredEntrance(
-                  index: 6,
-                  child: _RescheduleCancelRow(
-                    reschedulePending:
-                        data.rescheduleStatus == RescheduleStatus.pending,
-                    proposingReschedule: data.proposingReschedule,
-                    cancelling: data.cancellingJob,
-                    cancelBlockedBy24h: data.cancelBlockedBy24h,
-                    rescheduleBlocked: data.rescheduleBlocked,
-                    onProposeReschedule: widget.onProposeReschedule,
-                    onCancelJob: widget.onCancelJob,
+                // Depois de "Iniciar" já não há cancelar nem remarcar (0069).
+                if (data.startedAt == null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppStaggeredEntrance(
+                    index: 6,
+                    child: _RescheduleCancelRow(
+                      reschedulePending:
+                          data.rescheduleStatus == RescheduleStatus.pending,
+                      proposingReschedule: data.proposingReschedule,
+                      cancelling: data.cancellingJob,
+                      cancelBlockedBy24h: data.cancelBlockedBy24h,
+                      rescheduleBlocked: data.rescheduleBlocked,
+                      onProposeReschedule: widget.onProposeReschedule,
+                      onCancelJob: widget.onCancelJob,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

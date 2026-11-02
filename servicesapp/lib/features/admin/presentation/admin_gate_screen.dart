@@ -294,11 +294,14 @@ class _AdminMfaViewState extends ConsumerState<_AdminMfaView> {
       _codeError = false;
     });
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref
           .read(adminRepositoryProvider)
           .verifyTotp(factorId: factorId, code: code);
-      ref.invalidate(adminAccessProvider);
+      container.invalidate(adminAccessProvider);
     } catch (_) {
       if (!mounted) return;
       setState(() => _codeError = true);
