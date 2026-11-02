@@ -17,6 +17,7 @@ JobProposal _p({
   int? dMax,
   List<String> includes = const [],
   DateTime? validUntil,
+  DateTime? scheduled,
   bool expired = false,
 }) =>
     JobProposal(
@@ -35,6 +36,7 @@ JobProposal _p({
       estimatedDaysMin: dMin,
       estimatedDaysMax: dMax,
       validUntil: validUntil,
+      scheduledDate: scheduled,
       isExpired: expired,
     );
 
@@ -139,6 +141,26 @@ void main() {
           isNull);
       expect(proposalExpiredLabel(_p(validUntil: DateTime(2026, 11, 6))),
           'Este orçamento expirou a 06/11');
+      // 0068: o dia proposto passou antes da validade.
+      final today = DateTime(2026, 11, 5, 10);
+      expect(
+          proposalExpiredLabel(
+              _p(
+                  validUntil: DateTime(2026, 11, 20),
+                  scheduled: DateTime(2026, 11, 4)),
+              now: today),
+          'O dia proposto (04/11) já passou');
+      expect(
+          proposalExpiredLabel(
+              _p(
+                  validUntil: DateTime(2026, 11, 1),
+                  scheduled: DateTime(2026, 10, 30)),
+              now: today),
+          'Este orçamento expirou a 01/11');
+      expect(
+          proposalExpiredLabel(_p(scheduled: DateTime(2026, 11, 4)),
+              now: today),
+          'O dia proposto (04/11) já passou');
     });
   });
 

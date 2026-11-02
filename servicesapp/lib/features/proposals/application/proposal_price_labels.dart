@@ -124,9 +124,21 @@ String? proposalExpiringSoonLabel(JobProposal p, {required DateTime now}) {
   return null;
 }
 
-/// "Este orçamento expirou a 06/11".
-String proposalExpiredLabel(JobProposal p) {
+/// "Este orçamento expirou a 06/11", ou "O dia proposto (04/11) já
+/// passou" quando é o dia do trabalho que ficou para trás e a validade
+/// ainda não acabou (o servidor marca as duas como expiradas desde a 0068).
+String proposalExpiredLabel(JobProposal p, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final today = DateTime(current.year, current.month, current.day);
   final d = p.validUntil;
+  final validityOver = d != null &&
+      DateTime(d.year, d.month, d.day).isBefore(today);
+  final s = p.scheduledDate;
+  if (!validityOver &&
+      s != null &&
+      DateTime(s.year, s.month, s.day).isBefore(today)) {
+    return 'O dia proposto (${DateFormat('dd/MM').format(s)}) já passou';
+  }
   if (d == null) return 'Este orçamento expirou';
   return 'Este orçamento expirou a ${DateFormat('dd/MM').format(d)}';
 }

@@ -349,6 +349,72 @@ ALTER TABLE job_reports          ENABLE ROW LEVEL SECURITY;
 
 
 -- ══════════════════════════════════════════════════════════════
+-- 5b. FUNÇÕES USADAS NAS POLICIES
+-- Têm de existir antes do CREATE POLICY que as chama (o Postgres
+-- valida a expressão da policy ao criá-la). Estavam na secção 7 e o
+-- ficheiro falhava numa base de dados vazia (corrigido a 2026-11-02,
+-- sem efeito na BD viva, onde já existem).
+-- ══════════════════════════════════════════════════════════════
+
+-- ── 1. worker_has_proposal_for_job (used in RLS policy) ─────────
+-- Not in snapshot (not captured by snapshot query). From 0001_baseline.
+
+CREATE OR REPLACE FUNCTION public.worker_has_proposal_for_job(job_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM   job_proposals jp
+    WHERE  jp.job_id    = worker_has_proposal_for_job.job_id
+      AND  jp.worker_id = auth.uid()
+  );
+$$;
+
+-- ── 2. is_principal_worker_for_help_request (used in RLS) ───────
+
+CREATE OR REPLACE FUNCTION public.is_principal_worker_for_help_request(
+  p_help_request_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1
+    FROM   help_requests hr
+    JOIN   job_proposals jp ON jp.id = hr.proposal_id
+    WHERE  hr.id        = p_help_request_id
+      AND  jp.worker_id = auth.uid()
+  );
+$function$;
+
+-- ── 3. client_has_confirmed_job_with_worker (used in RLS) ───────
+
+CREATE OR REPLACE FUNCTION public.client_has_confirmed_job_with_worker(
+  worker_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1
+    FROM   job_requests  jr
+    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
+    WHERE  jr.client_id  = auth.uid()
+      AND  jp.worker_id  = client_has_confirmed_job_with_worker.worker_id
+      AND  jr.status     IN ('confirmed', 'awaiting_confirmation', 'completed')
+  );
+$function$;
+
+-- ══════════════════════════════════════════════════════════════
 -- 6. RLS POLICIES
 -- Policy names and expressions are taken verbatim from the live DB
 -- (snapshot_tables.csv section 4_rls_policies, 2026-07-09).
@@ -651,72 +717,13 @@ CREATE POLICY "Participante pode reportar o seu job"
 -- All functions are SECURITY DEFINER with SET search_path TO 'public'
 -- unless noted otherwise.
 --
--- Functions 1–4 are helpers used in RLS policies — must be defined
--- before the policies are evaluated (policies below CREATE POLICY are
--- fine; evaluation happens at query time, not creation time).
+-- Functions 1–3 (helpers used in RLS policies) moved to section 5b:
+-- CREATE POLICY needs them to exist already. Function 4 onwards here.
 --
 -- accept_proposal, create_proposal, sync_worker_service_types:
 --   Auth-checked versions from archive/0032_audit_fixes.sql.
 -- All other functions: exact bodies from snapshot_tables.csv (2026-07-09).
 -- ══════════════════════════════════════════════════════════════
-
--- ── 1. worker_has_proposal_for_job (used in RLS policy) ─────────
--- Not in snapshot (not captured by snapshot query). From 0001_baseline.
-
-CREATE OR REPLACE FUNCTION public.worker_has_proposal_for_job(job_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM   job_proposals jp
-    WHERE  jp.job_id    = worker_has_proposal_for_job.job_id
-      AND  jp.worker_id = auth.uid()
-  );
-$$;
-
--- ── 2. is_principal_worker_for_help_request (used in RLS) ───────
-
-CREATE OR REPLACE FUNCTION public.is_principal_worker_for_help_request(
-  p_help_request_id uuid
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-  SELECT EXISTS (
-    SELECT 1
-    FROM   help_requests hr
-    JOIN   job_proposals jp ON jp.id = hr.proposal_id
-    WHERE  hr.id        = p_help_request_id
-      AND  jp.worker_id = auth.uid()
-  );
-$function$;
-
--- ── 3. client_has_confirmed_job_with_worker (used in RLS) ───────
-
-CREATE OR REPLACE FUNCTION public.client_has_confirmed_job_with_worker(
-  worker_id uuid
-)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-  SELECT EXISTS (
-    SELECT 1
-    FROM   job_requests  jr
-    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
-    WHERE  jr.client_id  = auth.uid()
-      AND  jp.worker_id  = client_has_confirmed_job_with_worker.worker_id
-      AND  jr.status     IN ('confirmed', 'awaiting_confirmation', 'completed')
-  );
-$function$;
 
 -- ── 4. create_user_profile (admin/programmatic use) ─────────────
 -- Not in snapshot. From 0001_baseline.

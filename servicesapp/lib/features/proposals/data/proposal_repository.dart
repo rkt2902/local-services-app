@@ -123,10 +123,8 @@ class ProposalRepository {
       final result = await _client.rpc('create_proposal', params: params);
       return result as String;
     } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('já tens uma proposta') || msg.contains('p0001')) {
-        throw Exception('Já enviaste uma proposta para este pedido.');
-      }
+      final mapped = createProposalDuplicateError(e);
+      if (mapped != null) throw mapped;
       rethrow;
     }
   }
@@ -290,4 +288,18 @@ class ProposalRepository {
       'description': description,
     });
   }
+}
+
+/// Erro de "proposta repetida" do `create_proposal`, ou `null` para deixar
+/// passar o erro original. Só a mensagem do servidor ou a chave única
+/// (corrida entre dois toques) contam: antes qualquer `P0001` virava "Já
+/// enviaste uma proposta", incluindo o limite do plano Grátis, o pedido já
+/// fechado e o dia proposto já passado (revisão de 2026-11-02).
+Exception? createProposalDuplicateError(Object e) {
+  final msg = e.toString().toLowerCase();
+  final duplicate = msg.contains('já tens uma proposta') ||
+      (e is PostgrestException && e.code == '23505');
+  return duplicate
+      ? Exception('Já enviaste uma proposta para este pedido.')
+      : null;
 }
