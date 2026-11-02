@@ -3,6 +3,21 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-02 — Revisão dos fluxos, parte 2: vários dias, remarcações e trabalho iniciado (0069)
+
+- **Último dia previsto** `job_expected_end_date(job_id)`: o maior entre o dia marcado
+  + dias estimados - 1 e o último "Começar o dia". A regra 5.3 do `auto_expire_jobs` e
+  o lembrete 7.2 do `send_job_reminders` contam a partir daqui. Antes um trabalho de
+  5 a 7 dias era fechado como "expirado" ao 4.º dia, com o jardineiro a trabalhar, e
+  recebia "Marca o trabalho como concluído" no dia 2. Num trabalho de um dia nada muda.
+- **Remarcação com a data já passada**: `accept_reschedule` recusa ("Recusa esta
+  remarcação e propõe outra"); `propose_reschedule` aceita uma nova por cima; a regra
+  5.3 deixa de esperar por ela. Na app (`isStaleReschedule`) deixa de bloquear os botões.
+- **Trabalho já iniciado** (`started_at`): `cancel_job`, `propose_reschedule` e
+  `accept_reschedule` recusam. Na app, o jardineiro deixa de ver "Remarcar"/"Cancelar"
+  depois de "Iniciar" e a cliente vê-os desativados com o aviso "O trabalho já começou".
+  Antes, com data "a combinar" ou depois de remarcar, dava para cancelar a meio.
+
 ## 2026-11-02 — Revisão dos fluxos: 7 correções (migration 0068)
 
 Revisão com a BD montada localmente (todas as migrations, RLS ligada) e o fluxo

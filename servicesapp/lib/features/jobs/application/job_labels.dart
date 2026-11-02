@@ -36,6 +36,17 @@ String jobAreaLabel(JobRequest job) {
 /// do servidor em `cancel_job` e `propose_reschedule`
 /// (`confirmed_date - CURRENT_DATE < 1`): compara DATAS, não horas. Um
 /// trabalho de amanhã às 9h ainda se pode cancelar hoje às 23h.
+/// Remarcação pendente cuja data proposta já passou (0069): a BD recusa
+/// aceitá-la e deixa propor outra por cima, por isso já não bloqueia.
+bool isStaleReschedule(JobRequest job, {required DateTime now}) {
+  final proposed = job.rescheduleProposedDate;
+  if (job.rescheduleStatus != RescheduleStatus.pending || proposed == null) {
+    return false;
+  }
+  final day = DateTime(proposed.year, proposed.month, proposed.day);
+  return day.isBefore(DateTime(now.year, now.month, now.day));
+}
+
 bool isOnOrAfterJobDay(DateTime? confirmedDate, DateTime now) {
   if (confirmedDate == null) return false;
   final jobDay =

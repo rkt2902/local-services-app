@@ -93,4 +93,43 @@ void main() {
       expect(draft.copyWith(locationArea: 'Porto').locationArea, 'Porto');
     });
   });
+
+  group('isStaleReschedule (0069)', () {
+    final now = DateTime(2026, 11, 5, 10);
+    JobRequest withReschedule(DateTime? proposed, RescheduleStatus? status) =>
+        _openJob().copyWith(
+          rescheduleStatus: status,
+          rescheduleProposedDate: proposed,
+        );
+
+    test('pendente com a data já passada', () {
+      expect(
+          isStaleReschedule(
+              withReschedule(DateTime(2026, 11, 4), RescheduleStatus.pending),
+              now: now),
+          isTrue);
+    });
+
+    test('pendente para hoje ou mais tarde ainda conta', () {
+      expect(
+          isStaleReschedule(
+              withReschedule(DateTime(2026, 11, 5), RescheduleStatus.pending),
+              now: now),
+          isFalse);
+      expect(
+          isStaleReschedule(
+              withReschedule(DateTime(2026, 11, 9), RescheduleStatus.pending),
+              now: now),
+          isFalse);
+    });
+
+    test('sem remarcação pendente nunca', () {
+      expect(isStaleReschedule(withReschedule(null, null), now: now), isFalse);
+      expect(
+          isStaleReschedule(
+              withReschedule(DateTime(2026, 11, 1), RescheduleStatus.rejected),
+              now: now),
+          isFalse);
+    });
+  });
 }

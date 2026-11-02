@@ -237,19 +237,28 @@ class _ClientScheduledJobDetailScreenState
         // Mesmas regras do servidor (`cancel_job`, `propose_reschedule`):
         // compara datas, só até à véspera do trabalho; e nada disto
         // enquanto houver uma remarcação por responder.
+        // 0069: depois de "Iniciar" nunca; uma remarcação cuja data já
+        // passou deixa de bloquear (a BD deixa propor outra por cima).
+        final started = job.startedAt != null;
         final reschedulePending =
-            job.rescheduleStatus == RescheduleStatus.pending;
+            job.rescheduleStatus == RescheduleStatus.pending &&
+                !isStaleReschedule(job, now: DateTime.now());
         final onOrAfterJobDay =
             isOnOrAfterJobDay(job.confirmedDate, DateTime.now());
-        final canReschedule =
-            !_proposingReschedule && !reschedulePending && !onOrAfterJobDay;
-        final canCancel = !_saving && !reschedulePending && !onOrAfterJobDay;
-        final String? actionsNotice = reschedulePending
-            ? 'Enquanto houver uma remarcação por responder não podes '
-                'cancelar nem remarcar.'
-            : onOrAfterJobDay
-                ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
-                : null;
+        final canReschedule = !_proposingReschedule &&
+            !reschedulePending &&
+            !onOrAfterJobDay &&
+            !started;
+        final canCancel =
+            !_saving && !reschedulePending && !onOrAfterJobDay && !started;
+        final String? actionsNotice = started
+            ? 'O trabalho já começou: já não dá para cancelar nem remarcar.'
+            : reschedulePending
+                ? 'Enquanto houver uma remarcação por responder não podes '
+                    'cancelar nem remarcar.'
+                : onOrAfterJobDay
+                    ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
+                    : null;
 
         Widget? rescheduleIncomingBanner;
         if (job.rescheduleStatus == RescheduleStatus.pending &&
