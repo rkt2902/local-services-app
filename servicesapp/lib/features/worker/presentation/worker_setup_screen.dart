@@ -208,13 +208,15 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
     setState(() => _saving = true);
     try {
       final currentUser = ref.read(currentUserProvider)!;
+      // Lido antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+      // deixa de se poder usar (StateError no Riverpod 3).
+      final repo = ref.read(workerRepositoryProvider);
       final profileData =
           await ref.read(authRepositoryProvider).fetchNameAndPhone(currentUser.id);
       if (profileData == null) {
         throw Exception(
             'Perfil de utilizador não encontrado. Tenta fazer login novamente.');
       }
-      final repo = ref.read(workerRepositoryProvider);
       String? avatarUrl;
       if (_avatar != null) {
         avatarUrl = await repo.uploadAvatar(currentUser.id, _avatar!);

@@ -70,6 +70,9 @@ class _ClientEditProfileScreenState
   /// quando recebe `true`.
   Future<bool> _save(ClientProfile profile, String fullName, String phone) async {
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final repo = ref.read(clientRepositoryProvider);
       final user = ref.read(currentUserProvider)!;
@@ -86,7 +89,7 @@ class _ClientEditProfileScreenState
           avatarUrl: avatarUrl,
         ),
       );
-      ref.invalidate(clientProfileProvider);
+      container.invalidate(clientProfileProvider);
       return true;
     } catch (e) {
       if (mounted) {

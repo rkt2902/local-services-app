@@ -97,6 +97,9 @@ class _ClientJobDetailScreenState
       setState(() => _saving = true);
       final toast = AppToast.of(context);
       final router = GoRouter.of(context);
+      // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+      // deixa de se poder usar (StateError no Riverpod 3).
+      final container = ProviderScope.containerOf(context, listen: false);
       var navigatedAway = false;
       try {
         await ref.read(jobRepositoryProvider).cancelJob(
@@ -107,9 +110,9 @@ class _ClientJobDetailScreenState
         navigatedAway = true;
         router.go('/client/jobs');
         toast.show('Pedido cancelado.');
-        ref.invalidate(clientJobsProvider);
-        ref.invalidate(pendingProposalsForJobProvider(widget.jobId));
-        ref.invalidate(jobByIdProvider(widget.jobId));
+        container.invalidate(clientJobsProvider);
+        container.invalidate(pendingProposalsForJobProvider(widget.jobId));
+        container.invalidate(jobByIdProvider(widget.jobId));
       } catch (e) {
         toast.error(friendlyError(e));
       } finally {

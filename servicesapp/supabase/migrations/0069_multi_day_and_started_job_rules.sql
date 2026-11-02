@@ -20,6 +20,12 @@
 -- 3. Trabalho já iniciado (`started_at`): `cancel_job`,
 --    `propose_reschedule` e `accept_reschedule` recusam. Antes, com data
 --    "a combinar" ou depois de uma remarcação, dava para cancelar a meio.
+-- 4. Pedido direto parado (`direct_status = on_hold`): fecha às 48h com um
+--    texto próprio (regra 5.1b) em vez de "não recebeu propostas em 48h".
+-- 5. `job_photos`: no máximo 2 por pedido, só com o pedido aberto e com o
+--    caminho dentro da pasta do cliente (antes só a app limitava).
+-- 6. `ratings.comment`: no máximo 500 caracteres (NOT VALID: não mexe nas
+--    avaliações que já existem).
 -- ══════════════════════════════════════════════════════════════
 
 -- ── 1) Último dia previsto do trabalho ─────────────────────────
@@ -68,6 +74,8 @@ BEGIN
     WHERE  status         = 'open'
       AND  expires_at     < now()
       AND  proposal_count = 0
+      -- 0069: o pedido direto parado tem a regra 5.1b.
+      AND  direct_status IS DISTINCT FROM 'on_hold'
     FOR UPDATE SKIP LOCKED
   LOOP
     UPDATE job_requests
@@ -77,6 +85,26 @@ BEGIN
     INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
     VALUES (v_job.client_id, 'job_no_response', 'Sem resposta',
       'O teu pedido não recebeu propostas em 48h.',
+      v_job.id, 'job_request');
+  END LOOP;
+
+  -- 5.1b (0069) Pedido direto parado (a cliente desligou "mostrar a outros")
+  -- que ficou 48h à espera da decisão dela. Nenhum outro jardineiro o viu,
+  -- por isso o texto não fala em "sem propostas".
+  FOR v_job IN
+    SELECT * FROM job_requests
+    WHERE  status         = 'open'
+      AND  direct_status  = 'on_hold'
+      AND  expires_at     < now()
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    UPDATE job_requests
+    SET    status = 'no_response', updated_at = now()
+    WHERE  id = v_job.id;
+
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (v_job.client_id, 'job_no_response', 'Pedido fechado',
+      'O pedido ficou parado 48h sem ser mostrado a outros jardineiros e foi fechado. Podes fazer um pedido novo quando quiseres.',
       v_job.id, 'job_request');
   END LOOP;
 
@@ -580,3 +608,45 @@ BEGIN
   RETURN v_new_job_id;
 END;
 $function$;
+
+-- ── 5) job_photos: limites no servidor ────────────────────────
+
+CREATE OR REPLACE FUNCTION public.job_photos_before_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_client uuid;
+  v_status text;
+BEGIN
+  SELECT client_id, status INTO v_client, v_status
+  FROM   job_requests WHERE id = NEW.job_id;
+
+  IF v_status IS DISTINCT FROM 'open' THEN
+    RAISE EXCEPTION 'Só podes juntar fotos a um pedido aberto.';
+  END IF;
+  -- Ficheiros do próprio cliente (o cancel_job copia as linhas do pedido
+  -- original, que estão na mesma pasta).
+  IF NEW.storage_path IS NULL
+     OR NEW.storage_path NOT LIKE v_client::text || '/%' THEN
+    RAISE EXCEPTION 'Foto inválida.';
+  END IF;
+  IF (SELECT count(*) FROM job_photos WHERE job_id = NEW.job_id) >= 2 THEN
+    RAISE EXCEPTION 'Cada pedido pode ter no máximo 2 fotos.';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_job_photos_before_insert ON public.job_photos;
+CREATE TRIGGER trg_job_photos_before_insert
+  BEFORE INSERT ON public.job_photos
+  FOR EACH ROW EXECUTE FUNCTION public.job_photos_before_insert();
+
+-- ── 6) ratings.comment: no máximo 500 caracteres ───────────────
+
+ALTER TABLE public.ratings DROP CONSTRAINT IF EXISTS ratings_comment_length;
+ALTER TABLE public.ratings
+  ADD CONSTRAINT ratings_comment_length
+  CHECK (comment IS NULL OR char_length(comment) <= 500) NOT VALID;

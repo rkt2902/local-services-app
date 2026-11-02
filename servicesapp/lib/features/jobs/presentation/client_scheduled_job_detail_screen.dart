@@ -82,6 +82,9 @@ class _ClientScheduledJobDetailScreenState
     final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     var navigatedAway = false;
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
             jobId: widget.jobId,
@@ -96,8 +99,8 @@ class _ClientScheduledJobDetailScreenState
       } else {
         toast.show('Pedido cancelado.');
       }
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
@@ -111,6 +114,9 @@ class _ClientScheduledJobDetailScreenState
 
     setState(() => _proposingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
             jobId: widget.jobId,
@@ -118,8 +124,8 @@ class _ClientScheduledJobDetailScreenState
             newTime: result['time'] as String?,
             newFlexible: result['flexible'] as bool,
           );
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Remarcação enviada.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -132,10 +138,13 @@ class _ClientScheduledJobDetailScreenState
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Nova data aceite.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -148,10 +157,13 @@ class _ClientScheduledJobDetailScreenState
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Remarcação recusada.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -165,13 +177,16 @@ class _ClientScheduledJobDetailScreenState
     if (ids.isEmpty) return;
     setState(() => _approvingHelp.addAll(ids));
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final repo = ref.read(helpRequestRepositoryProvider);
       for (final id in ids) {
         await repo.approveHelpRequest(id);
       }
       toast.show('Aprovado. O jardineiro pode agora procurar ajudantes.');
-      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+      container.invalidate(helpRequestsForJobProvider(widget.jobId));
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
