@@ -122,6 +122,14 @@ String friendlyError(Object e) {
     return 'Esta ação já não é válida. O estado do pedido pode ter mudado. Atualiza e tenta novamente.';
   }
 
+  // RAISE EXCEPTION das RPCs (P0001): o texto é escrito para a pessoa, em
+  // português ("Chegaste aos 5 trabalhos deste mês…", "O dia proposto já
+  // passou…"). Melhor do que o genérico quando nada acima o reconheceu.
+  if (e is PostgrestException && e.code == 'P0001') {
+    final serverMessage = e.message.trim();
+    if (serverMessage.isNotEmpty) return serverMessage;
+  }
+
   return 'Ocorreu um erro inesperado. Tenta novamente.';
 }
 

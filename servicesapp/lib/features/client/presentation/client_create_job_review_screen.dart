@@ -105,12 +105,14 @@ class _ClientCreateJobReviewScreenState
     // temporizador de sucesso disparar (ex.: o utilizador voltou atrás).
     final container = ProviderScope.containerOf(context, listen: false);
     final wizardNotifier = ref.read(clientCreateJobWizardProvider.notifier);
+    // Também antes dos awaits: se a pessoa voltar atrás enquanto o pedido
+    // é criado, o `ref` deste ecrã deixa de se poder usar (o Riverpod lança
+    // StateError) e as fotos nunca eram enviadas.
+    final user = ref.read(currentUserProvider)!;
+    final repo = ref.read(jobRepositoryProvider);
 
     final String jobId;
     try {
-      final user = ref.read(currentUserProvider)!;
-      final repo = ref.read(jobRepositoryProvider);
-
       jobId = await repo.createJob(
         clientId: user.id,
         serviceTypeId: wizard.serviceTypeId!,
@@ -155,11 +157,9 @@ class _ClientCreateJobReviewScreenState
     // Upload só acontece agora, no momento real de publicar — as fotos
     // até aqui são só `XFile` locais guardadas no wizard provider.
     var failedPhotos = 0;
-    final user = ref.read(currentUserProvider);
-    final repo = ref.read(jobRepositoryProvider);
     for (final photo in wizard.photos) {
       try {
-        await repo.uploadJobPhoto(jobId: jobId, clientId: user!.id, file: photo);
+        await repo.uploadJobPhoto(jobId: jobId, clientId: user.id, file: photo);
       } catch (_) {
         failedPhotos++;
       }

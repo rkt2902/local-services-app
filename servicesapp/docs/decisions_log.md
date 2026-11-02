@@ -3,6 +3,34 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-02 — Revisão dos fluxos: 7 correções (migration 0068)
+
+Revisão com a BD montada localmente (todas as migrations, RLS ligada) e o fluxo
+completo corrido como a app. Relatório em `relatorios/2026-11-02-revisao-fluxos-bugs.md`
+(pasta do projeto).
+
+- **Proposta cujo dia já passou conta como expirada** (0068): o trigger
+  `block_expired_proposal_accept` recusa aceitá-la e `get_pending_proposals_for_job`
+  devolve `is_expired = true`. Antes o cliente aceitava e o trabalho ficava marcado no
+  passado, sem se poder cancelar. Trigger novo `trg_job_proposal_block_past_date`
+  recusa criar propostas para um dia passado. Na app, `proposalExpiredLabel` diz
+  "O dia proposto (dd/MM) já passou" quando é esse o motivo.
+- **`cancel_job` ao reabrir** (0068): data fixa já passada passa para o dia que estava
+  marcado (ou para data flexível, sem ele), porque o `auto_expire_jobs` fechava o
+  pedido reaberto em menos de 3 horas; as fotos passam para o pedido reaberto; a regra
+  das 24h usa `today_pt()`.
+- **Publicar pedido**: `user` e `repo` lidos antes dos `await`. Voltar atrás durante o
+  envio fazia o `ref` lançar `StateError` (Riverpod 3) e as fotos não eram enviadas.
+- **Erros do `create_proposal`**: só "Já tens uma proposta" e `23505` viram "Já
+  enviaste uma proposta" (`createProposalDuplicateError`). Antes qualquer `P0001`
+  virava essa frase, incluindo o limite do plano Grátis e o pedido já fechado.
+- **`friendlyError`**: um `PostgrestException` `P0001` sem regra própria mostra o
+  texto do servidor em vez do genérico (as RPCs escrevem-no para a pessoa), como o
+  `rpcErrorMessage` já fazia.
+- **`0001_consolidated_baseline.sql`**: as 3 funções usadas nas policies passaram para
+  uma secção 5b antes das policies; o ficheiro já aplica numa BD vazia. Sem efeito na
+  BD viva.
+
 ## 2026-10-27 — Fluxo do pedido (A12), parte 1: detalhe da cliente com stepper e Equipa
 
 - **Stepper partilhado** `JobFlowStepper` (`core/widgets/job_flow_stepper.dart`) com
