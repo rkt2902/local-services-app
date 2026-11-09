@@ -1,3 +1,4 @@
+import '../../../core/constants/enums.dart';
 import '../../../core/config/storage_urls.dart';
 import 'worker_showcase.dart';
 
@@ -33,6 +34,9 @@ class WorkerPublicCard {
   final String? latestReviewAuthor;
   final DateTime? latestReviewAt;
 
+  /// Plano em vigor, para o selo (0067). Grátis antes da 0067.
+  final WorkerPlanTier planTier;
+
   const WorkerPublicCard({
     required this.workerId,
     required this.fullName,
@@ -50,6 +54,7 @@ class WorkerPublicCard {
     this.latestReviewComment,
     this.latestReviewAuthor,
     this.latestReviewAt,
+    this.planTier = WorkerPlanTier.free,
   });
 
   factory WorkerPublicCard.fromJson(Map<String, dynamic> json) =>
@@ -74,5 +79,6 @@ class WorkerPublicCard {
         latestReviewAt: json['latest_review_at'] != null
             ? DateTime.parse(json['latest_review_at'] as String)
             : null,
+        planTier: WorkerPlanTier.fromValue(json['plan_tier'] as String?),
       );
 }

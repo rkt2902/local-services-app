@@ -286,6 +286,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/agenda/new` | `AgendaEntryEditorScreen` ("Adicionar à agenda": trabalho fora da app ou indisponível; `?date=` dia, `?type=block`; volta com `AgendaEditorResult`) | fora | slide de baixo |
 | `/worker/agenda/:id` | `AgendaEntryDetailScreen` (detalhe de um trabalho de fora da app ou indisponibilidade: feito, cancelar, repor, apagar; `?date=` ocorrência tocada; volta com `AgendaEditorResult` ao apagar, editar ou "Ver o dia") | fora | shared-axis |
 | `/worker/agenda/:id/edit` | `AgendaEntryEditorScreen` (editar `worker_calendar_entries`; `?date=` ocorrência tocada) | fora | slide de baixo |
+| `/worker/card` | `WorkerShareCardScreen` (cartão com QR, imagem, PDF no Pro, link) | fora | shared-axis |
+| `/worker/earnings` | `WorkerEarningsScreen` (painel de ganhos, Pro) | fora | shared-axis |
 | `/worker/fleet-card` | `FleetCardScreen` | fora | shared-axis |
 | `/worker/fleet-card/scan` | `FleetCardScanScreen` | fora | shared-axis |
 | `/worker/fleet-card/confirm` | `FleetCardConfirmDataScreen` | fora | shared-axis |
@@ -492,6 +494,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `finish_work_day` / `start_work_day` (0058) | `p_job_id` (jardineiro responsável, trabalho iniciado) | `void` (fecha o dia aberto / abre o seguinte) | `ProposalRepository.finishWorkDay` / `startWorkDay` |
 | `get_job_work_days` (0058) | `p_job_id` (cliente, responsável ou ajudante aceite) | `TABLE(day_number, started_at, ended_at)`; sem linhas usa `started_at`/`marked_done_at` | `ProposalRepository.fetchWorkDays` |
 | `get_my_plan` (0060) | — | `TABLE(tier, ends_at, verified, jobs_this_month, monthly_job_limit)` | `WorkerRepository.fetchMyPlan` (linha "Plano" da conta) |
+| `get_my_earnings(p_from, p_to)` (0067) | — | `TABLE(job_id, role, service_type_name, done_on, job_status, pricing_mode, rate, total_price, worked_minutes, estimated_hours_min/max, helpers_cost)`; recusa no Grátis (HINT `plan_required`) | `WorkerRepository.fetchMyEarnings` (painel de ganhos; contas em `worker_earnings.dart`) |
+| `worker_public_tier(uuid)` (0067) | id do jardineiro alvo | `text` (free/pro/pro_plus), também para anon | coluna `plan_tier` de `worker_public_card` e `worker_plan_tier` de `get_pending_proposals_for_job` (selo `AppPlanBadge`) |
 | `admin_whoami` (0060) | — | `TABLE(is_admin, has_mfa)` (aal2) | `AdminRepository.fetchAccess` |
 | `admin_overview` (0060) | `p_days?` (NULL = sempre) | `jsonb` (utilizadores, coorte de pedidos do período, avaliações, planos, alertas) | `AdminRepository.fetchOverview` |
 | `admin_list_workers` (0060) | `p_search?, p_tier?, p_limit, p_offset` | `TABLE(... tier, plan_ends_at, last_sign_in_at, jobs_completed, avg_rating, total_count)` | `AdminRepository.fetchWorkers` |

@@ -7,7 +7,7 @@
 `0065_notifications_clear_and_profile_stats.sql`. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-**Próxima migration nova: `0066`.** Antes de numerar, confirmar com
+**Próxima migration nova: `0068`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -45,6 +45,8 @@ Editor do Supabase e confirma.
 | `0063_direct_context_fixed_price.sql` | "Já trabalhaste com..." com valor fechado | aplicada |
 | `0064_worker_agenda.sql` | Agenda do jardineiro (trabalhos fora da app, indisponibilidades, `get_worker_agenda`) | aplicada |
 | `0065_notifications_clear_and_profile_stats.sql` | "Limpar tudo" com "Desfazer", números do Perfil | aplicada (2026-10-27) |
+| `0066_account_deletion_erase_and_email_block.sql` | Eliminar conta apaga tudo e bloqueia o email 90 dias | aplicada (2026-10-27) |
+| `0067_plan_badges_and_earnings.sql` | Selo do plano no cartão público e nas propostas, painel de ganhos (`get_my_earnings`, só Pro) | **NÃO aplicada** |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

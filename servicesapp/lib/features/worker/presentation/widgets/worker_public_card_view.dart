@@ -11,6 +11,7 @@ import '../../../../core/utils/price_labels.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_initials_avatar.dart';
 import '../../../../core/widgets/app_motion.dart';
+import '../../../../core/widgets/app_plan_badge.dart';
 import '../../../../core/widgets/app_screen_loading_skeleton.dart';
 import '../../../../core/widgets/bottom_actions_bar.dart';
 import '../../../../core/widgets/primary_action_button.dart';
@@ -33,7 +34,6 @@ class WorkerPublicCardViewData {
     required this.viewerMode,
     required this.directRequestActionLabel,
     this.latestReviewLabel,
-    this.optionalPlanBadgeLabel,
   });
 
   final WorkerPublicCard card;
@@ -45,9 +45,6 @@ class WorkerPublicCardViewData {
 
   /// Avaliação recente com 4 ou 5 estrelas; `null` esconde a secção.
   final String? latestReviewLabel;
-
-  /// Selo do plano, para quando existir. Por agora sempre `null`.
-  final String? optionalPlanBadgeLabel;
 }
 
 /// Cartão público do jardineiro, sem Riverpod nem navegação: o ecrã
@@ -203,7 +200,7 @@ class _PublicCardBody extends StatelessWidget {
       ],
     );
     final onRatings = hasRatings ? onRatingsPressed : null;
-    final badge = data.optionalPlanBadgeLabel;
+    final planTier = card.planTier;
     final review = data.latestReviewLabel;
     final isOwner = data.viewerMode == WorkerPublicCardViewerMode.ownerPreview;
 
@@ -257,9 +254,9 @@ class _PublicCardBody extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (badge != null) ...[
+                    if (planTier.isPaid) ...[
                       const SizedBox(width: AppSpacing.xs),
-                      _PlanBadge(label: badge),
+                      AppPlanBadge(tier: planTier, large: true),
                     ],
                   ],
                 ),
@@ -422,34 +419,6 @@ class _LatestReview extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlanBadge extends StatelessWidget {
-  const _PlanBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.logoAccent),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.logoAccent,
-              fontWeight: FontWeight.w700,
-            ),
       ),
     );
   }
