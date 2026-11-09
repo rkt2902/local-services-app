@@ -79,7 +79,7 @@ extension ProposalStatusPresentationExtension on ProposalStatus {
 
       case ProposalStatus.superseded:
         return const AppStatusPresentation(
-          label: 'Substituída',
+          label: 'Retirada',
           color: AppStatusColor.neutral,
         );
     }

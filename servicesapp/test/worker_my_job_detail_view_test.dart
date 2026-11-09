@@ -5,6 +5,8 @@ import 'package:servicesapp/core/widgets/app_whatsapp_button.dart';
 import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/models/job_flow_stage.dart';
 import 'package:servicesapp/core/widgets/app_tab_header.dart';
+import 'package:servicesapp/core/widgets/status_timeline.dart';
+import 'package:servicesapp/features/worker/application/worker_proposal_outcome.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/utils/date_labels.dart';
@@ -27,10 +29,14 @@ WorkerMyJobDetailViewData _data({
   JobFlowStage? flowStage,
   bool flowShowTeam = false,
   String? teamTabBadge,
+  ProposalStatus proposalStatus = ProposalStatus.accepted,
+  List<StatusTimelineStepData> timelineSteps = const [],
+  WorkerClosedProposalViewData? closedProposal,
+  String addressLabel = 'Rua das Flores 12, Cascais',
 }) {
   return WorkerMyJobDetailViewData(
     jobId: 'job-1',
-    proposalStatus: ProposalStatus.accepted,
+    proposalStatus: proposalStatus,
     jobStatus: jobStatus,
     statusPresentation: const AppStatusPresentation(
         label: 'Agendado', color: AppStatusColor.success),
@@ -38,7 +44,7 @@ WorkerMyJobDetailViewData _data({
     titleSubtitle: 'Sofia Marques · Cascais',
     dateLabel: '23/10/2026',
     confirmedScheduleLabel: 'Qui, 23/10 · 9:00',
-    addressLabel: 'Rua das Flores 12, Cascais',
+    addressLabel: addressLabel,
     locationLat: 0,
     locationLng: 0,
     urgent: false,
@@ -47,7 +53,7 @@ WorkerMyJobDetailViewData _data({
     hourlyRateLabel: '20,00 €/h',
     estimatedTotalLabel: '40 a 80 €',
     peopleNeeded: 1,
-    timelineSteps: const [],
+    timelineSteps: timelineSteps,
     clientId: 'client-1',
     clientName: 'Sofia Marques',
     clientAvatarUrl: null,
@@ -68,6 +74,7 @@ WorkerMyJobDetailViewData _data({
     helpTeam: team,
     canRequestHelpers: canRequestHelpers,
     inactive: inactive,
+    closedProposal: closedProposal,
     completed: completed,
     flowStage: flowStage,
     flowShowTeam: flowShowTeam,
@@ -442,5 +449,40 @@ void main() {
       expect(find.byType(AppTabs), findsNothing);
       expect(find.text('lobby da equipa'), findsNothing);
     });
+  });
+
+  testWidgets(
+      'proposta fechada: fim no timeline, só a localidade, sem link nem '
+      '"Sem resposta"', (tester) async {
+    var browsed = false;
+    await tester.pumpWidget(_screen(
+      _data(
+        jobStatus: JobStatus.confirmed,
+        proposalStatus: ProposalStatus.rejected,
+        addressLabel: 'Vila Verde · morada exata depois de aceite',
+        timelineSteps: buildWorkerProposalOutcomeTimeline(
+          outcome: WorkerProposalOutcome.chosenOther,
+          proposalCreatedAt: DateTime(2026, 10, 26),
+        ),
+        closedProposal: const WorkerClosedProposalViewData(
+          dateLabel: '28/10/2026',
+          areaLabel: 'Vila Verde',
+        ),
+      ),
+      onBrowse: () => browsed = true,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Proposta enviada'), findsOneWidget);
+    expect(find.text('Outra escolhida'), findsOneWidget);
+    expect(find.text('Sem resposta'), findsNothing);
+    expect(find.text('Vila Verde'), findsOneWidget);
+    expect(find.textContaining('morada exata'), findsNothing);
+    expect(find.text('A minha proposta'), findsOneWidget);
+    expect(find.text('Retirar proposta'), findsNothing);
+    expect(find.byType(AppWhatsAppButton), findsNothing);
+
+    await tester.tap(find.text('Ver pedidos disponíveis'));
+    expect(browsed, isTrue);
   });
 }

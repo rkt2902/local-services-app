@@ -75,6 +75,7 @@ class WorkerMyJobDetailViewData {
     this.rescheduleBlocked = false,
     this.overdueMessage,
     this.inactive,
+    this.closedProposal,
     this.completed,
     this.helpTeamLoaded = false,
     this.helpTeam,
@@ -154,6 +155,10 @@ class WorkerMyJobDetailViewData {
   /// Trabalho aceite que já não vai acontecer (cancelado ou expirado):
   /// cartão vermelho ou cinzento, dados esbatidos e sem ações.
   final WorkerInactiveJobViewData? inactive;
+
+  /// Proposta que acabou sem trabalho (outra escolhida, retirada, pedido
+  /// expirado ou cancelado). Com isto o ecrã mostra [_ClosedProposalBody].
+  final WorkerClosedProposalViewData? closedProposal;
 
   /// Trabalho concluído: tempo registado, fotos e avaliações.
   final WorkerCompletedJobViewData? completed;
@@ -319,6 +324,19 @@ class WorkerInactiveJobViewData {
   final bool expired;
 
   /// Só a localidade: a morada exata já não interessa.
+  final String areaLabel;
+}
+
+class WorkerClosedProposalViewData {
+  const WorkerClosedProposalViewData({
+    required this.dateLabel,
+    required this.areaLabel,
+  });
+
+  /// Data pedida pelo cliente ("28/10/2026" ou "Flexível").
+  final String dateLabel;
+
+  /// Só a localidade: a morada exata nunca chegou a ser partilhada.
   final String areaLabel;
 }
 
@@ -516,6 +534,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         priceLabel: data.agreedPriceLabel,
         clientName: data.clientName,
         clientAvatarUrl: data.clientAvatarUrl,
+        onBrowseAvailableJobs: widget.onBrowseAvailableJobs,
+      );
+    } else if (data.closedProposal != null) {
+      body = _ClosedProposalBody(
+        data: data,
+        closed: data.closedProposal!,
         onBrowseAvailableJobs: widget.onBrowseAvailableJobs,
       );
     } else if (accepted &&
@@ -875,8 +899,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     );
   }
 
-  // ── Outros estados (rejected/superseded/pending, e accepted à espera de
-  // confirmação) — conteúdo/lógica preservados de sessões anteriores, só com
+  // ── Outros estados (pending e accepted à espera de confirmação; as
+  // propostas fechadas têm [_ClosedProposalBody]) — conteúdo/lógica preservados de sessões anteriores, só com
   // limpeza de tokens (AppColors/AppSpacing/AppRadius) para consistência
   // visual com o resto da app.
 
@@ -972,44 +996,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             message: WorkerJobDayRules.awaitingConfirmationMessage,
           ),
         ],
-      );
-    }
-
-    if (data.proposalStatus == ProposalStatus.rejected) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _InfoBanner(
-            icon: Icons.info_outline_rounded,
-            color: AppStatusColor.cancelled,
-            message:
-                'A tua proposta não foi selecionada. O cliente escolheu outra proposta.',
-          ),
-          if (data.clientPhone.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: widget.onCallClientPressed,
-              icon: const Icon(Icons.chat_outlined),
-              label: const Text('Contactar cliente para novo pedido'),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Podes contactar o cliente para negociar e enviar uma nova proposta.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    if (data.proposalStatus == ProposalStatus.superseded) {
-      return const _InfoBanner(
-        icon: Icons.undo_rounded,
-        color: AppStatusColor.neutral,
-        message: 'Retiraste a tua proposta para este pedido.',
       );
     }
 
@@ -1131,11 +1117,16 @@ class _JobFactsCard extends StatelessWidget {
     required this.priceLabel,
     this.onOpenMap,
     this.muted = false,
+    this.dateRowLabel = 'Data e hora',
   });
 
   final String dateTimeLabel;
+  final String dateRowLabel;
   final String locationLabel;
-  final String priceLabel;
+
+  /// `null` esconde a linha "Valor" (proposta fechada: o valor está no
+  /// cartão "A minha proposta").
+  final String? priceLabel;
 
   /// Abre a morada exata no mapa. `null` quando não há coordenadas.
   final VoidCallback? onOpenMap;
@@ -1160,7 +1151,7 @@ class _JobFactsCard extends StatelessWidget {
         children: [
           _FactRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Data e hora',
+            label: dateRowLabel,
             value: dateTimeLabel,
             muted: muted,
           ),
@@ -1177,13 +1168,15 @@ class _JobFactsCard extends StatelessWidget {
                     onPressed: onOpenMap!,
                   ),
           ),
-          const Divider(height: 1, color: AppColors.divider),
-          _FactRow(
-            icon: Icons.euro_rounded,
-            label: 'Valor',
-            value: priceLabel,
-            muted: muted,
-          ),
+          if (priceLabel != null) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            _FactRow(
+              icon: Icons.euro_rounded,
+              label: 'Valor',
+              value: priceLabel!,
+              muted: muted,
+            ),
+          ],
         ],
       ),
     );
@@ -1687,6 +1680,79 @@ class _InactiveJobBody extends StatelessWidget {
                       ],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _BottomBar(
+          child: OutlinedButton(
+            onPressed: onBrowseAvailableJobs,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+            ),
+            child: const Text('Ver pedidos disponíveis'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Proposta fechada sem trabalho ──────────────────────────────────────────
+// Mesma composição do cancelado/expirado do design A1: timeline com o fim,
+// factos a cinzento, a proposta enviada e "Ver pedidos disponíveis".
+
+class _ClosedProposalBody extends StatelessWidget {
+  const _ClosedProposalBody({
+    required this.data,
+    required this.closed,
+    required this.onBrowseAvailableJobs,
+  });
+
+  final WorkerMyJobDetailViewData data;
+  final WorkerClosedProposalViewData closed;
+  final VoidCallback onBrowseAvailableJobs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xs,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppStaggeredEntrance(
+                  index: 0,
+                  child: StatusTimelineCard(steps: data.timelineSteps),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 1,
+                  child: _JobFactsCard(
+                    dateTimeLabel: closed.dateLabel,
+                    dateRowLabel: 'Data pedida',
+                    locationLabel: closed.areaLabel,
+                    priceLabel: null,
+                    muted: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppStaggeredEntrance(
+                  index: 2,
+                  child: _ProposalSummaryCard(data: data),
                 ),
               ],
             ),
