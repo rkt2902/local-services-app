@@ -6,7 +6,7 @@ import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/models/job_flow_stage.dart';
 import 'package:servicesapp/core/widgets/app_tab_header.dart';
 import 'package:servicesapp/core/widgets/status_timeline.dart';
-import 'package:servicesapp/features/worker/application/worker_proposal_outcome.dart';
+import 'package:servicesapp/core/widgets/job_flow_stepper.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
 import 'package:servicesapp/core/theme/app_status_presentation.dart';
 import 'package:servicesapp/core/utils/date_labels.dart';
@@ -32,6 +32,7 @@ WorkerMyJobDetailViewData _data({
   ProposalStatus proposalStatus = ProposalStatus.accepted,
   List<StatusTimelineStepData> timelineSteps = const [],
   WorkerClosedProposalViewData? closedProposal,
+  bool flowStopped = false,
   String addressLabel = 'Rua das Flores 12, Cascais',
 }) {
   return WorkerMyJobDetailViewData(
@@ -75,6 +76,7 @@ WorkerMyJobDetailViewData _data({
     canRequestHelpers: canRequestHelpers,
     inactive: inactive,
     closedProposal: closedProposal,
+    flowStopped: flowStopped,
     completed: completed,
     flowStage: flowStage,
     flowShowTeam: flowShowTeam,
@@ -452,19 +454,20 @@ void main() {
   });
 
   testWidgets(
-      'proposta fechada: fim no timeline, só a localidade, sem link nem '
-      '"Sem resposta"', (tester) async {
+      'proposta fechada: stepper parado na Proposta, aviso, só a localidade',
+      (tester) async {
     var browsed = false;
     await tester.pumpWidget(_screen(
       _data(
         jobStatus: JobStatus.confirmed,
         proposalStatus: ProposalStatus.rejected,
         addressLabel: 'Vila Verde · morada exata depois de aceite',
-        timelineSteps: buildWorkerProposalOutcomeTimeline(
-          outcome: WorkerProposalOutcome.chosenOther,
-          proposalCreatedAt: DateTime(2026, 10, 26),
-        ),
+        flowStage: JobFlowStage.proposal,
+        flowStopped: true,
         closedProposal: const WorkerClosedProposalViewData(
+          title: 'O cliente escolheu outra proposta',
+          body: 'Não precisas de fazer nada.',
+          icon: Icons.person_off_outlined,
           dateLabel: '28/10/2026',
           areaLabel: 'Vila Verde',
         ),
@@ -473,8 +476,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Proposta enviada'), findsOneWidget);
-    expect(find.text('Outra escolhida'), findsOneWidget);
+    expect(find.byType(JobFlowStepper), findsOneWidget);
+    expect(find.byType(StatusTimelineCard), findsNothing);
+    expect(find.text('O cliente escolheu outra proposta'), findsOneWidget);
     expect(find.text('Sem resposta'), findsNothing);
     expect(find.text('Vila Verde'), findsOneWidget);
     expect(find.textContaining('morada exata'), findsNothing);

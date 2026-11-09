@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/theme/app_status_color.dart';
-import 'package:servicesapp/core/widgets/status_timeline.dart';
 import 'package:servicesapp/features/jobs/data/cancel_reasons.dart';
 import 'package:servicesapp/features/worker/application/worker_proposal_outcome.dart';
 
@@ -73,48 +72,38 @@ void main() {
     });
   });
 
-  group('buildWorkerProposalOutcomeTimeline', () {
-    test('proposta enviada e um nó final sem pulso, com a explicação', () {
-      final steps = buildWorkerProposalOutcomeTimeline(
+  group('workerProposalOutcomeMessage', () {
+    test('outra escolhida não fala de "Sem resposta"', () {
+      final m = workerProposalOutcomeMessage(
         outcome: WorkerProposalOutcome.chosenOther,
-        proposalCreatedAt: DateTime(2026, 10, 26),
-        endedAt: DateTime(2026, 10, 28),
       );
-      expect(steps, hasLength(2));
-      expect(steps.first.label, 'Proposta enviada');
-      expect(steps.first.state, StatusTimelineStepState.completed);
-      expect(steps.first.dateLabel, '26/10');
-      expect(steps.last.label, 'Outra escolhida');
-      expect(steps.last.state, StatusTimelineStepState.ended);
-      // A data do pedido mexe com o trabalho do outro: não aparece.
-      expect(steps.last.dateLabel, isNull);
-      expect(steps.last.subtitle, contains('escolheu outra proposta'));
-      expect(steps.any((s) => s.label == 'Sem resposta'), isFalse);
+      expect(m.title, 'O cliente escolheu outra proposta');
+      expect(m.body, 'Não precisas de fazer nada.');
     });
 
     test('cancelado mostra a data e o motivo', () {
-      final steps = buildWorkerProposalOutcomeTimeline(
+      final m = workerProposalOutcomeMessage(
         outcome: WorkerProposalOutcome.cancelled,
-        proposalCreatedAt: DateTime(2026, 10, 26),
-        endedAt: DateTime(2026, 10, 27),
+        endedAt: DateTime(2026, 10, 27, 12),
         cancelReason: 'no_longer_needed',
       );
-      expect(steps.last.dateLabel, '27/10');
-      expect(steps.last.subtitle, contains('Motivo:'));
+      expect(m.body, contains('Cancelado a 27/10.'));
+      expect(m.body, contains('Motivo:'));
     });
 
-    test('badge e nó final têm a mesma cor', () {
+    test('badges a cinzento, como na lista', () {
       for (final o in WorkerProposalOutcome.values) {
-        final steps = buildWorkerProposalOutcomeTimeline(
-          outcome: o,
-          proposalCreatedAt: DateTime(2026, 10, 26),
-        );
         expect(
-          steps.last.statusColor,
           workerProposalOutcomePresentation(o).color,
+          AppStatusColor.neutral,
         );
-        expect(steps.last.statusColor, AppStatusColor.neutral);
       }
+      expect(
+        workerProposalOutcomePresentation(
+          WorkerProposalOutcome.withdrawn,
+        ).label,
+        'Retirada',
+      );
     });
   });
 }

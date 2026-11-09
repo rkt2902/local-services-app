@@ -10,6 +10,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/constants/enums.dart';
+import '../../../core/models/job_flow_stage.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
@@ -835,14 +836,7 @@ class _WorkerMyJobDetailScreenState
       estimatedTotalLabel: proposal.isFixedTotal ? '' : estimate,
       peopleNeeded: proposal.peopleNeeded,
       notes: proposal.notes,
-      timelineSteps: outcome != null
-          ? buildWorkerProposalOutcomeTimeline(
-              outcome: outcome,
-              proposalCreatedAt: proposal.createdAt,
-              endedAt: job.updatedAt,
-              cancelReason: job.cancelReason,
-            )
-          : buildJobTimeline(job, now: now),
+      timelineSteps: buildJobTimeline(job, now: now),
       clientId: job.clientId,
       clientName: clientName,
       clientAvatarUrl: (avatarUrl != null && avatarUrl.isNotEmpty)
@@ -880,25 +874,41 @@ class _WorkerMyJobDetailScreenState
       inactive: inactive,
       closedProposal: outcome == null
           ? null
-          : view.WorkerClosedProposalViewData(
-              dateLabel: _formatDate(job.preferredDate),
-              areaLabel: area,
-            ),
+          : () {
+              final message = workerProposalOutcomeMessage(
+                outcome: outcome,
+                endedAt: job.updatedAt,
+                cancelReason: job.cancelReason,
+              );
+              return view.WorkerClosedProposalViewData(
+                title: message.title,
+                body: message.body,
+                icon: message.icon,
+                dateLabel: _formatDate(job.preferredDate),
+                areaLabel: area,
+              );
+            }(),
       completed: completed,
       helpTeamLoaded: team.loaded,
       // Mesma regra da BD (0054, 0070): pedir ajudantes só até à véspera
       // e nunca com o trabalho já iniciado (datas "a combinar").
-      canRequestHelpers: job.startedAt == null &&
+      canRequestHelpers:
+          job.startedAt == null &&
           (confirmedDay == null || confirmedDay.isAfter(today)),
       helpTeam: helpTeam,
-      flowStage: workerJobFlowStage(
-        proposalStatus: proposal.status,
-        jobStatus: job.status,
-        startedAt: job.startedAt,
-        teamPending:
-            helpTeam != null &&
-            (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
-      ),
+      // Proposta fechada: o stepper fica parado na Proposta, como nos
+      // outros ecrãs do fluxo (pedido do Henrique, 09/11).
+      flowStopped: outcome != null,
+      flowStage: outcome != null
+          ? JobFlowStage.proposal
+          : workerJobFlowStage(
+              proposalStatus: proposal.status,
+              jobStatus: job.status,
+              startedAt: job.startedAt,
+              teamPending:
+                  helpTeam != null &&
+                  (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
+            ),
       // Fase Equipa só com ajudantes (previstos na proposta ou pedidos).
       flowShowTeam: helpTeam != null || proposal.peopleNeeded > 1,
       teamTabBadge: helpTeam == null || helpTeam.awaitingApproval
@@ -995,8 +1005,7 @@ String _formatDate(DateTime? date) {
 
 /// "Zona aproximada" é o texto de recurso da BD (0043) quando o pedido não
 /// tem localidade: num título não diz nada.
-bool _isRealArea(String area) =>
-    area.isNotEmpty && area != 'Zona aproximada';
+bool _isRealArea(String area) => area.isNotEmpty && area != 'Zona aproximada';
 
 String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);
 

@@ -5,7 +5,6 @@ import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/app_status_presenters.dart';
-import '../../../core/widgets/status_timeline.dart';
 import '../../jobs/data/cancel_reasons.dart';
 
 /// Como acabou uma proposta que nunca chegou a trabalho. Mesma leitura do
@@ -56,8 +55,7 @@ WorkerProposalOutcome? workerProposalOutcome({
 }
 
 /// Badge da AppBar. Os tons seguem o cartão da lista (design A2): cinzento,
-/// porque o trabalho nunca foi deste jardineiro. O nó final do timeline usa
-/// a mesma cor.
+/// porque o trabalho nunca foi deste jardineiro.
 AppStatusPresentation workerProposalOutcomePresentation(
   WorkerProposalOutcome outcome,
 ) => switch (outcome) {
@@ -73,77 +71,46 @@ AppStatusPresentation workerProposalOutcomePresentation(
   WorkerProposalOutcome.withdrawn => ProposalStatus.superseded.presentation,
 };
 
-/// Timeline com dois passos: a proposta enviada e o fim, num nó
-/// [StatusTimelineStepState.ended] com o que aconteceu por baixo. Nunca
-/// mostra o fluxo do pedido em si (que, escolhido outro, é o trabalho de
-/// outra pessoa).
-List<StatusTimelineStepData> buildWorkerProposalOutcomeTimeline({
+/// Texto do aviso do topo do corpo (mesmo formato do cancelado/expirado do
+/// design A1): título, uma linha de explicação e o ícone.
+typedef WorkerProposalOutcomeMessage = ({
+  String title,
+  String body,
+  IconData icon,
+});
+
+WorkerProposalOutcomeMessage workerProposalOutcomeMessage({
   required WorkerProposalOutcome outcome,
-  required DateTime proposalCreatedAt,
   DateTime? endedAt,
   String? cancelReason,
 }) {
-  final fmt = DateFormat('dd/MM');
-  final endedLabel = endedAt == null ? null : fmt.format(endedAt.toLocal());
-
-  final (
-    String label,
-    AppStatusColor color,
-    IconData icon,
-    String subtitle,
-  ) = switch (outcome) {
+  const nothingToDo = 'Não precisas de fazer nada.';
+  return switch (outcome) {
     WorkerProposalOutcome.chosenOther => (
-      'Outra escolhida',
-      AppStatusColor.neutral,
-      Icons.close_rounded,
-      'O cliente escolheu outra proposta. Não precisas de fazer nada.',
+      title: 'O cliente escolheu outra proposta',
+      body: nothingToDo,
+      icon: Icons.person_off_outlined,
     ),
     WorkerProposalOutcome.expired => (
-      'Expirou',
-      AppStatusColor.neutral,
-      Icons.hourglass_disabled_rounded,
-      'O pedido fechou sem nenhuma proposta aceite. Não precisas de '
-          'fazer nada.',
+      title: 'Este pedido expirou',
+      body: 'Fechou sem nenhuma proposta aceite. $nothingToDo',
+      icon: Icons.hourglass_disabled_rounded,
     ),
     WorkerProposalOutcome.cancelled => (
-      'Cancelado',
-      AppStatusColor.neutral,
-      Icons.event_busy_rounded,
-      [
-        'O cliente cancelou o pedido.',
+      title: 'O cliente cancelou o pedido',
+      body: [
+        if (endedAt != null)
+          'Cancelado a ${DateFormat('dd/MM').format(endedAt.toLocal())}.',
         if (cancelReason != null && cancelReason.isNotEmpty)
           'Motivo: ${CancelReason.label(cancelReason)}.',
-        'Não precisas de fazer nada.',
+        nothingToDo,
       ].join(' '),
+      icon: Icons.event_busy_outlined,
     ),
     WorkerProposalOutcome.withdrawn => (
-      'Retirada',
-      AppStatusColor.neutral,
-      Icons.undo_rounded,
-      'Retiraste a tua proposta. O pedido ficou para outros jardineiros.',
+      title: 'Retiraste esta proposta',
+      body: 'O pedido ficou para outros jardineiros.',
+      icon: Icons.undo_rounded,
     ),
   };
-
-  return [
-    StatusTimelineStepData(
-      label: 'Proposta enviada',
-      statusColor: AppStatusColor.success,
-      state: StatusTimelineStepState.completed,
-      dateLabel: fmt.format(proposalCreatedAt.toLocal()),
-    ),
-    StatusTimelineStepData(
-      label: label,
-      statusColor: color,
-      state: StatusTimelineStepState.ended,
-      endedIcon: icon,
-      // Escolhida outra, o updated_at do pedido mexe com o trabalho do
-      // outro jardineiro: sem data, para não enganar.
-      dateLabel:
-          outcome == WorkerProposalOutcome.expired ||
-              outcome == WorkerProposalOutcome.cancelled
-          ? endedLabel
-          : null,
-      subtitle: subtitle,
-    ),
-  ];
 }

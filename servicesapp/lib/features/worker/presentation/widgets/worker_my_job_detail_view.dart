@@ -82,6 +82,7 @@ class WorkerMyJobDetailViewData {
     this.canRequestHelpers = true,
     this.titleSubtitle,
     this.flowStage,
+    this.flowStopped = false,
     this.flowShowTeam = false,
     this.teamTabBadge,
     this.sizeLabel,
@@ -127,6 +128,9 @@ class WorkerMyJobDetailViewData {
   /// e substitui o timeline; `null` (proposta recusada ou retirada, pedido
   /// cancelado) mantém o timeline.
   final JobFlowStage? flowStage;
+
+  /// O fluxo parou em [flowStage] (proposta fechada sem trabalho).
+  final bool flowStopped;
 
   /// Mostra a fase Equipa: só quando o trabalho tem ajudantes.
   final bool flowShowTeam;
@@ -329,9 +333,17 @@ class WorkerInactiveJobViewData {
 
 class WorkerClosedProposalViewData {
   const WorkerClosedProposalViewData({
+    required this.title,
+    required this.body,
+    required this.icon,
     required this.dateLabel,
     required this.areaLabel,
   });
+
+  /// Aviso do topo: "O cliente escolheu outra proposta", etc.
+  final String title;
+  final String body;
+  final IconData icon;
 
   /// Data pedida pelo cliente ("28/10/2026" ou "Flexível").
   final String dateLabel;
@@ -588,6 +600,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     JobFlowStepper(
                       stage: data.flowStage!,
                       showTeam: data.flowShowTeam,
+                      stopped: data.flowStopped,
                     ),
                     if (showTabs)
                       AppTabs(
@@ -1588,46 +1601,13 @@ class _InactiveJobBody extends StatelessWidget {
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: color.background,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          inactive.expired
-                              ? Icons.hourglass_disabled_rounded
-                              : Icons.event_busy_outlined,
-                          color: color.foreground,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                inactive.title,
-                                style: textTheme.titleSmall?.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              if (inactive.body.isNotEmpty) ...[
-                                const SizedBox(height: AppSpacing.xxs),
-                                Text(
-                                  inactive.body,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: _EndedBanner(
+                    icon: inactive.expired
+                        ? Icons.hourglass_disabled_rounded
+                        : Icons.event_busy_outlined,
+                    color: color,
+                    title: inactive.title,
+                    body: inactive.body,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -1704,9 +1684,67 @@ class _InactiveJobBody extends StatelessWidget {
   }
 }
 
+/// Aviso do topo de um fluxo que acabou (design A1, segunda coluna):
+/// ícone, título e uma linha, no fundo do tom do estado.
+class _EndedBanner extends StatelessWidget {
+  const _EndedBanner({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final AppStatusColor color;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color.foreground),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    body,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Proposta fechada sem trabalho ──────────────────────────────────────────
-// Mesma composição do cancelado/expirado do design A1: timeline com o fim,
-// factos a cinzento, a proposta enviada e "Ver pedidos disponíveis".
+// Mesma composição do cancelado/expirado do design A1: o stepper do topo
+// parado na Proposta, o aviso do que aconteceu, factos a cinzento, a
+// proposta enviada e "Ver pedidos disponíveis".
 
 class _ClosedProposalBody extends StatelessWidget {
   const _ClosedProposalBody({
@@ -1736,7 +1774,12 @@ class _ClosedProposalBody extends StatelessWidget {
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: StatusTimelineCard(steps: data.timelineSteps),
+                  child: _EndedBanner(
+                    icon: closed.icon,
+                    color: AppStatusColor.neutral,
+                    title: closed.title,
+                    body: closed.body,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppStaggeredEntrance(

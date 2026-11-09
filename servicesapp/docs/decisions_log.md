@@ -15,12 +15,15 @@ título.
   cartão da lista: outra escolhida, expirou, cancelado pelo cliente, retirada. A BD
   põe `rejected` nos três primeiros (0069/0070), por isso é o estado do pedido que
   decide.
-- Timeline de dois passos: "Proposta enviada" → nó final. Novo estado
-  `StatusTimelineStepState.ended` (nó cheio com ícone, sem pulso, subtitle na zona de
-  detalhe). `buildJobTimeline` usa-o também no cancelado e no expirado da cliente.
-- Corpo igual ao cancelado/expirado do A1: factos a cinzento (data pedida e só a
-  localidade), "A minha proposta" e "Ver pedidos disponíveis". Sem descrição, fotos
-  nem link de mapa.
+- Progresso: o stepper do topo (A12), como nos outros ecrãs do fluxo, parado na
+  Proposta com a barra a cinzento-escuro (`JobFlowStepper(stopped: true)`). Um
+  primeiro desenho com o timeline em cartão foi recusado pelo Henrique (09/11): não
+  é assim que o progresso aparece no resto da app. O estado
+  `StatusTimelineStepState.ended` (nó final sem pulso) ficou no cancelado e no
+  expirado da cliente, que continuam com o timeline.
+- Corpo igual ao cancelado/expirado do A1: aviso com ícone, título e uma linha, factos
+  a cinzento (data pedida e só a localidade), "A minha proposta" e "Ver pedidos
+  disponíveis". Sem descrição, fotos nem link de mapa.
 - Badges a cinzento como na lista: "Não escolhida" (era "Recusada" na AppBar),
   "Expirado", "Cancelado", "Retirada" (era "Substituída", que não dizia o que era).
 - Saiu o botão "Contactar cliente para novo pedido" da recusada: o jardineiro
