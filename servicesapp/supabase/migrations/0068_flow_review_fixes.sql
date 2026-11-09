@@ -61,8 +61,12 @@ CREATE TRIGGER trg_job_proposal_block_past_date
   BEFORE INSERT ON public.job_proposals
   FOR EACH ROW EXECUTE FUNCTION public.block_past_proposal_date();
 
-CREATE OR REPLACE FUNCTION public.get_pending_proposals_for_job(p_job_id uuid)
- RETURNS TABLE(id uuid, job_id uuid, worker_id uuid, hourly_rate numeric, estimated_hours_min numeric, estimated_hours_max numeric, people_needed integer, helpers_equipment_required boolean, notes text, status text, scheduled_date date, scheduled_time time without time zone, scheduled_flexible boolean, created_at timestamp with time zone, worker_name text, worker_avatar_url text, pricing_mode text, total_price numeric, includes text[], estimated_days_min integer, estimated_days_max integer, valid_until date, is_expired boolean)
+-- A 0067 acrescentou worker_plan_tier ao RETURNS TABLE: mantém-se a coluna
+-- e, como a forma tem de bater certo, DROP + CREATE em vez de REPLACE.
+DROP FUNCTION IF EXISTS public.get_pending_proposals_for_job(uuid);
+
+CREATE FUNCTION public.get_pending_proposals_for_job(p_job_id uuid)
+ RETURNS TABLE(id uuid, job_id uuid, worker_id uuid, hourly_rate numeric, estimated_hours_min numeric, estimated_hours_max numeric, people_needed integer, helpers_equipment_required boolean, notes text, status text, scheduled_date date, scheduled_time time without time zone, scheduled_flexible boolean, created_at timestamp with time zone, worker_name text, worker_avatar_url text, pricing_mode text, total_price numeric, includes text[], estimated_days_min integer, estimated_days_max integer, valid_until date, is_expired boolean, worker_plan_tier text)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
@@ -78,7 +82,8 @@ AS $function$
     (   (jp.valid_until IS NOT NULL AND jp.valid_until < today_pt())
      -- 0068: o dia proposto já passou.
      OR (jp.scheduled_date IS NOT NULL AND jp.scheduled_date < today_pt())
-    ) AS is_expired
+    ) AS is_expired,
+    worker_active_tier(jp.worker_id) AS worker_plan_tier
   FROM   job_proposals jp
   JOIN   profiles      p ON p.id = jp.worker_id
   WHERE  jp.job_id = p_job_id
@@ -89,6 +94,9 @@ AS $function$
     )
   ORDER BY jp.created_at ASC;
 $function$;
+
+REVOKE EXECUTE ON FUNCTION public.get_pending_proposals_for_job(uuid) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.get_pending_proposals_for_job(uuid) TO authenticated, service_role;
 
 -- ── 2) cancel_job: reabrir com data válida e com as fotos ────
 
