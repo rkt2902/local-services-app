@@ -159,6 +159,8 @@ class _SubmitRatingSheetState extends State<_SubmitRatingSheet> {
             hintText: 'Como correu o trabalho?',
             minLines: 3,
             maxLines: 4,
+            // Mesmo limite da BD (ratings_comment_length, 0069).
+            maxLength: 500,
             textInputAction: TextInputAction.newline,
             keyboardType: TextInputType.multiline,
           ),

@@ -154,7 +154,9 @@ class _AdminPlanSheetState extends ConsumerState<_AdminPlanSheet> {
             paid
                 ? 'Trabalhos sem limite e selo ${_tier.label}. Acaba sozinho '
                     'na data de fim e volta ao Grátis.'
-                : 'Até 5 trabalhos aceites por mês.',
+                // Decidido 2026-11-02: o limite só trava propostas novas;
+                // as que já estavam enviadas ainda podem ser aceites.
+                : 'Envia propostas até ter 5 trabalhos aceites no mês.',
             style: secondary,
           ),
           if (paid) ...[

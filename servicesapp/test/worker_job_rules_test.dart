@@ -30,6 +30,22 @@ void main() {
   final today = DateTime(2026, 10, 18, 15, 30);
 
   group('WorkerJobDayRules.canCancelOrReschedule (cancel_job/propose_reschedule)', () {
+    test('depois de iniciado nunca, com ou sem data (0069)', () {
+      final started = DateTime(2026, 10, 18, 9);
+      expect(
+        WorkerJobDayRules.canCancelOrReschedule(
+            confirmedDate: null, today: today, startedAt: started),
+        isFalse,
+      );
+      expect(
+        WorkerJobDayRules.canCancelOrReschedule(
+            confirmedDate: DateTime(2026, 10, 25),
+            today: today,
+            startedAt: started),
+        isFalse,
+      );
+    });
+
     test('sem data combinada não há limite', () {
       expect(
         WorkerJobDayRules.canCancelOrReschedule(confirmedDate: null, today: today),
