@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/enums.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -8,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
+import '../../../../core/widgets/app_plan_badge.dart';
 
 /// Dados de "Propostas recebidas" (designs A3 e A6). A integração
 /// (client_proposals_screen.dart) entrega a lista já ordenada e os textos
@@ -43,7 +45,7 @@ class ClientProposalCardViewData {
     this.validUntilLabel,
     this.teamLabel,
     this.notes,
-    this.workerBadgeLabel,
+    this.workerPlanTier = WorkerPlanTier.free,
     this.recommended = false,
     this.expired = false,
   });
@@ -88,8 +90,8 @@ class ClientProposalCardViewData {
   /// Nota que o jardineiro escreveu na proposta.
   final String? notes;
 
-  /// Selo opcional (ex.: "Pro"). `null` enquanto não houver o plano.
-  final String? workerBadgeLabel;
+  /// Plano de quem propôs: selo "Pro"/"Pro+" ao lado do nome (0067).
+  final WorkerPlanTier workerPlanTier;
 
   /// Destaque visual, não é estado da proposta.
   final bool recommended;
@@ -356,8 +358,8 @@ class _ProposalCard extends StatelessWidget {
                                 style: textTheme.titleMedium
                                     ?.copyWith(color: AppColors.textPrimary),
                               ),
-                              if (proposal.workerBadgeLabel != null)
-                                _WorkerBadge(label: proposal.workerBadgeLabel!),
+                              if (proposal.workerPlanTier.isPaid)
+                                AppPlanBadge(tier: proposal.workerPlanTier),
                             ],
                           ),
                           const SizedBox(height: AppSpacing.xxs),
@@ -579,34 +581,6 @@ class _ExpiredProposalCard extends StatelessWidget {
 }
 
 /// Selo opcional ao lado do nome.
-class _WorkerBadge extends StatelessWidget {
-  const _WorkerBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: AppColors.logoAccent),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
 /// Foto do jardineiro ou as iniciais num círculo verde claro.
 class ProposalWorkerAvatar extends StatelessWidget {
   const ProposalWorkerAvatar({

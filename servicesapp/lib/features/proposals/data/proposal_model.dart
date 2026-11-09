@@ -36,6 +36,10 @@ class JobProposal {
   /// diretas da tabela vem sempre false.
   final bool isExpired;
 
+  /// Plano de quem propôs, para o selo (get_pending_proposals_for_job,
+  /// 0067). Grátis nas leituras diretas da tabela e antes da 0067.
+  final WorkerPlanTier workerPlanTier;
+
   const JobProposal({
     required this.id,
     required this.jobId,
@@ -60,6 +64,7 @@ class JobProposal {
     this.estimatedDaysMax,
     this.validUntil,
     this.isExpired = false,
+    this.workerPlanTier = WorkerPlanTier.free,
   });
 
   bool get isFixedTotal =>
@@ -105,6 +110,8 @@ class JobProposal {
             ? DateTime.parse(json['valid_until'] as String)
             : null,
         isExpired: json['is_expired'] as bool? ?? false,
+        workerPlanTier:
+            WorkerPlanTier.fromValue(json['worker_plan_tier'] as String?),
       );
 }
 
