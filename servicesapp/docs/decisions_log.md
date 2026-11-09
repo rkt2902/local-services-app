@@ -3,27 +3,33 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-10-28 — Planos com acessos diferentes, cartão partilhável e painel de ganhos
+## 2026-11-02 — Revisão dos fluxos: 7 correções (migration 0068)
 
-- **O que cada plano dá** (o Henrique escolheu as opções B e C): Grátis com 5 trabalhos
-  por mês, Agenda e o cartão como imagem e link. Pro com trabalhos sem limite, selo, o
-  cartão em PDF e o painel de ganhos. Pro+ com tudo isso e os Benefícios (cartão frota
-  e parceiros). Quem já tinha pedido o cartão frota continua a vê-lo.
-- **Sem prioridade nas listas para quem paga:** o "Recomendada" continua a ser só pela
-  avaliação, para o cliente confiar nele.
-- **Selo** (`AppPlanBadge`): "Pro" contornado a dourado, "Pro+" cheio. Vem do servidor
-  (`worker_public_tier`, `plan_tier` na vista `worker_public_card`, `worker_plan_tier`
-  em `get_pending_proposals_for_job`), porque o cliente não pode ler `worker_plans`.
-- **Ganhos:** o que o jardineiro combinou receber, não pagamentos (a app não trata de
-  dinheiro). Por hora = preço × horas registadas; valor fechado = total − ajudantes;
-  ajudante = valor acordado × horas. Sem "Iniciar", usa a média da estimativa e marca
-  com "≈". O servidor recusa `get_my_earnings` no Grátis (HINT `plan_required`).
-- **PDF:** gerado na app com o pacote `pdf` (Dart puro, funciona na web), A6, a partir
-  da mesma imagem do cartão. O bloqueio do PDF no Grátis é só na app (é um ficheiro
-  gerado no telemóvel, não há nada no servidor para proteger).
-- Migration `0067_plan_badges_and_earnings.sql`, **criada e não aplicada**. Testada num
-  Postgres 16 local com as migrations todas: ganhos de responsável e ajudante, Grátis
-  recusado, anon sem acesso, plano visível no cartão público e nas propostas.
+Revisão com a BD montada localmente (todas as migrations, RLS ligada) e o fluxo
+completo corrido como a app. Relatório em `relatorios/2026-11-02-revisao-fluxos-bugs.md`
+(pasta do projeto).
+
+- **Proposta cujo dia já passou conta como expirada** (0068): o trigger
+  `block_expired_proposal_accept` recusa aceitá-la e `get_pending_proposals_for_job`
+  devolve `is_expired = true`. Antes o cliente aceitava e o trabalho ficava marcado no
+  passado, sem se poder cancelar. Trigger novo `trg_job_proposal_block_past_date`
+  recusa criar propostas para um dia passado. Na app, `proposalExpiredLabel` diz
+  "O dia proposto (dd/MM) já passou" quando é esse o motivo.
+- **`cancel_job` ao reabrir** (0068): data fixa já passada passa para o dia que estava
+  marcado (ou para data flexível, sem ele), porque o `auto_expire_jobs` fechava o
+  pedido reaberto em menos de 3 horas; as fotos passam para o pedido reaberto; a regra
+  das 24h usa `today_pt()`.
+- **Publicar pedido**: `user` e `repo` lidos antes dos `await`. Voltar atrás durante o
+  envio fazia o `ref` lançar `StateError` (Riverpod 3) e as fotos não eram enviadas.
+- **Erros do `create_proposal`**: só "Já tens uma proposta" e `23505` viram "Já
+  enviaste uma proposta" (`createProposalDuplicateError`). Antes qualquer `P0001`
+  virava essa frase, incluindo o limite do plano Grátis e o pedido já fechado.
+- **`friendlyError`**: um `PostgrestException` `P0001` sem regra própria mostra o
+  texto do servidor em vez do genérico (as RPCs escrevem-no para a pessoa), como o
+  `rpcErrorMessage` já fazia.
+- **`0001_consolidated_baseline.sql`**: as 3 funções usadas nas policies passaram para
+  uma secção 5b antes das policies; o ficheiro já aplica numa BD vazia. Sem efeito na
+  BD viva.
 
 ## 2026-10-27 — Fluxo do pedido (A12), parte 1: detalhe da cliente com stepper e Equipa
 

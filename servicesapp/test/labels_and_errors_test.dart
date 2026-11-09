@@ -154,6 +154,25 @@ void main() {
         'Ocorreu um erro inesperado. Tenta novamente.',
       );
     });
+
+    test('recusa de uma RPC (P0001) mostra o texto do servidor', () {
+      const limit = PostgrestException(
+        message: 'Chegaste aos 5 trabalhos deste mês do plano Grátis.',
+        code: 'P0001',
+      );
+      expect(friendlyError(limit),
+          'Chegaste aos 5 trabalhos deste mês do plano Grátis.');
+      // As regras específicas continuam a ganhar.
+      const state = PostgrestException(
+        message: 'estado inválido: o pedido não pode ser cancelado',
+        code: 'P0001',
+      );
+      expect(friendlyError(state), startsWith('Esta ação já não é válida'));
+      // Outro código sem regra continua genérico.
+      const other = PostgrestException(message: 'boom', code: 'XX000');
+      expect(friendlyError(other),
+          'Ocorreu um erro inesperado. Tenta novamente.');
+    });
   });
 
   group('enums da BD', () {

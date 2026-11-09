@@ -72,10 +72,10 @@ secção 7.
 1. Criar o projeto Supabase e ativar `pg_cron` (e `pg_net` + Vault para a 0041, ver
    `docs/push_notifications.md`).
 2. Criar os buckets públicos `avatars` e `job-photos`.
-3. Correr `0001_consolidated_baseline.sql` no SQL Editor. Não corre de uma vez num
-   projeto vazio: 4 policies (linhas 384, 444, 572 e 587) usam funções helper criadas
-   mais abaixo, na secção 7. Correr o ficheiro e depois de novo só essas 4 policies.
-4. Correr `0033` a `0065` por ordem numérica.
+3. Correr `0001_consolidated_baseline.sql` no SQL Editor. Desde 2026-11-02 corre de
+   uma vez num projeto vazio (as 3 funções usadas nas policies passaram para a secção
+   5b, antes das policies).
+4. Correr `0033` em diante por ordem numérica.
 5. `NOTIFY pgrst, 'reload schema';`
 
 ## Drift conhecido
