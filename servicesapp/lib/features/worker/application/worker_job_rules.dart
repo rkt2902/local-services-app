@@ -28,12 +28,15 @@ abstract final class WorkerJobDayRules {
 
   static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  /// Cancelar e remarcar: só até ao dia anterior ao trabalho. Sem data
-  /// combinada (horário flexível) a BD não impõe limite.
+  /// Cancelar e remarcar: só até ao dia anterior ao trabalho e nunca
+  /// depois de "Iniciar" (0069). Sem data combinada (horário flexível) só
+  /// conta o início.
   static bool canCancelOrReschedule({
     required DateTime? confirmedDate,
     required DateTime today,
+    DateTime? startedAt,
   }) {
+    if (startedAt != null) return false;
     if (confirmedDate == null) return true;
     return _day(confirmedDate).difference(_day(today)).inDays >= 1;
   }

@@ -3,6 +3,46 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-02 — Revisão dos fluxos, parte 3: morada exata e contas eliminadas (0070)
+
+- **Pesquisas por raio medem à coordenada arredondada** (`get_jobs_in_radius`,
+  `get_help_requests_in_radius`): antes filtravam pela exata com um centro
+  enviado pela app, e mudando o centro chegava-se à morada exata do cliente
+  (~160 chamadas). Agora o "aparece / não aparece" só revela o que a app já mostra.
+- **Contas eliminadas**: saem de "Os teus jardineiros", "Pedir de novo" fica
+  indisponível, e `delete_my_account` liberta os pedidos diretos à espera
+  (como "Não posso").
+- **Trabalho iniciado conta como dia do trabalho** em `job_day_reached`: num
+  trabalho "a combinar", o pedido de ajudantes fecha ao começar e o botão deixa de aparecer.
+- **Limites**: 200 visitas ao cartão por jardineiro por hora; `id`, `created_at`
+  e `deleted_at` de `profiles` só mudam pelo servidor.
+
+## 2026-11-02 — Revisão dos fluxos, parte 2: vários dias, remarcações e trabalho iniciado (0069)
+
+- **Último dia previsto** `job_expected_end_date(job_id)`: o maior entre o dia marcado
+  + dias estimados - 1 e o último "Começar o dia". A regra 5.3 do `auto_expire_jobs` e
+  o lembrete 7.2 do `send_job_reminders` contam a partir daqui. Antes um trabalho de
+  5 a 7 dias era fechado como "expirado" ao 4.º dia, com o jardineiro a trabalhar, e
+  recebia "Marca o trabalho como concluído" no dia 2. Num trabalho de um dia nada muda.
+- **Remarcação com a data já passada**: `accept_reschedule` recusa ("Recusa esta
+  remarcação e propõe outra"); `propose_reschedule` aceita uma nova por cima; a regra
+  5.3 deixa de esperar por ela. Na app (`isStaleReschedule`) deixa de bloquear os botões.
+- **Trabalho já iniciado** (`started_at`): `cancel_job`, `propose_reschedule` e
+  `accept_reschedule` recusam. Na app, o jardineiro deixa de ver "Remarcar"/"Cancelar"
+  depois de "Iniciar" e a cliente vê-os desativados com o aviso "O trabalho já começou".
+  Antes, com data "a combinar" ou depois de remarcar, dava para cancelar a meio.
+- **Pedido direto parado** (`on_hold`): fecha às 48h com "O pedido ficou parado 48h
+  sem ser mostrado a outros jardineiros" (regra 5.1b) em vez de "não recebeu propostas".
+- **Limites no servidor**: `job_photos` no máximo 2 por pedido, só com o pedido aberto e
+  dentro da pasta do cliente (trigger); `ratings.comment` até 500 caracteres (CHECK
+  `NOT VALID`; a folha de avaliação tem o mesmo `maxLength`).
+- **Plano Grátis** (decidido pelo Henrique): o limite de 5 continua a travar só propostas
+  novas; as já enviadas podem ser aceites e passar dos 5. Os textos do painel e do
+  jardineiro passam a dizê-lo.
+- **`ref` depois de `await`**: cancelar/remarcar/aprovar ajudantes da cliente, cancelar
+  pedido aberto, editar perfil (cliente e jardineiro), setup do jardineiro e segundo
+  fator do admin guardam o `container` (ou o repositório) antes dos `await`.
+
 ## 2026-11-02 — Revisão dos fluxos: 7 correções (migration 0068)
 
 Revisão com a BD montada localmente (todas as migrations, RLS ligada) e o fluxo

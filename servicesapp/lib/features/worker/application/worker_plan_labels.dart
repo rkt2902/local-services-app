@@ -26,7 +26,10 @@ String workerPlanExplanation(WorkerPlan plan) {
         ? 'Já chegaste aos $limit trabalhos deste mês. Voltas a poder '
             'enviar propostas no início do próximo mês.'
         : 'Este mês já tens ${plan.jobsThisMonth} de $limit trabalhos aceites.';
-    return 'No plano Grátis podes ter até $limit trabalhos aceites por mês. '
+    // O limite trava propostas novas; as já enviadas ainda podem ser
+    // aceites (decidido 2026-11-02).
+    return 'No plano Grátis podes enviar propostas até teres $limit '
+        'trabalhos aceites no mês. '
         '$usage';
   }
   final verified = plan.verified

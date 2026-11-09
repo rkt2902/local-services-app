@@ -82,6 +82,9 @@ class _ClientScheduledJobDetailScreenState
     final toast = AppToast.of(context);
     final router = GoRouter.of(context);
     var navigatedAway = false;
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final newJobId = await ref.read(jobRepositoryProvider).cancelJob(
             jobId: widget.jobId,
@@ -96,8 +99,8 @@ class _ClientScheduledJobDetailScreenState
       } else {
         toast.show('Pedido cancelado.');
       }
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
@@ -111,6 +114,9 @@ class _ClientScheduledJobDetailScreenState
 
     setState(() => _proposingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).proposeReschedule(
             jobId: widget.jobId,
@@ -118,8 +124,8 @@ class _ClientScheduledJobDetailScreenState
             newTime: result['time'] as String?,
             newFlexible: result['flexible'] as bool,
           );
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Remarcação enviada.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -132,10 +138,13 @@ class _ClientScheduledJobDetailScreenState
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).acceptReschedule(widget.jobId);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Nova data aceite.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -148,10 +157,13 @@ class _ClientScheduledJobDetailScreenState
     if (_respondingReschedule) return;
     setState(() => _respondingReschedule = true);
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(jobRepositoryProvider).rejectReschedule(widget.jobId);
-      ref.invalidate(clientJobsProvider);
-      ref.invalidate(jobByIdProvider(widget.jobId));
+      container.invalidate(clientJobsProvider);
+      container.invalidate(jobByIdProvider(widget.jobId));
       toast.show('Remarcação recusada.');
     } catch (e) {
       toast.error(friendlyError(e));
@@ -165,13 +177,16 @@ class _ClientScheduledJobDetailScreenState
     if (ids.isEmpty) return;
     setState(() => _approvingHelp.addAll(ids));
     final toast = AppToast.of(context);
+    // Guardado antes dos awaits: se a pessoa sair do ecrã a meio, o `ref`
+    // deixa de se poder usar (StateError no Riverpod 3).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final repo = ref.read(helpRequestRepositoryProvider);
       for (final id in ids) {
         await repo.approveHelpRequest(id);
       }
       toast.show('Aprovado. O jardineiro pode agora procurar ajudantes.');
-      ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+      container.invalidate(helpRequestsForJobProvider(widget.jobId));
     } catch (e) {
       toast.error(friendlyError(e));
     } finally {
@@ -237,19 +252,28 @@ class _ClientScheduledJobDetailScreenState
         // Mesmas regras do servidor (`cancel_job`, `propose_reschedule`):
         // compara datas, só até à véspera do trabalho; e nada disto
         // enquanto houver uma remarcação por responder.
+        // 0069: depois de "Iniciar" nunca; uma remarcação cuja data já
+        // passou deixa de bloquear (a BD deixa propor outra por cima).
+        final started = job.startedAt != null;
         final reschedulePending =
-            job.rescheduleStatus == RescheduleStatus.pending;
+            job.rescheduleStatus == RescheduleStatus.pending &&
+                !isStaleReschedule(job, now: DateTime.now());
         final onOrAfterJobDay =
             isOnOrAfterJobDay(job.confirmedDate, DateTime.now());
-        final canReschedule =
-            !_proposingReschedule && !reschedulePending && !onOrAfterJobDay;
-        final canCancel = !_saving && !reschedulePending && !onOrAfterJobDay;
-        final String? actionsNotice = reschedulePending
-            ? 'Enquanto houver uma remarcação por responder não podes '
-                'cancelar nem remarcar.'
-            : onOrAfterJobDay
-                ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
-                : null;
+        final canReschedule = !_proposingReschedule &&
+            !reschedulePending &&
+            !onOrAfterJobDay &&
+            !started;
+        final canCancel =
+            !_saving && !reschedulePending && !onOrAfterJobDay && !started;
+        final String? actionsNotice = started
+            ? 'O trabalho já começou: já não dá para cancelar nem remarcar.'
+            : reschedulePending
+                ? 'Enquanto houver uma remarcação por responder não podes '
+                    'cancelar nem remarcar.'
+                : onOrAfterJobDay
+                    ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
+                    : null;
 
         Widget? rescheduleIncomingBanner;
         if (job.rescheduleStatus == RescheduleStatus.pending &&
