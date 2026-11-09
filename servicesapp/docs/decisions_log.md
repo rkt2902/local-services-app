@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-02 — Revisão dos fluxos, parte 3: morada exata e contas eliminadas (0070)
+
+- **Pesquisas por raio medem à coordenada arredondada** (`get_jobs_in_radius`,
+  `get_help_requests_in_radius`): antes filtravam pela exata com um centro
+  enviado pela app, e mudando o centro chegava-se à morada exata do cliente
+  (~160 chamadas). Agora o "aparece / não aparece" só revela o que a app já mostra.
+- **Contas eliminadas**: saem de "Os teus jardineiros", "Pedir de novo" fica
+  indisponível, e `delete_my_account` liberta os pedidos diretos à espera
+  (como "Não posso").
+- **Trabalho iniciado conta como dia do trabalho** em `job_day_reached`: num
+  trabalho "a combinar", o pedido de ajudantes fecha ao começar e o botão deixa de aparecer.
+- **Limites**: 200 visitas ao cartão por jardineiro por hora; `id`, `created_at`
+  e `deleted_at` de `profiles` só mudam pelo servidor.
+
 ## 2026-11-02 — Revisão dos fluxos, parte 2: vários dias, remarcações e trabalho iniciado (0069)
 
 - **Último dia previsto** `job_expected_end_date(job_id)`: o maior entre o dia marcado

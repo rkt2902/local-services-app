@@ -863,8 +863,10 @@ class _WorkerMyJobDetailScreenState
       inactive: inactive,
       completed: completed,
       helpTeamLoaded: team.loaded,
-      // Mesma regra da BD (0054): pedir ajudantes só até à véspera.
-      canRequestHelpers: confirmedDay == null || confirmedDay.isAfter(today),
+      // Mesma regra da BD (0054, 0070): pedir ajudantes só até à véspera
+      // e nunca com o trabalho já iniciado (datas "a combinar").
+      canRequestHelpers: job.startedAt == null &&
+          (confirmedDay == null || confirmedDay.isAfter(today)),
       helpTeam: helpTeam,
       flowStage: workerJobFlowStage(
         proposalStatus: proposal.status,
