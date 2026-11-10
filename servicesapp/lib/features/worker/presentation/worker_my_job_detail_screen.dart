@@ -10,6 +10,7 @@ import '../../../core/theme/app_status_presentation.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/constants/enums.dart';
+import '../../../core/models/job_flow_stage.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_status_presenters.dart';
@@ -40,6 +41,7 @@ import '../../help_requests/data/help_request_model.dart';
 import '../application/worker_job_flow.dart';
 import '../application/worker_job_rules.dart';
 import '../application/worker_list_invalidation.dart';
+import '../application/worker_proposal_outcome.dart';
 import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
@@ -732,6 +734,13 @@ class _WorkerMyJobDetailScreenState
         job.status == JobStatus.noResponse ||
         job.cancelReason == CancelReason.expired;
 
+    // Proposta que acabou sem trabalho: ecrã próprio, com o fim no timeline.
+    final outcome = workerProposalOutcome(
+      proposalStatus: proposal.status,
+      jobStatus: job.status,
+      cancelReason: job.cancelReason,
+    );
+
     // Badge do design A1: "Agendado" e, depois de iniciado, "Em curso";
     // aceite e fora de `confirmed`, o estado do trabalho ("Cancelado",
     // "Concluído", "Expirado").
@@ -753,6 +762,8 @@ class _WorkerMyJobDetailScreenState
       );
     } else if (accepted) {
       statusPresentation = job.status.presentation();
+    } else if (outcome != null) {
+      statusPresentation = workerProposalOutcomePresentation(outcome);
     } else {
       statusPresentation = proposal.status.presentation;
     }
@@ -861,21 +872,43 @@ class _WorkerMyJobDetailScreenState
           ? WorkerJobDayRules.overdueMessage(job.confirmedDate!)
           : null,
       inactive: inactive,
+      closedProposal: outcome == null
+          ? null
+          : () {
+              final message = workerProposalOutcomeMessage(
+                outcome: outcome,
+                endedAt: job.updatedAt,
+                cancelReason: job.cancelReason,
+              );
+              return view.WorkerClosedProposalViewData(
+                title: message.title,
+                body: message.body,
+                icon: message.icon,
+                dateLabel: _formatDate(job.preferredDate),
+                areaLabel: area,
+              );
+            }(),
       completed: completed,
       helpTeamLoaded: team.loaded,
       // Mesma regra da BD (0054, 0070): pedir ajudantes só até à véspera
       // e nunca com o trabalho já iniciado (datas "a combinar").
-      canRequestHelpers: job.startedAt == null &&
+      canRequestHelpers:
+          job.startedAt == null &&
           (confirmedDay == null || confirmedDay.isAfter(today)),
       helpTeam: helpTeam,
-      flowStage: workerJobFlowStage(
-        proposalStatus: proposal.status,
-        jobStatus: job.status,
-        startedAt: job.startedAt,
-        teamPending:
-            helpTeam != null &&
-            (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
-      ),
+      // Proposta fechada: o stepper fica parado na Proposta, como nos
+      // outros ecrãs do fluxo (pedido do Henrique, 09/11).
+      flowStopped: outcome != null,
+      flowStage: outcome != null
+          ? JobFlowStage.proposal
+          : workerJobFlowStage(
+              proposalStatus: proposal.status,
+              jobStatus: job.status,
+              startedAt: job.startedAt,
+              teamPending:
+                  helpTeam != null &&
+                  (helpTeam.awaitingApproval || helpTeam.emptySlots > 0),
+            ),
       // Fase Equipa só com ajudantes (previstos na proposta ou pedidos).
       flowShowTeam: helpTeam != null || proposal.peopleNeeded > 1,
       teamTabBadge: helpTeam == null || helpTeam.awaitingApproval
@@ -884,8 +917,12 @@ class _WorkerMyJobDetailScreenState
                 '${helpTeam.memberNames.length + helpTeam.emptySlots}',
       // Aceite: "Sofia Marques · Cascais" (design A1); antes disso o nome
       // do cliente pode não estar acessível (RLS), fica zona e data.
+      // Proposta fechada: só a localidade (data e o resto estão no corpo);
+      // sem localidade conhecida, nada.
       titleSubtitle: accepted
           ? '${clientName.isNotEmpty ? clientName : 'Cliente'} · $area'
+          : outcome != null
+          ? (_isRealArea(area) ? area : null)
           : jobDistinguisherLabel(job),
       proposingReschedule: _proposingReschedule,
       acceptingReschedule: _acceptingReschedule,
@@ -965,6 +1002,10 @@ String _formatDate(DateTime? date) {
   if (date == null) return 'Flexível';
   return DateFormat('dd/MM/yyyy').format(date);
 }
+
+/// "Zona aproximada" é o texto de recurso da BD (0043) quando o pedido não
+/// tem localidade: num título não diz nada.
+bool _isRealArea(String area) => area.isNotEmpty && area != 'Zona aproximada';
 
 String _hoursLabel(double? min, double? max) => estimatedHoursLabel(min, max);
 

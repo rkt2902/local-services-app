@@ -8,7 +8,10 @@ import '../theme/app_spacing.dart';
 import '../theme/app_status_color.dart';
 import 'app_motion.dart';
 
-enum StatusTimelineStepState { completed, current, future }
+/// [ended]: passo final de um fluxo que fechou sem trabalho (recusada,
+/// retirada, expirado, cancelado). Nó cheio na cor do estado, com ícone,
+/// e sem o pulso do passo atual, porque já não há nada a acontecer.
+enum StatusTimelineStepState { completed, current, future, ended }
 
 class StatusTimelineStepData {
   const StatusTimelineStepData({
@@ -19,6 +22,7 @@ class StatusTimelineStepData {
     this.dateLabel,
     this.note,
     this.noteIsWarning = false,
+    this.endedIcon,
   });
 
   final String label;
@@ -26,7 +30,8 @@ class StatusTimelineStepData {
   final StatusTimelineStepState state;
 
   /// Texto do passo ATUAL mostrado na zona de detalhe por baixo do traço
-  /// (ex.: motivo de cancelamento). Ignorado em passos que não são o atual.
+  /// (ex.: motivo de cancelamento). Só aparece no passo atual ou no final
+  /// ([StatusTimelineStepState.ended]).
   final String? subtitle;
 
   /// Caption curta (ex.: "12/10") mostrada por baixo do label do nó, só em
@@ -34,6 +39,9 @@ class StatusTimelineStepData {
   final String? dateLabel;
   final String? note;
   final bool noteIsWarning;
+
+  /// Ícone do nó [StatusTimelineStepState.ended]. Por omissão, uma cruz.
+  final IconData? endedIcon;
 }
 
 /// Duração do preenchimento do trilho quando um passo transita — bespoke a
@@ -76,6 +84,19 @@ Widget buildTimelineNodeCircle(StatusTimelineStepData step, {required double siz
           shape: BoxShape.circle,
         ),
       ),
+    StatusTimelineStepState.ended => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: step.statusColor.foreground,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          step.endedIcon ?? Icons.close_rounded,
+          color: Colors.white,
+          size: checkSize,
+        ),
+      ),
   };
 }
 
@@ -88,7 +109,9 @@ List<Widget> _timelineDetailLines(ThemeData theme, List<StatusTimelineStepData> 
   final lines = <Widget>[];
 
   for (final step in steps) {
-    if (step.state == StatusTimelineStepState.current && step.subtitle != null) {
+    final isLive = step.state == StatusTimelineStepState.current ||
+        step.state == StatusTimelineStepState.ended;
+    if (isLive && step.subtitle != null) {
       lines.add(Text(
         step.subtitle!,
         textAlign: TextAlign.center,
@@ -280,7 +303,10 @@ class _HorizontalTimelineNodeState extends State<_HorizontalTimelineNode>
     final step = widget.step;
     final isFuture = step.state == StatusTimelineStepState.future;
     final isCurrent = step.state == StatusTimelineStepState.current;
-    final size = isCurrent ? _horizontalCurrentNodeSize : _horizontalNodeSize;
+    final isEnded = step.state == StatusTimelineStepState.ended;
+    final size = (isCurrent || isEnded)
+        ? _horizontalCurrentNodeSize
+        : _horizontalNodeSize;
     final labelColor =
         isFuture ? AppStatusColor.neutral.foreground : step.statusColor.foreground;
 

@@ -12,11 +12,21 @@ import '../theme/app_spacing.dart';
 ///
 /// Sem ajudantes ([showTeam] falso) a fase Equipa não aparece: ficam
 /// quatro barras (pedido do Henrique, 27/10).
+///
+/// [stopped]: o fluxo acabou em [stage] sem chegar ao fim (proposta não
+/// escolhida, retirada, pedido expirado ou cancelado). A fase onde parou
+/// fica a cinzento-escuro em vez de verde-claro, e as seguintes não mudam.
 class JobFlowStepper extends StatelessWidget {
-  const JobFlowStepper({required this.stage, this.showTeam = true, super.key});
+  const JobFlowStepper({
+    required this.stage,
+    this.showTeam = true,
+    this.stopped = false,
+    super.key,
+  });
 
   final JobFlowStage stage;
   final bool showTeam;
+  final bool stopped;
 
   static const double _barHeight = 5;
 
@@ -34,7 +44,9 @@ class JobFlowStepper extends StatelessWidget {
     final current = steps.indexOf(shown);
 
     return Semantics(
-      label: 'Fase: ${shown.label}, ${current + 1} de ${steps.length}',
+      label: stopped
+          ? 'Parou na fase ${shown.label}, ${current + 1} de ${steps.length}'
+          : 'Fase: ${shown.label}, ${current + 1} de ${steps.length}',
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -58,7 +70,9 @@ class JobFlowStepper extends StatelessWidget {
                         color: i < current
                             ? AppColors.primary
                             : i == current
-                            ? AppColors.agendaHelperBar
+                            ? (stopped
+                                  ? AppColors.textSecondary
+                                  : AppColors.agendaHelperBar)
                             : AppColors.divider,
                         borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),

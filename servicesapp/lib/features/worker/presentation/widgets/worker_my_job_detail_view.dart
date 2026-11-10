@@ -75,12 +75,14 @@ class WorkerMyJobDetailViewData {
     this.rescheduleBlocked = false,
     this.overdueMessage,
     this.inactive,
+    this.closedProposal,
     this.completed,
     this.helpTeamLoaded = false,
     this.helpTeam,
     this.canRequestHelpers = true,
     this.titleSubtitle,
     this.flowStage,
+    this.flowStopped = false,
     this.flowShowTeam = false,
     this.teamTabBadge,
     this.sizeLabel,
@@ -127,6 +129,9 @@ class WorkerMyJobDetailViewData {
   /// cancelado) mantém o timeline.
   final JobFlowStage? flowStage;
 
+  /// O fluxo parou em [flowStage] (proposta fechada sem trabalho).
+  final bool flowStopped;
+
   /// Mostra a fase Equipa: só quando o trabalho tem ajudantes.
   final bool flowShowTeam;
 
@@ -154,6 +159,10 @@ class WorkerMyJobDetailViewData {
   /// Trabalho aceite que já não vai acontecer (cancelado ou expirado):
   /// cartão vermelho ou cinzento, dados esbatidos e sem ações.
   final WorkerInactiveJobViewData? inactive;
+
+  /// Proposta que acabou sem trabalho (outra escolhida, retirada, pedido
+  /// expirado ou cancelado). Com isto o ecrã mostra [_ClosedProposalBody].
+  final WorkerClosedProposalViewData? closedProposal;
 
   /// Trabalho concluído: tempo registado, fotos e avaliações.
   final WorkerCompletedJobViewData? completed;
@@ -319,6 +328,27 @@ class WorkerInactiveJobViewData {
   final bool expired;
 
   /// Só a localidade: a morada exata já não interessa.
+  final String areaLabel;
+}
+
+class WorkerClosedProposalViewData {
+  const WorkerClosedProposalViewData({
+    required this.title,
+    required this.body,
+    required this.icon,
+    required this.dateLabel,
+    required this.areaLabel,
+  });
+
+  /// Aviso do topo: "O cliente escolheu outra proposta", etc.
+  final String title;
+  final String body;
+  final IconData icon;
+
+  /// Data pedida pelo cliente ("28/10/2026" ou "Flexível").
+  final String dateLabel;
+
+  /// Só a localidade: a morada exata nunca chegou a ser partilhada.
   final String areaLabel;
 }
 
@@ -518,6 +548,12 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         clientAvatarUrl: data.clientAvatarUrl,
         onBrowseAvailableJobs: widget.onBrowseAvailableJobs,
       );
+    } else if (data.closedProposal != null) {
+      body = _ClosedProposalBody(
+        data: data,
+        closed: data.closedProposal!,
+        onBrowseAvailableJobs: widget.onBrowseAvailableJobs,
+      );
     } else if (accepted &&
         data.jobStatus == JobStatus.completed &&
         data.completed != null) {
@@ -564,6 +600,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     JobFlowStepper(
                       stage: data.flowStage!,
                       showTeam: data.flowShowTeam,
+                      stopped: data.flowStopped,
                     ),
                     if (showTabs)
                       AppTabs(
@@ -875,8 +912,8 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
     );
   }
 
-  // ── Outros estados (rejected/superseded/pending, e accepted à espera de
-  // confirmação) — conteúdo/lógica preservados de sessões anteriores, só com
+  // ── Outros estados (pending e accepted à espera de confirmação; as
+  // propostas fechadas têm [_ClosedProposalBody]) — conteúdo/lógica preservados de sessões anteriores, só com
   // limpeza de tokens (AppColors/AppSpacing/AppRadius) para consistência
   // visual com o resto da app.
 
@@ -972,44 +1009,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
             message: WorkerJobDayRules.awaitingConfirmationMessage,
           ),
         ],
-      );
-    }
-
-    if (data.proposalStatus == ProposalStatus.rejected) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _InfoBanner(
-            icon: Icons.info_outline_rounded,
-            color: AppStatusColor.cancelled,
-            message:
-                'A tua proposta não foi selecionada. O cliente escolheu outra proposta.',
-          ),
-          if (data.clientPhone.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: widget.onCallClientPressed,
-              icon: const Icon(Icons.chat_outlined),
-              label: const Text('Contactar cliente para novo pedido'),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Podes contactar o cliente para negociar e enviar uma nova proposta.',
-              textAlign: TextAlign.center,
-              style: textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    if (data.proposalStatus == ProposalStatus.superseded) {
-      return const _InfoBanner(
-        icon: Icons.undo_rounded,
-        color: AppStatusColor.neutral,
-        message: 'Retiraste a tua proposta para este pedido.',
       );
     }
 
@@ -1131,11 +1130,16 @@ class _JobFactsCard extends StatelessWidget {
     required this.priceLabel,
     this.onOpenMap,
     this.muted = false,
+    this.dateRowLabel = 'Data e hora',
   });
 
   final String dateTimeLabel;
+  final String dateRowLabel;
   final String locationLabel;
-  final String priceLabel;
+
+  /// `null` esconde a linha "Valor" (proposta fechada: o valor está no
+  /// cartão "A minha proposta").
+  final String? priceLabel;
 
   /// Abre a morada exata no mapa. `null` quando não há coordenadas.
   final VoidCallback? onOpenMap;
@@ -1160,7 +1164,7 @@ class _JobFactsCard extends StatelessWidget {
         children: [
           _FactRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Data e hora',
+            label: dateRowLabel,
             value: dateTimeLabel,
             muted: muted,
           ),
@@ -1177,13 +1181,15 @@ class _JobFactsCard extends StatelessWidget {
                     onPressed: onOpenMap!,
                   ),
           ),
-          const Divider(height: 1, color: AppColors.divider),
-          _FactRow(
-            icon: Icons.euro_rounded,
-            label: 'Valor',
-            value: priceLabel,
-            muted: muted,
-          ),
+          if (priceLabel != null) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            _FactRow(
+              icon: Icons.euro_rounded,
+              label: 'Valor',
+              value: priceLabel!,
+              muted: muted,
+            ),
+          ],
         ],
       ),
     );
@@ -1595,46 +1601,13 @@ class _InactiveJobBody extends StatelessWidget {
               children: [
                 AppStaggeredEntrance(
                   index: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: color.background,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          inactive.expired
-                              ? Icons.hourglass_disabled_rounded
-                              : Icons.event_busy_outlined,
-                          color: color.foreground,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                inactive.title,
-                                style: textTheme.titleSmall?.copyWith(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              if (inactive.body.isNotEmpty) ...[
-                                const SizedBox(height: AppSpacing.xxs),
-                                Text(
-                                  inactive.body,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: _EndedBanner(
+                    icon: inactive.expired
+                        ? Icons.hourglass_disabled_rounded
+                        : Icons.event_busy_outlined,
+                    color: color,
+                    title: inactive.title,
+                    body: inactive.body,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -1687,6 +1660,142 @@ class _InactiveJobBody extends StatelessWidget {
                       ],
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _BottomBar(
+          child: OutlinedButton(
+            onPressed: onBrowseAvailableJobs,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.divider),
+              minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.input),
+              ),
+            ),
+            child: const Text('Ver pedidos disponíveis'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Aviso do topo de um fluxo que acabou (design A1, segunda coluna):
+/// ícone, título e uma linha, no fundo do tom do estado.
+class _EndedBanner extends StatelessWidget {
+  const _EndedBanner({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final AppStatusColor color;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color.foreground),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    body,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Proposta fechada sem trabalho ──────────────────────────────────────────
+// Mesma composição do cancelado/expirado do design A1: o stepper do topo
+// parado na Proposta, o aviso do que aconteceu, factos a cinzento, a
+// proposta enviada e "Ver pedidos disponíveis".
+
+class _ClosedProposalBody extends StatelessWidget {
+  const _ClosedProposalBody({
+    required this.data,
+    required this.closed,
+    required this.onBrowseAvailableJobs,
+  });
+
+  final WorkerMyJobDetailViewData data;
+  final WorkerClosedProposalViewData closed;
+  final VoidCallback onBrowseAvailableJobs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.xs,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppStaggeredEntrance(
+                  index: 0,
+                  child: _EndedBanner(
+                    icon: closed.icon,
+                    color: AppStatusColor.neutral,
+                    title: closed.title,
+                    body: closed.body,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppStaggeredEntrance(
+                  index: 1,
+                  child: _JobFactsCard(
+                    dateTimeLabel: closed.dateLabel,
+                    dateRowLabel: 'Data pedida',
+                    locationLabel: closed.areaLabel,
+                    priceLabel: null,
+                    muted: true,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppStaggeredEntrance(
+                  index: 2,
+                  child: _ProposalSummaryCard(data: data),
                 ),
               ],
             ),

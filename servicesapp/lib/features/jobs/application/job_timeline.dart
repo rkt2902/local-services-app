@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Icons;
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
@@ -45,7 +46,8 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job, {DateTime? now}) {
       steps.add(StatusTimelineStepData(
         label: current.label,
         statusColor: current.color,
-        state: StatusTimelineStepState.current,
+        state: StatusTimelineStepState.ended,
+        endedIcon: Icons.hourglass_disabled_rounded,
       ));
 
     case JobStatus.confirmed:
@@ -140,7 +142,7 @@ List<StatusTimelineStepData> buildJobTimeline(JobRequest job, {DateTime? now}) {
       steps.add(StatusTimelineStepData(
         label: current.label,
         statusColor: current.color,
-        state: StatusTimelineStepState.current,
+        state: StatusTimelineStepState.ended,
         subtitle: job.cancelReason != null
             ? CancelReason.label(job.cancelReason!)
             : null,
