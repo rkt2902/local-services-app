@@ -206,6 +206,9 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
         detail = e.status == 'rejected'
             ? 'a equipa ficou completa'
             : (withPerson ?? '');
+      } else if (e.status == 'rejected' && e.jobStatus == 'open') {
+        // Recusada com o pedido ainda aberto (`reject_proposal`).
+        detail = 'o cliente recusou a proposta';
       } else if (e.status == 'rejected') {
         detail = 'o cliente escolheu outra proposta';
       } else if (e.status == 'superseded') {

@@ -424,15 +424,14 @@ class _ClientScheduledJobDetailScreenState
             : null;
         final durationLabel =
             proposal == null ? '' : proposalDurationLabel(proposal);
-        // "Dia 2 de 3" com o trabalho em curso em vários dias.
-        final workDays = (proposal != null && job.isInProgress)
-            ? ref.watch(jobWorkDaysProvider(job.id)).asData?.value ?? const []
-            : const [];
+        // "Dia 2 de 3" com o trabalho por dias em curso (0071: dia de
+        // calendário desde que começou, sem "Começar o dia").
         final workDayLabel = proposal != null &&
-                workDays.isNotEmpty &&
-                isMultiDayWork(proposal, dayCount: workDays.length)
+                job.isInProgress &&
+                isMultiDayWork(proposal)
             ? workDayHeaderLabel(
-                workDays.last.dayNumber, plannedWorkDays(proposal))
+                dayOfWork(job.startedAt!, now: DateTime.now()),
+                plannedWorkDays(proposal))
             : null;
 
         final workerName = workerInfoAsync.asData?.value['full_name'] ?? '';

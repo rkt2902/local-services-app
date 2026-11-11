@@ -66,7 +66,7 @@ class WorkerMyJobDetailViewData {
     required this.canMarkCompleted,
     this.markCompletedHint,
     this.startedAt,
-    this.workDays,
+    this.dayProgress,
     this.fixedValue,
     this.priceRowLabel = 'Taxa/hora',
     this.durationRowLabel = 'Horas estimadas',
@@ -193,10 +193,9 @@ class WorkerMyJobDetailViewData {
   /// do fundo passa a "Marcar como concluído" e aparece o temporizador.
   final DateTime? startedAt;
 
-  /// Trabalho em vários dias (design A6, E): "Dia 1 de 3", a lista dos
-  /// dias e os botões "Terminar o dia" / "Começar o dia". `null` quando o
-  /// trabalho é de um dia só.
-  final WorkerWorkDaysViewData? workDays;
+  /// Trabalho por dias (0071): "Dia 2 de 3", quando começou e o dia em
+  /// que deve acabar, sem relógio. `null` num trabalho à hora.
+  final WorkerDayProgressViewData? dayProgress;
 
   /// Cartão "Valor fechado" (proposta com valor total). `null` por hora.
   final WorkerFixedValueViewData? fixedValue;
@@ -222,53 +221,27 @@ class WorkerMyJobDetailViewData {
   final bool withdrawing;
 }
 
-/// Estado do trabalho em vários dias. Os inícios e fins vêm sempre da BD
-/// (`get_job_work_days`): o relógio só conta a partir de [dayStartedAt].
-class WorkerWorkDaysViewData {
-  const WorkerWorkDaysViewData({
+/// Trabalho por dias em curso (0071). Sem relógio: só o dia em que vai,
+/// quando começou e o último dia previsto.
+class WorkerDayProgressViewData {
+  const WorkerDayProgressViewData({
     required this.headerLabel,
-    required this.dayNumber,
-    required this.dayOpen,
-    required this.rows,
-    required this.workedTotalLabel,
-    this.dayStartedAt,
+    required this.startedLabel,
+    this.endLabel,
+    this.overdue = false,
   });
 
-  /// "Dia 1 de 3" ou "Dia 4 · além dos 3 previstos".
+  /// "Dia 2 de 3" ou "Dia 4 · além dos 3 previstos".
   final String headerLabel;
 
-  /// Dia atual (o aberto, ou o último terminado).
-  final int dayNumber;
+  /// "Começou a 09/11".
+  final String startedLabel;
 
-  /// O dia atual está a decorrer (relógio a contar).
-  final bool dayOpen;
+  /// "Acaba a 11/11" (ou "Devia ter acabado a 11/11"); `null` sem previsão.
+  final String? endLabel;
 
-  /// Início do dia atual, quando está aberto.
-  final DateTime? dayStartedAt;
-
-  final List<WorkerWorkDayRowViewData> rows;
-
-  /// Soma dos dias: "17 h 40 min".
-  final String workedTotalLabel;
-}
-
-/// Uma linha da lista "Dias de trabalho": "Dia 1" · "09:02 a 17:10 · 8 h 8 min".
-class WorkerWorkDayRowViewData {
-  const WorkerWorkDayRowViewData({
-    required this.label,
-    required this.detail,
-    this.current = false,
-    this.planned = false,
-  });
-
-  final String label;
-  final String detail;
-
-  /// Dia a decorrer.
-  final bool current;
-
-  /// Dia previsto que ainda não começou.
-  final bool planned;
+  /// Já passou do último dia previsto.
+  final bool overdue;
 }
 
 /// "Valor fechado": o total e o que inclui. Não muda com as horas.
@@ -401,8 +374,6 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
     required this.onBrowseAvailableJobs,
     super.key,
     this.onCompletionFeedbackFinished,
-    this.onFinishDay,
-    this.onStartNextDay,
     this.teamTab,
   });
 
@@ -440,12 +411,6 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
   /// Executado depois do AppSuccessFeedback — navega para /worker/home.
   final VoidCallback? onCompletionFeedbackFinished;
 
-  /// "Terminar o dia N" (`finish_work_day`). Só em trabalhos de vários dias.
-  final Future<void> Function()? onFinishDay;
-
-  /// "Começar o dia N+1" (`start_work_day`).
-  final Future<void> Function()? onStartNextDay;
-
   /// Conteúdo do separador Equipa (A12, a equipa e os candidatos). Só
   /// aparece num trabalho marcado com ajudantes ([WorkerMyJobDetailViewData
   /// .flowShowTeam]); sem ele não há separadores.
@@ -460,7 +425,6 @@ class WorkerMyJobDetailScreen extends StatefulWidget {
 class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
   bool _completing = false;
   bool _starting = false;
-  bool _changingDay = false;
   bool _showSuccessFeedback = false;
   Timer? _successTimer;
 
@@ -504,16 +468,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
       await widget.onStartJob();
     } finally {
       if (mounted) setState(() => _starting = false);
-    }
-  }
-
-  Future<void> _handleDayAction(Future<void> Function()? action) async {
-    if (_changingDay || action == null) return;
-    setState(() => _changingDay = true);
-    try {
-      await action();
-    } finally {
-      if (mounted) setState(() => _changingDay = false);
     }
   }
 
@@ -668,7 +622,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-                if (data.startedAt != null && data.workDays == null) ...[
+                if (data.startedAt != null && data.dayProgress == null) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
                     index: 1,
@@ -678,23 +632,11 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-                if (data.startedAt != null && data.workDays != null) ...[
+                if (data.startedAt != null && data.dayProgress != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   AppStaggeredEntrance(
                     index: 1,
-                    child:
-                        data.workDays!.dayOpen &&
-                            data.workDays!.dayStartedAt != null
-                        ? _WorkTimerCard(
-                            startedAt: data.workDays!.dayStartedAt!,
-                            title: data.workDays!.headerLabel,
-                          )
-                        : _DayPausedCard(workDays: data.workDays!),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppStaggeredEntrance(
-                    index: 1,
-                    child: _WorkDaysCard(workDays: data.workDays!),
+                    child: _DayProgressCard(progress: data.dayProgress!),
                   ),
                 ],
                 if (data.rescheduleStatus == RescheduleStatus.pending) ...[
@@ -819,61 +761,6 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
                     ),
                   ),
                 ],
-              ] else if (data.workDays != null) ...[
-                PrimaryActionButton(
-                  label: data.workDays!.dayOpen
-                      ? 'Terminar o dia ${data.workDays!.dayNumber}'
-                      : 'Começar o dia ${data.workDays!.dayNumber + 1}',
-                  icon: data.workDays!.dayOpen
-                      ? Icons.nightlight_outlined
-                      : Icons.play_arrow_rounded,
-                  isLoading: _changingDay,
-                  onPressed: (_changingDay || _completing)
-                      ? null
-                      : () => _handleDayAction(
-                          data.workDays!.dayOpen
-                              ? widget.onFinishDay
-                              : widget.onStartNextDay,
-                        ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                SizedBox(
-                  height: AppSizes.buttonHeight,
-                  child: OutlinedButton.icon(
-                    onPressed:
-                        (_completing || _changingDay || !data.canMarkCompleted)
-                        ? null
-                        : _handleMarkCompleted,
-                    icon: _completing
-                        ? const SizedBox.square(
-                            dimension: AppSizes.infoRowIcon,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Concluir trabalho'),
-                  ),
-                ),
-                if (!data.canMarkCompleted &&
-                    data.markCompletedHint != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    data.markCompletedHint!,
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-                TextButton(
-                  onPressed: widget.onReportProblem,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppStatusColor.cancelled.foreground,
-                  ),
-                  child: const Text(
-                    'Reportar problema',
-                    style: TextStyle(decoration: TextDecoration.underline),
-                  ),
-                ),
               ] else ...[
                 PrimaryActionButton(
                   label: 'Marcar como concluído',
@@ -2637,14 +2524,10 @@ class _WorkTimerCard extends StatefulWidget {
   const _WorkTimerCard({
     required this.startedAt,
     this.estimatedHoursLabel,
-    this.title = 'Tempo em curso',
   });
 
   final DateTime startedAt;
   final String? estimatedHoursLabel;
-
-  /// "Tempo em curso", ou "Dia 2 de 3" num trabalho em vários dias.
-  final String title;
 
   @override
   State<_WorkTimerCard> createState() => _WorkTimerCardState();
@@ -2686,7 +2569,7 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
     final elapsed = DateTime.now().difference(widget.startedAt);
 
     return Semantics(
-      label: widget.title,
+      label: 'Tempo em curso',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -2702,7 +2585,7 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.title,
+                    'Tempo em curso',
                     style: textTheme.labelMedium?.copyWith(
                       color: color.foreground,
                     ),
@@ -2745,16 +2628,19 @@ class _WorkTimerCardState extends State<_WorkTimerCard> {
   }
 }
 
-/// Entre dias: o dia atual terminou e o próximo ainda não começou.
-class _DayPausedCard extends StatelessWidget {
-  const _DayPausedCard({required this.workDays});
+/// Trabalho por dias em curso (0071): o dia em que vai e as datas, sem
+/// relógio.
+class _DayProgressCard extends StatelessWidget {
+  const _DayProgressCard({required this.progress});
 
-  final WorkerWorkDaysViewData workDays;
+  final WorkerDayProgressViewData progress;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    const color = AppStatusColor.neutral;
+    final color = progress.overdue
+        ? AppStatusColor.waiting
+        : AppStatusColor.info;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -2766,12 +2652,12 @@ class _DayPausedCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            workDays.headerLabel,
+            'Em curso',
             style: textTheme.labelMedium?.copyWith(color: color.foreground),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            'Dia ${workDays.dayNumber} terminado',
+            progress.headerLabel,
             style: textTheme.titleMedium?.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
@@ -2779,98 +2665,11 @@ class _DayPausedCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            'Tempo registado: ${workDays.workedTotalLabel}. Quando voltares, começa o dia ${workDays.dayNumber + 1}.',
+            [progress.startedLabel, ?progress.endLabel].join(' · '),
             style: textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Lista "Dias de trabalho" com o total registado.
-class _WorkDaysCard extends StatelessWidget {
-  const _WorkDaysCard({required this.workDays});
-
-  final WorkerWorkDaysViewData workDays;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Dias de trabalho',
-                  style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                workDays.workedTotalLabel,
-                style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          for (final row in workDays.rows)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-              child: Row(
-                children: [
-                  Icon(
-                    row.current
-                        ? Icons.radio_button_checked_rounded
-                        : row.planned
-                        ? Icons.radio_button_unchecked_rounded
-                        : Icons.check_circle_rounded,
-                    size: AppSizes.infoRowIcon,
-                    color: row.planned
-                        ? AppColors.textSecondary
-                        : row.current
-                        ? AppStatusColor.info.foreground
-                        : AppColors.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    row.label,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: row.planned
-                          ? AppColors.textSecondary
-                          : AppColors.textPrimary,
-                      fontWeight: row.current ? FontWeight.w700 : null,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      row.detail,
-                      textAlign: TextAlign.end,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

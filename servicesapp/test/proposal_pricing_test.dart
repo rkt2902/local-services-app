@@ -179,6 +179,20 @@ void main() {
       expect(workDayHeaderLabel(2, null), 'Dia 2');
     });
 
+    test('por dias: dia de calendário, último dia previsto e duração', () {
+      final start = DateTime(2026, 11, 9, 16, 30);
+      expect(dayOfWork(start, now: DateTime(2026, 11, 9, 23)), 1);
+      expect(dayOfWork(start, now: DateTime(2026, 11, 11, 8)), 3);
+      expect(expectedLastWorkDay(_p(dMin: 2, dMax: 3), start),
+          DateTime(2026, 11, 11));
+      expect(expectedLastWorkDay(_p(dMin: 8), start), DateTime(2026, 11, 16));
+      expect(expectedLastWorkDay(_p(), start), isNull);
+      expect(workDaysSpanLabel(start, DateTime(2026, 11, 9, 18)),
+          '1 dia (09/11)');
+      expect(workDaysSpanLabel(start, DateTime(2026, 11, 11, 12)),
+          '3 dias (09/11 a 11/11)');
+    });
+
     test('tempo registado soma os dias, o aberto conta até agora', () {
       final days = [
         JobWorkDay(

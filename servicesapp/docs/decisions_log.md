@@ -29,6 +29,22 @@ título.
 - Saiu o botão "Contactar cliente para novo pedido" da recusada: o jardineiro
   recusado não tem acesso ao telefone do cliente (RLS), por isso quase nunca aparecia.
 
+## 2026-11-11 — Revisão dos fluxos, parte 4: trabalho por dias e relatos (0071)
+
+- **Trabalho por dias sem relógio** (decisão do Henrique): numa proposta com
+  duração em dias, o jardineiro só carrega em Iniciar e em Marcar como concluído.
+  Os botões "Terminar o dia" / "Começar o dia" e o cronómetro saem. O ecrã mostra
+  "Dia 2 de 3 · Começou a 09/11 · Acaba a 11/11", e o concluído mostra "Durou 3 dias
+  (09/11 a 11/11)". O último dia previsto conta a partir do dia em que começou
+  (`job_expected_end_date`). Os ganhos usam a estimativa da proposta.
+- **Aviso de concluído**: por dias, "3 dias, de 09/11 a 11/11"; à hora, a soma
+  dos dias registados (antes, agora menos o início, contando as noites).
+- **Relatos**: só os da cliente travam a confirmação automática, que passa a
+  acontecer aos 7 dias (antes, nunca). O jardineiro é avisado do relato.
+- **Proposta fechada**: recusada com outra aceite é sempre "escolheu outra";
+  recusada com o pedido aberto é "o cliente recusou esta proposta".
+- **Agenda**: trabalhos "a combinar" aparecem a partir do dia em que começaram.
+
 ## 2026-11-02 — Revisão dos fluxos, parte 3: morada exata e contas eliminadas (0070)
 
 - **Pesquisas por raio medem à coordenada arredondada** (`get_jobs_in_radius`,

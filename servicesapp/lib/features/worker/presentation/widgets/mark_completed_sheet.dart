@@ -17,7 +17,7 @@ class MarkCompletedSheet extends StatefulWidget {
   const MarkCompletedSheet({
     super.key,
     required this.clientName,
-    required this.workedTimeLabel,
+    this.workedTimeLabel,
     required this.priceLabel,
     required this.onSend,
     this.workDaysLabel,
@@ -25,7 +25,8 @@ class MarkCompletedSheet extends StatefulWidget {
   });
 
   final String clientName;
-  final String workedTimeLabel;
+  /// `null` num trabalho por dias (0071): sem relógio, só os dias.
+  final String? workedTimeLabel;
   final String priceLabel;
   final Future<bool> Function(List<XFile> photos) onSend;
 
@@ -38,7 +39,7 @@ class MarkCompletedSheet extends StatefulWidget {
   static Future<bool> show(
     BuildContext context, {
     required String clientName,
-    required String workedTimeLabel,
+    String? workedTimeLabel,
     required String priceLabel,
     required Future<bool> Function(List<XFile> photos) onSend,
     String? workDaysLabel,
@@ -139,17 +140,19 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                 ],
-                _SummaryRow(
-                  label: 'Tempo registado',
-                  value: widget.workedTimeLabel,
-                ),
-                const SizedBox(height: AppSpacing.xs),
+                if (widget.workedTimeLabel != null) ...[
+                  _SummaryRow(
+                    label: 'Tempo registado',
+                    value: widget.workedTimeLabel!,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                ],
                 _SummaryRow(
                   label: widget.fixedValue ? 'Valor fechado' : 'Valor acordado',
                   value: widget.priceLabel,
                   highlighted: true,
                 ),
-                if (widget.fixedValue) ...[
+                if (widget.fixedValue && widget.workedTimeLabel != null) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     fixedValueTimeNote,
