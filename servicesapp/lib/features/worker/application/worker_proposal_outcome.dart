@@ -16,6 +16,9 @@ enum WorkerProposalOutcome {
   /// O cliente escolheu a proposta de outro jardineiro.
   chosenOther,
 
+  /// O cliente recusou esta proposta com o pedido ainda aberto.
+  declined,
+
   /// O pedido fechou sem nenhuma proposta aceite (data passou ou 14 dias).
   expired,
 
@@ -32,6 +35,7 @@ WorkerProposalOutcome? workerProposalOutcome({
   required ProposalStatus proposalStatus,
   required JobStatus jobStatus,
   String? cancelReason,
+  bool otherProposalAccepted = false,
 }) {
   switch (proposalStatus) {
     case ProposalStatus.accepted:
@@ -40,6 +44,13 @@ WorkerProposalOutcome? workerProposalOutcome({
       return WorkerProposalOutcome.withdrawn;
     case ProposalStatus.pending:
     case ProposalStatus.rejected:
+      // Outra proposta foi aceite: o que acontece depois ao pedido
+      // (cancelado pelo escolhido, expirado, concluído) já não é com este
+      // jardineiro. Antes aparecia "O cliente cancelou" com o motivo do
+      // outro.
+      if (proposalStatus == ProposalStatus.rejected && otherProposalAccepted) {
+        return WorkerProposalOutcome.chosenOther;
+      }
       if (jobStatus == JobStatus.noResponse ||
           (jobStatus == JobStatus.cancelled &&
               cancelReason == CancelReason.expired)) {
@@ -50,6 +61,8 @@ WorkerProposalOutcome? workerProposalOutcome({
       }
       // Pendente num pedido ainda aberto: não acabou.
       if (proposalStatus == ProposalStatus.pending) return null;
+      // Recusada com o pedido aberto: o cliente disse que não a esta.
+      if (jobStatus == JobStatus.open) return WorkerProposalOutcome.declined;
       return WorkerProposalOutcome.chosenOther;
   }
 }
@@ -60,6 +73,7 @@ AppStatusPresentation workerProposalOutcomePresentation(
   WorkerProposalOutcome outcome,
 ) => switch (outcome) {
   WorkerProposalOutcome.chosenOther => ProposalStatus.rejected.presentation,
+  WorkerProposalOutcome.declined => ProposalStatus.rejected.presentation,
   WorkerProposalOutcome.expired => const AppStatusPresentation(
     label: 'Expirado',
     color: AppStatusColor.neutral,
@@ -89,6 +103,11 @@ WorkerProposalOutcomeMessage workerProposalOutcomeMessage({
     WorkerProposalOutcome.chosenOther => (
       title: 'O cliente escolheu outra proposta',
       body: nothingToDo,
+      icon: Icons.person_off_outlined,
+    ),
+    WorkerProposalOutcome.declined => (
+      title: 'O cliente recusou esta proposta',
+      body: 'O pedido continua aberto a outros jardineiros. $nothingToDo',
       icon: Icons.person_off_outlined,
     ),
     WorkerProposalOutcome.expired => (

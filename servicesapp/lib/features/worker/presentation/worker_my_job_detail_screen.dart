@@ -383,72 +383,28 @@ class _WorkerMyJobDetailScreenState
     invalidateWorkerLists(ref, jobId: _jobId);
   }
 
-  /// "Terminar o dia N" (`finish_work_day`, migration 0058). Fica no ecrã.
-  Future<void> _finishDay(int day) async {
-    final toast = AppToast.of(context);
-    try {
-      await ref.read(proposalRepositoryProvider).finishWorkDay(_jobId);
-    } catch (e) {
-      toast.error(friendlyError(e));
-      return;
-    }
-    if (!mounted) return;
-    // Regra T4: sem navegação; aviso → invalidar.
-    toast.show('Dia $day terminado. Até amanhã!');
-    ref.invalidate(jobWorkDaysProvider(_jobId));
-  }
-
-  /// "Começar o dia N+1" (`start_work_day`).
-  Future<void> _startNextDay(int day) async {
-    final toast = AppToast.of(context);
-    try {
-      await ref.read(proposalRepositoryProvider).startWorkDay(_jobId);
-    } catch (e) {
-      toast.error(friendlyError(e));
-      return;
-    }
-    if (!mounted) return;
-    toast.show('Dia $day começado.');
-    ref.invalidate(jobWorkDaysProvider(_jobId));
-  }
-
-  /// Lista e estado dos dias para o ecrã (design A6, E). `null` quando o
-  /// trabalho é de um dia só ou os dias ainda não carregaram.
-  view.WorkerWorkDaysViewData? _workDaysViewData(
+  /// Trabalho por dias em curso (0071): o dia em que vai e as datas, sem
+  /// relógio. `null` num trabalho à hora ou ainda não iniciado.
+  view.WorkerDayProgressViewData? _dayProgressViewData(
     JobProposal proposal,
-    List<JobWorkDay> days,
+    DateTime? startedAt,
     DateTime now,
   ) {
-    if (days.isEmpty || !isMultiDayWork(proposal, dayCount: days.length)) {
-      return null;
-    }
-    final current = days.last;
-    final planned = plannedWorkDays(proposal);
-    String hm(DateTime d) => DateFormat('HH:mm').format(d.toLocal());
-    final rows = <view.WorkerWorkDayRowViewData>[
-      for (final d in days)
-        view.WorkerWorkDayRowViewData(
-          label: 'Dia ${d.dayNumber}',
-          detail: d.isOpen
-              ? 'Desde as ${hm(d.startedAt)} · a decorrer'
-              : '${hm(d.startedAt)} a ${hm(d.endedAt!)} · ${workedTimeLabel(d.endedAt!.difference(d.startedAt))}',
-          current: d.isOpen,
-        ),
-      if (planned != null)
-        for (var n = current.dayNumber + 1; n <= planned; n++)
-          view.WorkerWorkDayRowViewData(
-            label: 'Dia $n',
-            detail: 'Previsto',
-            planned: true,
-          ),
-    ];
-    return view.WorkerWorkDaysViewData(
-      headerLabel: workDayHeaderLabel(current.dayNumber, planned),
-      dayNumber: current.dayNumber,
-      dayOpen: current.isOpen,
-      dayStartedAt: current.isOpen ? current.startedAt : null,
-      rows: rows,
-      workedTotalLabel: workedTimeLabel(workedDuration(days, now: now)),
+    if (startedAt == null || !isMultiDayWork(proposal)) return null;
+    String dm(DateTime d) => DateFormat('dd/MM').format(d.toLocal());
+    final day = dayOfWork(startedAt, now: now);
+    final lastDay = expectedLastWorkDay(proposal, startedAt);
+    final today = DateTime(now.year, now.month, now.day);
+    final overdue = lastDay != null && today.isAfter(lastDay);
+    return view.WorkerDayProgressViewData(
+      headerLabel: workDayHeaderLabel(day, plannedWorkDays(proposal)),
+      startedLabel: 'Começou a ${dm(startedAt)}',
+      endLabel: lastDay == null
+          ? null
+          : overdue
+          ? 'Devia ter acabado a ${dm(lastDay)}'
+          : 'Acaba a ${dm(lastDay)}',
+      overdue: overdue,
     );
   }
 
@@ -461,14 +417,16 @@ class _WorkerMyJobDetailScreenState
     required DateTime? startedAt,
     required String priceLabel,
     required List<JobWorkDay> workDays,
-    required bool multiDay,
+    required bool dayBased,
     required bool fixedValue,
   }) async {
     final toast = AppToast.of(context);
     final now = DateTime.now();
-    // Com dias registados (0058) o tempo é a soma dos dias; sem eles fica o
-    // cálculo antigo desde o início.
-    final worked = workDays.isNotEmpty
+    // Por dias (0071): só os dias, sem tempo. À hora: a soma dos dias
+    // registados; sem eles, o cálculo antigo desde o início.
+    final String? worked = dayBased
+        ? null
+        : workDays.isNotEmpty
         ? workedTimeLabel(workedDuration(workDays, now: now))
         : startedAt == null
         ? 'Sem registo'
@@ -478,8 +436,8 @@ class _WorkerMyJobDetailScreenState
       clientName: clientName,
       workedTimeLabel: worked,
       priceLabel: priceLabel,
-      workDaysLabel: multiDay && workDays.isNotEmpty
-          ? '${workDays.length}'
+      workDaysLabel: dayBased && startedAt != null
+          ? workDaysSpanLabel(startedAt, now)
           : null,
       fixedValue: fixedValue,
       onSend: (photos) async {
@@ -530,17 +488,34 @@ class _WorkerMyJobDetailScreenState
   /// Fotos, tempo registado e a avaliação que o cliente deixou (design A1).
   view.WorkerCompletedJobViewData _completedViewData(
     JobRequest job,
+    JobProposal proposal,
     String clientName,
   ) {
     final repo = ref.read(jobRepositoryProvider);
     final after = job.afterPhotoPaths.isNotEmpty
         ? job.afterPhotoPaths
         : [?job.completionPhotoPath];
-    final worked = job.workedDuration;
+    // Por dias (0071): quantos dias durou. À hora: a soma dos dias
+    // registados, como no ecrã da cliente (antes contava as noites).
+    final start = job.startedAt;
+    final done = job.markedDoneAt;
+    final String? workedLabel;
+    if (start != null && done != null && isMultiDayWork(proposal)) {
+      workedLabel = 'Durou ${workDaysSpanLabel(start, done)}.';
+    } else {
+      final days = ref.watch(jobWorkDaysProvider(job.id)).asData?.value ??
+          const <JobWorkDay>[];
+      final worked = days.isNotEmpty
+          ? workedDuration(days, now: DateTime.now())
+          : job.workedDuration;
+      workedLabel = worked == null
+          ? null
+          : 'Tempo registado: ${durationLabel(worked)}.';
+    }
     final meta = [
       if (job.updatedAt != null)
         'Concluído a ${DateFormat('dd/MM').format(job.updatedAt!.toLocal())}.',
-      if (worked != null) 'Tempo registado: ${durationLabel(worked)}.',
+      ?workedLabel,
     ].join(' ');
 
     final received = ref
@@ -704,9 +679,12 @@ class _WorkerMyJobDetailScreenState
       today: today,
       startedAt: job.startedAt,
     );
+    final plannedDays = proposal.estimatedDaysMax ?? proposal.estimatedDaysMin;
     final overdue = WorkerJobDayRules.isOverdue(
       confirmedDate: job.confirmedDate,
       today: today,
+      startedAt: job.startedAt,
+      plannedDays: plannedDays,
     );
 
     final now = DateTime.now();
@@ -739,6 +717,8 @@ class _WorkerMyJobDetailScreenState
       proposalStatus: proposal.status,
       jobStatus: job.status,
       cancelReason: job.cancelReason,
+      otherProposalAccepted:
+          job.acceptedProposalId != null && job.acceptedProposalId != proposal.id,
     );
 
     // Badge do design A1: "Agendado" e, depois de iniciado, "Em curso";
@@ -790,7 +770,7 @@ class _WorkerMyJobDetailScreenState
         : null;
 
     final completed = accepted && job.status == JobStatus.completed
-        ? _completedViewData(job, clientName)
+        ? _completedViewData(job, proposal, clientName)
         : null;
 
     final helpTeam = _teamViewData(
@@ -856,7 +836,7 @@ class _WorkerMyJobDetailScreenState
       agreedPriceLabel: acceptedProposalPriceLabel(proposal),
       canMarkCompleted: canMarkCompleted,
       startedAt: job.startedAt,
-      workDays: _workDaysViewData(proposal, workDays, now),
+      dayProgress: _dayProgressViewData(proposal, job.startedAt, now),
       fixedValue: proposal.isFixedTotal
           ? view.WorkerFixedValueViewData(
               valueLabel: compactMoneyLabel(proposal.totalPrice!),
@@ -868,8 +848,15 @@ class _WorkerMyJobDetailScreenState
       markCompletedHint: confirmedDay == null
           ? null
           : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
-      overdueMessage: (overdue && job.confirmedDate != null)
-          ? WorkerJobDayRules.overdueMessage(job.confirmedDate!)
+      overdueMessage: overdue
+          ? WorkerJobDayRules.overdueMessage(
+              WorkerJobDayRules.expectedEndDay(
+                confirmedDate: job.confirmedDate,
+                startedAt: job.startedAt,
+                plannedDays: plannedDays,
+              )!,
+              started: job.startedAt != null,
+            )
           : null,
       inactive: inactive,
       closedProposal: outcome == null
@@ -952,15 +939,9 @@ class _WorkerMyJobDetailScreenState
             ? compactMoneyLabel(proposal.totalPrice!)
             : data.agreedPriceLabel,
         workDays: workDays,
-        multiDay: data.workDays != null,
+        dayBased: isMultiDayWork(proposal),
         fixedValue: proposal.isFixedTotal,
       ),
-      onFinishDay: data.workDays == null
-          ? null
-          : () => _finishDay(data.workDays!.dayNumber),
-      onStartNextDay: data.workDays == null
-          ? null
-          : () => _startNextDay(data.workDays!.dayNumber + 1),
       onStartJob: () => _startJob(data.clientName),
       onReportProblem: _reportProblem,
       onCompletionFeedbackFinished: _onCompletionFeedbackFinished,

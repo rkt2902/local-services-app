@@ -41,19 +41,46 @@ abstract final class WorkerJobDayRules {
     return _day(confirmedDate).difference(_day(today)).inDays >= 1;
   }
 
-  /// A data combinada já passou e o trabalho continua por concluir.
+  /// Último dia previsto do trabalho, como a `job_expected_end_date` da BD
+  /// (0071): o dia combinado ou, se começou depois, o dia em que começou,
+  /// mais os dias da proposta menos 1. Sem duração em dias conta 1 dia.
+  /// "A combinar" (sem data) conta a partir do dia em que começou (0073);
+  /// `null` sem data e sem ter começado.
+  static DateTime? expectedEndDay({
+    required DateTime? confirmedDate,
+    DateTime? startedAt,
+    int? plannedDays,
+  }) {
+    DateTime? first = confirmedDate == null ? null : _day(confirmedDate);
+    if (startedAt != null) {
+      final l = startedAt.toLocal();
+      final started = DateTime(l.year, l.month, l.day);
+      if (first == null || started.isAfter(first)) first = started;
+    }
+    if (first == null) return null;
+    final days = (plannedDays == null || plannedDays < 1) ? 1 : plannedDays;
+    return first.add(Duration(days: days - 1));
+  }
+
+  /// O último dia previsto já passou e o trabalho continua por concluir.
   static bool isOverdue({
     required DateTime? confirmedDate,
     required DateTime today,
+    DateTime? startedAt,
+    int? plannedDays,
   }) {
-    if (confirmedDate == null) return false;
-    return _day(confirmedDate).isBefore(_day(today));
+    final end = expectedEndDay(
+      confirmedDate: confirmedDate,
+      startedAt: startedAt,
+      plannedDays: plannedDays,
+    );
+    return end != null && end.isBefore(_day(today));
   }
 
   /// Último dia em que o worker ainda pode marcar como concluído antes de o
-  /// pedido expirar.
-  static DateTime lastDayToComplete(DateTime confirmedDate) =>
-      _day(confirmedDate).add(const Duration(days: overdueGraceDays));
+  /// pedido expirar (`auto_expire_jobs`: último dia previsto + 3).
+  static DateTime lastDayToComplete(DateTime expectedEnd) =>
+      _day(expectedEnd).add(const Duration(days: overdueGraceDays));
 
   /// Momento a partir do qual "Iniciar trabalho" fica disponível; `null`
   /// quando não há data combinada (sempre disponível). Hora do dispositivo,
@@ -71,8 +98,13 @@ abstract final class WorkerJobDayRules {
     final hour = int.tryParse(parts[0]);
     final minute = int.tryParse(parts[1]);
     if (hour == null || minute == null) return day;
-    return DateTime(day.year, day.month, day.day, hour, minute)
-        .subtract(startLeadTime);
+    return DateTime(
+      day.year,
+      day.month,
+      day.day,
+      hour,
+      minute,
+    ).subtract(startLeadTime);
   }
 
   static bool canStart({
@@ -89,9 +121,16 @@ abstract final class WorkerJobDayRules {
     return opens == null || !now.isBefore(opens);
   }
 
-  static String overdueMessage(DateTime confirmedDate) {
-    final deadline = DateFormat('dd/MM').format(lastDayToComplete(confirmedDate));
-    return 'A data já passou. Marca como concluído até $deadline ou o pedido expira.';
+  /// Aviso de atraso. Sem "Iniciar" não dá para marcar como concluído
+  /// (`mark_job_done`, 0052), por isso o texto pede as duas coisas.
+  static String overdueMessage(DateTime expectedEnd, {required bool started}) {
+    final deadline = DateFormat('dd/MM').format(lastDayToComplete(expectedEnd));
+    return started
+        ? 'O trabalho já devia ter acabado. Marca como concluído até '
+              '$deadline, senão o pedido expira.'
+        : 'A data já passou e o trabalho não foi iniciado. Se o fizeste ou '
+              'ainda o vais fazer, inicia e marca como concluído até $deadline. '
+              'Depois disso o pedido expira.';
   }
 
   static const awaitingConfirmationMessage =
@@ -159,7 +198,9 @@ String startJobHint({
       ? 'hoje'
       : shortWeekdayDateLabel(opensAt, now: now).toLowerCase();
   if (dayOnly) {
-    return sameDay ? 'Disponível a partir de hoje' : 'Disponível a partir de $day';
+    return sameDay
+        ? 'Disponível a partir de hoje'
+        : 'Disponível a partir de $day';
   }
   return 'Disponível a partir das ${DateFormat('H:mm').format(opensAt)} de $day';
 }
@@ -191,7 +232,8 @@ InactiveJobMessage inactiveJobMessage({
   if (cancelReason == CancelReason.expired) {
     return (
       title: 'Este trabalho expirou',
-      body: 'Passaram ${WorkerJobDayRules.overdueGraceDays} dias da data sem '
+      body:
+          'Passaram ${WorkerJobDayRules.overdueGraceDays} dias da data sem '
           'ser marcado como concluído.',
       expired: true,
     );
@@ -286,10 +328,13 @@ HelpTeamSummary? helpTeamSummary(
     );
   }
   final preenchidas = slots == 1 ? 'preenchida' : 'preenchidas';
-  final buffer = StringBuffer('Ajudantes: $filled de $slots $vagas $preenchidas');
+  final buffer = StringBuffer(
+    'Ajudantes: $filled de $slots $vagas $preenchidas',
+  );
   if (undecided > 0) {
     buffer.write(
-        ' · $undecided ${undecided == 1 ? 'candidato' : 'candidatos'} por decidir');
+      ' · $undecided ${undecided == 1 ? 'candidato' : 'candidatos'} por decidir',
+    );
   }
   return HelpTeamSummary(
     label: buffer.toString(),
@@ -308,9 +353,13 @@ enum HelperCardKind { pending, active, history }
 HelperCardKind helperCardKind(HelpAcceptanceStatus status, String jobStatus) {
   switch (status) {
     case HelpAcceptanceStatus.pending:
-      return _jobIsDead(jobStatus) ? HelperCardKind.history : HelperCardKind.pending;
+      return _jobIsDead(jobStatus)
+          ? HelperCardKind.history
+          : HelperCardKind.pending;
     case HelpAcceptanceStatus.accepted:
-      return _jobIsDead(jobStatus) ? HelperCardKind.history : HelperCardKind.active;
+      return _jobIsDead(jobStatus)
+          ? HelperCardKind.history
+          : HelperCardKind.active;
     case HelpAcceptanceStatus.rejected:
     case HelpAcceptanceStatus.cancelled:
       return HelperCardKind.history;

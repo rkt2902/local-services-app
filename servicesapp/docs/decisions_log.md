@@ -29,6 +29,54 @@ título.
 - Saiu o botão "Contactar cliente para novo pedido" da recusada: o jardineiro
   recusado não tem acesso ao telefone do cliente (RLS), por isso quase nunca aparecia.
 
+## 2026-11-12 — Revisão dos fluxos, parte 5 (0073)
+
+- Pedido direto: a reserva de 24h deixa de acabar quando o jardineiro
+  escolhido já respondeu com proposta (a cliente ouvia "não respondeu a
+  tempo" e o pedido ficava parado). O fecho do pedido parado (5.1b) recusa
+  as propostas pendentes e `accept_proposal` só aceita em pedidos abertos;
+  antes um pedido fechado passava a confirmado.
+- Trabalho "a combinar" iniciado: lembrete e expiração contam a partir do
+  dia em que começou (antes ficava em curso para sempre).
+- "A combinar" nunca iniciado (decisão do Henrique): aviso aos dois aos 27
+  dias e fecha como expirado 30 dias depois de a proposta ser aceite, sempre
+  pelo menos 3 dias depois do aviso. Com data marcada ou iniciado seguem as
+  regras normais.
+- O toque em "Vais ajudar num trabalho hoje" abre o trabalho do ajudante
+  (antes ia para o início).
+
+## 2026-11-12 — Aviso de atraso certo e lembretes de início (0072)
+
+O aviso "A data já passou. Marca como concluído até 14/11" aparecia num
+trabalho que nem tinha sido iniciado, com só o botão "Iniciar trabalho" (o
+`mark_job_done` exige iniciar primeiro). Também contava a partir da data
+marcada, por isso num trabalho de 3 dias aparecia logo no 2.º dia, quando a
+BD (`job_expected_end_date`, 0069/0071) só expira 3 dias depois do último dia
+previsto. Agora a app usa a mesma conta (`WorkerJobDayRules.expectedEndDay`),
+no ecrã e no "O que falta fazer", e o texto muda conforme já começou ou não.
+
+Lembretes novos (pedido do Henrique): ao jardineiro, 1 hora antes da hora
+combinada e 30 minutos depois se ainda não carregou em Iniciar. Só com hora
+marcada; o horário flexível fica com o lembrete da manhã. Cron
+`job-start-reminders` de 5 em 5 minutos (`send_start_reminders`); cada aviso
+guarda a hora a que se refere, por isso uma remarcação volta a enviar.
+
+## 2026-11-11 — Revisão dos fluxos, parte 4: trabalho por dias e relatos (0071)
+
+- **Trabalho por dias sem relógio** (decisão do Henrique): numa proposta com
+  duração em dias, o jardineiro só carrega em Iniciar e em Marcar como concluído.
+  Os botões "Terminar o dia" / "Começar o dia" e o cronómetro saem. O ecrã mostra
+  "Dia 2 de 3 · Começou a 09/11 · Acaba a 11/11", e o concluído mostra "Durou 3 dias
+  (09/11 a 11/11)". O último dia previsto conta a partir do dia em que começou
+  (`job_expected_end_date`). Os ganhos usam a estimativa da proposta.
+- **Aviso de concluído**: por dias, "3 dias, de 09/11 a 11/11"; à hora, a soma
+  dos dias registados (antes, agora menos o início, contando as noites).
+- **Relatos**: só os da cliente travam a confirmação automática, que passa a
+  acontecer aos 7 dias (antes, nunca). O jardineiro é avisado do relato.
+- **Proposta fechada**: recusada com outra aceite é sempre "escolheu outra";
+  recusada com o pedido aberto é "o cliente recusou esta proposta".
+- **Agenda**: trabalhos "a combinar" aparecem a partir do dia em que começaram.
+
 ## 2026-11-02 — Revisão dos fluxos, parte 3: morada exata e contas eliminadas (0070)
 
 - **Pesquisas por raio medem à coordenada arredondada** (`get_jobs_in_radius`,

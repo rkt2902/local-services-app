@@ -333,6 +333,13 @@ class _ClientJobDetailScreenState
     final worked = workDays.isNotEmpty
         ? workedDuration(workDays, now: DateTime.now())
         : job.workedDuration;
+    // Trabalho por dias (0071): quantos dias durou, sem horas.
+    final dayBasedLabel = proposal != null &&
+            isMultiDayWork(proposal) &&
+            job.startedAt != null &&
+            job.markedDoneAt != null
+        ? 'Durou ${workDaysSpanLabel(job.startedAt!, job.markedDoneAt!)}'
+        : null;
 
     Widget photoRow(String label, List<String> paths) {
       final urls = paths.map(repo.jobPhotoPublicUrl).toList();
@@ -399,13 +406,13 @@ class _ClientJobDetailScreenState
             ),
             const SizedBox(height: AppSpacing.sm),
           ],
-          if (worked != null) ...[
+          if (dayBasedLabel != null || worked != null) ...[
             Text(
-              'Tempo registado: ${durationLabel(worked)}',
+              dayBasedLabel ?? 'Tempo registado: ${durationLabel(worked!)}',
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: AppColors.textPrimary),
             ),
-            if (proposal?.isFixedTotal ?? false) ...[
+            if ((proposal?.isFixedTotal ?? false) && dayBasedLabel == null) ...[
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 fixedValueTimeNote,

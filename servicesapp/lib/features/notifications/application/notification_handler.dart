@@ -224,6 +224,10 @@ class NotificationHandler {
               '/worker/my-job/${proposal.id}?jobId=${notification.relatedId}',
               extra: {'entryTransition': 'sharedAxis'},
             );
+          } else if (notification.type == NotificationType.jobReminder) {
+            // O ajudante também recebe job_reminder ("Vais ajudar num
+            // trabalho hoje") e não lê a proposta do responsável (RLS).
+            await _openHelperJob(context, ref, notification.relatedId);
           } else {
             context.go('/worker/home');
           }

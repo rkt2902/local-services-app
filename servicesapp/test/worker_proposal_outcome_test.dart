@@ -10,10 +10,12 @@ void main() {
       ProposalStatus p,
       JobStatus j, {
       String? reason,
+      bool otherAccepted = false,
     }) => workerProposalOutcome(
       proposalStatus: p,
       jobStatus: j,
       cancelReason: reason,
+      otherProposalAccepted: otherAccepted,
     );
 
     test('recusada com o pedido a seguir com outro: outra escolhida', () {
@@ -21,10 +23,31 @@ void main() {
         JobStatus.confirmed,
         JobStatus.awaitingConfirmation,
         JobStatus.completed,
-        JobStatus.open,
       ]) {
         expect(
           outcome(ProposalStatus.rejected, j),
+          WorkerProposalOutcome.chosenOther,
+        );
+      }
+    });
+
+    test('recusada com o pedido aberto: o cliente recusou esta', () {
+      expect(
+        outcome(ProposalStatus.rejected, JobStatus.open),
+        WorkerProposalOutcome.declined,
+      );
+    });
+
+    test('outra aceite e depois cancelada ou expirada: continua outra escolhida',
+        () {
+      for (final reason in [CancelReason.expired, 'worker_unavailable']) {
+        expect(
+          outcome(
+            ProposalStatus.rejected,
+            JobStatus.cancelled,
+            reason: reason,
+            otherAccepted: true,
+          ),
           WorkerProposalOutcome.chosenOther,
         );
       }

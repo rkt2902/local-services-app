@@ -185,6 +185,37 @@ String workDayHeaderLabel(int day, int? planned) {
   return 'Dia $day de $planned';
 }
 
+DateTime _localDay(DateTime d) {
+  final l = d.toLocal();
+  return DateTime(l.year, l.month, l.day);
+}
+
+/// Trabalho por dias (0071): o dia de calendário em que vai, contando o
+/// dia em que começou como o dia 1. Sem relógio.
+int dayOfWork(DateTime startedAt, {required DateTime now}) {
+  final n = _localDay(now).difference(_localDay(startedAt)).inDays + 1;
+  return n < 1 ? 1 : n;
+}
+
+/// Último dia previsto de um trabalho por dias: o dia em que começou mais
+/// os dias da proposta (o máximo; sem máximo, o mínimo). Mesma conta da
+/// `job_expected_end_date` (0071). `null` sem duração em dias.
+DateTime? expectedLastWorkDay(JobProposal p, DateTime startedAt) {
+  final n = p.estimatedDaysMax ?? p.estimatedDaysMin;
+  if (n == null) return null;
+  return _localDay(startedAt).add(Duration(days: (n < 1 ? 1 : n) - 1));
+}
+
+/// "1 dia (09/11)" ou "3 dias (09/11 a 11/11)": quanto durou um trabalho
+/// por dias, de [startedAt] a [endedAt].
+String workDaysSpanLabel(DateTime startedAt, DateTime endedAt) {
+  final days = dayOfWork(startedAt, now: endedAt);
+  String dm(DateTime d) =>
+      '${d.toLocal().day.toString().padLeft(2, '0')}/${d.toLocal().month.toString().padLeft(2, '0')}';
+  if (days == 1) return '1 dia (${dm(startedAt)})';
+  return '$days dias (${dm(startedAt)} a ${dm(endedAt)})';
+}
+
 /// Tempo registado: a soma dos dias (o dia aberto conta até [now]).
 Duration workedDuration(List<JobWorkDay> days, {required DateTime now}) {
   var total = Duration.zero;

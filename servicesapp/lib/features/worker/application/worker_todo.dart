@@ -20,6 +20,7 @@ class WorkerTodoScheduledJob {
     this.startedAt,
     this.rescheduleStatus,
     this.rescheduleProposedBy,
+    this.plannedDays,
   });
 
   final String proposalId;
@@ -33,6 +34,9 @@ class WorkerTodoScheduledJob {
   final DateTime? startedAt;
   final RescheduleStatus? rescheduleStatus;
   final String? rescheduleProposedBy;
+
+  /// Dias da proposta (máximo; sem máximo, o mínimo). `null` à hora.
+  final int? plannedDays;
 }
 
 /// Trabalho concluído em que o jardineiro foi o responsável
@@ -66,10 +70,10 @@ class WorkerTodoTarget {
   const WorkerTodoTarget._(this.location, {required this.push, this.extra});
 
   const WorkerTodoTarget.push(String location, {Map<String, Object>? extra})
-      : this._(location, push: true, extra: extra);
+    : this._(location, push: true, extra: extra);
 
   const WorkerTodoTarget.go(String location, {Map<String, Object>? extra})
-      : this._(location, push: false, extra: extra);
+    : this._(location, push: false, extra: extra);
 
   final String location;
   final bool push;
@@ -104,7 +108,8 @@ const todoCandidatesJobCap = 5;
 
 DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
 
-String _plural(int n, String one, String many) => n == 1 ? '1 $one' : '$n $many';
+String _plural(int n, String one, String many) =>
+    n == 1 ? '1 $one' : '$n $many';
 
 /// "09:00:00" → "9:00"; `null` sem hora ou com horário flexível.
 String? _clock(String? time, {bool flexible = false}) {
@@ -142,36 +147,47 @@ List<WorkerTodoItem> buildWorkerTodo({
 
   // Remarcações propostas pelo cliente, à espera da resposta do jardineiro.
   final reschedules = scheduledJobs
-      .where((j) =>
-          j.status == JobStatus.confirmed &&
-          j.rescheduleStatus == RescheduleStatus.pending &&
-          j.rescheduleProposedBy != null &&
-          j.rescheduleProposedBy != myUserId)
+      .where(
+        (j) =>
+            j.status == JobStatus.confirmed &&
+            j.rescheduleStatus == RescheduleStatus.pending &&
+            j.rescheduleProposedBy != null &&
+            j.rescheduleProposedBy != myUserId,
+      )
       .toList();
   if (reschedules.isNotEmpty) {
-    items.add(WorkerTodoItem(
-      kind: WorkerTodoKind.rescheduleToAnswer,
-      count: reschedules.length,
-      label: _plural(reschedules.length, 'remarcação por responder',
-          'remarcações por responder'),
-      target: reschedules.length == 1
-          ? _myJob(reschedules.first.proposalId, reschedules.first.jobId)
-          : _jobsTab('scheduled'),
-    ));
+    items.add(
+      WorkerTodoItem(
+        kind: WorkerTodoKind.rescheduleToAnswer,
+        count: reschedules.length,
+        label: _plural(
+          reschedules.length,
+          'remarcação por responder',
+          'remarcações por responder',
+        ),
+        target: reschedules.length == 1
+            ? _myJob(reschedules.first.proposalId, reschedules.first.jobId)
+            : _jobsTab('scheduled'),
+      ),
+    );
   }
 
   // Trabalho hoje: como responsável ou como ajudante aceite.
   final todayAsPrincipal = scheduledJobs
-      .where((j) =>
-          j.status == JobStatus.confirmed &&
-          j.confirmedDate != null &&
-          _day(j.confirmedDate!) == day)
+      .where(
+        (j) =>
+            j.status == JobStatus.confirmed &&
+            j.confirmedDate != null &&
+            _day(j.confirmedDate!) == day,
+      )
       .toList();
   final todayAsHelper = helpAcceptances
-      .where((a) =>
-          helperJobStage(a.status, a.jobStatus) == HelperJobStage.accepted &&
-          a.confirmedDate != null &&
-          _day(a.confirmedDate!) == day)
+      .where(
+        (a) =>
+            helperJobStage(a.status, a.jobStatus) == HelperJobStage.accepted &&
+            a.confirmedDate != null &&
+            _day(a.confirmedDate!) == day,
+      )
       .toList();
   final todayCount = todayAsPrincipal.length + todayAsHelper.length;
   if (todayCount > 0) {
@@ -179,7 +195,10 @@ List<WorkerTodoItem> buildWorkerTodo({
     if (todayCount > 1) {
       target = _jobsTab('scheduled');
     } else if (todayAsPrincipal.isNotEmpty) {
-      target = _myJob(todayAsPrincipal.first.proposalId, todayAsPrincipal.first.jobId);
+      target = _myJob(
+        todayAsPrincipal.first.proposalId,
+        todayAsPrincipal.first.jobId,
+      );
     } else {
       target = _helperJob(todayAsHelper.first.id);
     }
@@ -190,8 +209,10 @@ List<WorkerTodoItem> buildWorkerTodo({
     if (todayCount == 1) {
       final principal = todayAsPrincipal.firstOrNull;
       final at = principal != null
-          ? _clock(principal.confirmedTime,
-              flexible: principal.confirmedFlexible)
+          ? _clock(
+              principal.confirmedTime,
+              flexible: principal.confirmedFlexible,
+            )
           : _clock(todayAsHelper.first.confirmedTime);
       if (at != null) label = 'Trabalho hoje às $at';
       if (principal != null) {
@@ -204,39 +225,53 @@ List<WorkerTodoItem> buildWorkerTodo({
             confirmedFlexible: principal.confirmedFlexible,
           );
           if (opens != null && at != null) {
-            subtitle = 'Iniciar disponível a partir das '
+            subtitle =
+                'Iniciar disponível a partir das '
                 '${opens.hour}:${opens.minute.toString().padLeft(2, '0')}';
           }
         }
       }
     }
-    items.add(WorkerTodoItem(
-      kind: WorkerTodoKind.workToday,
-      count: todayCount,
-      label: label,
-      subtitle: subtitle,
-      target: target,
-    ));
+    items.add(
+      WorkerTodoItem(
+        kind: WorkerTodoKind.workToday,
+        count: todayCount,
+        label: label,
+        subtitle: subtitle,
+        target: target,
+      ),
+    );
   }
 
-  // Por marcar como concluído: a data já passou e o trabalho continua
-  // confirmado (o de hoje já aparece em "Trabalho hoje").
+  // Por marcar como concluído: o último dia previsto já passou e o
+  // trabalho continua confirmado (o de hoje já aparece em "Trabalho hoje").
   final overdue = scheduledJobs
-      .where((j) =>
-          j.status == JobStatus.confirmed &&
-          j.confirmedDate != null &&
-          _day(j.confirmedDate!).isBefore(day))
+      .where(
+        (j) =>
+            j.status == JobStatus.confirmed &&
+            WorkerJobDayRules.isOverdue(
+              confirmedDate: j.confirmedDate,
+              today: day,
+              startedAt: j.startedAt,
+              plannedDays: j.plannedDays,
+            ),
+      )
       .toList();
   if (overdue.isNotEmpty) {
-    items.add(WorkerTodoItem(
-      kind: WorkerTodoKind.toMarkDone,
-      count: overdue.length,
-      label: _plural(overdue.length, 'trabalho por concluir',
-          'trabalhos por concluir'),
-      target: overdue.length == 1
-          ? _myJob(overdue.first.proposalId, overdue.first.jobId)
-          : _jobsTab('scheduled'),
-    ));
+    items.add(
+      WorkerTodoItem(
+        kind: WorkerTodoKind.toMarkDone,
+        count: overdue.length,
+        label: _plural(
+          overdue.length,
+          'trabalho por concluir',
+          'trabalhos por concluir',
+        ),
+        target: overdue.length == 1
+            ? _myJob(overdue.first.proposalId, overdue.first.jobId)
+            : _jobsTab('scheduled'),
+      ),
+    );
   }
 
   // Avaliações por fazer: o cliente (como responsável) e o responsável
@@ -248,18 +283,23 @@ List<WorkerTodoItem> buildWorkerTodo({
         date == null || !_day(date).isBefore(windowStart);
 
     final clientsToRate = completedJobs
-        .where((j) =>
-            j.clientId.isNotEmpty &&
-            recent(j.confirmedDate) &&
-            !ratingsGiven.contains((j.jobId, j.clientId)))
+        .where(
+          (j) =>
+              j.clientId.isNotEmpty &&
+              recent(j.confirmedDate) &&
+              !ratingsGiven.contains((j.jobId, j.clientId)),
+        )
         .toList();
     final principalsToRate = helpAcceptances
-        .where((a) =>
-            helperJobStage(a.status, a.jobStatus) == HelperJobStage.completed &&
-            a.jobId.isNotEmpty &&
-            a.principalWorkerId.isNotEmpty &&
-            recent(a.confirmedDate) &&
-            !ratingsGiven.contains((a.jobId, a.principalWorkerId)))
+        .where(
+          (a) =>
+              helperJobStage(a.status, a.jobStatus) ==
+                  HelperJobStage.completed &&
+              a.jobId.isNotEmpty &&
+              a.principalWorkerId.isNotEmpty &&
+              recent(a.confirmedDate) &&
+              !ratingsGiven.contains((a.jobId, a.principalWorkerId)),
+        )
         .toList();
     final count = clientsToRate.length + principalsToRate.length;
     if (count > 0) {
@@ -267,16 +307,21 @@ List<WorkerTodoItem> buildWorkerTodo({
       if (count > 1) {
         target = _jobsTab('completed');
       } else if (clientsToRate.isNotEmpty) {
-        target = _myJob(clientsToRate.first.proposalId, clientsToRate.first.jobId);
+        target = _myJob(
+          clientsToRate.first.proposalId,
+          clientsToRate.first.jobId,
+        );
       } else {
         target = _helperJob(principalsToRate.first.id);
       }
-      items.add(WorkerTodoItem(
-        kind: WorkerTodoKind.ratingsToGive,
-        count: count,
-        label: _plural(count, 'avaliação por fazer', 'avaliações por fazer'),
-        target: target,
-      ));
+      items.add(
+        WorkerTodoItem(
+          kind: WorkerTodoKind.ratingsToGive,
+          count: count,
+          label: _plural(count, 'avaliação por fazer', 'avaliações por fazer'),
+          target: target,
+        ),
+      );
     }
   }
 
@@ -284,37 +329,50 @@ List<WorkerTodoItem> buildWorkerTodo({
   final jobsWithCandidates = pendingCandidatesByJob.entries
       .where((e) => e.value > 0)
       .toList();
-  final candidates =
-      jobsWithCandidates.fold<int>(0, (sum, e) => sum + e.value);
+  final candidates = jobsWithCandidates.fold<int>(0, (sum, e) => sum + e.value);
   if (candidates > 0) {
-    items.add(WorkerTodoItem(
-      kind: WorkerTodoKind.candidatesToDecide,
-      count: candidates,
-      label: _plural(candidates, 'candidato por decidir', 'candidatos por decidir'),
-      target: jobsWithCandidates.length == 1
-          ? WorkerTodoTarget.push(
-              '/worker/job/${jobsWithCandidates.first.key}/help-requests')
-          : _jobsTab('scheduled'),
-    ));
+    items.add(
+      WorkerTodoItem(
+        kind: WorkerTodoKind.candidatesToDecide,
+        count: candidates,
+        label: _plural(
+          candidates,
+          'candidato por decidir',
+          'candidatos por decidir',
+        ),
+        target: jobsWithCandidates.length == 1
+            ? WorkerTodoTarget.push(
+                '/worker/job/${jobsWithCandidates.first.key}/help-requests',
+              )
+            : _jobsTab('scheduled'),
+      ),
+    );
   }
 
   // As minhas candidaturas a pedidos de ajuda, à espera de resposta.
   final pending = helpAcceptances
-      .where((a) => helperJobStage(a.status, a.jobStatus) == HelperJobStage.pending)
+      .where(
+        (a) => helperJobStage(a.status, a.jobStatus) == HelperJobStage.pending,
+      )
       .toList();
   if (pending.isNotEmpty) {
-    items.add(WorkerTodoItem(
-      kind: WorkerTodoKind.pendingApplications,
-      count: pending.length,
-      label: _plural(pending.length, 'candidatura à espera de resposta',
-          'candidaturas à espera de resposta'),
-      target: pending.length == 1
-          ? _helperJob(pending.first.id)
-          : const WorkerTodoTarget.push(
-              '/worker/help-requests',
-              extra: {'initialTabIndex': 1},
-            ),
-    ));
+    items.add(
+      WorkerTodoItem(
+        kind: WorkerTodoKind.pendingApplications,
+        count: pending.length,
+        label: _plural(
+          pending.length,
+          'candidatura à espera de resposta',
+          'candidaturas à espera de resposta',
+        ),
+        target: pending.length == 1
+            ? _helperJob(pending.first.id)
+            : const WorkerTodoTarget.push(
+                '/worker/help-requests',
+                extra: {'initialTabIndex': 1},
+              ),
+      ),
+    );
   }
 
   return items;

@@ -390,6 +390,8 @@ class WorkerDashboardScreen extends ConsumerWidget {
           startedAt: job.startedAt,
           rescheduleStatus: job.rescheduleStatus,
           rescheduleProposedBy: job.rescheduleProposedBy,
+          plannedDays: (row['estimated_days_max'] as num?)?.toInt() ??
+              (row['estimated_days_min'] as num?)?.toInt(),
         ),
       );
     }
