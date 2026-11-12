@@ -10,8 +10,8 @@
 
 ## Resumo
 
-- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0065`
-  (confirmado pelo Henrique a 2026-10-27; a `0050` não existe). Próxima: `0066`.
+- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0074`
+  (confirmado pelo Henrique a 2026-11-12; a `0050` não existe). Próxima: `0075`.
 - Os fluxos principais funcionam de ponta a ponta nos dois papéis. O que falta para ter
   utilizadores reais é sobretudo **configuração** (push, email, domínio, login social,
   Play Store) e alguns pontos de **RGPD** antes de publicar.
