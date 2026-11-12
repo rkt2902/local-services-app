@@ -1,0 +1,164 @@
+migrations: 42 ficheiros aplicados sem erro
+PASS | T-PROF-01 cliente não muda o próprio papel | recusado: Não é permitido alterar o role do perfil.
+PASS | T-PROF-02 cliente não mexe em deleted_at | recusado: Estes dados do perfil não se podem alterar.
+PASS | T-PROF-03 cliente não lê o perfil de um jardineiro sem trabalho confirmado | esperado=0 obtido=0
+PASS | T-PROF-04 não cria perfil com id de outra pessoa | recusado: new row violates row-level security policy for table "profiles"
+PASS | T-PROF-05 UPDATE ao perfil de outra pessoa não muda nada | esperado=0 obtido=0
+PASS | T-PROF-06 anónimo não lê profiles | esperado=0 obtido=0
+PASS | T-CARD-01 anónimo lê o cartão público do jardineiro | esperado=1 obtido=1
+PASS | T-CARD-02 cartão público não expõe telefone | esperado=0 obtido=0
+PASS | T-JOB-01 cliente cria pedido aberto | valor=f9282afe-d918-4565-bf96-2087a5a81dfb
+PASS | T-JOB-02 cliente não cria pedido já confirmado | recusado: new row violates row-level security policy for table "job_requests"
+PASS | T-JOB-03 cliente não cria pedido em nome de outro cliente | recusado: new row violates row-level security policy for table "job_requests"
+PASS | T-JOB-04 UPDATE direto ao pedido não muda nada (só RPC) | esperado=0 obtido=0
+PASS | T-JOB-05 DELETE direto ao pedido não apaga nada | esperado=0 obtido=0
+PASS | T-JOB-06 INSERT com started_at preenchido fica sem started_at | esperado=true obtido=true
+PASS | T-JOB-07 INSERT com search_extra_km=500 não alarga a pesquisa | esperado=0 obtido=0
+PASS | T-JOB-08 pedido com data fixa no passado é recusado | recusado: A data do pedido já passou. Escolhe outra data.
+PASS | T-JOB-09 cliente junta 1.ª foto ao pedido
+PASS | T-JOB-10 cliente junta 2.ª foto
+PASS | T-JOB-11 3.ª foto é recusada | recusado: Cada pedido pode ter no máximo 2 fotos.
+PASS | T-JOB-12 outro cliente não junta fotos ao pedido | recusado: Só podes juntar fotos a um pedido aberto.
+PASS | T-JOB-13 outro cliente não vê o pedido | esperado=0 obtido=0
+PASS | T-JOB-14 preparação: 5 pedidos seguidos
+PASS | T-JOB-15 6.º pedido na mesma hora é recusado | recusado: new row violates row-level security policy for table "job_requests"
+PASS | T-JOB-16 jardineiro não cria pedidos | recusado: new row violates row-level security policy for table "job_requests"
+PASS | T-DISC-01 jardineiro vê o pedido no raio | esperado=1 obtido=1
+PASS | T-DISC-02 morada exata escondida antes da proposta aceite (só a zona) | esperado=true obtido=true
+PASS | T-DISC-03 coordenadas arredondadas antes da proposta aceite | esperado=true obtido=true
+PASS | T-DISC-04 jardineiro não lê job_requests diretamente | esperado=0 obtido=0
+PASS | T-DISC-05 jardineiro vê as 2 fotos do pedido aberto (resumo, por desenho) | esperado=2 obtido=2
+PASS | T-DISC-06 jardineiro do Porto não vê o pedido com a base dele | esperado=0 obtido=0
+PASS | T-DISC-07 [ACHADO] jardineiro do Porto vê o pedido de Lisboa se mandar coordenadas de Lisboa | esperado=0 obtido=0
+PASS | T-DISC-08 [ACHADO] conta de cliente consegue listar pedidos abertos de outros clientes | esperado=0 obtido=0
+PASS | T-PROP-01 jardineiro envia proposta à hora | valor=55e6efcc-3f46-45fd-8e5a-937d5d626387
+PASS | T-PROP-02 segunda proposta pendente do mesmo jardineiro é recusada | recusado: Já tens uma proposta para este pedido.
+PASS | T-PROP-04 INSERT direto em job_proposals é recusado | recusado: new row violates row-level security policy for table "job_proposals"
+PASS | T-PROP-03 proposta com data no passado é recusada | recusado: O dia proposto já passou. Escolhe hoje ou um dia a seguir.
+PASS | T-PROP-05 preço por hora negativo é recusado | recusado: O preço por hora tem de ser maior que zero.
+PASS | T-PROP-06 preço por hora zero é recusado | recusado: O preço por hora tem de ser maior que zero.
+PASS | T-PROP-07 horas mínimas maiores do que as máximas são recusadas | recusado: A duração mínima não pode ser maior do que a máxima.
+PASS | T-PROP-08 valor total sem total_price é recusado | recusado: Indica o valor total da proposta.
+PASS | T-PROP-09 validade no passado é recusada | recusado: A validade do orçamento tem de ser entre hoje e daqui a 60 dias.
+PASS | T-PROP-10 segundo jardineiro envia proposta a valor total | valor=fe32c7c0-59d5-4ee6-a50f-a89b74e08e19
+PASS | T-PROP-11 cliente não envia propostas | recusado: Só jardineiros podem enviar propostas.
+PASS | T-PROP-12 cliente vê as 2 propostas pendentes com nome do jardineiro | esperado=2 obtido=2
+PASS | T-PROP-13 outro cliente não aceita a proposta | recusado: Não autorizado: só o cliente pode aceitar propostas.
+PASS | T-PROP-14 outro cliente não lê as propostas | esperado=0 obtido=0
+PASS | T-PROP-15 jardineiro não aceita a própria proposta | recusado: Não autorizado: só o cliente pode aceitar propostas.
+PASS | T-PROP-16 proposta não pode ser aceite com o id de outro pedido | recusado: Não autorizado: só o cliente pode aceitar propostas.
+PASS | T-PROP-17 cliente aceita a proposta do W2 (valor total, 2 pessoas)
+PASS | T-PROP-18 pedido fica confirmado com a proposta certa | esperado=confirmed/true obtido=confirmed/true
+PASS | T-PROP-19 a outra proposta fica recusada | esperado=rejected obtido=rejected
+PASS | T-PROP-20 W1 é avisado (proposal_rejected) e W2 (proposal_accepted) | esperado=proposal_accepted,proposal_rejected obtido=proposal_accepted,proposal_rejected
+PASS | T-PROP-21 pedido de ajudante criado automaticamente (2 pessoas) | esperado=1 obtido=1
+PASS | T-PROP-22 aceitar outra vez (duplo toque) é recusado | recusado: Este pedido já não está aberto.
+PASS | T-PROP-23 retirar proposta já aceite é recusado | recusado: Proposta não encontrada ou não pode ser retirada.
+PASS | T-PROP-24 jardineiro aceite vê a morada exata | esperado=Rua Exata 1, Lisboa obtido=Rua Exata 1, Lisboa
+PASS | T-PROP-25 jardineiro aceite lê o telefone da cliente | esperado=+351910000001 obtido=+351910000001
+PASS | T-PROP-26 jardineiro recusado volta a ver só a zona | esperado=true obtido=true
+PASS | T-PROP-27 jardineiro recusado não lê o telefone da cliente | esperado=0 obtido=0
+PASS | T-PROP-28 cliente lê o telefone do jardineiro aceite | esperado=+351910000012 obtido=+351910000012
+PASS | T-HELP-01 cliente não se candidata a ajudante | recusado: Não autorizado.
+PASS | T-HELP-02 o responsável não se candidata ao próprio pedido | recusado: Este pedido de ajuda já não está aberto.
+PASS | T-HELP-03 outro jardineiro candidata-se | valor=d6144822-e1bf-4d59-8a33-c262b9855875
+PASS | T-HELP-04 candidatura repetida é recusada | recusado: Já te candidataste a este pedido de ajuda.
+PASS | T-HELP-05 candidato não se aceita a si próprio | recusado: Apenas o worker principal pode aceitar candidatos.
+PASS | T-HELP-06 taxa negativa para o ajudante é recusada | recusado: A taxa acordada tem de ser maior que zero.
+PASS | T-HELP-07 responsável aceita o ajudante
+PASS | T-HELP-08 pedido de ajuda fica preenchido | esperado=filled obtido=filled
+PASS | T-HELP-09 ajudante não lê o telefone da cliente | esperado=0 obtido=0
+PASS | T-RESCH-01 outro cliente não propõe remarcação | recusado: Não autorizado
+PASS | T-RESCH-02 remarcação para o passado é recusada | recusado: A nova data tem de ser pelo menos amanhã
+PASS | T-RESCH-03 responsável propõe nova data
+PASS | T-RESCH-04 quem propôs não aceita a própria remarcação | recusado: Não pode aceitar a sua própria remarcação
+PASS | T-RESCH-05 cliente aceita a remarcação
+PASS | T-RESCH-06 nova data gravada | esperado=true obtido=true
+PASS | T-EXEC-01 não inicia 4 dias antes | recusado: Só podes iniciar o trabalho a partir das 09:00 de 16/11.
+PASS | T-EXEC-02 cliente não inicia o trabalho | recusado: Não autorizado ou job não está confirmado
+PASS | T-EXEC-03 ajudante não inicia o trabalho | recusado: Não autorizado ou job não está confirmado
+PASS | T-EXEC-04 fotos de antes com caminho de outra pessoa são recusadas | recusado: Foto inválida.
+PASS | T-EXEC-05 não marca concluído antes de iniciar | recusado: Inicia o trabalho antes de o marcar como concluído.
+PASS | T-EXEC-06 responsável inicia
+PASS | T-EXEC-07 iniciar duas vezes é recusado | recusado: O trabalho já foi iniciado.
+PASS | T-EXEC-08 cliente não cancela trabalho já iniciado | recusado: O trabalho já começou e já não pode ser cancelado nem remarcado.
+PASS | T-EXEC-09 cliente não confirma antes de estar marcado concluído | recusado: estado inválido: o pedido não está a aguardar confirmação.
+PASS | T-EXEC-10 ajudante não marca concluído | recusado: Não autorizado ou job não está confirmado
+PASS | T-EXEC-11 responsável marca concluído
+PASS | T-EXEC-12 marcar concluído duas vezes é recusado | recusado: Não autorizado ou job não está confirmado
+PASS | T-EXEC-13 jardineiro não confirma em nome da cliente | recusado: não autorizado: só o cliente pode confirmar a conclusão.
+PASS | T-EXEC-14 outra cliente não confirma | recusado: não autorizado: só o cliente pode confirmar a conclusão.
+PASS | T-EXEC-15 cliente confirma
+PASS | T-EXEC-16 confirmar duas vezes é recusado | recusado: estado inválido: o pedido não está a aguardar confirmação.
+PASS | T-EXEC-17 pedido concluído | esperado=completed obtido=completed
+PASS | T-RATE-01 6 estrelas é recusado | recusado: Avaliação inválida: entre 1 e 5 estrelas.
+PASS | T-RATE-02 0 estrelas é recusado | recusado: Avaliação inválida: entre 1 e 5 estrelas.
+PASS | T-RATE-03 cliente avalia o jardineiro
+PASS | T-RATE-04a avaliar duas vezes dá erro claro (0074) | recusado: Já avaliaste esta pessoa neste trabalho.
+PASS | T-RATE-04b a segunda avaliação é ignorada (fica a primeira) | esperado=5 obtido=5
+PASS | T-RATE-05 INSERT direto em ratings é recusado | recusado: new row violates row-level security policy for table "ratings"
+PASS | T-RATE-06 quem não participou não avalia | recusado: Não autorizado: só o cliente pode submeter esta avaliação.
+PASS | T-RATE-07 responsável avalia a cliente
+PASS | T-RATE-08 responsável avalia o ajudante
+PASS | T-RATE-09 responsável não avalia quem não participou | recusado: Não autorizado: o utilizador avaliado não é participante deste trabalho.
+PASS | T-RATE-10 ajudante avalia o responsável
+PASS | T-RATE-11 [ACHADO] anónimo lê todas as avaliações (com ids de quem avalia) | esperado=0 obtido=0
+PASS | T-CANC-00 preparação: pedido novo | valor=8b633cbc-2355-45b5-aabc-418118927f90
+PASS | T-CANC-01 preparação: proposta pendente | valor=2d395331-9de4-458a-a797-9195ce13d7c8
+PASS | T-CANC-02 outra cliente não cancela | recusado: Não autorizado: só o cliente ou o jardineiro do trabalho podem cancelar.
+PASS | T-CANC-03 jardineiro sem proposta aceite não cancela | recusado: Não autorizado: só o cliente ou o jardineiro do trabalho podem cancelar.
+PASS | T-CANC-04 cliente cancela pedido aberto
+PASS | T-CANC-05 proposta pendente fica recusada | esperado=rejected obtido=rejected
+PASS | T-CANC-06 cancelar duas vezes é recusado | recusado: estado inválido: o pedido não pode ser cancelado no estado atual.
+PASS | T-CANC-07 editar pedido cancelado é recusado | recusado: Só podes alterar um pedido enquanto está aberto.
+PASS | T-EDIT-00 preparação: pedido novo | valor=7d8a274e-3732-4092-8ff1-9511294b3fd9
+PASS | T-EDIT-01 dono edita o pedido aberto
+PASS | T-EDIT-02 outra cliente não edita | recusado: Não autorizado.
+PASS | T-EDIT-03 editar com data fixa no passado é recusado | recusado: Escolhe uma data a partir de hoje.
+PASS | T-EDIT-04 alargar pesquisa (+10 km)
+PASS | T-EDIT-05 outra cliente não alarga a pesquisa | recusado: Pedido não encontrado.
+PASS | T-PLAN-01 jardineiro Grátis com 5 aceites no mês não envia proposta nova | recusado: Chegaste aos 5 trabalhos deste mês do plano Grátis. Podes voltar a enviar propostas no próximo mês.
+PASS | T-PLAN-02 get_my_plan mostra 5 de 5 | esperado=free:5/5 obtido=free:5/5
+PASS | T-PLAN-03 painel de ganhos recusado no Grátis | recusado: O painel de ganhos é do plano Pro.
+PASS | T-ADM-01 admin_whoami de não-admin diz que não é admin | esperado=false obtido=false
+PASS | T-ADM-02 não-admin não lê o painel | recusado: Sem acesso.
+PASS | T-ADM-03 não-admin não muda planos | recusado: Sem acesso.
+PASS | T-ADM-04 admin sem segundo fator (aal1) não lê o painel | recusado: Sem acesso.
+PASS | T-ADM-05 admin com segundo fator lê o painel
+PASS | T-ADM-06 admin com segundo fator dá Pro ao W3
+PASS | T-ADM-07 plano inválido é recusado | recusado: Plano inválido.
+PASS | T-PLAN-04 com Pro, o W3 já envia proposta
+PASS | T-ADM-08 mudança de plano registada em admin_actions | esperado=1 obtido=1
+PASS | T-NOTIF-01 utilizador não cria notificações | recusado: new row violates row-level security policy for table "notifications"
+PASS | T-NOTIF-02 utilizador só lê as suas | esperado=0 obtido=0
+PASS | T-NOTIF-03 não consegue passar uma notificação sua para outra pessoa | recusado: permission denied for table notifications
+PASS | T-NOTIF-03b marca as suas como lidas
+PASS | T-NOTIF-04 Limpar tudo
+PASS | T-PUSH-01 regista token do aparelho
+PASS | T-PUSH-02 plataforma inválida é recusada | recusado: new row for relation "device_tokens" violates check constraint "device_tokens_platform_check"
+PASS | T-PUSH-03 outro utilizador não vê o token | esperado=0 obtido=0
+PASS | T-AG-01 jardineiro cria trabalho de fora da app | valor=b04b2c0d-8b38-496f-8b4f-090d800e56d9
+PASS | T-AG-02 aparece na agenda do dia | esperado=1 obtido=1
+PASS | T-AG-03 agenda com mais de 62 dias é recusada | recusado: Intervalo inválido (máximo 62 dias)
+PASS | T-AG-04 outro jardineiro não vê a entrada | esperado=0 obtido=0
+PASS | T-AG-05 outro jardineiro não apaga a entrada | esperado=0 obtido=0
+PASS | T-AG-06 cliente não cria entradas na agenda | recusado: new row violates row-level security policy for table "worker_calendar_entries"
+PASS | T-FLEET-01 jardineiro não cria cartão já ativo | recusado: new row violates row-level security policy for table "worker_fleet_cards"
+PASS | T-CARD-03 anónimo regista visita ao cartão | valor=2797ce55-288f-453f-9c46-c6c8de6a24c3
+PASS | T-CARD-04 origem inválida não dá erro (é gravada como link)
+PASS | T-STOR-01 cliente envia foto para a pasta dele
+PASS | T-STOR-02 cliente não envia para a pasta de outra pessoa | recusado: new row violates row-level security policy for table "objects"
+PASS | T-STOR-03 avatar com nome de outra pessoa é recusado | recusado: new row violates row-level security policy for table "objects"
+PASS | T-STOR-04 [INFO] buckets públicos (leitura sem sessão por URL) | esperado=avatars=true,job-photos=true obtido=avatars=true,job-photos=true
+PASS | T-CRON-01 utilizador não corre auto_expire_jobs | recusado: permission denied for function auto_expire_jobs
+PASS | T-CRON-02 utilizador não corre auto_confirm_completed_jobs | recusado: permission denied for function auto_confirm_completed_jobs
+PASS | T-CRON-03 utilizador não corre send_start_reminders | recusado: permission denied for function send_start_reminders
+PASS | T-CRON-04 utilizador não corre expire_direct_job_requests | recusado: permission denied for function expire_direct_job_requests
+PASS | T-CRON-05 todos os jobs do pg_cron correm sem erro (como postgres)
+PASS | T-DEL-00 preparação: pedido aberto da C1 | valor=d330b232-e0d4-4dd0-bdf8-e4f991f38ba5
+PASS | T-DEL-01 check_can_delete_my_account responde
+PASS | T-DEL-02 cliente elimina a conta
+PASS | T-DEL-03 pedido aberto fica fechado | esperado=true obtido=true
+PASS | T-DEL-04 perfil anonimizado (sem telefone) | esperado=true obtido=true
+PASS | T-DEL-05 tokens do aparelho apagados | esperado=0 obtido=0
+TOTAL 162 | PASS 162 | FAIL 0

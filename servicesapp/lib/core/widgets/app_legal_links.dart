@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_links.dart';
 import '../theme/app_colors.dart';
+import 'app_toast.dart';
 
 /// Abre os Termos de utilização no browser, fora da app.
 Future<void> openTermsOfUse(BuildContext context) =>
@@ -14,7 +15,8 @@ Future<void> openPrivacyPolicy(BuildContext context) =>
     _openLegalPage(context, AppLinks.privacyPolicyUrl);
 
 Future<void> _openLegalPage(BuildContext context, String url) async {
-  final messenger = ScaffoldMessenger.of(context);
+  // Guardado antes do await: o contexto pode já não existir no fim.
+  final toast = AppToast.maybeOf(context);
   var opened = false;
   try {
     opened = await launchUrl(
@@ -25,11 +27,7 @@ Future<void> _openLegalPage(BuildContext context, String url) async {
     opened = false;
   }
   if (!opened) {
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Não foi possível abrir a página. Tenta outra vez.'),
-      ),
-    );
+    toast?.error('Não foi possível abrir a página. Tenta outra vez.');
   }
 }
 
