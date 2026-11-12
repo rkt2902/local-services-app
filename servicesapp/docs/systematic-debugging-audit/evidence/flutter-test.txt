@@ -1,0 +1,5 @@
+00:56 +621: /home/user/local-services-app/servicesapp/test/job_schedule_fields_test.dart: JobScheduleFields disponibilidade mostra o texto livre com contador
+00:56 +622: /home/user/local-services-app/servicesapp/test/job_schedule_fields_test.dart: JobScheduleFields disponibilidade mostra o texto livre com contador
+00:56 +623: /home/user/local-services-app/servicesapp/test/job_schedule_fields_test.dart: JobScheduleFields disponibilidade mostra o texto livre com contador
+00:56 +624: /home/user/local-services-app/servicesapp/test/job_schedule_fields_test.dart: JobScheduleFields tocar num modo avisa o ecrã
+00:56 +625: All tests passed!

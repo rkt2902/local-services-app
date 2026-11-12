@@ -88,6 +88,21 @@ class ClientProposalInfoLine {
 
 enum ClientProposalAcceptOutcome { accepted, expired, unavailable, failed }
 
+/// Classifica o erro de `accept_proposal` pelo texto (a função e o trigger
+/// da 0058 só devolvem texto, sem ERRCODE próprio). `null` = erro genérico.
+/// "Este pedido já não está aberto." vem da 0073: outra proposta foi aceite
+/// ou o pedido fechou entretanto, por isso a lista tem de ser recarregada.
+ClientProposalAcceptOutcome? classifyAcceptProposalError(String message) {
+  if (message.contains('expirou')) return ClientProposalAcceptOutcome.expired;
+  if (message.contains('já não está disponível') ||
+      message.contains('não está aberto') ||
+      message.contains('já processada') ||
+      message.contains('não encontrada')) {
+    return ClientProposalAcceptOutcome.unavailable;
+  }
+  return null;
+}
+
 class ClientProposalAcceptResult {
   const ClientProposalAcceptResult.accepted()
       : outcome = ClientProposalAcceptOutcome.accepted,

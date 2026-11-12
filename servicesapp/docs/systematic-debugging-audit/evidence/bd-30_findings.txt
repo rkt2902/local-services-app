@@ -1,0 +1,46 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===== REGRESSÃO DOS BUGS CORRIGIDOS =====
+PASS | F-002a cliente envia started_at, marked_done_at e fotos no INSERT | valor=8825270b-b8c6-4abd-9b3b-bedb30fbcd12
+PASS | F-002b o pedido nasce sem started_at, marked_done_at nem fotos | esperado=true obtido=true
+PASS | F-002c jardineiro propõe | valor=56cc5dd1-c91d-4865-9c35-721f2875148c
+PASS | F-002d cliente aceita
+PASS | F-002e o jardineiro pode cancelar (não começou)
+PASS | F-003a pedido com data fixa de há 10 dias é recusado | recusado: A data do pedido já passou. Escolhe outra data.
+PASS | F-003b data fixa de hoje continua aceite | valor=b886ada2-2601-4168-a54e-061940f832b1
+PASS | F-004a jardineiro de Lisboa continua a ver o pedido de Lisboa mesmo mandando coordenadas do Porto | esperado=1 obtido=1
+PASS | F-004b conta de cliente não lista pedidos | esperado=0 obtido=0
+PASS | F-007a preparação: pedido | valor=59fc3f59-6cb0-4d00-9e15-c61530667a79
+PASS | F-007b proposta com 6h a 2h é recusada | recusado: A duração mínima não pode ser maior do que a máxima.
+PASS | F-007c proposta com 5 a 2 dias é recusada | recusado: Duração em dias inválida.
+PASS | F-007d (controlo) pessoas = 0 é recusado | recusado: Número de pessoas inválido.
+PASS | F-007e proposta normal continua a passar
+PASS | F-006a raio de 5000 km é recusado | recusado: new row for relation "worker_profiles" violates check constraint "worker_profiles_radius_km_range"
+PASS | F-006b raio de 50 km continua aceite
+PASS | F-008a nome com 100 000 caracteres é recusado | recusado: new row for relation "profiles" violates check constraint "profiles_full_name_length"
+PASS | F-008b nome normal continua aceite
+PASS | F-008c bio com 5000 caracteres é recusada | recusado: new row for relation "worker_profiles" violates check constraint "worker_profiles_bio_length"
