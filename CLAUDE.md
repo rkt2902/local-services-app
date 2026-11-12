@@ -25,8 +25,8 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 
 - **Nunca aplicar migrations.** Só criar o ficheiro `.sql` em `supabase/migrations/`.
   Dizer sempre, no relatório, se a migration foi só criada ou se foi (ou deve ser)
-  aplicada manualmente via SQL Editor. A 2026-10-27 estavam todas aplicadas até à
-  `0065`; confirmar o próximo número com `ls supabase/migrations` no `main` (estado em
+  aplicada manualmente via SQL Editor. A 2026-11-12 estavam todas aplicadas até à
+  `0074`; confirmar o próximo número com `ls supabase/migrations` no `main` (estado em
   `supabase/migrations/README.md`).
 - **RPCs nunca recebem `worker_id`/`client_id`/`user_id` vindos da app.** Identidade
   é sempre `auth.uid()` dentro da função. Isto já causou 3 vulnerabilidades reais

@@ -7,7 +7,7 @@
 > sem repetir o seu conteúdo. Funde também o antigo `architecture.md` (regras de
 > organização do projeto), ver os Princípios na secção 4. A secção 7 vem dos
 > ficheiros de migration, não de queries à BD viva. **Todas as migrations do repo
-> (até à 0065) estão aplicadas na BD viva**, confirmado pelo Henrique a 2026-10-27.
+> (até à 0074) estão aplicadas na BD viva**, confirmado pelo Henrique a 2026-11-12.
 
 ---
 
@@ -546,8 +546,8 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 
 ### Estado das migrations
 
-**Todas aplicadas na BD viva** (confirmado pelo Henrique a 2026-10-27): `0001`, `0033` a
-`0049` e `0051` a `0065`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
+**Todas aplicadas na BD viva** (confirmado pelo Henrique a 2026-11-12): `0001`, `0033` a
+`0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
 Próxima migration: `0066`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).

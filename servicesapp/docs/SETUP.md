@@ -3,8 +3,8 @@
 Guia único, por ordem. Cada passo tem o que fazer, como confirmar que ficou bem e a frase
 para dizeres ao Claude quando acabares. Marca as caixas à medida que avanças.
 
-Estado de partida (27/10/2026): **todas as migrations do repo estão aplicadas na BD viva**
-(até à 0065, confirmado por ti a 27/10); código da versão web, do push FCM, do login
+Estado de partida (12/11/2026): **todas as migrations do repo estão aplicadas na BD viva**
+(até à 0074, confirmado por ti a 12/11); código da versão web, do push FCM, do login
 social, do painel `/admin` e do domínio por `--dart-define` já está no `main`. Nada daqui
 mexe em código.
 

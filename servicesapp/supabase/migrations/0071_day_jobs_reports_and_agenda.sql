@@ -1,6 +1,6 @@
 -- ══════════════════════════════════════════════════════════════
 -- 0071 · Trabalho por dias, relatos e Agenda (revisão, parte 4)
--- NOVA, NÃO APLICADA. Aplicar depois da 0070.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar depois da 0070.
 -- ══════════════════════════════════════════════════════════════
 -- 1. Trabalho por dias (proposta com duração em dias): sem relógio nem
 --    "Começar/Terminar o dia" na app. O aviso de concluído diz os dias
