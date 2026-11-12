@@ -244,9 +244,7 @@ class JobRepository {
   /// `get_job_by_id` devolve a versão com a zona aproximada em vez da
   /// morada exata. O cliente e o worker aceite recebem tudo.
   Future<JobRequest?> fetchJobById(String jobId) async {
-    final data = await _client
-        .rpc('get_job_by_id', params: {'p_job_id': jobId})
-        .maybeSingle();
+    final data = await _firstRow('get_job_by_id', jobId);
     if (data == null) return null;
     return JobRequest.fromJson(data);
   }
@@ -259,9 +257,7 @@ class JobRepository {
   /// aplicada) expõe só estas duas colunas, com a mesma condição da policy
   /// "Worker vê jobs abertos" (`status = 'open'`) — nunca o telefone.
   Future<Map<String, String>> fetchOpenJobClientIdentity(String jobId) async {
-    final data = await _client
-        .rpc('get_open_job_client_identity', params: {'p_job_id': jobId})
-        .maybeSingle();
+    final data = await _firstRow('get_open_job_client_identity', jobId);
     if (data == null) return {'full_name': '', 'avatar_url': ''};
     return {
       'full_name': data['client_name'] as String? ?? '',
@@ -296,9 +292,7 @@ class JobRepository {
   /// Cartão "Precisas outra vez?" de um trabalho concluído do cliente.
   /// `null` quando o trabalho não é dele ou não está concluído.
   Future<RepeatHireInfo?> fetchRepeatHireForJob(String jobId) async {
-    final data = await _client
-        .rpc('get_repeat_hire_for_job', params: {'p_job_id': jobId})
-        .maybeSingle();
+    final data = await _firstRow('get_repeat_hire_for_job', jobId);
     if (data == null) return null;
     return RepeatHireInfo.fromJson(data);
   }
@@ -313,10 +307,27 @@ class JobRepository {
 
   /// Trabalho anterior com este cliente, para o jardineiro escolhido.
   Future<DirectRequestContext?> fetchDirectRequestContext(String jobId) async {
-    final data = await _client
-        .rpc('get_direct_request_context', params: {'p_job_id': jobId})
-        .maybeSingle();
+    final data = await _firstRow('get_direct_request_context', jobId);
     if (data == null) return null;
     return DirectRequestContext.fromJson(data);
   }
+
+  /// Primeira linha de uma RPC que devolve um conjunto, ou `null` se vier
+  /// vazia. Não usa `.maybeSingle()`: o PostgREST 12 responde 406 com
+  /// "The result contains 0 rows" e o cliente Dart só reconhece o texto
+  /// antigo ("Results contain 0 rows"), por isso lançava uma exceção e o
+  /// Riverpod ficava a tentar de novo (esqueleto para sempre).
+  Future<Map<String, dynamic>?> _firstRow(String fn, String jobId) async {
+    final data = await _client.rpc(fn, params: {'p_job_id': jobId});
+    return firstRpcRow(data);
+  }
+}
+
+/// `null` quando a RPC não devolveu linhas; aceita lista ou objeto.
+Map<String, dynamic>? firstRpcRow(Object? data) {
+  if (data is List) {
+    return data.isEmpty ? null : Map<String, dynamic>.from(data.first as Map);
+  }
+  if (data is Map) return Map<String, dynamic>.from(data);
+  return null;
 }

@@ -2,7 +2,7 @@
 -- 0068 — Correções da revisão de fluxos de 2026-11-02
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, depois da 0067
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar manualmente via SQL Editor, depois da 0067
 -- (PR #41). Não depende dela e pode correr-se mais do que uma vez.
 --
 -- 1. Proposta cujo dia já passou conta como expirada:

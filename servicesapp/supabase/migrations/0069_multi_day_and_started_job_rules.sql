@@ -3,7 +3,7 @@
 --        trabalho já iniciado (revisão de fluxos, parte 2)
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar manualmente via SQL Editor, DEPOIS da 0068
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar manualmente via SQL Editor, DEPOIS da 0068
 -- (esta volta a mudar o cancel_job da 0068). Pode correr-se mais do que
 -- uma vez.
 --

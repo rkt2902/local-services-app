@@ -1,6 +1,6 @@
 -- ══════════════════════════════════════════════════════════════
 -- 0070 · Privacidade da morada e contas eliminadas (revisão, parte 3)
--- NOVA, NÃO APLICADA. Aplicar depois da 0068 e da 0069.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar depois da 0068 e da 0069.
 -- ══════════════════════════════════════════════════════════════
 -- 1. get_jobs_in_radius / get_help_requests_in_radius: a distância passa
 --    a ser medida à coordenada arredondada do pedido (a mesma que a app

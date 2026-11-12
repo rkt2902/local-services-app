@@ -96,3 +96,30 @@ DateTime? proposalInitialDate(JobRequest job, DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
   return day.isBefore(today) ? null : day;
 }
+
+/// Texto de "Como correu o trabalho?" à espera da confirmação da cliente.
+/// Sem relato fica confirmado às 48 horas; com um relato dela feito depois
+/// de o jardineiro concluir, só aos 7 dias (`job_has_client_report`, 0071).
+String clientAutoConfirmHint({
+  required DateTime? markedDoneAt,
+  required DateTime? myLatestReportAt,
+}) {
+  final reported = myLatestReportAt != null &&
+      (markedDoneAt == null || !myLatestReportAt.isBefore(markedDoneAt));
+  if (!reported) {
+    return 'Confirma a conclusão ou reporta um problema. Sem resposta, '
+        'fica confirmado automaticamente 48 horas depois de o '
+        'jardineiro o dar por concluído. Depois de confirmares, '
+        'podes avaliar o jardineiro.';
+  }
+  final until = markedDoneAt == null
+      ? ''
+      : ' (a ${DateFormat('dd/MM').format(markedDoneAt.add(const Duration(days: 7)).toLocal())})';
+  return 'Recebemos o teu relato. Se não confirmares, o trabalho fica '
+      'confirmado automaticamente 7 dias depois de o jardineiro o dar por '
+      'concluído$until. Depois de confirmares, podes avaliar o jardineiro.';
+}
+
+/// "09:00:00" (time do Postgres) → "09:00". Texto curto fica como está.
+String shortTimeLabel(String time) =>
+    time.length >= 5 ? time.substring(0, 5) : time;

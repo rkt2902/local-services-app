@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/router/app_back_navigation.dart';
+import '../application/job_labels.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_whatsapp_button.dart';
@@ -135,7 +136,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
     if (job.confirmedDate == null) return 'Data a combinar';
     final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
     if (job.confirmedFlexible) return '$date (horário flexível)';
-    if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
+    if (job.confirmedTime != null) return '$date às ${shortTimeLabel(job.confirmedTime!)}';
     return date;
   }
 }

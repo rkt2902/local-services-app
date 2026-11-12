@@ -35,10 +35,14 @@ String? createJobScheduleMissingLabel({
   required bool hasDate,
   required bool hasLocation,
   required bool hasSize,
+  bool hasAddress = true,
 }) {
   final missing = [
     if (!hasDate) 'a data',
     if (!hasLocation) 'o local no mapa',
+    // Pin sem rua (o geocoding falhou): o pedido não pode nascer sem morada,
+    // porque "Editar pedido" e o jardineiro depois precisam dela.
+    if (hasLocation && !hasAddress) 'a morada',
     if (!hasSize) 'a dimensão do espaço',
   ];
   if (missing.isEmpty) return null;
@@ -129,7 +133,10 @@ class _ClientCreateJobScheduleScreenState
     return true;
   }
 
-  bool get _canContinue => _size != null && _location.hasPin && _hasDate;
+  bool get _hasAddress => _location.addressText.trim().isNotEmpty;
+
+  bool get _canContinue =>
+      _size != null && _location.hasPin && _hasAddress && _hasDate;
 
   void _continue() {
     if (!_canContinue) return;
@@ -165,6 +172,7 @@ class _ClientCreateJobScheduleScreenState
     final missingLabel = createJobScheduleMissingLabel(
       hasDate: _hasDate,
       hasLocation: _location.hasPin,
+      hasAddress: _hasAddress,
       hasSize: _size != null,
     );
 

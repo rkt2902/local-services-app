@@ -974,7 +974,7 @@ String _proposedRescheduleLabel(JobRequest job) {
   final date = DateFormat('dd/MM/yyyy').format(job.rescheduleProposedDate!);
   if (job.rescheduleProposedFlexible == true) return '$date (horário flexível)';
   if (job.rescheduleProposedTime != null) {
-    return '$date às ${job.rescheduleProposedTime}';
+    return '$date às ${shortTimeLabel(job.rescheduleProposedTime!)}';
   }
   return date;
 }

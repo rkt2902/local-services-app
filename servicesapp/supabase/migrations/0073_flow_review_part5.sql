@@ -1,6 +1,6 @@
 -- ══════════════════════════════════════════════════════════════
 -- 0073 · Revisão dos fluxos, parte 5
--- NOVA, NÃO APLICADA. Aplicar depois da 0072.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar depois da 0072.
 -- ══════════════════════════════════════════════════════════════
 -- 1. Pedido direto: a reserva de 24h já não acaba quando o jardineiro
 --    escolhido respondeu com uma proposta (a cliente ouvia "não respondeu

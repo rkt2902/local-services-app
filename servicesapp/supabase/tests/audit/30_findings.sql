@@ -1,6 +1,6 @@
 -- Auditoria 2026-11-12: regressão dos bugs corrigidos na 0074 (BUG-xxx em
 -- 04-BUG-REPORT.md). Antes da 0074 estas asserções falhavam; depois passam.
--- Corre depois de 10_flows.sql na BD pj_audit (bash run.sh keep). Só local.
+-- (mais W-2 da 0075.) Corre depois de 10_flows.sql na BD pj_audit (bash run.sh keep). Só local.
 \set C2 '00000000-0000-0000-0000-0000000000c2'
 \set W1 '00000000-0000-0000-0000-0000000000a1'
 select id as st from service_types order by sort_order limit 1 \gset
@@ -79,6 +79,14 @@ select audit.ok('F-008b nome normal continua aceite',
 select t_as(:'W1');
 select audit.err('F-008c bio com 5000 caracteres é recusada',
   format($q$update worker_profiles set bio=repeat('b',5000) where profile_id=%L$q$, :'W1'), 'bio_length');
+reset role;
+
+-- W-2 (0075): pedido sem morada recusado no INSERT feito pela app
+set role authenticated;
+select t_as(:'C2');
+select audit.err('F-W2 pedido com morada em branco é recusado',
+  format($q$insert into job_requests(client_id,service_type_id,address_text,location_lat,location_lng,description,status,date_mode)
+     values(%L,%L,'  ',38.72,-9.14,'pedido sem morada nenhuma','open','flexible')$q$, :'C2', :'st'), 'Indica a morada');
 reset role;
 
 \echo ===== REGRESSÃO DOS BUGS CORRIGIDOS =====

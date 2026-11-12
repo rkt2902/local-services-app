@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/price_labels.dart';
+import '../../jobs/application/job_labels.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -490,7 +491,7 @@ String _confirmedScheduleLabel(JobRequest job) {
   if (job.confirmedDate == null) return 'Data a combinar';
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return '$date (horário flexível)';
-  if (job.confirmedTime != null) return '$date às ${job.confirmedTime}';
+  if (job.confirmedTime != null) return '$date às ${shortTimeLabel(job.confirmedTime!)}';
   return date;
 }
 
