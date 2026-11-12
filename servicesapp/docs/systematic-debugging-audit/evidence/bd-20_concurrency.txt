@@ -1,0 +1,8 @@
+PASS | RACE-01 duas aceitações em paralelo: só uma proposta fica aceite | esperado=1 obtido=1
+      sessão B: ERROR:  Este pedido já não está aberto.
+FAIL | RACE-02 aceitar e retirar ao mesmo tempo: estado coerente | esperado=confirmed/accepted obtido=confirmed/superseded
+      sessão B: 
+FAIL | RACE-03 fotos em paralelo respeitam o máximo de 2 | esperado=2 obtido=3
+PASS | RACE-04 duplo envio de proposta cria só uma | esperado=1 obtido=1
+      sessão B: ERROR:  Já tens uma proposta para este pedido.
+INFO | RACE-05 aceitar e depois cancelar em paralelo: pedido=cancelled proposta=accepted (o cancelamento espera pela aceitação e decide sobre o estado final)
