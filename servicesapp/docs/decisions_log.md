@@ -29,6 +29,19 @@ título.
 - Saiu o botão "Contactar cliente para novo pedido" da recusada: o jardineiro
   recusado não tem acesso ao telefone do cliente (RLS), por isso quase nunca aparecia.
 
+## 2026-11-12 — Revisão dos fluxos, parte 5 (0073)
+
+- Pedido direto: a reserva de 24h deixa de acabar quando o jardineiro
+  escolhido já respondeu com proposta (a cliente ouvia "não respondeu a
+  tempo" e o pedido ficava parado). O fecho do pedido parado (5.1b) recusa
+  as propostas pendentes e `accept_proposal` só aceita em pedidos abertos;
+  antes um pedido fechado passava a confirmado.
+- Trabalho "a combinar" iniciado: lembrete e expiração contam a partir do
+  dia em que começou (antes ficava em curso para sempre). O "a combinar"
+  nunca iniciado fica sem prazo, de propósito, até decisão em contrário.
+- O toque em "Vais ajudar num trabalho hoje" abre o trabalho do ajudante
+  (antes ia para o início).
+
 ## 2026-11-12 — Aviso de atraso certo e lembretes de início (0072)
 
 O aviso "A data já passou. Marca como concluído até 14/11" aparecia num

@@ -848,13 +848,13 @@ class _WorkerMyJobDetailScreenState
       markCompletedHint: confirmedDay == null
           ? null
           : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
-      overdueMessage: (overdue && job.confirmedDate != null)
+      overdueMessage: overdue
           ? WorkerJobDayRules.overdueMessage(
               WorkerJobDayRules.expectedEndDay(
-                confirmedDate: job.confirmedDate!,
+                confirmedDate: job.confirmedDate,
                 startedAt: job.startedAt,
                 plannedDays: plannedDays,
-              ),
+              )!,
               started: job.startedAt != null,
             )
           : null,
