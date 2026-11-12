@@ -124,8 +124,12 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       data: (job) {
         // get_job_by_id (0043) não devolve nada a quem já não pode ver o
         // pedido: deixou de estar aberto e o worker não tinha proposta.
+        // Depois de "Não posso desta vez" o pedido também deixa de vir:
+        // mantém a mensagem de quem foi avisado.
         if (job == null) {
-          return const _MessageScaffold(child: view.WorkerJobUnavailableBanner());
+          return _MessageScaffold(
+            child: view.WorkerJobUnavailableBanner(reason: _declinedMessage),
+          );
         }
         return _buildDetail(context, job);
       },
@@ -245,7 +249,10 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
         }
       }
       direct = view.WorkerDirectRequestViewData(
-        tagLabel: job.isDirectOnHold
+        // Depois de "Não posso" o pedido já não é só para mim: sem contagem.
+        tagLabel: _declinedMessage != null
+            ? 'Pedido só para ti · recusado'
+            : job.isDirectOnHold
             ? 'Pedido só para ti · prazo terminado'
             : directUntil == null
                 ? 'Pedido só para ti'
@@ -254,7 +261,9 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
         titleLabel: fromCard
             ? '$clientFirstName pediu-te orçamento pelo teu cartão'
             : null,
-        explanationLabel: !job.directAutoRelease
+        explanationLabel: _declinedMessage != null
+            ? 'Respondeste "Não posso desta vez".'
+            : !job.directAutoRelease
             ? 'Se não responderes a tempo, $clientFirstName decide se '
                 'mostra o pedido a outros jardineiros.'
             : fromCard

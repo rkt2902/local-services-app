@@ -35,6 +35,8 @@ final serviceTypesProvider = FutureProvider<List<ServiceType>>((ref) async {
 
 final workerBasicInfoProvider =
     FutureProvider.autoDispose.family<Map<String, String>, String>((ref, workerId) {
+  // Id vazio enquanto a proposta aceite carrega: vazio = esqueleto.
+  if (workerId.isEmpty) return const <String, String>{};
   cacheFor(ref, _profileInfoCacheTtl);
   return ref.read(workerRepositoryProvider).fetchWorkerBasicInfo(workerId);
 });

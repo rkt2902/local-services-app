@@ -163,7 +163,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       const SizedBox(height: AppSpacing.s14),
                       AppTextField(
                         controller: _passwordController,
-                        label: 'Password',
+                        label: 'Senha',
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.newPassword],
                         suffixIcon: IconButton(
