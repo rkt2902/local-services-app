@@ -2,7 +2,7 @@
 -- 0067 — Selo do plano (Pro / Pro+) e painel de ganhos
 -- ══════════════════════════════════════════════════════════════
 --
--- NOVA, NÃO APLICADA. Aplicar via SQL Editor, DEPOIS da 0066. Usa
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar via SQL Editor, DEPOIS da 0066. Usa
 -- worker_active_tier (0060), job_work_days e pricing_mode (0058),
 -- started_at (0052), marked_done_at (0046), deleted_at (0049) e a vista
 -- worker_public_card da 0059. Pode correr-se mais do que uma vez sem erro.

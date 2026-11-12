@@ -97,7 +97,7 @@
   imagem, guardar em PDF (Pro), enviar ou copiar o link.
 - **Painel de ganhos** (`/worker/earnings`, Pro): total do mês, horas registadas, o que
   está por confirmar, barras dos últimos 6 meses e a lista dos trabalhos (responsável e
-  ajudante). Precisa da `0067` (NÃO aplicada).
+  ajudante). Usa a `0067` (aplicada).
 - Visitas ao cartão e clientes trazidos por cada jardineiro: só no SQL Editor
   (`worker_card_funnel`).
 

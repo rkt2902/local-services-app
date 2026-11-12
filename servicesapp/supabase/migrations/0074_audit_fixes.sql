@@ -1,5 +1,5 @@
 -- 0074_audit_fixes.sql
--- NOVA, NÃO APLICADA. Aplicar no SQL Editor depois da 0073 (ordem: 0067 a 0074).
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar no SQL Editor depois da 0073 (ordem: 0067 a 0074).
 --
 -- Correções da auditoria sistemática de 12/11/2026
 -- (docs/systematic-debugging-audit/04-BUG-REPORT.md). Nenhuma RPC muda de

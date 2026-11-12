@@ -1,6 +1,6 @@
 -- ══════════════════════════════════════════════════════════════
 -- 0072 · Lembretes de início do trabalho
--- NOVA, NÃO APLICADA. Aplicar depois da 0071.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-12). Aplicar depois da 0071.
 -- ══════════════════════════════════════════════════════════════
 -- Pedido do Henrique (12/11): no dia do trabalho, o jardineiro recebe
 --   1. um aviso 1 hora antes da hora combinada (é também quando o
