@@ -90,14 +90,37 @@ void main() {
       expect(WorkerJobDayRules.isOverdue(confirmedDate: null, today: today), isFalse);
     });
 
-    test('último dia para concluir é a data + 3 dias', () {
+    test('em vários dias conta até ao último dia previsto', () {
+      // today = 18/10. Marcado a 16/10, 3 dias: acaba a 18/10.
+      expect(
+        WorkerJobDayRules.isOverdue(
+            confirmedDate: DateTime(2026, 10, 16), today: today, plannedDays: 3),
+        isFalse,
+      );
+      // Começou a 17/10 (depois do marcado), 2 dias: acaba a 18/10.
+      expect(
+        WorkerJobDayRules.expectedEndDay(
+          confirmedDate: DateTime(2026, 10, 15),
+          startedAt: DateTime(2026, 10, 17, 10),
+          plannedDays: 2,
+        ),
+        DateTime(2026, 10, 18),
+      );
+    });
+
+    test('último dia para concluir é o último dia previsto + 3 dias', () {
       expect(
         WorkerJobDayRules.lastDayToComplete(DateTime(2026, 10, 15)),
         DateTime(2026, 10, 18),
       );
       expect(
-        WorkerJobDayRules.overdueMessage(DateTime(2026, 10, 15)),
-        'A data já passou. Marca como concluído até 18/10 ou o pedido expira.',
+        WorkerJobDayRules.overdueMessage(DateTime(2026, 10, 15), started: true),
+        'O trabalho já devia ter acabado. Marca como concluído até 18/10, '
+        'senão o pedido expira.',
+      );
+      expect(
+        WorkerJobDayRules.overdueMessage(DateTime(2026, 10, 15), started: false),
+        contains('não foi iniciado'),
       );
     });
   });

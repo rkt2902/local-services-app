@@ -29,6 +29,22 @@ título.
 - Saiu o botão "Contactar cliente para novo pedido" da recusada: o jardineiro
   recusado não tem acesso ao telefone do cliente (RLS), por isso quase nunca aparecia.
 
+## 2026-11-12 — Aviso de atraso certo e lembretes de início (0072)
+
+O aviso "A data já passou. Marca como concluído até 14/11" aparecia num
+trabalho que nem tinha sido iniciado, com só o botão "Iniciar trabalho" (o
+`mark_job_done` exige iniciar primeiro). Também contava a partir da data
+marcada, por isso num trabalho de 3 dias aparecia logo no 2.º dia, quando a
+BD (`job_expected_end_date`, 0069/0071) só expira 3 dias depois do último dia
+previsto. Agora a app usa a mesma conta (`WorkerJobDayRules.expectedEndDay`),
+no ecrã e no "O que falta fazer", e o texto muda conforme já começou ou não.
+
+Lembretes novos (pedido do Henrique): ao jardineiro, 1 hora antes da hora
+combinada e 30 minutos depois se ainda não carregou em Iniciar. Só com hora
+marcada; o horário flexível fica com o lembrete da manhã. Cron
+`job-start-reminders` de 5 em 5 minutos (`send_start_reminders`); cada aviso
+guarda a hora a que se refere, por isso uma remarcação volta a enviar.
+
 ## 2026-11-11 — Revisão dos fluxos, parte 4: trabalho por dias e relatos (0071)
 
 - **Trabalho por dias sem relógio** (decisão do Henrique): numa proposta com

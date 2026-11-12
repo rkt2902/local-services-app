@@ -41,19 +41,43 @@ abstract final class WorkerJobDayRules {
     return _day(confirmedDate).difference(_day(today)).inDays >= 1;
   }
 
-  /// A data combinada já passou e o trabalho continua por concluir.
+  /// Último dia previsto do trabalho, como a `job_expected_end_date` da BD
+  /// (0071): o dia combinado ou, se começou depois, o dia em que começou,
+  /// mais os dias da proposta menos 1. Sem duração em dias conta 1 dia.
+  static DateTime expectedEndDay({
+    required DateTime confirmedDate,
+    DateTime? startedAt,
+    int? plannedDays,
+  }) {
+    var first = _day(confirmedDate);
+    if (startedAt != null) {
+      final l = startedAt.toLocal();
+      final started = DateTime(l.year, l.month, l.day);
+      if (started.isAfter(first)) first = started;
+    }
+    final days = (plannedDays == null || plannedDays < 1) ? 1 : plannedDays;
+    return first.add(Duration(days: days - 1));
+  }
+
+  /// O último dia previsto já passou e o trabalho continua por concluir.
   static bool isOverdue({
     required DateTime? confirmedDate,
     required DateTime today,
+    DateTime? startedAt,
+    int? plannedDays,
   }) {
     if (confirmedDate == null) return false;
-    return _day(confirmedDate).isBefore(_day(today));
+    return expectedEndDay(
+      confirmedDate: confirmedDate,
+      startedAt: startedAt,
+      plannedDays: plannedDays,
+    ).isBefore(_day(today));
   }
 
   /// Último dia em que o worker ainda pode marcar como concluído antes de o
-  /// pedido expirar.
-  static DateTime lastDayToComplete(DateTime confirmedDate) =>
-      _day(confirmedDate).add(const Duration(days: overdueGraceDays));
+  /// pedido expirar (`auto_expire_jobs`: último dia previsto + 3).
+  static DateTime lastDayToComplete(DateTime expectedEnd) =>
+      _day(expectedEnd).add(const Duration(days: overdueGraceDays));
 
   /// Momento a partir do qual "Iniciar trabalho" fica disponível; `null`
   /// quando não há data combinada (sempre disponível). Hora do dispositivo,
@@ -89,9 +113,16 @@ abstract final class WorkerJobDayRules {
     return opens == null || !now.isBefore(opens);
   }
 
-  static String overdueMessage(DateTime confirmedDate) {
-    final deadline = DateFormat('dd/MM').format(lastDayToComplete(confirmedDate));
-    return 'A data já passou. Marca como concluído até $deadline ou o pedido expira.';
+  /// Aviso de atraso. Sem "Iniciar" não dá para marcar como concluído
+  /// (`mark_job_done`, 0052), por isso o texto pede as duas coisas.
+  static String overdueMessage(DateTime expectedEnd, {required bool started}) {
+    final deadline = DateFormat('dd/MM').format(lastDayToComplete(expectedEnd));
+    return started
+        ? 'O trabalho já devia ter acabado. Marca como concluído até '
+            '$deadline, senão o pedido expira.'
+        : 'A data já passou e o trabalho não foi iniciado. Se o fizeste ou '
+            'ainda o vais fazer, inicia e marca como concluído até $deadline. '
+            'Depois disso o pedido expira.';
   }
 
   static const awaitingConfirmationMessage =

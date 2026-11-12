@@ -679,9 +679,12 @@ class _WorkerMyJobDetailScreenState
       today: today,
       startedAt: job.startedAt,
     );
+    final plannedDays = proposal.estimatedDaysMax ?? proposal.estimatedDaysMin;
     final overdue = WorkerJobDayRules.isOverdue(
       confirmedDate: job.confirmedDate,
       today: today,
+      startedAt: job.startedAt,
+      plannedDays: plannedDays,
     );
 
     final now = DateTime.now();
@@ -846,7 +849,14 @@ class _WorkerMyJobDetailScreenState
           ? null
           : 'Disponível a partir de ${DateFormat('dd/MM').format(confirmedDay)}, o dia do trabalho.',
       overdueMessage: (overdue && job.confirmedDate != null)
-          ? WorkerJobDayRules.overdueMessage(job.confirmedDate!)
+          ? WorkerJobDayRules.overdueMessage(
+              WorkerJobDayRules.expectedEndDay(
+                confirmedDate: job.confirmedDate!,
+                startedAt: job.startedAt,
+                plannedDays: plannedDays,
+              ),
+              started: job.startedAt != null,
+            )
           : null,
       inactive: inactive,
       closedProposal: outcome == null
