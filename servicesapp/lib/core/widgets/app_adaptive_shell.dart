@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_breakpoints.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_status_color.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
@@ -57,7 +58,8 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    final useRail = size.width >= AppBreakpoints.expanded &&
+    final useRail =
+        size.width >= AppBreakpoints.expanded &&
         size.shortestSide >= AppBreakpoints.compactShortestSide;
     final content = KeyedSubtree(
       key: _contentKey,
@@ -153,8 +155,22 @@ class _AppAdaptiveShellState extends State<AppAdaptiveShell> {
             destinations: [
               for (final item in widget.items)
                 NavigationRailDestination(
-                  icon: Icon(item.icon),
-                  selectedIcon: Icon(item.selectedIcon),
+                  icon: Badge(
+                    isLabelVisible: item.badgeCount > 0,
+                    backgroundColor: AppStatusColor.cancelled.foreground,
+                    label: Text(
+                      item.badgeCount > 9 ? '9+' : '${item.badgeCount}',
+                    ),
+                    child: Icon(item.icon),
+                  ),
+                  selectedIcon: Badge(
+                    isLabelVisible: item.badgeCount > 0,
+                    backgroundColor: AppStatusColor.cancelled.foreground,
+                    label: Text(
+                      item.badgeCount > 9 ? '9+' : '${item.badgeCount}',
+                    ),
+                    child: Icon(item.selectedIcon),
+                  ),
                   label: Text(item.label),
                 ),
             ],

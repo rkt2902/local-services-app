@@ -15,7 +15,10 @@ bool isNetworkError(Object e) {
       msg.contains('socket') ||
       msg.contains('failed host lookup') ||
       msg.contains('connection refused') ||
-      msg.contains('timeout');
+      msg.contains('timeout') ||
+      // Web: o browser só diz que o pedido não saiu (sem SocketException).
+      msg.contains('failed to fetch') ||
+      msg.contains('xmlhttprequest error');
 }
 
 /// Registo com um email de uma conta eliminada há menos de 90 dias

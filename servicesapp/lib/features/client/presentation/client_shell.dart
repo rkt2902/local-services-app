@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/app_adaptive_shell.dart';
 import '../../../core/widgets/app_bottom_navigation.dart';
+import '../../notifications/application/notification_providers.dart';
 import '../application/client_create_job_wizard_provider.dart';
 import 'card_request_launcher.dart';
 
@@ -54,23 +55,24 @@ class _ClientShellState extends ConsumerState<ClientShell> {
         context.push('/client/create-job');
       },
       centralActionTooltip: 'Criar pedido',
-      items: const [
-        AppBottomNavigationItem(
+      items: [
+        const AppBottomNavigationItem(
           label: 'Início',
           icon: Icons.home_outlined,
           selectedIcon: Icons.home_rounded,
         ),
-        AppBottomNavigationItem(
+        const AppBottomNavigationItem(
           label: 'Pedidos',
           icon: Icons.list_alt_outlined,
           selectedIcon: Icons.list_alt_rounded,
         ),
         AppBottomNavigationItem(
           label: 'Alertas',
+          badgeCount: ref.watch(unreadCountProvider),
           icon: Icons.notifications_none_rounded,
           selectedIcon: Icons.notifications_rounded,
         ),
-        AppBottomNavigationItem(
+        const AppBottomNavigationItem(
           label: 'Perfil',
           icon: Icons.person_outline_rounded,
           selectedIcon: Icons.person_rounded,

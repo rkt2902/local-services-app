@@ -15,19 +15,28 @@ class StartJobSheet extends StatefulWidget {
     super.key,
     required this.clientName,
     required this.onStart,
+    this.countsTime = true,
   });
 
   final String clientName;
+
+  /// `false` no trabalho por dias: não há relógio (decisão de 11/11).
+  final bool countsTime;
   final Future<bool> Function(List<XFile> photos) onStart;
 
   static Future<bool> show(
     BuildContext context, {
     required String clientName,
     required Future<bool> Function(List<XFile> photos) onStart,
+    bool countsTime = true,
   }) async {
     final started = await AppSheet.show<bool>(
       context,
-      builder: (_) => StartJobSheet(clientName: clientName, onStart: onStart),
+      builder: (_) => StartJobSheet(
+        clientName: clientName,
+        onStart: onStart,
+        countsTime: countsTime,
+      ),
     );
     return started ?? false;
   }
@@ -73,22 +82,27 @@ class _StartJobSheetState extends State<StartJobSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '$who recebe um aviso de que começaste. O tempo de trabalho '
-            'começa a contar.',
-            style:
-                textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            widget.countsTime
+                ? '$who recebe um aviso de que começaste. O tempo de trabalho '
+                      'começa a contar.'
+                : '$who recebe um aviso de que começaste.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text.rich(
             TextSpan(
               text: 'Fotos do "antes"',
-              style:
-                  textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+              style: textTheme.titleMedium?.copyWith(
+                color: AppColors.textPrimary,
+              ),
               children: [
                 TextSpan(
                   text: ' · opcional',
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -102,8 +116,9 @@ class _StartJobSheetState extends State<StartJobSheet> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Protegem-te em caso de reclamação.',
-            style:
-                textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
