@@ -6,26 +6,26 @@ Regras usadas:
 
 - **Confirmado** = reproduzido com um comando que qualquer pessoa pode repetir (BD local ou leitura direta do código, com ficheiro e linha).
 - **Suspeito** = hipótese com evidência parcial, ainda por confirmar no ambiente real.
-- Nenhum bug foi corrigido nesta auditoria (âmbito: só documentação e testes). Os problemas já resolvidos nas revisões de 02/11 a 12/11 (partes 1 a 5) não estão repetidos aqui; os cenários deles continuam a passar no ramo do #47.
+- Na auditoria nenhum bug foi corrigido. Depois, a pedido do Henrique (12/11), foram corrigidos 13 dos 14: os de BD na migration `0074_audit_fixes.sql` (criada, **não aplicada**) e os de app no código. Só o BUG-014 fica, porque se resolve aplicando as migrations 0067 a 0074 por ordem. A regressão está em `supabase/tests/audit/` (162/162 no 10_flows, 19/19 no 30_findings, RACE-01 a RACE-04 a passar). Os problemas já resolvidos nas revisões de 02/11 a 12/11 (partes 1 a 5) não estão repetidos aqui; os cenários deles continuam a passar no ramo do #47.
 
 Severidade: Critical (perda de dados ou falha de segurança explorável em larga escala), High (bloqueia um fluxo principal ou expõe dados pessoais), Medium (estado errado ou incoerente num fluxo principal, com saída difícil), Low (incómodo, higiene ou abuso pouco provável).
 
 | Bug | Título | Severidade | Prioridade | Estado |
 |---|---|---|---|---|
 | BUG-014 | App e BD fora de passo: 0067 a 0073 por aplicar | High (risco de processo) | P0 | Suspeito |
-| BUG-001 | Retirar proposta ao mesmo tempo que é aceite deixa o trabalho incoerente | Medium | P1 | Confirmado |
-| BUG-002 | Pedido criado pela API pode nascer "já iniciado" | Medium | P2 | Confirmado |
-| BUG-004 | Descoberta de pedidos usa coordenadas vindas da app e não verifica o papel | Medium (privacidade) | P2 | Confirmado |
-| BUG-006 | Raio do jardineiro sem limite na BD (avisos de todo o país) | Low | P2 | Confirmado |
-| BUG-003 | Servidor aceita pedido com data fixa no passado | Low | P3 | Confirmado |
-| BUG-005 | Limite de 2 fotos falha com envios em paralelo | Low | P3 | Confirmado |
-| BUG-007 | Proposta aceita horas mínimas maiores do que as máximas | Low | P3 | Confirmado |
-| BUG-008 | Textos sem limite de tamanho escritos pela API | Low | P3 | Confirmado |
-| BUG-009 | Avaliações legíveis por anónimos, com ids | Low (decisão) | P3 | Confirmado |
-| BUG-012 | Segunda avaliação é ignorada em silêncio | Low | P3 | Confirmado |
-| BUG-013 | "Este pedido já não está aberto" não refresca a lista de propostas | Low | P3 | Confirmado (código) |
-| BUG-010 | Links legais usam SnackBar em vez de AppToast | Low | P3 | Confirmado (código) |
-| BUG-011 | Cor solta fora do design system no onboarding | Low | P3 | Confirmado (código) |
+| BUG-001 | Retirar proposta ao mesmo tempo que é aceite deixa o trabalho incoerente | Medium | P1 | Corrigido (0074) |
+| BUG-002 | Pedido criado pela API pode nascer "já iniciado" | Medium | P2 | Corrigido (0074) |
+| BUG-004 | Descoberta de pedidos usa coordenadas vindas da app e não verifica o papel | Medium (privacidade) | P2 | Corrigido (0074) |
+| BUG-006 | Raio do jardineiro sem limite na BD (avisos de todo o país) | Low | P2 | Corrigido (0074) |
+| BUG-003 | Servidor aceita pedido com data fixa no passado | Low | P3 | Corrigido (0074) |
+| BUG-005 | Limite de 2 fotos falha com envios em paralelo | Low | P3 | Corrigido (0074) |
+| BUG-007 | Proposta aceita horas mínimas maiores do que as máximas | Low | P3 | Corrigido (0074) |
+| BUG-008 | Textos sem limite de tamanho escritos pela API | Low | P3 | Corrigido (0074) |
+| BUG-009 | Avaliações legíveis por anónimos, com ids | Low (decisão) | P3 | Corrigido (0074) |
+| BUG-012 | Segunda avaliação é ignorada em silêncio | Low | P3 | Corrigido (0074) |
+| BUG-013 | "Este pedido já não está aberto" não refresca a lista de propostas | Low | P3 | Corrigido (app) |
+| BUG-010 | Links legais usam SnackBar em vez de AppToast | Low | P3 | Corrigido (app) |
+| BUG-011 | Cor solta fora do design system no onboarding | Low | P3 | Corrigido (app) |
 
 ---
 
@@ -65,7 +65,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Impacto noutros fluxos:** Agenda, lembretes de início (contam como trabalho confirmado), ganhos.
 - **Solução recomendada:** na migration seguinte, `SELECT ... FOR UPDATE` da proposta e do pedido no início de `withdraw_proposal` e `UPDATE ... WHERE id = p_proposal_id AND status = 'pending'` com verificação de `FOUND`. Sem mudança de assinatura.
 - **Teste de regressão necessário:** RACE-02 tem de passar; T-PROP-23 e os cenários da parte 5 (pedido direto: retirar conta como recusa).
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-002
 
@@ -84,7 +84,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Impacto noutros fluxos:** confirmação automática, lembretes, ganhos.
 - **Solução recomendada:** no `job_request_track_visibility` (ramo INSERT), pôr a NULL todos os campos de execução e de lembretes. Mais robusto do que alargar a policy.
 - **Teste de regressão necessário:** T-JOB-06 e F-002 passam a dar `started_at` NULL; T-JOB-01 e o fluxo completo continuam a passar.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-004
 
@@ -102,7 +102,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Impacto noutros fluxos:** a app usa GPS atual ou a base; mudar a regra pode esconder pedidos a um jardineiro que trabalha longe da base. Decidir antes de corrigir.
 - **Solução recomendada:** exigir `role = 'worker'`; usar a base de `worker_profiles` (ignorando as coordenadas recebidas, ou aceitando-as só a menos de X km da base); não devolver `client_id` mascarado a quem não tem proposta.
 - **Teste de regressão necessário:** T-DISC-01..08, FLOW-040 na app (TM-033).
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-006
 
@@ -118,7 +118,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Impacto:** um jardineiro recebe pushes de todo o país (custo de envio FCM e "vantagem" sobre os outros). Não expõe moradas.
 - **Solução recomendada:** `CHECK (radius_km BETWEEN 1 AND 50)` (validar antes os dados atuais) e `LEAST(radius_km, 50)` em `job_candidate_workers`.
 - **Teste de regressão necessário:** F-006 recusado; setup do jardineiro (TM-008).
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-003
 
@@ -133,7 +133,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Causa raiz:** confirmada. A app impede no seletor de data; o servidor não repete a regra. Caso real possível: rascunho de ontem publicado hoje, se o ecrã de rever não revalidar (não verificado na UI, ver TM-017).
 - **Solução recomendada:** acrescentar `(date_mode <> 'fixed' OR preferred_date >= today_pt())` à policy ou ao trigger de INSERT.
 - **Teste de regressão necessário:** T-JOB-08, TM-017.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-005
 
@@ -147,7 +147,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Impacto:** quase nenhum (a app envia em sequência); a vista pode mostrar 3 fotos.
 - **Solução recomendada:** `PERFORM 1 FROM job_requests WHERE id = NEW.job_id FOR UPDATE;` antes da contagem.
 - **Teste de regressão necessário:** RACE-03, T-JOB-09..12.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-007
 
@@ -159,7 +159,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Resultado observado:** gravado; estimativas de custo de equipa e ganhos usam números trocados.
 - **Causa raiz:** confirmada. Validação só na UI (opções fixas 1-2h, 2-4h, ...). A mesma função já valida dias e pessoas (F-007c recusa 0 pessoas).
 - **Solução recomendada:** `IF p_estimated_hours_min > p_estimated_hours_max THEN RAISE ...` (o mesmo para dias, a confirmar).
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-008
 
@@ -171,7 +171,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Causa raiz:** confirmada. Limites só nos `TextField`. Já tinha sido levantado em parte na revisão parte 3 (ponto 5); continua por fazer para estas colunas.
 - **Impacto:** abuso de armazenamento, ecrãs partidos para a outra parte (nome gigante nas propostas e avaliações).
 - **Solução recomendada:** `CHECK (char_length(...) <= N)` com N igual ao da UI.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-009
 
@@ -182,7 +182,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Passos para reproduzir:** T-RATE-11 (anónimo lê as 4 avaliações).
 - **Causa raiz:** confirmada; deliberada no início (cartão público). Desde a 0033/0059 o cartão usa a view `worker_public_card`, por isso a leitura direta anónima pode já não ser precisa (hipótese a confirmar no código: a app lê `ratings` com sessão).
 - **Solução recomendada:** decidir se a leitura direta fica só para `authenticated` e sem `rater_id` de clientes.
-- **Estado:** Confirmado (comportamento); correção depende de decisão.
+- **Estado:** Confirmado (comportamento); correção depende de decisão. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-012
 
@@ -193,7 +193,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Passos para reproduzir:** T-RATE-04a/04b (a segunda chamada passa e as estrelas continuam 5).
 - **Causa raiz:** confirmada; protege duplicados, mas sem aviso. Se a UI deixar reabrir o ecrã (não verificado, TM-025), a pessoa julga que alterou a nota.
 - **Solução recomendada:** devolver erro "Já avaliaste este trabalho" ou permitir editar de forma explícita.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (migration 0074, não aplicada); ver o PR #48.
 
 ## BUG-013
 
@@ -204,7 +204,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Causa raiz:** confirmada por leitura: o texto novo cai no ramo `failed`, que não invalida `pendingProposalsForJobProvider`.
 - **Impacto:** a cliente vê a mensagem certa mas a lista antiga fica até puxar para atualizar.
 - **Solução recomendada:** incluir "não está aberto" no ramo `unavailable` (ou passar a usar um `HINT`/código em vez de texto).
-- **Estado:** Confirmado (código); não reproduzido na UI.
+- **Estado:** Confirmado (código); não reproduzido na UI. **Corrigido** a 12/11 (código da app); ver o PR #48.
 
 ## BUG-010
 
@@ -214,7 +214,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Ficheiros e linhas:** `lib/core/widgets/app_legal_links.dart:17-33`.
 - **Causa raiz:** confirmada; quebra a regra do CLAUDE.md ("AppToast, nunca SnackBar"). Só aparece quando o browser não abre.
 - **Solução recomendada:** `AppToast.maybeOf(context)?.error(...)`.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (código da app); ver o PR #48.
 
 ## BUG-011
 
@@ -224,7 +224,7 @@ Severidade: Critical (perda de dados ou falha de segurança explorável em larga
 - **Ficheiros e linhas:** `lib/features/onboarding/presentation/widgets/onboarding_page_indicator.dart:12`.
 - **Causa raiz:** confirmada; única cor solta fora de `core/theme/` (`grep -rn 'Color(0x' lib | grep -v core/theme`).
 - **Solução recomendada:** token em `AppColors` (por exemplo `onboardingDotInactive`) ou `AppColors.primaryContainer` se o tom servir.
-- **Estado:** Confirmado.
+- **Estado:** Confirmado. **Corrigido** a 12/11 (código da app); ver o PR #48.
 
 ---
 

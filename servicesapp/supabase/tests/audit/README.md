@@ -9,7 +9,7 @@ Resultados e explicação em `docs/systematic-debugging-audit/` (03, 04 e 07).
 - `stubs.sql`: o mínimo de `auth`, `storage`, `cron`, `vault` e `net` que o Supabase dá e o Postgres simples não tem.
 - `00_lib.sql`: asserções (`audit.ok`, `audit.err`, `audit.eq`, `audit.val`) e `t_as(uid)` / `t_aal2(uid)` para mudar de pessoa.
 - `10_flows.sql`: 162 asserções, um bloco por fluxo (T-PROF, T-JOB, T-DISC, T-PROP, T-HELP, T-RESCH, T-EXEC, T-RATE, T-CANC, T-EDIT, T-PLAN, T-ADM, T-NOTIF, T-PUSH, T-AG, T-FLEET, T-CARD, T-STOR, T-CRON, T-DEL).
-- `30_findings.sql`: reprodução dos bugs (F-002, F-003, F-006, F-007, F-008). Corre depois do `10_flows.sql`.
+- `30_findings.sql`: regressão dos bugs corrigidos na 0074 (F-002, F-003, F-004, F-006, F-007, F-008). Corre depois do `10_flows.sql`.
 - `20_concurrency.sh`: duas sessões ao mesmo tempo (RACE-01 a RACE-05).
 - `run.sh`: monta a BD `pj_audit` e corre o `10_flows.sql`.
 
@@ -29,6 +29,6 @@ psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 30_findings.sql
 bash 20_concurrency.sh
 ```
 
-No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**: os `FAIL` atuais são os bugs de 04 (T-JOB-06, T-JOB-08, T-DISC-07, T-DISC-08, T-PROP-07, T-RATE-11, RACE-02, RACE-03) e passam a `PASS` quando forem corrigidos, sem mudar o teste. Qualquer outro `FAIL` é uma regressão.
+No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**. Com a 0074 passam todas (162/162 e RACE-01 a RACE-04); qualquer `FAIL` é uma regressão.
 
-O `30_findings.sql` faz o contrário: descreve o comportamento **atual** dos bugs, para os reproduzir. Depois de uma correção, a asserção desse bug passa a falhar, e é aí que se apaga ou inverte.
+O `30_findings.sql` era a reprodução dos bugs; depois da 0074 passou a verificar as correções (19 asserções, todas `PASS`).

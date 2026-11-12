@@ -9,7 +9,7 @@ class OnboardingPageIndicator extends StatelessWidget {
     required this.currentPage,
     required this.pageCount,
     this.activeColor = AppColors.primary,
-    this.inactiveColor = const Color(0xFFD7E5D0),
+    this.inactiveColor = AppColors.onboardingDotInactive,
   });
 
   final int currentPage;

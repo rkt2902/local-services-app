@@ -1,6 +1,8 @@
 # 08. Correções recomendadas
 
-Nada disto está implementado: fica para aprovação. Ordem por prioridade e, dentro da mesma, por relação impacto/esforço. Todas as correções de BD cabem numa migration nova, a **0074** (confirmar o número com `ls supabase/migrations` no `main` antes de criar), que fica só criada e é aplicada por ti no SQL Editor depois da 0067 a 0073. Nenhuma muda a forma de uma RPC, por isso não precisam de `DROP FUNCTION`.
+**Atualização 12/11:** implementado a pedido do Henrique. BD em `supabase/migrations/0074_audit_fixes.sql` (criada, não aplicada), app em `app_legal_links.dart`, `onboarding_page_indicator.dart`, `app_colors.dart` e no detalhe da proposta. No BUG-004 a pesquisa passou a usar sempre a base e o raio gravados (as coordenadas enviadas são ignoradas); o `client_id` continua no resultado porque a app o usa. No BUG-009 as avaliações passaram a exigir sessão (o cartão público continua a usar as RPCs próprias). No BUG-005 usei um advisory lock em vez de `FOR UPDATE`, porque o cliente não tem permissão de UPDATE no pedido.
+
+Texto original: Ordem por prioridade e, dentro da mesma, por relação impacto/esforço. Todas as correções de BD cabem numa migration nova, a **0074** (confirmar o número com `ls supabase/migrations` no `main` antes de criar), que fica só criada e é aplicada por ti no SQL Editor depois da 0067 a 0073. Nenhuma muda a forma de uma RPC, por isso não precisam de `DROP FUNCTION`.
 
 | # | Bug | O quê | Onde | Esforço | Risco da correção | Impacto |
 |---|---|---|---|---|---|---|

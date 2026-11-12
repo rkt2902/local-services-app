@@ -2,6 +2,10 @@
 
 **Data:** 12/11/2026 · **Estado auditado:** ramo do PR #47 (`7c9f539`) = `main` + migrations 0071 a 0073 · **Metodologia:** skill `systematic-debugging` (reproduzir, evidência, causa raiz, hipótese, teste) · **Âmbito:** só documentação e testes; nenhum comportamento da app nem da BD foi alterado; nenhuma migration aplicada; nada tocado em produção.
 
+## Atualização 12/11: correções feitas
+
+13 dos 14 bugs ficaram corrigidos no PR #48: os de BD na `0074_audit_fixes.sql` (criada, **não aplicada**) e os de app no código. Depois das correções: 162/162 asserções no `10_flows`, 19/19 no `30_findings` (regressão), RACE-01 a RACE-04 a passar, 625 testes Flutter a passar e `flutter analyze` a zero. O BUG-014 continua: aplicar 0067 a 0074 por ordem. Os números abaixo são os da auditoria, antes das correções.
+
 ## Respostas às quatro perguntas
 
 **1. O que existe realmente?** Uma app Flutter com cerca de 50 rotas, 13 features, 59 RPCs chamadas, 11 jobs de cron, push por Edge Function e um painel de admin com segundo fator. Inventariei **80 fluxos** (02), dos 2 papéis principais, ajudantes, admin e processos automáticos. Não encontrei funcionalidades escondidas ou ligadas a nada; as desligadas de propósito estão listadas em 02.

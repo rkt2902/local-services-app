@@ -23,6 +23,9 @@ abstract final class AppColors {
   // Detalhe dourado usado na ilustração de onboarding
   static const Color logoAccent = Color(0xFFC8A13B);
 
+  /// Pontos inativos do indicador de páginas do onboarding.
+  static const Color onboardingDotInactive = Color(0xFFD7E5D0);
+
   // Marcas externas, só nos botões "Continuar com Google/Facebook"
   // (as regras de marca de cada um pedem as cores oficiais).
   static const Color googleBlue = Color(0xFF4285F4);

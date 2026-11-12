@@ -55,16 +55,15 @@ class ClientProposalDetailScreen extends ConsumerWidget {
     } catch (e) {
       // accept_proposal e o trigger da 0058 só devolvem texto, sem
       // ERRCODE próprio (mesma convenção de createProposal).
-      final msg = e.toString();
-      if (msg.contains('expirou')) {
-        ref.invalidate(pendingProposalsForJobProvider(jobId));
-        return const ClientProposalAcceptResult.expired();
-      }
-      if (msg.contains('já não está disponível') ||
-          msg.contains('já processada') ||
-          msg.contains('não encontrada')) {
-        ref.invalidate(pendingProposalsForJobProvider(jobId));
-        return const ClientProposalAcceptResult.unavailable();
+      switch (classifyAcceptProposalError(e.toString())) {
+        case ClientProposalAcceptOutcome.expired:
+          ref.invalidate(pendingProposalsForJobProvider(jobId));
+          return const ClientProposalAcceptResult.expired();
+        case ClientProposalAcceptOutcome.unavailable:
+          ref.invalidate(pendingProposalsForJobProvider(jobId));
+          return const ClientProposalAcceptResult.unavailable();
+        default:
+          break;
       }
       return ClientProposalAcceptResult.failed(friendlyError(e));
     }
