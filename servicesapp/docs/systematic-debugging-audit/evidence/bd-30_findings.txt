@@ -1,17 +1,46 @@
-PASS | F-002a cliente cria pedido com started_at e before_photo_paths preenchidos | valor=ce21c21c-d691-4d33-9e02-a08db4ec1836
-PASS | F-002b jardineiro propõe | valor=2697beac-4169-4092-bb23-17d1c5fdc4fe
-PASS | F-002c cliente aceita
-PASS | F-002d [efeito] o jardineiro já não consegue cancelar ("já começou") | recusado: O trabalho já começou e já não pode ser cancelado nem remarcado.
-PASS | F-002e [efeito] o jardineiro não consegue Iniciar ("já foi iniciado") | recusado: O trabalho já foi iniciado.
-PASS | F-002f [efeito] o trabalho aparece como em curso sem o jardineiro ter iniciado | esperado=true obtido=true
-PASS | F-003a pedido com data fixa de há 10 dias é criado | valor=9322c0bb-fefb-44a8-b7d6-4658c142ca85
-PASS | F-003b não aparece a nenhum jardineiro | esperado=0 obtido=0
-PASS | F-003c a corrida seguinte do cron fecha-o como sem resposta | esperado=no_response obtido=no_response
-PASS | F-007a preparação: pedido | valor=60bdb41b-55cd-4b49-98dd-13097df30c86
-PASS | F-007b proposta com 6h a 2h é gravada | valor=dc3d1af3-6982-4941-ad9c-621b88455692
-PASS | F-007c (controlo) pessoas = 0 é recusado | recusado: Número de pessoas inválido.
-PASS | F-006a jardineiro grava raio de 5000 km por UPDATE direto
-PASS | F-006b cliente cria pedido em Faro
-PASS | F-006c [efeito] o jardineiro de Lisboa recebe o aviso do pedido em Faro | esperado=1 obtido=1
-PASS | F-008a nome do perfil com 100 000 caracteres é aceite | esperado=100000 obtido=100000
-PASS | F-008b repor o nome
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===== REGRESSÃO DOS BUGS CORRIGIDOS =====
+PASS | F-002a cliente envia started_at, marked_done_at e fotos no INSERT | valor=8825270b-b8c6-4abd-9b3b-bedb30fbcd12
+PASS | F-002b o pedido nasce sem started_at, marked_done_at nem fotos | esperado=true obtido=true
+PASS | F-002c jardineiro propõe | valor=56cc5dd1-c91d-4865-9c35-721f2875148c
+PASS | F-002d cliente aceita
+PASS | F-002e o jardineiro pode cancelar (não começou)
+PASS | F-003a pedido com data fixa de há 10 dias é recusado | recusado: A data do pedido já passou. Escolhe outra data.
+PASS | F-003b data fixa de hoje continua aceite | valor=b886ada2-2601-4168-a54e-061940f832b1
+PASS | F-004a jardineiro de Lisboa continua a ver o pedido de Lisboa mesmo mandando coordenadas do Porto | esperado=1 obtido=1
+PASS | F-004b conta de cliente não lista pedidos | esperado=0 obtido=0
+PASS | F-007a preparação: pedido | valor=59fc3f59-6cb0-4d00-9e15-c61530667a79
+PASS | F-007b proposta com 6h a 2h é recusada | recusado: A duração mínima não pode ser maior do que a máxima.
+PASS | F-007c proposta com 5 a 2 dias é recusada | recusado: Duração em dias inválida.
+PASS | F-007d (controlo) pessoas = 0 é recusado | recusado: Número de pessoas inválido.
+PASS | F-007e proposta normal continua a passar
+PASS | F-006a raio de 5000 km é recusado | recusado: new row for relation "worker_profiles" violates check constraint "worker_profiles_radius_km_range"
+PASS | F-006b raio de 50 km continua aceite
+PASS | F-008a nome com 100 000 caracteres é recusado | recusado: new row for relation "profiles" violates check constraint "profiles_full_name_length"
+PASS | F-008b nome normal continua aceite
+PASS | F-008c bio com 5000 caracteres é recusada | recusado: new row for relation "worker_profiles" violates check constraint "worker_profiles_bio_length"
