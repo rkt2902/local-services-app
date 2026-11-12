@@ -11,8 +11,14 @@
 --    concluído" e a expiração passam a contar a partir do dia em que
 --    começou (job_expected_end_date já o faz desde a 0071). Antes ficava
 --    em curso para sempre. O "a combinar" nunca iniciado fica como está.
+-- 3. "A combinar" nunca iniciado (decisão do Henrique, 12/11): aviso aos
+--    dois aos 27 dias e fecha (expirado) 30 dias depois de a proposta ser
+--    aceite. Com data marcada ou iniciado, seguem as regras normais.
 -- Só CREATE OR REPLACE com a mesma assinatura: as permissões mantêm-se.
 -- ══════════════════════════════════════════════════════════════
+
+ALTER TABLE public.job_requests
+  ADD COLUMN IF NOT EXISTS undated_expiry_warned_at timestamptz;
 
 -- ── 1. Pedido direto ───────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.expire_direct_job_requests()
@@ -306,6 +312,61 @@ BEGIN
       'O teu pedido esteve 14 dias sem escolheres uma proposta e foi fechado. Podes publicá-lo de novo.',
       v_job.id, 'job_request');
   END LOOP;
+
+  -- 5.5 (0073) "A combinar" nunca iniciado: fecha 30 dias depois de a
+  -- proposta ser aceite (decisão do Henrique, 12/11). Aviso 3 dias antes
+  -- em send_job_reminders (7.3).
+  FOR v_job IN
+    SELECT jr.*
+    FROM   job_requests jr
+    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
+    WHERE  jr.status = 'confirmed'
+      AND  jr.confirmed_date IS NULL
+      AND  jr.started_at IS NULL
+      AND  jr.reschedule_status IS DISTINCT FROM 'pending'
+      AND  COALESCE(jp.accepted_at, jr.updated_at) < now() - INTERVAL '30 days'
+      -- Só depois do aviso de 3 dias (os antigos também o recebem primeiro).
+      AND  jr.undated_expiry_warned_at < now() - INTERVAL '3 days'
+    FOR UPDATE OF jr SKIP LOCKED
+  LOOP
+    UPDATE job_requests
+    SET    status        = 'cancelled',
+           cancel_reason = 'expired',
+           updated_at    = now()
+    WHERE  id = v_job.id;
+
+    UPDATE help_requests
+    SET    status = 'cancelled'
+    WHERE  job_id = v_job.id AND status <> 'cancelled';
+
+    UPDATE help_acceptances
+    SET    status = 'rejected'
+    WHERE  help_request_id IN (SELECT id FROM help_requests WHERE job_id = v_job.id)
+      AND  status = 'pending';
+
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    SELECT ha.worker_id, 'help_job_cancelled', 'Trabalho expirado',
+           'O trabalho em que ias ajudar expirou sem ser feito.',
+           v_job.id, 'job_request'
+    FROM   help_acceptances ha
+    JOIN   help_requests    hr ON hr.id = ha.help_request_id
+    WHERE  hr.job_id = v_job.id AND ha.status = 'accepted';
+
+    SELECT worker_id INTO v_worker_id
+    FROM   job_proposals WHERE id = v_job.accepted_proposal_id;
+
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (v_job.client_id, 'job_cancelled', 'Trabalho expirado',
+      'O trabalho ficou 30 dias sem data e sem ser iniciado, por isso foi fechado. Se ainda precisares, faz um pedido novo.',
+      v_job.id, 'job_request');
+
+    IF v_worker_id IS NOT NULL THEN
+      INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+      VALUES (v_worker_id, 'job_cancelled', 'Trabalho expirado',
+        'O trabalho ficou 30 dias sem data e sem ser iniciado, por isso foi fechado.',
+        v_job.id, 'job_request');
+    END IF;
+  END LOOP;
 END;
 $function$;
 
@@ -394,6 +455,38 @@ BEGIN
       v_job.id, 'job_request');
 
     UPDATE job_requests SET overdue_notified_at = now() WHERE id = v_job.id;
+  END LOOP;
+
+  -- 7.3 (0073) "A combinar" nunca iniciado: aviso 3 dias antes de fechar
+  -- (auto_expire_jobs 5.5, 30 dias depois de aceite), uma vez só.
+  FOR v_job IN
+    SELECT jr.*
+    FROM   job_requests jr
+    JOIN   job_proposals jp ON jp.id = jr.accepted_proposal_id
+    WHERE  jr.status = 'confirmed'
+      AND  jr.confirmed_date IS NULL
+      AND  jr.started_at IS NULL
+      AND  jr.reschedule_status IS DISTINCT FROM 'pending'
+      AND  COALESCE(jp.accepted_at, jr.updated_at) < now() - INTERVAL '27 days'
+      AND  jr.undated_expiry_warned_at IS NULL
+    FOR UPDATE OF jr SKIP LOCKED
+  LOOP
+    SELECT worker_id INTO v_worker_id
+    FROM   job_proposals WHERE id = v_job.accepted_proposal_id;
+
+    IF v_worker_id IS NOT NULL THEN
+      INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+      VALUES (v_worker_id, 'job_reminder', 'Trabalho sem data',
+        'Este trabalho ainda não tem data nem foi iniciado. Combina o dia com o cliente por WhatsApp e propõe a data na app. Se não for iniciado, fecha daqui a 3 dias.',
+        v_job.id, 'job_request');
+    END IF;
+
+    INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+    VALUES (v_job.client_id, 'job_reminder', 'Trabalho sem data',
+      'O trabalho ainda não tem data nem foi iniciado. Combina o dia com o jardineiro por WhatsApp. Se não for iniciado, fecha daqui a 3 dias.',
+      v_job.id, 'job_request');
+
+    UPDATE job_requests SET undated_expiry_warned_at = now() WHERE id = v_job.id;
   END LOOP;
 END;
 $function$;

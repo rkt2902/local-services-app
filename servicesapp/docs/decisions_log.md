@@ -37,8 +37,11 @@ título.
   as propostas pendentes e `accept_proposal` só aceita em pedidos abertos;
   antes um pedido fechado passava a confirmado.
 - Trabalho "a combinar" iniciado: lembrete e expiração contam a partir do
-  dia em que começou (antes ficava em curso para sempre). O "a combinar"
-  nunca iniciado fica sem prazo, de propósito, até decisão em contrário.
+  dia em que começou (antes ficava em curso para sempre).
+- "A combinar" nunca iniciado (decisão do Henrique): aviso aos dois aos 27
+  dias e fecha como expirado 30 dias depois de a proposta ser aceite, sempre
+  pelo menos 3 dias depois do aviso. Com data marcada ou iniciado seguem as
+  regras normais.
 - O toque em "Vais ajudar num trabalho hoje" abre o trabalho do ajudante
   (antes ia para o início).
 
