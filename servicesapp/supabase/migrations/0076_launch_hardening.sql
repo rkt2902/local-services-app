@@ -1,5 +1,5 @@
 -- 0076_launch_hardening.sql
--- NOVA, NÃO APLICADA. Aplicar no SQL Editor depois da 0075 (fazer um dump antes).
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-13).
 --
 -- Achados da auditoria pré-lançamento de 13/11
 -- (docs/audits/2026-11-13/remediation_plan.md):

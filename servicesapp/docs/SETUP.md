@@ -35,12 +35,10 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 ### 0.1 Migrations: todas aplicadas
 
-A 27/10/2026 todas as migrations de `supabase/migrations/` estão aplicadas na BD viva,
-da `0001` à `0065` (a `0050` não existe). A lista com o que cada uma faz está em
+A 13/11/2026 todas as migrations de `supabase/migrations/` estão aplicadas na BD viva,
+da `0001` à `0076` (a `0050` não existe). A lista com o que cada uma faz está em
 `supabase/migrations/README.md`. Os passos de aplicação e de teste de cada uma (antigos
 0.1 a 0.17) saíram daqui; ficam no histórico do git se precisares deles.
-
-Por aplicar a 13/11: `0075` e `0076` (por esta ordem, com um dump antes).
 
 Quando o Claude criar uma migration nova (a próxima é a `0077`): SQL Editor, colar o
 ficheiro, correr, e dizer ao Claude "00xx aplicada". As migrations recentes podem
@@ -515,6 +513,43 @@ o que falhou foi ..."
 
 - [ ] `flutter build appbundle --release` sem `key.properties` falha com "Falta android/key.properties".
 - [ ] Com tudo, o AAB instala e abre no onboarding; um erro forçado aparece no Crashlytics.
+
+---
+
+## 9. Backups
+
+O plano Free do Supabase não deixa descarregar backups, por isso a action
+`.github/workflows/backup-db.yml` faz um dump todos os dias às 04:15 UTC.
+
+**Onde fica:** em GitHub > Actions > "Backup BD" > cada execução >
+Artifacts, um ficheiro `projardim-AAAA-MM-DD.tar.gz.gpg`. Fica 30 dias e
+depois apaga-se sozinho. Vai cifrado porque o repositório é público.
+
+**Configurar (uma vez)**, em Settings > Secrets and variables > Actions >
+New repository secret:
+
+1. `SUPABASE_DB_URL`: Supabase > Connect > "Session pooler" (porta 5432),
+   com a palavra-passe da BD no lugar de `[YOUR-PASSWORD]`. A "Direct
+   connection" não funciona nos runners (só IPv6).
+2. `BACKUP_PASSPHRASE`: uma frase longa só tua. Guarda-a também no gestor
+   de passwords; sem ela os backups não abrem.
+
+Depois, Actions > "Backup BD" > Run workflow faz o primeiro dump na hora
+(e serve para qualquer dump avulso).
+
+**Abrir um backup** (Linux, Mac ou Git Bash no Windows):
+
+```bash
+gpg --decrypt projardim-AAAA-MM-DD.tar.gz.gpg | tar xz
+```
+
+Ficam `roles.sql`, `schema.sql` e `data.sql`. Para restaurar numa BD nova,
+aplicar por esta ordem com `psql`, com `session_replication_role = replica`
+no `data.sql` para os triggers não dispararem.
+
+**Copiar para fora do GitHub:** uma vez por mês, descarregar o mais recente
+e guardá-lo noutro sítio (disco ou Google Drive), porque o GitHub só guarda
+30 dias.
 
 ---
 

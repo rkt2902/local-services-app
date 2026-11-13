@@ -3,8 +3,8 @@
 ## Estado a 2026-11-12
 
 **Todas as migrations deste diretório estão aplicadas na BD viva** (projeto
-`twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-11-12. Isto inclui as
-`0067` a `0074`. A `0050` nunca foi usada (o
+`twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-11-13. Isto inclui as
+`0067` a `0076`. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
 A `0075` e a `0076` estão no repositório **por aplicar** (ver a tabela).
