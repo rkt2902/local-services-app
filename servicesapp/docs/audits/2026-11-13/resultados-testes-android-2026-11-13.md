@@ -75,11 +75,11 @@ TR-11, TR-12, TR-13 (Android 10), TR-15, TR-18, TR-22, TR-25, TR-26 e o bloco P2
 | F6 | Baixa | O alerta "Trabalho concluído!" mantém o botão "Confirmar conclusão" depois de o cliente já ter confirmado (abre o detalhe já "Concluído", sem erro). | `TR-NOTIF_02_*` |
 | F7 | Baixa | No detalhe do pedido do cliente, a fila de fotos do pedido encosta ao cartão do jardineiro, sem espaço entre os dois. | `TR-07_13_cliente-fotos-pedido` |
 | F8 | Média | No lobby da equipa (`worker_help_requests_lobby_view.dart`), depois de aceitar um candidato ou de alterar vagas, o `AppSuccessFeedback` ("Ajudante adicionado à equipa.", "Vagas atualizadas.") fica no ecrã para sempre, opaco e a bloquear os toques (nem os separadores respondem). `_successVisible` nunca volta a `false`. Só se sai com o voltar. Afeta também "Candidatura recusada." e as outras ações da equipa. | Responsável, separador Equipa, Aceitar, Confirmar. `TR-AJ_22_feedback-preso`. |
-| F9 | Baixa | Colar o código do email no ecrã de código não preenche as caixas todas (relatado pelo Henrique no registo). | Copiar o código de 6 dígitos e colar na 1.ª caixa. |
+| F9 | Baixa | Colar o código do email no ecrã de código não preenche as caixas todas (relatado pelo Henrique no registo). Já corrigido no commit `f0c701f` deste ramo, ainda por testar em Android. | Copiar o código de 6 dígitos e colar na 1.ª caixa. |
 | F10 | Baixa | O detalhe do trabalho do cliente não atualiza a equipa sozinho (ficou "0/1" com o ajudante já aceite) até sair e voltar a entrar. | `TR-AJ_19_*`, `TR-AJ_20_*` |
 | F11 | Baixa | O Início do ajudante diz "Ainda não existem trabalhos agendados" com um trabalho de ajudante marcado (só aparece na Agenda). O Descobrir mostra "2 vagas" quando só falta 1. | `TR-AJ_29_*`, `TR-AJ_25_*` |
 | F12 | Info | Existe a RPC `reject_proposal`, mas o cliente não tem botão para recusar uma proposta. | |
 
-## Correções pendentes (no PC, fora deste ramo)
+## Correções pendentes
 
-- `lib/app.dart`: o token FCM passa a ser registado só quando há perfil (depois de escolher o papel), em vez de logo a seguir ao código de email. Antes, numa conta nova o registo falhava com a FK de `device_tokens.user_id` e a conta ficava sem push até ao arranque seguinte. Está no APK e no AAB testados, mas ainda não está em nenhum commit.
+- A correção do registo do token push está no commit `ba763b1` deste ramo, numa versão refeita (provider e testes) da que foi testada no APK. Convém instalar um APK novo deste ramo e repetir o registo de uma conta nova e o push "Novo pedido".
