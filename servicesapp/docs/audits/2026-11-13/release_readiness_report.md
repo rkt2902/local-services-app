@@ -1,7 +1,7 @@
 # Relatório de prontidão para lançamento: ProJardim (13/11/2026)
 
 
-> **Atualização 13/11 (tarde):** o Henrique confirmou que push, email (SMTP), login com Google, pesquisa de moradas e mapa estão configurados e a funcionar em produção. AUD-01, AUD-02 e a parte Google do AUD-06 passam a **confirmado pelo dono** (não verificado por mim: continuam nos testes manuais). AUD-05 e AUD-12 foram corrigidos no PR #53. Ficam 6 P1 abertos.
+> **Atualização 13/11 (tarde):** o Henrique confirmou que push, email (SMTP), login com Google, pesquisa de moradas e mapa estão configurados e a funcionar em produção. AUD-01, AUD-02 e a parte Google do AUD-06 passam a **confirmado pelo dono** (não verificado por mim: continuam nos testes manuais). AUD-05 e AUD-12 foram corrigidos no PR #53, e depois AUD-04 e AUD-07 (código feito; falta a upload key e ativar o Crashlytics). Ficam 5 P1 abertos, todos do lado do Henrique.
 
 **Estado auditado:** `main` em `5cd9c59` (último merge: PR #52), migrations `0001` a `0075`.
 **Âmbito:** código Flutter, migrations, Edge Function, configuração Android e iOS, testes automáticos, documentação, histórico Git. Auditoria só de leitura: nenhum comportamento da app nem da BD foi alterado, nenhuma migration aplicada, nada tocado em produção. Única adição: um teste novo da BD (`supabase/tests/audit/40_help_slot_race.sh`).
@@ -48,10 +48,10 @@ Não é por o código estar mau. É o contrário: o código e as regras do servi
 | ~~AUD-01~~ | Push FCM: confirmado pelo dono a 13/11 | |
 | ~~AUD-02~~ | Email real: confirmado pelo dono a 13/11 | |
 | AUD-03 | Nenhum teste num Android físico nem com a build de release | Henrique |
-| AUD-04 | Release assinado com chave de debug sem aviso; build sem `--dart-define` arranca sem backend | Código (S) |
+| ~~AUD-04~~ | Build de release recusa assinar sem `key.properties` e mostra ecrã de erro sem `--dart-define` (PR #53); falta gerar a upload key | Henrique |
 | ~~AUD-05~~ | `READ_MEDIA_IMAGES` removida no PR #53 | |
 | AUD-06 | Google confirmado pelo dono; fica Sign in with Apple, só para iOS | iOS (fase 2) |
-| AUD-07 | Sem monitorização de erros | Código (S a M) |
+| ~~AUD-07~~ | Crashlytics integrado no PR #53; falta ativar no Firebase e testar | Henrique |
 | AUD-08 | Plano Free do Supabase sem backups recuperáveis | Henrique |
 | AUD-09 | Termos e Política sem responsável, sem revisão jurídica, desatualizados | Henrique |
 | AUD-10 | Links e QR das apps apontam para `projardim.pt` (posse por confirmar) | Henrique |
@@ -104,7 +104,7 @@ Mini-chat (não recomendado: contraria o WhatsApp), feed de descoberta, trabalho
 
 ## Melhorias indispensáveis
 
-As P1 ainda abertas (AUD-03, 04, 07, 08, 09, 10) e, das P2: aplicar a 0075, tirar o Nominatim das sugestões, regras de senha no painel, atualizar a documentação, esconder o cartão frota.
+As P1 ainda abertas (AUD-03, 08, 09, 10, e a parte Apple do AUD-06) e, das P2: aplicar a 0075, tirar o Nominatim das sugestões, regras de senha no painel, atualizar a documentação, esconder o cartão frota.
 
 ## Sequência ideal até ao lançamento
 

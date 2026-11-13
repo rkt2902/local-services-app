@@ -13,7 +13,7 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [x] `minSdk`, `targetSdk` e `compileSdk` do Flutter 3.44.1 (o `targetSdk` exigido pela Play para apps novas)
 - [x] Localização só em primeiro plano; sem permissões sensíveis (SMS, contactos, todos os ficheiros)
 - [x] `READ_MEDIA_IMAGES` removida (AUD-05, PR #53); testar a escolha de fotos (TR-13)
-- [!] Release cai para a chave de debug sem `key.properties` (AUD-04)
+- [x] Release recusa assinar sem `key.properties` (AUD-04, PR #53)
 - [ ] Gerar a upload key e `android/key.properties` (fora do git)
 - [ ] `flutter build appbundle --release` com **todos** os `--dart-define`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_PUBLIC_URL`, `SUPPORT_EMAIL` (e `TERMS_URL`/`PRIVACY_POLICY_URL` se mudarem)
 - [x] Push a funcionar, confirmado pelo dono a 13/11
@@ -65,7 +65,7 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 
 ## Operação
 
-- [!] Monitorização de erros (AUD-07)
+- [x] Crashlytics integrado (AUD-07, PR #53); [ ] ativar no Firebase e forçar um erro de teste
 - [ ] Alertas de uso do Supabase (BD, Storage, egress, MAU)
 - [ ] Gestão de incidentes: quem vê o email de suporte, prazo de resposta ("1 dia útil" está prometido na app)
 - [ ] Controlo de versões: tag Git por versão publicada (`v1.0.0+1`)
