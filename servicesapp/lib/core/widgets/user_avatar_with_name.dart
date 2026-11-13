@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/network_image_sizes.dart';
 
 class UserAvatarWithName extends StatelessWidget {
   const UserAvatarWithName({
@@ -44,7 +45,7 @@ class UserAvatarWithName extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: radius,
-          backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+          backgroundImage: hasAvatar ? networkAvatar(avatarUrl!) : null,
           child: hasAvatar
               ? null
               : Text(

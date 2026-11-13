@@ -22,6 +22,7 @@ import '../../worker/application/worker_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/job_providers.dart';
 import '../data/job_model.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Ecrã de celebração mostrado logo depois de o cliente aceitar uma
 /// proposta — substitui o antigo "snackbar + navega para /client/jobs".
@@ -176,7 +177,7 @@ class _ClientJobConfirmedView extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final avatarImage =
-        workerAvatarUrl != null ? NetworkImage(workerAvatarUrl!) : null;
+        workerAvatarUrl != null ? networkAvatar(workerAvatarUrl!) : null;
 
     // O cabeçalho verde tem de chegar ao topo físico do ecrã (por trás da
     // status bar) — se `SafeArea` envolvesse o ecrã todo, o padding do

@@ -4,6 +4,7 @@ import 'package:geocoding/geocoding.dart' as native;
 import 'package:http/http.dart' as http;
 
 import '../config/app_links.dart';
+import '../utils/app_log.dart';
 
 /// Uma sugestão da pesquisa de morada: [title] é a rua (ou o sítio) e
 /// [subtitle] o código postal e a localidade.
@@ -220,7 +221,7 @@ class GeocodingService {
     }
     if (!allowNominatimFallback) {
       if (photonError != null) {
-        debugPrint('GeocodingService.suggestAddresses: $photonError');
+        appLog('GeocodingService.suggestAddresses: $photonError');
         throw photonError;
       }
       return const [];
@@ -244,7 +245,7 @@ class GeocodingService {
         jsonDecode(response.body) as List<dynamic>,
       );
     } catch (e) {
-      debugPrint('GeocodingService.suggestAddresses: $photonError / $e');
+      appLog('GeocodingService.suggestAddresses: $photonError / $e');
       rethrow;
     }
   }
@@ -280,7 +281,7 @@ class GeocodingService {
         headers: _headers,
       ).timeout(const Duration(seconds: 8));
       if (response.statusCode != 200) {
-        debugPrint(
+        appLog(
           'GeocodingService.reverseGeocode: HTTP ${response.statusCode} — '
           '${response.body}',
         );
@@ -289,7 +290,7 @@ class GeocodingService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final address = data['address'] as Map<String, dynamic>?;
       if (address == null) {
-        debugPrint(
+        appLog(
           'GeocodingService.reverseGeocode: resposta sem "address" — '
           '${response.body}',
         );
@@ -315,7 +316,7 @@ class GeocodingService {
 
       return (locationName: locationName, addressText: addressText);
     } catch (e) {
-      debugPrint('GeocodingService.reverseGeocode: falhou — $e');
+      appLog('GeocodingService.reverseGeocode: falhou — $e');
       return null;
     }
   }

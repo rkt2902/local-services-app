@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/network_image_sizes.dart';
 
 /// Avatar redondo sem nome ao lado: a foto, ou a inicial nas cores dadas.
 /// Para quando o nome aparece noutro sítio (faixas e cartões do pedido
@@ -36,7 +37,7 @@ class AppInitialsAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: radius,
       backgroundColor: background,
-      backgroundImage: hasPhoto ? NetworkImage(url) : null,
+      backgroundImage: hasPhoto ? networkAvatar(url) : null,
       child: hasPhoto
           ? null
           : Text(

@@ -16,6 +16,7 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../application/client_create_job_wizard_provider.dart';
 import '../application/job_request_form.dart';
 import 'widgets/direct_request_create_header.dart';
+import '../../../core/theme/app_sizes.dart';
 
 const _maximumPhotos = 2;
 // Limites partilhados com "Editar pedido" (job_request_form.dart).
@@ -315,19 +316,34 @@ class _PhotoPreview extends StatelessWidget {
               child: Image(image: pickedPhotoImage(file), fit: BoxFit.cover),
             ),
           ),
+          // Círculo de 26 px, mas a área de toque tem 48 x 48 (AUD-26) e
+          // fica dentro da foto, onde o Stack recebe toques.
           Positioned(
-            top: -6,
-            right: -6,
+            top: 0,
+            right: 0,
             child: IconButton(
               onPressed: onRemove,
               tooltip: 'Remover foto',
-              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-              padding: EdgeInsets.zero,
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.textPrimary,
-                foregroundColor: AppColors.surface,
+              constraints: const BoxConstraints.tightFor(
+                width: AppSizes.minTapTarget,
+                height: AppSizes.minTapTarget,
               ),
-              icon: const Icon(Icons.close_rounded, size: 16),
+              padding: EdgeInsets.zero,
+              alignment: Alignment.topRight,
+              icon: Container(
+                width: 26,
+                height: 26,
+                margin: const EdgeInsets.all(AppSpacing.xxs),
+                decoration: const BoxDecoration(
+                  color: AppColors.textPrimary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppColors.surface,
+                ),
+              ),
             ),
           ),
         ],

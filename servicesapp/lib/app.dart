@@ -15,6 +15,7 @@ import 'features/notifications/application/notification_presentation.dart';
 import 'features/notifications/application/notification_providers.dart';
 import 'features/notifications/application/push_notification_service.dart';
 import 'features/notifications/data/notification_model.dart';
+import 'core/utils/app_log.dart';
 
 class App extends ConsumerStatefulWidget {
   const App({super.key});
@@ -70,14 +71,22 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       final notification = await repo.fetchById(notificationId);
       if (notification == null) return;
       await WidgetsBinding.instance.endOfFrame;
-      final navContext =
-          ref.read(appRouterProvider).routerDelegate.navigatorKey.currentContext;
+      final router = ref.read(appRouterProvider);
+      final base = pushTapBaseLocation(
+        currentPath: router.routerDelegate.currentConfiguration.uri.path,
+        role: session.role,
+      );
+      if (base != null) {
+        router.go(base);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      final navContext = router.routerDelegate.navigatorKey.currentContext;
       if (navContext == null || !navContext.mounted) return;
       await NotificationHandler.handle(navContext, ref, notification);
       await repo.markAsRead(notification.id);
       ref.invalidate(allNotificationsProvider);
     } catch (e) {
-      debugPrint('Push: falha a abrir notificação $notificationId ($e)');
+      appLog('Push: falha a abrir notificação $notificationId ($e)');
     }
   }
 

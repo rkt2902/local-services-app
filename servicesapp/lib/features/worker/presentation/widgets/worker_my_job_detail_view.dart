@@ -24,6 +24,7 @@ import '../../../../core/widgets/user_avatar_with_name.dart';
 import '../../../ratings/application/rating_providers.dart';
 import '../../application/worker_job_rules.dart';
 import '../../../ratings/presentation/submit_rating_sheet.dart';
+import '../../../../core/utils/network_image_sizes.dart';
 
 /// Dados de apresentação do ecrã "O meu trabalho" (design A1 + estados
 /// preservados de sessões anteriores).
@@ -995,7 +996,7 @@ class _InitialsAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: background,
-      backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+      backgroundImage: hasAvatar ? networkAvatar(avatarUrl!) : null,
       child: hasAvatar
           ? null
           : Text(

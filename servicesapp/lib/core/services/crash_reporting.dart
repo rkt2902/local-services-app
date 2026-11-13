@@ -1,5 +1,6 @@
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_log.dart';
 
 /// Envia os erros não tratados para o Firebase Crashlytics (AUD-07,
 /// auditoria de 13/11). Antes, um crash num telemóvel ficava invisível.
@@ -31,7 +32,7 @@ abstract final class CrashReporting {
         return true;
       };
     } catch (e) {
-      debugPrint('Crashlytics desligado ($e)');
+      appLog('Crashlytics desligado ($e)');
     }
   }
 

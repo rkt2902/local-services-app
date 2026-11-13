@@ -38,6 +38,7 @@ import '../data/job_model.dart';
 import 'widgets/cancel_job_dialog.dart';
 import 'widgets/reschedule_dialog.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Ecrã dedicado ao pedido `confirmed` — extraído de
 /// `client_job_detail_screen.dart` (doc.txt, "7b. Detalhe do pedido
@@ -817,7 +818,7 @@ class _WorkerContactCard extends StatelessWidget {
               radius: 22,
               backgroundColor: AppColors.primaryContainer,
               backgroundImage:
-                  (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
+                  (avatarUrl != null && avatarUrl.isNotEmpty) ? networkAvatar(avatarUrl) : null,
               child: (avatarUrl == null || avatarUrl.isEmpty)
                   ? const Icon(Icons.person_outline_rounded, color: AppColors.primary)
                   : null,

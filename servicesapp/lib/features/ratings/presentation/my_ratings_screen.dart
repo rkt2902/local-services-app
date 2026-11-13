@@ -6,6 +6,7 @@ import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/widgets/app_motion.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Ecrã genérico "As minhas avaliações" — 2 tabs (Recebidas/Dadas), usado
 /// tanto pelo cliente como pelo worker. Não sabe qual dos dois papéis está
@@ -846,7 +847,7 @@ class _Avatar extends StatelessWidget {
     return CircleAvatar(
       radius: 20,
       backgroundColor: AppColors.primaryContainer,
-      backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl!),
+      backgroundImage: avatarUrl == null ? null : networkAvatar(avatarUrl!),
       child: avatarUrl == null
           ? const Icon(
               Icons.person_outline_rounded,

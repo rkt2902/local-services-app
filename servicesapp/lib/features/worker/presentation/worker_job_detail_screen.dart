@@ -37,6 +37,7 @@ import '../application/worker_providers.dart';
 import 'widgets/worker_direct_request_card.dart' as view;
 import 'widgets/worker_job_detail_view.dart' as view;
 import 'worker_my_job_detail_screen.dart' as my_job;
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Detalhe de uma oportunidade ("Pedidos disponíveis" → detalhe).
 ///
@@ -315,7 +316,7 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       clientAvatar: (avatarUrl != null && avatarUrl.isNotEmpty)
           ? avatarUrl
           : null,
-      photos: photos.map((url) => NetworkImage(url) as ImageProvider).toList(),
+      photos: photos.map(networkThumbnail).toList(),
       badge: badge,
     );
 

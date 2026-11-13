@@ -10,6 +10,7 @@ import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_plan_badge.dart';
+import '../../../../core/utils/network_image_sizes.dart';
 
 /// Dados de "Propostas recebidas" (designs A3 e A6). A integração
 /// (client_proposals_screen.dart) entrega a lista já ordenada e os textos
@@ -607,7 +608,7 @@ class ProposalWorkerAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: AppSizes.avatarSmall / 2,
       backgroundColor: AppColors.primaryContainer,
-      backgroundImage: hasPhoto ? NetworkImage(url) : null,
+      backgroundImage: hasPhoto ? networkAvatar(url) : null,
       child: hasPhoto
           ? null
           : Text(
