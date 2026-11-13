@@ -10,9 +10,8 @@
 
 ## Resumo
 
-- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0074`
-  (confirmado pelo Henrique a 2026-11-12; a `0050` não existe). A `0075` e a `0076` estão
-  por aplicar. Próxima: `0077`.
+- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0076`
+  (confirmado pelo Henrique a 2026-11-13; a `0050` não existe). Próxima: `0077`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).

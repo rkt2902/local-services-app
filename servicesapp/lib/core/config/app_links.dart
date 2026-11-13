@@ -19,7 +19,7 @@ abstract final class AppLinks {
   static const String _configuredDomain =
       String.fromEnvironment('APP_PUBLIC_URL');
 
-  static const String _defaultSupportEmail = 'projardim26@gmail.com';
+  static const String _defaultSupportEmail = 'suporte@projardim.pt';
 
   static const String _configuredSupportEmail =
       String.fromEnvironment('SUPPORT_EMAIL');
