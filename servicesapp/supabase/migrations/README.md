@@ -7,7 +7,9 @@
 `0067` a `0074`. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-**Próxima migration nova: `0075`.** Antes de numerar, confirmar com
+A `0075` e a `0076` estão no repositório **por aplicar** (ver a tabela).
+
+**Próxima migration nova: `0077`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -49,6 +51,8 @@ Editor do Supabase e confirma.
 | `0067_plan_badges_and_earnings.sql` | Selo do plano no cartão público e nas propostas, painel de ganhos (`get_my_earnings`, só Pro) | aplicada (2026-11-12) |
 | `0068`–`0073` | Ver PR #41 a #47 (planos, trabalhos por dias, lembretes, "a combinar" expira) | aplicadas (2026-11-12) |
 | `0074_audit_fixes.sql` | Correções da auditoria de 12/11 (BUG-001 a BUG-009, BUG-012): bloqueios em retirar proposta e fotos, pesquisa pela base gravada, campos de execução limpos no INSERT, data no passado, limites de raio, horas, dias e textos, avaliações só com sessão, aviso de avaliação repetida | aplicada (2026-11-12) |
+| `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | **por aplicar** |
+| `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | **por aplicar** (depois da 0075) |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

@@ -11,7 +11,11 @@
 ## Resumo
 
 - **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0074`
-  (confirmado pelo Henrique a 2026-11-12; a `0050` não existe). Próxima: `0075`.
+  (confirmado pelo Henrique a 2026-11-12; a `0050` não existe). A `0075` e a `0076` estão
+  por aplicar. Próxima: `0077`.
+- Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
+  de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
+  Henrique a 13/11).
 - Os fluxos principais funcionam de ponta a ponta nos dois papéis. O que falta para ter
   utilizadores reais é sobretudo **configuração** (push, email, domínio, login social,
   Play Store) e alguns pontos de **RGPD** antes de publicar.
@@ -120,12 +124,10 @@
 ## Gaps conhecidos (sem spin)
 
 ### Antes de publicar
-- **RGPD: eliminar conta não apaga tudo.** `delete_my_account` (0049) não limpa
-  destaques e redes sociais, visitas ao cartão, preferências, plano, entradas da Agenda
-  (com nomes e telefones de terceiros), moradas e fotos de pedidos antigos, nem os
-  ficheiros do Storage. A Política de Privacidade não menciona o registo de visitas ao
-  cartão, as dicas da época, Photon/OSM e o geocoder nativo. Detalhe em
-  `improvements.md` (revisão de 2026-10-27).
+- **RGPD:** eliminar conta já apaga tudo no servidor (0066 e 0070, `erase_account_data`)
+  e a app apaga os ficheiros do Storage. Falta a Política de Privacidade mencionar o
+  registo de visitas ao cartão, as dicas da época, Photon/OSM, o geocoder nativo e o
+  Crashlytics.
 - **Política de Privacidade da Agenda:** as secções 3.7 e 8 foram atualizadas no
   rascunho, para publicar no Google Doc quando a Agenda saísse. A Agenda já está no
   `main`; falta publicar essa versão e atualizar o `.docx`.
@@ -134,8 +136,8 @@
 ### Produto por fazer
 - Restos do A11: cartão "Agora" com Iniciar e Mapa no Início do jardineiro, cartões
   J4/C5, linha "Serviço · data" nas notificações.
-- A12 (fluxo do pedido em 3 vistas e stepper Pedido · Proposta · Equipa · No dia ·
-  Feito): recebido a 27/10, por integrar.
+- A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
+  está nos detalhes do cliente, do jardineiro e do ajudante.
 - Painel `/admin` fases 2 e 3 (mapa, pedidos, moderação, funil, CSV, avisos a grupos).
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem

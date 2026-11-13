@@ -40,7 +40,9 @@ da `0001` à `0065` (a `0050` não existe). A lista com o que cada uma faz está
 `supabase/migrations/README.md`. Os passos de aplicação e de teste de cada uma (antigos
 0.1 a 0.17) saíram daqui; ficam no histórico do git se precisares deles.
 
-Quando o Claude criar uma migration nova (a próxima é a `0066`): SQL Editor, colar o
+Por aplicar a 13/11: `0075` e `0076` (por esta ordem, com um dump antes).
+
+Quando o Claude criar uma migration nova (a próxima é a `0077`): SQL Editor, colar o
 ficheiro, correr, e dizer ao Claude "00xx aplicada". As migrations recentes podem
 correr-se mais do que uma vez sem erro.
 
@@ -506,6 +508,29 @@ em Development quem não é tester recebe um erro. Quando a app estiver em Live:
 
 **Diz ao Claude:** "Google ligado (e Facebook: sim/não). Testei na web e no Android:
 o que falhou foi ..."
+
+---
+
+## 8. Build de release Android (auditoria de 13/11)
+
+- O build de release **falha** sem `android/key.properties` (de propósito: a Play recusa
+  a chave de debug). Criar a upload key e o ficheiro como em
+  `projardim/play-store/checklist-lancamento.md`.
+- Sem `SUPABASE_URL` e `SUPABASE_ANON_KEY` a app abre só um ecrã "Build sem
+  configuração". Passar também `APP_PUBLIC_URL` e `SUPPORT_EMAIL` (sem o primeiro, os
+  links e o QR do cartão apontam para `projardim.pt`).
+- **Crashlytics:** com o `google-services.json` presente, o Gradle aplica o plugin do
+  Crashlytics e a app envia os erros não tratados **só em release**. Ativar no Firebase
+  Console > Crashlytics (primeira vez: abrir a app de release, forçar um erro e esperar
+  uns minutos). Se o Gradle disser que não encontra `com.google.firebase.crashlytics`
+  3.0.4, muda a versão em `android/settings.gradle.kts` para a última de
+  https://firebase.google.com/support/release-notes/android.
+- A fonte Plus Jakarta Sans vem nos assets; a app já não a descarrega da Google.
+
+### Testar
+
+- [ ] `flutter build appbundle --release` sem `key.properties` falha com "Falta android/key.properties".
+- [ ] Com tudo, o AAB instala e abre no onboarding; um erro forçado aparece no Crashlytics.
 
 ---
 
