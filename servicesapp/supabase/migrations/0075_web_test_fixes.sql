@@ -1,5 +1,5 @@
 -- 0075_web_test_fixes.sql
--- NOVA, NÃO APLICADA. Aplicar no SQL Editor depois da 0074.
+-- APLICADA na BD viva (confirmado pelo Henrique a 2026-11-13).
 --
 -- Achados dos testes web com várias contas de 12/11
 -- (relatorios/2026-11-12-testes-manuais-web/RELATORIO.md):

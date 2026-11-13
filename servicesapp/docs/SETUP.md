@@ -35,12 +35,10 @@ Uma coisa que **não** é para fazer ainda, explicada no fim: os app links.
 
 ### 0.1 Migrations: todas aplicadas
 
-A 27/10/2026 todas as migrations de `supabase/migrations/` estão aplicadas na BD viva,
-da `0001` à `0065` (a `0050` não existe). A lista com o que cada uma faz está em
+A 13/11/2026 todas as migrations de `supabase/migrations/` estão aplicadas na BD viva,
+da `0001` à `0076` (a `0050` não existe). A lista com o que cada uma faz está em
 `supabase/migrations/README.md`. Os passos de aplicação e de teste de cada uma (antigos
 0.1 a 0.17) saíram daqui; ficam no histórico do git se precisares deles.
-
-Por aplicar a 13/11: `0075` e `0076` (por esta ordem, com um dump antes).
 
 Quando o Claude criar uma migration nova (a próxima é a `0077`): SQL Editor, colar o
 ficheiro, correr, e dizer ao Claude "00xx aplicada". As migrations recentes podem

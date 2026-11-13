@@ -76,7 +76,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Solução:** Firebase Crashlytics (o Firebase já entra pelo push) com `FlutterError.onError` e `PlatformDispatcher.instance.onError`, sem dados pessoais nas mensagens. Atualizar a Política.
 - **Esforço:** S a M · **Quem:** C, depois H ativa no Firebase · **Antes do lançamento:** sim.
 
-### AUD-08 · Backups e plano do Supabase
+### AUD-08 · Backups e plano do Supabase · FEITO a 13/11 (backup diário por GitHub Action; falta testar um restauro)
 - **Funcionalidade:** dados de produção.
 - **Evidência:** `ARCHITECTURE.md` secção 16, ponto 7: projeto `twpflvcoyeiysnychkom` no plano Free (dump de 16/10). O plano Free não tem backups recuperáveis pelo painel nem PITR. **NÃO VERIFICADO** se o plano mudou.
 - **Impacto:** um erro numa migration aplicada à mão no SQL Editor (o processo atual) ou um `DELETE` errado não tem volta.
@@ -90,7 +90,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Solução:** fechar a forma jurídica, preencher a secção 1, publicar a versão com a Agenda, rever com advogado (uma hora), aceitar os DPAs, página web de eliminação de conta para a Play.
 - **Esforço:** M · **Quem:** H · **Antes do lançamento:** sim.
 
-### AUD-10 · Domínio placeholder nos links e QR das apps
+### AUD-10 · Domínio placeholder nos links e QR das apps · FEITO a 13/11 (`projardim.pt`)
 - **Funcionalidade:** cartão partilhável, QR, link `/w/:id`.
 - **Evidência:** `lib/core/config/app_links.dart:17` e `:70`: sem `APP_PUBLIC_URL`, as apps usam `https://projardim.pt`. **Posse do domínio NÃO VERIFICADA.**
 - **Impacto:** se o domínio não for do Henrique, cada QR e link partilhado por jardineiros leva a um site de terceiros (ou a nada). QR impressos não se corrigem depois.
@@ -101,7 +101,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 
 ## P2
 
-### AUD-11 · Migration 0075 por aplicar
+### AUD-11 · Migration 0075 por aplicar · APLICADA a 13/11
 - **Evidência:** cabeçalho "NOVA, NÃO APLICADA"; `migrations-state` (memória do projeto). **NÃO VERIFICADO** na BD viva.
 - **Impacto:** pela API ainda se cria um pedido sem morada (a app já não deixa) e o painel admin conta contas eliminadas.
 - **Solução:** aplicar no SQL Editor depois de um dump. **Esforço:** S · **Quem:** H · **Antes:** sim.
@@ -137,7 +137,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Impacto:** no primeiro arranque sem rede a app usa a fonte do sistema; o IP vai à Google (a Política tem de o dizer).
 - **Solução:** pôr os `.ttf` em `assets/fonts` e `GoogleFonts.config.allowRuntimeFetching = false`. **Esforço:** S · **Quem:** C · **Antes:** recomendado.
 
-### AUD-18 · Regras de senha e anti-abuso só no cliente
+### AUD-18 · Regras de senha e anti-abuso só no cliente · senha no painel FEITA a 13/11
 - **Evidência:** `password_policy.dart` valida na app; o mínimo do Supabase Auth, os limites de taxa e o CAPTCHA estão no painel. **NÃO VERIFICADO.**
 - **Impacto:** pela API dá para criar contas com senha fraca e em massa (contas falsas a fazer propostas ou pedidos).
 - **Solução:** no painel: mínimo 8, exigir letras e números, limites de taxa, Turnstile/hCaptcha no registo (a app tem de enviar o token). **Esforço:** S (painel) / M (CAPTCHA) · **Quem:** H e C · **Antes:** a parte do painel, sim.
@@ -147,7 +147,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Impacto:** decisões tomadas sobre premissas erradas (por exemplo, achar que o RGPD está incompleto ou que falta integrar o A12).
 - **Solução:** atualizar `STATUS.md`, `ARCHITECTURE.md` e `supabase/migrations/README.md`. **Esforço:** S · **Quem:** C · **Antes:** sim (barato).
 
-### AUD-20 · Telefone sem validação no servidor · 0076 CRIADA, não aplicada
+### AUD-20 · Telefone sem validação no servidor · 0076 APLICADA a 13/11
 - **Evidência:** teste desta auditoria: `update profiles set phone='1'` como o próprio é aceite.
 - **Impacto:** só pela API; o link de WhatsApp da própria conta fica partido.
 - **Solução:** `CHECK` com o mesmo formato de `phone_utils.dart` (só depois de limpar valores antigos). **Esforço:** S · **Quem:** C (migration 0076) · **Antes:** não.
@@ -163,14 +163,14 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 
 | ID | Título | Evidência | Solução | Esf. |
 |---|---|---|---|---|
-| AUD-21 (0076, por aplicar) | 14 chaves estrangeiras sem índice | ex. `job_requests(direct_worker_id)` lido pelo cron a cada 5 min | índices numa migration futura quando houver volume | S |
+| AUD-21 (0076, aplicada) | 14 chaves estrangeiras sem índice | ex. `job_requests(direct_worker_id)` lido pelo cron a cada 5 min | índices numa migration futura quando houver volume | S |
 | AUD-22 | `debugPrint` também escreve em release | 15 chamadas em `lib/` | trocar por um logger que só escreve em debug ou para o Crashlytics | S |
 | AUD-23 | Ficheiros de UI muito grandes | `worker_my_job_detail_view.dart` 2739 linhas, `worker_edit_profile_view.dart` 2375 | partir quando se mexer neles, não antes do lançamento | L |
 | AUD-24 | Dependências atrás e 16 KB do ML Kit | `flutter pub outdated`; ML Kit 0.15 | atualizar depois do lançamento; verificar 16 KB no AAB antes | M |
 | AUD-25 | Lista de pedidos do cliente sem paginação; 21 `Image.network` sem `cacheWidth` | `job_repository.dart:155` | paginar quando um cliente tiver dezenas de pedidos | S |
 | AUD-26 | Botões abaixo de 48 px | remover foto (26 px), contador de ajudantes (36 px) (`STATUS.md`) | aumentar a área de toque | S |
 | AUD-27 (corrigido) | `allowBackup` por omissão | `AndroidManifest.xml` sem `android:allowBackup` | `android:allowBackup="false"` ou regras de backup sem as preferências da sessão | S |
-| AUD-29 (0076, por aplicar) | Grants por omissão do `anon` incluem `TRUNCATE` | `information_schema.role_table_grants` | `REVOKE TRUNCATE ... FROM anon, authenticated` numa migration futura | S |
+| AUD-29 (0076, aplicada) | Grants por omissão do `anon` incluem `TRUNCATE` | `information_schema.role_table_grants` | `REVOKE TRUNCATE ... FROM anon, authenticated` numa migration futura | S |
 
 ---
 
