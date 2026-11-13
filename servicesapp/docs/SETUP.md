@@ -518,6 +518,43 @@ o que falhou foi ..."
 
 ---
 
+## 9. Backups
+
+O plano Free do Supabase não deixa descarregar backups, por isso a action
+`.github/workflows/backup-db.yml` faz um dump todos os dias às 04:15 UTC.
+
+**Onde fica:** em GitHub > Actions > "Backup BD" > cada execução >
+Artifacts, um ficheiro `projardim-AAAA-MM-DD.tar.gz.gpg`. Fica 30 dias e
+depois apaga-se sozinho. Vai cifrado porque o repositório é público.
+
+**Configurar (uma vez)**, em Settings > Secrets and variables > Actions >
+New repository secret:
+
+1. `SUPABASE_DB_URL`: Supabase > Connect > "Session pooler" (porta 5432),
+   com a palavra-passe da BD no lugar de `[YOUR-PASSWORD]`. A "Direct
+   connection" não funciona nos runners (só IPv6).
+2. `BACKUP_PASSPHRASE`: uma frase longa só tua. Guarda-a também no gestor
+   de passwords; sem ela os backups não abrem.
+
+Depois, Actions > "Backup BD" > Run workflow faz o primeiro dump na hora
+(e serve para qualquer dump avulso).
+
+**Abrir um backup** (Linux, Mac ou Git Bash no Windows):
+
+```bash
+gpg --decrypt projardim-AAAA-MM-DD.tar.gz.gpg | tar xz
+```
+
+Ficam `roles.sql`, `schema.sql` e `data.sql`. Para restaurar numa BD nova,
+aplicar por esta ordem com `psql`, com `session_replication_role = replica`
+no `data.sql` para os triggers não dispararem.
+
+**Copiar para fora do GitHub:** uma vez por mês, descarregar o mais recente
+e guardá-lo noutro sítio (disco ou Google Drive), porque o GitHub só guarda
+30 dias.
+
+---
+
 ## Não ligar ainda
 
 ### App links (abrir `https://<domínio>/w/...` diretamente na app instalada)
