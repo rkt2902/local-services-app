@@ -92,4 +92,52 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(TextField), findsNWidgets(6));
   });
+
+  Future<String?> pumpOtp(WidgetTester tester) async {
+    String? completed;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppOtpInput(onCompleted: (code) => completed = code),
+        ),
+      ),
+    );
+    return completed;
+  }
+
+  testWidgets('colar o código inteiro na primeira caixa preenche as 6',
+      (tester) async {
+    String? completed;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppOtpInput(onCompleted: (code) => completed = code),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField).first, '489590');
+    await tester.pump();
+    expect(completed, '489590');
+    final texts = tester
+        .widgetList<TextField>(find.byType(TextField))
+        .map((f) => f.controller!.text)
+        .join();
+    expect(texts, '489590');
+  });
+
+  testWidgets('escrever por cima de uma caixa cheia troca o dígito',
+      (tester) async {
+    await pumpOtp(tester);
+    final first = find.byType(TextField).first;
+    await tester.enterText(first, '4');
+    await tester.pump();
+    await tester.showKeyboard(first);
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+      text: '47',
+      selection: TextSelection.collapsed(offset: 2),
+    ));
+    await tester.pump();
+    final firstField = tester.widget<TextField>(first);
+    expect(firstField.controller!.text, '7');
+  });
 }
