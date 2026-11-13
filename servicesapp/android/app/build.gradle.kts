@@ -7,12 +7,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Push FCM e Crashlytics: só aplica os plugins do Firebase quando o google-services.json
+// Push FCM: só aplica o plugin do Firebase quando o google-services.json
 // existe, para o build não partir antes de o projeto Firebase estar criado
 // (sem ele o push fica simplesmente desligado — ver PushNotificationService).
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 // Assinatura de release: lê android/key.properties (fora do git, ver

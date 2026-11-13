@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/config/supabase_config.dart';
-import 'core/services/crash_reporting.dart';
 import 'features/notifications/application/push_notification_service.dart';
 
 void main() async {
@@ -21,9 +20,6 @@ void main() async {
   );
 
   await PushNotificationService.initFirebase();
-  await CrashReporting.init(
-    firebaseReady: PushNotificationService.isEnabled,
-  );
 
   runApp(
     const ProviderScope(
