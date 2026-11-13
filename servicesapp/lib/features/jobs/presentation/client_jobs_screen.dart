@@ -36,7 +36,12 @@ class ClientJobsScreen extends ConsumerWidget {
     final jobsAsync = ref.watch(clientJobsProvider);
     final serviceTypesAsync = ref.watch(serviceTypesProvider);
 
+    final historyLimit = ref.watch(clientJobsHistoryLimitProvider);
+
+    // Ao carregar mais histórico a lista atual fica no ecrã (só o botão
+    // mostra que está a carregar).
     final AsyncValue<view.ClientJobsViewData> dataAsync = jobsAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const AsyncValue.loading(),
       error: AsyncValue.error,
       data: (jobs) {
@@ -55,12 +60,16 @@ class ClientJobsScreen extends ConsumerWidget {
         // ainda abertos (sem proposta aceite). Antes ficavam invisíveis nas
         // duas tabs (P-8-8); agora aparecem aqui, com "Publicar de novo"
         // no detalhe.
-        final historyJobs = jobs
-            .where((j) =>
-                j.status == JobStatus.completed ||
-                j.status == JobStatus.noResponse ||
-                j.status == JobStatus.cancelled)
-            .toList();
+        final historyPage = clientHistoryPage(
+          jobs
+              .where((j) =>
+                  j.status == JobStatus.completed ||
+                  j.status == JobStatus.noResponse ||
+                  j.status == JobStatus.cancelled)
+              .toList(),
+          historyLimit,
+        );
+        final historyJobs = historyPage.visible;
 
         // Nome/foto do worker aceite — só existe depois de haver uma
         // proposta aceite (confirmed/awaitingConfirmation/completed).
@@ -137,6 +146,8 @@ class ClientJobsScreen extends ConsumerWidget {
         return AsyncValue.data(view.ClientJobsViewData(
           activeJobs: activeJobs.map(mapJob).toList(),
           historyJobs: historyJobs.map(mapJob).toList(),
+          hasMoreHistory: historyPage.hasMore,
+          loadingMoreHistory: jobsAsync.isLoading,
         ));
       },
     );
@@ -153,6 +164,8 @@ class ClientJobsScreen extends ConsumerWidget {
         ref.invalidate(serviceTypesProvider);
       },
       onRefresh: () => refreshClientJobs(ref),
+      onLoadMoreHistory: () =>
+          ref.read(clientJobsHistoryLimitProvider.notifier).loadMore(),
     );
   }
 }

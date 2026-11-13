@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/utils/provider_cache.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../worker/application/worker_providers.dart' show workerProfileProvider;
@@ -17,10 +18,53 @@ final jobRepositoryProvider = Provider<JobRepository>(
   (ref) => JobRepository(ref.watch(supabaseClientProvider)),
 );
 
+/// Quantos pedidos do histórico mostrar (AUD-25). Cresce com "Ver pedidos
+/// mais antigos"; os ativos vêm sempre todos.
+class ClientJobsHistoryLimit extends Notifier<int> {
+  @override
+  int build() => clientJobsHistoryPageSize;
+
+  void loadMore() => state = state + clientJobsHistoryPageSize;
+}
+
+final clientJobsHistoryLimitProvider =
+    NotifierProvider<ClientJobsHistoryLimit, int>(ClientJobsHistoryLimit.new);
+
+/// Todos os pedidos ativos do cliente e o histórico até ao limite (mais um,
+/// para saber se há mais: ver [clientHistoryPage]).
 final clientJobsProvider = FutureProvider<List<JobRequest>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
-  return ref.read(jobRepositoryProvider).fetchClientJobs(user.id);
+  final limit = ref.watch(clientJobsHistoryLimitProvider);
+  return ref
+      .read(jobRepositoryProvider)
+      .fetchClientJobs(user.id, historyLimit: limit);
+});
+
+/// Histórico visível e se há mais para carregar.
+({List<JobRequest> visible, bool hasMore}) clientHistoryPage(
+  List<JobRequest> history,
+  int limit,
+) =>
+    history.length > limit
+        ? (visible: history.take(limit).toList(), hasMore: true)
+        : (visible: history, hasMore: false);
+
+/// Contagem por estado de todos os pedidos (números da conta). Volta a
+/// contar sempre que a lista de pedidos é atualizada.
+final clientJobStatusCountsProvider =
+    FutureProvider<Map<JobStatus, int>>((ref) async {
+  await ref.watch(clientJobsProvider.future);
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return {};
+  final raw =
+      await ref.read(jobRepositoryProvider).fetchClientJobStatusCounts(user.id);
+  final counts = <JobStatus, int>{};
+  raw.forEach((value, n) {
+    final status = JobStatus.fromValue(value);
+    counts[status] = (counts[status] ?? 0) + n;
+  });
+  return counts;
 });
 
 // Fotos são write-once (máx. 2, definidas na criação do job, sem UI de

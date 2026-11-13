@@ -137,10 +137,12 @@ Run workflow), para não gastar créditos do Netlify a cada merge.
 - [ ] Opcional, no mesmo sítio mas no separador **Variables** (não são secretas):
   - `SUPPORT_EMAIL`: o email que aparece em "Contacto e suporte". Sem ela fica
     `projardim26@gmail.com`. Só a mudes quando houver um email no domínio (passo 5).
-  - Os Termos e a Política de Privacidade abrem as versões publicadas no Google Docs.
-    Quando houver site, mudam com `--dart-define=TERMS_URL=...` e
-    `--dart-define=PRIVACY_POLICY_URL=...` (ou o valor por omissão em
-    `core/config/app_links.dart`).
+  - Os Termos e a Política de Privacidade vêm com a app (`assets/legal/`) e abrem
+    nos ecrãs `/termos` e `/privacidade`. Na web, projardim.pt/termos e
+    projardim.pt/privacidade servem as páginas estáticas de `web/termos/` e
+    `web/privacidade/`, geradas com `python3 tool/build_legal_pages.py` sempre que
+    os textos mudarem (o CI falha se ficarem desatualizadas). São estes os links a
+    pôr na Google Play, no Google Cloud e na Meta.
   - `APP_PUBLIC_URL`: deixa vazia por agora. Na web a app já usa o próprio endereço.
     Só se define no passo 5.
 

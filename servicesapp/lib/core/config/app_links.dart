@@ -8,9 +8,9 @@ import 'package:flutter/foundation.dart';
 /// - `APP_PUBLIC_URL`: endereço público da app, sem `/` no fim (por exemplo
 ///   `https://projardim.pt` ou `https://projardim.netlify.app`).
 /// - `SUPPORT_EMAIL`: email de suporte mostrado em "Contacto e suporte".
-/// - `TERMS_URL` / `PRIVACY_POLICY_URL`: páginas dos Termos de utilização e
-///   da Política de Privacidade. Por omissão, as versões publicadas no
-///   Google Docs (Ficheiro > Partilhar > Publicar na Web), até haver site.
+/// - `TERMS_URL` / `PRIVACY_POLICY_URL`: só para forçar outro endereço. Por
+///   omissão, `<domínio>/termos` e `<domínio>/privacidade` (páginas
+///   estáticas geradas de `assets/legal/` por `tool/build_legal_pages.py`).
 abstract final class AppLinks {
   const AppLinks._();
 
@@ -37,17 +37,27 @@ abstract final class AppLinks {
     return looksLikeEmail ? value : _defaultSupportEmail;
   }
 
-  static const String termsUrl = String.fromEnvironment(
+  static const String _configuredTermsUrl = String.fromEnvironment(
     'TERMS_URL',
-    defaultValue:
-        'https://docs.google.com/document/d/e/2PACX-1vQx4699Fwms8QQLfSnTuCcOwZhOb4eN1pmnGieUpSBTtjq39fHT7EyhL7GrOqxf9gUJF1Rh4-8nS2T2/pub',
   );
 
-  static const String privacyPolicyUrl = String.fromEnvironment(
+  static const String _configuredPrivacyPolicyUrl = String.fromEnvironment(
     'PRIVACY_POLICY_URL',
-    defaultValue:
-        'https://docs.google.com/document/d/e/2PACX-1vSY35a6xqwQaW5AOlkrgPlz5T_1XjW6kER5GQhZZbS_enFCXbSLThh1QSfpyqKcsPyTU-tugs_O0cBq/pub',
   );
+
+  /// Página pública dos Termos (`<domínio>/termos`), para as lojas, o
+  /// Google Cloud e a Meta. Dentro da app abre o ecrã `/termos`.
+  static String get termsUrl => _configuredTermsUrl.isNotEmpty
+      ? _configuredTermsUrl
+      : '$publicDomain/termos';
+
+  /// Página pública da Política de Privacidade (`<domínio>/privacidade`).
+  static String get privacyPolicyUrl => _configuredPrivacyPolicyUrl.isNotEmpty
+      ? _configuredPrivacyPolicyUrl
+      : '$publicDomain/privacidade';
+
+  /// Livro de Reclamações Eletrónico (obrigatório informar o consumidor).
+  static const String complaintsBookUrl = 'https://www.livroreclamacoes.pt';
 
   /// "Continuar com Facebook" só aparece com
   /// `--dart-define=FACEBOOK_LOGIN_ENABLED=true`. Enquanto a app da Meta

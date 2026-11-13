@@ -45,6 +45,18 @@ Future<void> showSupportContactSheet(BuildContext context) {
         toast.error('Não encontrámos uma app de email. Copia o endereço e '
               'escreve-nos.');
       },
+      onComplaintsBook: () async {
+        var opened = false;
+        try {
+          opened = await launchUrl(
+            Uri.parse(AppLinks.complaintsBookUrl),
+            mode: LaunchMode.externalApplication,
+          );
+        } catch (_) {
+          opened = false;
+        }
+        if (!opened) toast.error('Não foi possível abrir a página.');
+      },
     ),
   );
 }
@@ -64,6 +76,7 @@ class AppSupportSheet extends StatelessWidget {
     required this.onClose,
     required this.onCopyEmail,
     required this.onComposeEmail,
+    this.onComplaintsBook,
   });
 
   final String email;
@@ -71,6 +84,9 @@ class AppSupportSheet extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onCopyEmail;
   final VoidCallback onComposeEmail;
+
+  /// Livro de Reclamações Eletrónico (obrigação legal de o indicar).
+  final VoidCallback? onComplaintsBook;
 
   @override
   Widget build(BuildContext context) {
@@ -237,6 +253,34 @@ class AppSupportSheet extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            AppStaggeredEntrance(
+              index: 3,
+              child: Text(
+                'Respondemos a reclamações em até 15 dias úteis e a pedidos '
+                'sobre os teus dados em até um mês.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            if (onComplaintsBook != null)
+              AppStaggeredEntrance(
+                index: 4,
+                child: TextButton.icon(
+                  onPressed: onComplaintsBook,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    minimumSize: const Size(0, AppSizes.minTapTarget),
+                  ),
+                  icon: const Icon(
+                    Icons.menu_book_outlined,
+                    size: AppSizes.inlineIcon,
+                  ),
+                  label: const Text('Livro de Reclamações Eletrónico'),
+                ),
+              ),
           ],
         ),
       ),

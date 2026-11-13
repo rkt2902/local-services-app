@@ -51,18 +51,22 @@ void main() {
   testWidgets('folha de suporte com email e as duas ações', (tester) async {
     var copied = 0;
     var composed = 0;
+    var book = 0;
     await tester.pumpWidget(wrap(AppSupportSheet(
       email: 'suporte@projardim.pt',
       responseTimeLabel: 'Respondemos em 1 dia útil',
       onClose: () {},
       onCopyEmail: () => copied++,
       onComposeEmail: () => composed++,
+      onComplaintsBook: () => book++,
     )));
     await tester.pumpAndSettle();
     expect(find.text('suporte@projardim.pt'), findsOneWidget);
     await tester.tap(find.text('Copiar email'));
     await tester.tap(find.text('Escrever'));
+    await tester.tap(find.text('Livro de Reclamações Eletrónico'));
     expect(copied, 1);
     expect(composed, 1);
+    expect(book, 1);
   });
 }

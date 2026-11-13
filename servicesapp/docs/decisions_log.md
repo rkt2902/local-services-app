@@ -3,6 +3,21 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-13 — Termos e Política dentro da app e no domínio
+
+- **Decisão:** os textos legais passam a viver no repositório
+  (`assets/legal/*.md`). A app mostra-os num ecrã próprio (`/termos`,
+  `/privacidade`, públicos, fora dos shells) em vez de abrir o Google Doc no
+  browser. A web serve páginas estáticas nos mesmos caminhos, geradas por
+  `tool/build_legal_pages.py` (o CI verifica que estão atualizadas).
+- **Motivo:** o Henrique quer um ecrã bonito na app e um URL próprio na web; um só
+  texto evita a app, a web e o Google Doc ficarem diferentes; as páginas estáticas
+  abrem sem JavaScript (lojas, Meta, Google).
+- Textos revistos (RGPD, DSA, P2B, Livro de Reclamações, CNIACC); a ordenação das
+  propostas nos Termos estava errada ("por preço") e passou a descrever o código.
+- Histórico de pedidos do cliente paginado (20 de cada vez, AUD-25); os números da
+  conta vêm de uma contagem por estado.
+
 ## 2026-11-09 — Proposta fechada sem trabalho: ecrã próprio no detalhe do jardineiro
 
 O detalhe de uma proposta recusada ou retirada mostrava o timeline do PEDIDO
