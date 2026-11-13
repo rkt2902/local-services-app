@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_providers.dart';
+import '../../auth/application/session_provider.dart';
 import '../data/device_token_repository.dart';
 
 /// Notificações push via Firebase Cloud Messaging.
@@ -121,3 +122,16 @@ final deviceTokenRepositoryProvider = Provider<DeviceTokenRepository>(
 final pushNotificationServiceProvider = Provider<PushNotificationService>(
   (ref) => PushNotificationService(ref.watch(deviceTokenRepositoryProvider)),
 );
+
+/// Utilizador para quem se regista o token de push: só quando a sessão tem
+/// perfil com papel. Numa conta nova o perfil só existe depois de escolher
+/// o papel, e `device_tokens.user_id` tem FK para `profiles(id)`; registar
+/// antes falhava em silêncio e a conta ficava sem push até ao arranque
+/// seguinte (testes Android de 13/11).
+final pushRegistrationUserIdProvider = Provider<String?>((ref) {
+  final status = ref.watch(sessionStatusProvider).asData?.value;
+  if (status == null || !status.isAuthenticated || status.role == null) {
+    return null;
+  }
+  return ref.watch(currentUserIdProvider);
+});

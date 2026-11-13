@@ -39,6 +39,8 @@ import '../application/job_timeline.dart';
 import '../../../core/widgets/job_flow_stepper.dart';
 import '../../../core/widgets/app_bar_title.dart';
 import '../../ratings/application/rating_providers.dart';
+import '../../notifications/application/notification_providers.dart';
+import '../../notifications/data/notification_types.dart';
 import '../../ratings/presentation/submit_rating_sheet.dart';
 import '../../client/application/client_create_job_wizard_provider.dart';
 import '../../client/application/job_request_form.dart';
@@ -320,6 +322,16 @@ class _ClientJobDetailScreenState
 
     setState(() => _showCompletedFeedback = false);
     toast.show('Trabalho confirmado! Obrigado.');
+    // O aviso "Trabalho concluído!" deixa de oferecer "Confirmar conclusão"
+    // (F6 dos testes Android de 13/11). Falhar aqui não é grave.
+    try {
+      await ref.read(notificationRepositoryProvider).markRelatedAsRead(
+            relatedId: widget.jobId,
+            type: NotificationType.jobMarkedDone,
+          );
+    } catch (_) {}
+    if (!mounted) return;
+    ref.invalidate(allNotificationsProvider);
     // Sem navegação: o ecrã fica e passa a mostrar o ramo `completed`.
     ref.invalidate(clientJobsProvider);
     ref.invalidate(jobByIdProvider(widget.jobId));
@@ -852,6 +864,9 @@ class _ClientJobDetailScreenState
             ),
           ),
           photosWidget,
+          // Separa a descrição/fotos do que vem a seguir (cartão do
+          // jardineiro encostado às fotos, F7 dos testes Android de 13/11).
+          const SizedBox(height: AppSpacing.md),
         ];
 
         // ── Open status: single scroll + "Ver propostas" no fundo ────────────────

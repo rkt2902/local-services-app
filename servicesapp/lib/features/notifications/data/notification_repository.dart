@@ -30,6 +30,21 @@ class NotificationRepository {
         .update({'read': true}).eq('id', notificationId);
   }
 
+  /// Marca como lidas as notificações de um tipo sobre um pedido (ex.:
+  /// "Trabalho concluído!" depois de o cliente confirmar pelo próprio
+  /// pedido, para o aviso deixar de mostrar "Confirmar conclusão").
+  Future<void> markRelatedAsRead({
+    required String relatedId,
+    required String type,
+  }) async {
+    await _client
+        .from('notifications')
+        .update({'read': true})
+        .eq('related_id', relatedId)
+        .eq('type', type)
+        .eq('read', false);
+  }
+
   Future<void> markAllAsRead(String userId) async {
     await _client
         .from('notifications')

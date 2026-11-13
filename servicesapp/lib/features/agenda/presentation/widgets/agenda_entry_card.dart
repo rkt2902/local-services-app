@@ -564,10 +564,20 @@ class _TimeColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(data.startLabel!, style: strong),
+        // A hora nunca parte em duas linhas ("18:0 / 0" no Android, F4 dos
+        // testes de 13/11): encolhe para caber na coluna.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(data.startLabel!, style: strong, maxLines: 1),
+        ),
         if (data.endLabel != null) ...[
           const SizedBox(height: 2),
-          Text(data.endLabel!, style: secondary),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(data.endLabel!, style: secondary, maxLines: 1),
+          ),
         ],
       ],
     );

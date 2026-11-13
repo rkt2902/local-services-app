@@ -285,6 +285,9 @@ class _WorkerSubmitProposalScreenState
         _jobClosed = closed;
         _submitError = closed ? null : friendlyError(e);
       });
+      // O erro também fica no fundo do formulário, mas quem tocou em
+      // "Enviar" no topo não o via (F2 dos testes Android de 13/11).
+      if (!closed) toast.error(friendlyError(e));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

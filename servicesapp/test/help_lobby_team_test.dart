@@ -3,36 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servicesapp/core/constants/enums.dart';
 import 'package:servicesapp/core/utils/app_status_presenters.dart';
+import 'package:servicesapp/core/widgets/app_motion.dart';
 import 'package:servicesapp/features/help_requests/presentation/widgets/worker_help_requests_lobby_view.dart';
 
 Widget _lobby({required bool canManage, List<String>? calls}) {
   return MaterialApp(
     home: WorkerHelpRequestsLobbyView(
-      dataAsync: AsyncValue.data(WorkerHelpLobbyViewData(
-        jobReferenceLabel: 'Poda · Braga',
-        responsibleName: 'Rui',
-        sections: [
-          HelpRequestSectionViewData(
-            helpRequestId: 'h1',
-            displayMode: WorkerHelpSectionDisplayMode.active,
-            statusPresentation: HelpRequestStatus.open.presentation,
-            filledPlacesLabel: '1 de 2 vagas preenchidas',
-            filledProgress: 0.5,
-            slotsNeeded: 2,
-            canManage: canManage,
-            acceptedHelpers: [
-              WorkerAcceptedHelperViewData(
-                applicationId: 'acc1',
-                workerId: 'w1',
-                name: 'Ana',
-                equipmentLabel: 'Traz equipamento',
-                statusPresentation: HelpAcceptanceStatus.accepted.presentation,
-              ),
-            ],
-            pendingCandidates: const [],
-          ),
-        ],
-      )),
+      dataAsync: AsyncValue.data(
+        WorkerHelpLobbyViewData(
+          jobReferenceLabel: 'Poda · Braga',
+          responsibleName: 'Rui',
+          sections: [
+            HelpRequestSectionViewData(
+              helpRequestId: 'h1',
+              displayMode: WorkerHelpSectionDisplayMode.active,
+              statusPresentation: HelpRequestStatus.open.presentation,
+              filledPlacesLabel: '1 de 2 vagas preenchidas',
+              filledProgress: 0.5,
+              slotsNeeded: 2,
+              canManage: canManage,
+              acceptedHelpers: [
+                WorkerAcceptedHelperViewData(
+                  applicationId: 'acc1',
+                  workerId: 'w1',
+                  name: 'Ana',
+                  equipmentLabel: 'Traz equipamento',
+                  statusPresentation:
+                      HelpAcceptanceStatus.accepted.presentation,
+                ),
+              ],
+              pendingCandidates: const [],
+            ),
+          ],
+        ),
+      ),
       onBack: () {},
       onRequestHelpers: () {},
       onAcceptCandidate: (_, _) async => true,
@@ -62,7 +66,9 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, 'Retirar'), findsNothing);
   });
 
-  testWidgets('retirar da equipa pede confirmação e chama a ação', (tester) async {
+  testWidgets('retirar da equipa pede confirmação e chama a ação', (
+    tester,
+  ) async {
     final calls = <String>[];
     await tester.pumpWidget(_lobby(canManage: true, calls: calls));
     await tester.pumpAndSettle();
@@ -77,13 +83,19 @@ void main() {
   });
 
   test('fechar pedido diz quem é avisado', () {
-    expect(closeHelpRequestMessage(pendingCount: 2, acceptedCount: 0),
-        'Os 2 candidatos por decidir são avisados.');
-    expect(closeHelpRequestMessage(pendingCount: 1, acceptedCount: 1),
-        'O candidato por decidir é avisado. '
-        'Quem já está na equipa também sai e é avisado.');
-    expect(closeHelpRequestMessage(pendingCount: 0, acceptedCount: 0),
-        'O pedido deixa de aparecer aos outros jardineiros.');
+    expect(
+      closeHelpRequestMessage(pendingCount: 2, acceptedCount: 0),
+      'Os 2 candidatos por decidir são avisados.',
+    );
+    expect(
+      closeHelpRequestMessage(pendingCount: 1, acceptedCount: 1),
+      'O candidato por decidir é avisado. '
+      'Quem já está na equipa também sai e é avisado.',
+    );
+    expect(
+      closeHelpRequestMessage(pendingCount: 0, acceptedCount: 0),
+      'O pedido deixa de aparecer aos outros jardineiros.',
+    );
   });
 
   testWidgets('alterar vagas não desce abaixo dos aceites', (tester) async {
@@ -114,5 +126,32 @@ void main() {
     expect(lobbySlotsMinimum(0), 1);
     expect(lobbySlotsMinimum(3), 3);
     expect(lobbySlotsMinimum(12), lobbyMaxSlots);
+  });
+
+  testWidgets('F8: o aviso de sucesso desaparece e deixa tocar no ecrã', (
+    tester,
+  ) async {
+    final calls = <String>[];
+    await tester.pumpWidget(_lobby(canManage: true, calls: calls));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Retirar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Retirar'));
+    await tester.pump();
+    expect(find.text('Ajudante retirado da equipa.'), findsWidgets);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    final opacity = tester.widget<AnimatedOpacity>(
+      find
+          .descendant(
+            of: find.byType(AppSuccessFeedback),
+            matching: find.byType(AnimatedOpacity),
+          )
+          .first,
+    );
+    expect(opacity.opacity, 0);
+    expect(calls, ['remove:acc1']);
   });
 }

@@ -191,10 +191,14 @@ class _OtpDigitBox extends StatelessWidget {
         keyboardType: TextInputType.number,
         textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
         textAlign: TextAlign.center,
-        maxLength: 1,
-        // Sem LengthLimitingTextInputFormatter: precisamos de ver colas de
-        // >1 dígito para as distribuir pelas caixas seguintes.
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        // Sem `maxLength`: o TextField corta logo a 1 carácter e uma cola do
+        // código inteiro só deixava o primeiro dígito (testes Android de
+        // 13/11). A cola chega a `_handleChanged` e é distribuída pelas
+        // caixas; escrever por cima de uma caixa cheia troca o dígito.
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          const _OverwriteDigitFormatter(),
+        ],
         onChanged: onChanged,
         style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
         decoration: InputDecoration(
@@ -216,5 +220,28 @@ class _OtpDigitBox extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Numa caixa já preenchida, escrever outro dígito substitui o anterior em
+/// vez de juntar os dois. Colas com mais dígitos passam inteiras.
+class _OverwriteDigitFormatter extends TextInputFormatter {
+  const _OverwriteDigitFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final old = oldValue.text;
+    final next = newValue.text;
+    if (old.length == 1 && next.length == 2) {
+      final typed = next.startsWith(old) ? next[1] : next[0];
+      return TextEditingValue(
+        text: typed,
+        selection: const TextSelection.collapsed(offset: 1),
+      );
+    }
+    return newValue;
   }
 }

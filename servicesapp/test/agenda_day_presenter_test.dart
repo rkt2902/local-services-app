@@ -112,6 +112,18 @@ void main() {
     });
   });
 
+  test('F4: trabalho já concluído não gera "Só N min até ao próximo"', () {
+    final c = _build([
+      _e('a', start: _h(9), end: _h(11)),
+      _e('b', start: _h(14), end: _h(16, 15)),
+      _e('c', status: 'completed', start: _h(16, 30), end: _h(17, 30)),
+    ]);
+    expect(
+      c.items.where((i) => i.kind == AgendaDayItemKind.free).map((i) => i.label),
+      isNot(contains('Só 15 min até ao próximo')),
+    );
+  });
+
   group('H1 dia normal', () {
     final entries = [
       _e('a', start: _h(9), end: _h(11)),

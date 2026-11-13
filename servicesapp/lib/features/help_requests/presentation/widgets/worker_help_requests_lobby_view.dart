@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -229,6 +231,24 @@ class _WorkerHelpRequestsLobbyViewState
   final Set<String> _processingApplications = {};
   bool _successVisible = false;
   String _successMessage = '';
+  Timer? _successTimer;
+
+  @override
+  void dispose() {
+    _successTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Mostra o aviso de sucesso e esconde-o sozinho. Antes ficava no ecrã
+  /// para sempre, opaco e a bloquear os toques (F8, testes Android 13/11).
+  void _showSuccess(String message) {
+    _successTimer?.cancel();
+    _successMessage = message;
+    _successVisible = true;
+    _successTimer = Timer(const Duration(milliseconds: 1100), () {
+      if (mounted) setState(() => _successVisible = false);
+    });
+  }
 
   Future<void> _openAcceptSheet(WorkerHelpCandidateViewData candidate) async {
     if (_processingApplications.contains(candidate.applicationId)) return;
@@ -252,10 +272,7 @@ class _WorkerHelpRequestsLobbyViewState
     );
 
     if (!mounted || confirmed != true) return;
-    setState(() {
-      _successMessage = 'Ajudante adicionado à equipa.';
-      _successVisible = true;
-    });
+    setState(() => _showSuccess('Ajudante adicionado à equipa.'));
   }
 
   Future<void> _reject(WorkerHelpCandidateViewData candidate) async {
@@ -273,10 +290,7 @@ class _WorkerHelpRequestsLobbyViewState
       if (mounted) {
         setState(() {
           _processingApplications.remove(candidate.applicationId);
-          if (confirmed) {
-            _successMessage = 'Candidatura recusada.';
-            _successVisible = true;
-          }
+          if (confirmed) _showSuccess('Candidatura recusada.');
         });
       }
     }
@@ -301,10 +315,7 @@ class _WorkerHelpRequestsLobbyViewState
       if (mounted) {
         setState(() {
           _processingApplications.remove(key);
-          if (ok) {
-            _successMessage = successMessage;
-            _successVisible = true;
-          }
+          if (ok) _showSuccess(successMessage);
         });
       }
     }

@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_toast.dart';
-import 'features/auth/application/auth_providers.dart';
 import 'features/auth/application/session_provider.dart';
 import 'features/notifications/application/notification_handler.dart';
 import 'features/notifications/application/notification_presentation.dart';
@@ -43,10 +42,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (!PushNotificationService.isEnabled) return;
 
     final push = ref.read(pushNotificationServiceProvider);
-    // Regista o token FCM sempre que há um utilizador com sessão (arranque
-    // com sessão guardada, login, troca de conta). O logout remove-o em
+    // Regista o token FCM sempre que há um utilizador com sessão e perfil
+    // (arranque com sessão guardada, login, troca de conta, conta nova
+    // depois de escolher o papel). O logout remove-o em
     // AuthController.signOut.
-    ref.listenManual<String?>(currentUserIdProvider, (prev, next) {
+    ref.listenManual<String?>(pushRegistrationUserIdProvider, (prev, next) {
       if (next != null && next != prev) push.registerForCurrentUser();
     }, fireImmediately: true);
     _pushTapSub = push.openedNotificationIds().listen(_onPushTapped);

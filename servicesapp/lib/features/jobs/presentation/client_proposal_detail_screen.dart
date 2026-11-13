@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/widgets/app_toast.dart';
 import '../../proposals/application/proposal_price_labels.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../proposals/data/proposal_model.dart';
@@ -69,6 +70,21 @@ class ClientProposalDetailScreen extends ConsumerWidget {
     }
   }
 
+  Future<bool> _reject(WidgetRef ref) async {
+    await ref.read(proposalRepositoryProvider).rejectProposal(proposalId, jobId);
+    return true;
+  }
+
+  void _onRejected(BuildContext context, WidgetRef ref) {
+    final toast = AppToast.of(context);
+    // T4: navegar → aviso → invalidar.
+    goBackOr(context, '/client/job/$jobId/proposals');
+    toast.show('Proposta recusada.');
+    ref.invalidate(pendingProposalsForJobProvider(jobId));
+    ref.invalidate(jobByIdProvider(jobId));
+    ref.invalidate(clientJobsProvider);
+  }
+
   void _onAccepted(BuildContext context, WidgetRef ref, String workerId) {
     // `go`: o detalhe do pedido e a lista ficariam presos por baixo da
     // confirmação.
@@ -123,6 +139,8 @@ class ClientProposalDetailScreen extends ConsumerWidget {
           onAccept: (_) => _accept(ref),
           onAccepted: () =>
               _onAccepted(context, ref, proposal?.workerId ?? ''),
+          onReject: (_) => _reject(ref),
+          onRejected: () => _onRejected(context, ref),
         ),
       ),
     );
