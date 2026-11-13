@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/utils/error_utils.dart';
+import '../../../core/utils/app_log.dart';
 
 /// Tags internas em [AuthException.code] usadas pelos 3 métodos de
 /// recuperação de senha abaixo — não são códigos do Supabase, servem só
@@ -127,7 +128,7 @@ class AuthRepository {
       final url = bucket.getPublicUrl(path);
       return '$url?v=${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
-      debugPrint('importSocialAvatar falhou: $e');
+      appLog('importSocialAvatar falhou: $e');
       return null;
     }
   }
@@ -214,7 +215,7 @@ class AuthRepository {
     try {
       await _client.storage.from('avatars').remove(['$userId.jpg']);
     } catch (e) {
-      debugPrint('apagar avatar falhou: $e');
+      appLog('apagar avatar falhou: $e');
     }
     try {
       final jobPhotos = _client.storage.from('job-photos');
@@ -234,7 +235,7 @@ class AuthRepository {
       }
       if (paths.isNotEmpty) await jobPhotos.remove(paths);
     } catch (e) {
-      debugPrint('apagar fotos falhou: $e');
+      appLog('apagar fotos falhou: $e');
     }
   }
 
@@ -284,7 +285,7 @@ class AuthRepository {
       // a sério e updatePassword funciona normalmente. Isto só cobre testar
       // o fluxo visual sem ir ao email/inbox de dev.
       if (kDebugMode && RegExp(r'^\d{6}$').hasMatch(code)) {
-        debugPrint(
+        appLog(
           '[DEV BYPASS] verifyPasswordResetOtp: código real rejeitado '
           '($e) — a simular sucesso em modo debug. Sem sessão de '
           'recuperação real, updatePassword NÃO vai alterar a senha.',

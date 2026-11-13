@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/application/session_provider.dart';
 import '../data/device_token_repository.dart';
+import '../../../core/utils/app_log.dart';
 
 /// Notificações push via Firebase Cloud Messaging.
 ///
@@ -49,7 +50,7 @@ class PushNotificationService {
       await Firebase.initializeApp();
       _firebaseReady = true;
     } catch (e) {
-      debugPrint('Push desligado: Firebase não configurado ($e)');
+      appLog('Push desligado: Firebase não configurado ($e)');
     }
   }
 
@@ -71,7 +72,7 @@ class PushNotificationService {
       if (token != null) await _save(token);
       _tokenRefreshSub ??= messaging.onTokenRefresh.listen(_save);
     } catch (e) {
-      debugPrint('Push: falha a registar token ($e)');
+      appLog('Push: falha a registar token ($e)');
     }
   }
 
@@ -91,7 +92,7 @@ class PushNotificationService {
       if (token != null) await _repo.unregister(token);
       await messaging.deleteToken();
     } catch (e) {
-      debugPrint('Push: falha a remover token ($e)');
+      appLog('Push: falha a remover token ($e)');
     }
     _registeredToken = null;
   }

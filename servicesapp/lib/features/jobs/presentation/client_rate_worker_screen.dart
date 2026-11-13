@@ -15,6 +15,7 @@ import '../../../core/widgets/rating_stars_input.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Cliente avalia o trabalho (jardineiro principal e ajudantes) pela RPC
 /// `submit_client_rating`, a mesma do cartão "Avaliar agora" do detalhe do
@@ -124,7 +125,7 @@ class _ClientRateWorkerScreenState
     final workerName = workerInfo['full_name'] ?? '';
     final avatarUrl = workerInfo['avatar_url'];
     final avatarImage =
-        (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null;
+        (avatarUrl != null && avatarUrl.isNotEmpty) ? networkAvatar(avatarUrl) : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,

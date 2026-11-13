@@ -17,6 +17,7 @@ import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/app_tab_header.dart';
 import '../../../../core/widgets/primary_action_button.dart';
 import '../../../../core/utils/phone_utils.dart';
+import '../../../../core/utils/network_image_sizes.dart';
 
 /// Estado puramente visual de UMA secção (um `HelpRequest`) do lobby — não
 /// substitui `HelpRequestStatus`. Um job pode, em teoria, ter mais do que
@@ -1201,7 +1202,7 @@ class _WorkerSummary extends StatelessWidget {
         CircleAvatar(
           radius: AppSizes.rowIconBox / 2,
           backgroundColor: statusPresentation.color.background,
-          backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+          backgroundImage: hasAvatar ? networkAvatar(avatarUrl!) : null,
           child: hasAvatar
               ? null
               : Text(

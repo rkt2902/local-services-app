@@ -13,6 +13,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../worker/application/worker_providers.dart';
 import '../../worker/presentation/widgets/worker_showcase_section.dart';
 import '../application/rating_providers.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Opens a read-only bottom sheet showing a worker's average rating, what
 /// the worker chose to highlight (bio, destaques e links, migration 0051)
@@ -274,7 +275,7 @@ class _RatingHeader extends StatelessWidget {
                 CircleAvatar(
                   radius: AppSizes.avatarSmall / 2 + AppSpacing.xxs,
                   backgroundColor: AppColors.primaryContainer,
-                  backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+                  backgroundImage: hasAvatar ? networkAvatar(avatarUrl!) : null,
                   child: hasAvatar
                       ? null
                       : Text(

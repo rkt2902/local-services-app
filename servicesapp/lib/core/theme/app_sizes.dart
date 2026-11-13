@@ -16,6 +16,10 @@ abstract final class AppSizes {
   /// Botões lado a lado dentro de um diálogo ("Voltar" / "Confirmar").
   static const double compactButtonHeight = 48.0;
 
+  /// Área mínima de toque (Material e WCAG): 48 x 48, mesmo quando o
+  /// desenho visível é mais pequeno (AUD-26).
+  static const double minTapTarget = 48.0;
+
   /// Caixa com o ícone no topo do [AppConfirmDialog].
   static const double dialogIconBox = 48.0;
   static const double dialogIcon = 26.0;

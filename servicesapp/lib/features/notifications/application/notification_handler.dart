@@ -12,6 +12,22 @@ import '../data/notification_model.dart';
 import '../data/notification_types.dart';
 import '../../../core/widgets/app_toast.dart';
 
+/// Toque num push com a app ainda no arranque (`/loading`) ou num ecrã de
+/// entrada: devolve a home do papel para servir de base antes de abrir o
+/// destino. Os destinos abertos com `push` ficam por cima da rota base, e o
+/// redirect de `/loading` (avaliado pela rota base) apagava-os, por isso o
+/// toque no push "Pedido de ajuda" abria o Início. Devolve null quando a
+/// rota atual já é um ecrã da app.
+String? pushTapBaseLocation({
+  required String currentPath,
+  required UserRole? role,
+}) {
+  if (role == null) return null;
+  const entryPaths = {'/loading', '/', '/login', '/signup', '/onboarding'};
+  if (!entryPaths.contains(currentPath)) return null;
+  return role == UserRole.worker ? '/worker/home' : '/client/home';
+}
+
 class NotificationHandler {
   static Future<void> _openHelperJob(
     BuildContext context,

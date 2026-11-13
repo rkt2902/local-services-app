@@ -1693,7 +1693,11 @@ class _HelperCountButton extends StatelessWidget {
     return IconButton(
       onPressed: enabled ? onPressed : null,
       tooltip: tooltip,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      // 48 x 48: área mínima de toque (AUD-26).
+      constraints: const BoxConstraints(
+        minWidth: AppSizes.minTapTarget,
+        minHeight: AppSizes.minTapTarget,
+      ),
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
         backgroundColor: AppColors.surface,

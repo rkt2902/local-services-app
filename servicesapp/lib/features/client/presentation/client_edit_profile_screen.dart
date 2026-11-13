@@ -13,6 +13,7 @@ import '../application/client_providers.dart';
 import '../data/client_profile_model.dart';
 import 'widgets/client_edit_profile_view.dart' as view;
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Formulário de edição de nome/telefone/avatar do cliente — extraído do
 /// antigo `ClientProfileScreen` quando este passou a ser um ecrã de resumo
@@ -130,7 +131,7 @@ class _ClientEditProfileScreenState
       if (profile == null) return null;
       final avatarImage = _newAvatar != null
           ? pickedPhotoImage(_newAvatar!)
-          : (profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null);
+          : (profile.avatarUrl != null ? networkAvatar(profile.avatarUrl!) : null);
       return view.ClientEditProfileViewData(
         profileId: profile.id,
         fullName: profile.fullName,

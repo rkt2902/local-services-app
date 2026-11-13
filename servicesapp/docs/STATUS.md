@@ -147,7 +147,6 @@
   ver `ARCHITECTURE.md` secção 16, ponto 9).
 - Ecrãs ligados ao Supabase não têm testes (só as vistas puras e a lógica).
 - Na web não há OCR do cartão frota nem push.
-- Botões de remover foto (26 px) e de contar ajudantes (36 px) abaixo dos 48 px.
 - Seed antigo de `service_types` por confirmar com um dump `--data-only` (pouco
   relevante desde o catálogo da 0045) e o nome do trigger `on_job_created` diferente do
   ficheiro (cosmético). Ver `ARCHITECTURE.md` secção 16.

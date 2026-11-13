@@ -21,6 +21,8 @@ import '../application/worker_providers.dart';
 import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/utils/app_log.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 class WorkerSetupScreen extends ConsumerStatefulWidget {
   const WorkerSetupScreen({super.key});
@@ -241,7 +243,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       context.go('/worker/home');
       ref.invalidate(workerProfileProvider);
     } catch (e) {
-      debugPrint('[WorkerSetup] ${e.runtimeType}: $e');
+      appLog('[WorkerSetup] ${e.runtimeType}: $e');
       if (!mounted) return;
       AppToast.of(context).error(friendlyError(e));
     } finally {
@@ -637,7 +639,7 @@ class _WorkerPhotoSelector extends StatelessWidget {
     final ImageProvider? image = avatar != null
         ? pickedPhotoImage(avatar!)
         : existingAvatarUrl != null
-            ? NetworkImage(existingAvatarUrl!)
+            ? networkAvatar(existingAvatarUrl!)
             : null;
     final hasPhoto = image != null;
 

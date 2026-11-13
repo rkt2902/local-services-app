@@ -17,6 +17,7 @@ import '../data/worker_profile_model.dart';
 import '../data/worker_showcase.dart';
 import 'widgets/worker_edit_profile_view.dart' as view;
 import '../../../core/widgets/app_toast.dart';
+import '../../../core/utils/network_image_sizes.dart';
 
 /// Formulário de edição do perfil do worker — extraído do antigo
 /// `WorkerProfileScreen` quando este passou a ser um ecrã de resumo
@@ -484,7 +485,7 @@ class _WorkerEditProfileScreenState
           profileId: profile.profileId,
           avatarImage: _newAvatar != null
               ? pickedPhotoImage(_newAvatar!)
-              : (profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null),
+              : (profile.avatarUrl != null ? networkAvatar(profile.avatarUrl!) : null),
           locationSummaryLabel: _locationSummaryLabel,
           locationNeedsDefinition: _baseLat == null || _baseLng == null,
           radiusKm: _radiusKm,

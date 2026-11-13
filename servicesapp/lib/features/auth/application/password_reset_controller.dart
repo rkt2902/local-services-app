@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/utils/error_utils.dart';
 import '../data/auth_repository.dart';
 import 'auth_providers.dart';
+import '../../../core/utils/app_log.dart';
 
 enum PasswordResetErrorKind { network, invalidCode, unexpected }
 
@@ -75,7 +75,7 @@ class PasswordResetController extends Notifier<PasswordResetState> {
         state = PasswordResetError(describePasswordResetError(e), PasswordResetErrorKind.network);
         return;
       }
-      debugPrint(
+      appLog(
         'requestPasswordReset: erro não-rede silenciado por anti-enumeration: $e',
       );
       state = const PasswordResetSuccess();
@@ -106,7 +106,7 @@ class PasswordResetController extends Notifier<PasswordResetState> {
   Future<void> updatePassword(String newPassword) async {
     state = const PasswordResetLoading();
     if (_devBypassActive) {
-      debugPrint(
+      appLog(
         '[DEV BYPASS] updatePassword: senha NÃO foi alterada — sessão de '
         'recuperação era simulada (ver verifyPasswordResetOtp).',
       );
