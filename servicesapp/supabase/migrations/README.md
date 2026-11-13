@@ -3,11 +3,11 @@
 ## Estado a 2026-11-12
 
 **Todas as migrations deste diretório estão aplicadas na BD viva** (projeto
-`twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-11-12 (até à 0074). Isto inclui a
-`0065_notifications_clear_and_profile_stats.sql`. A `0050` nunca foi usada (o
+`twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-11-12. Isto inclui as
+`0067` a `0074`. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-**Próxima migration nova: `0076`.** A 2026-11-12 o Henrique confirmou que todas, até à 0074, estão aplicadas. A `0075` foi criada a seguir e ainda não está aplicada. Antes de numerar, confirmar com
+**Próxima migration nova: `0075`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -49,7 +49,6 @@ Editor do Supabase e confirma.
 | `0067_plan_badges_and_earnings.sql` | Selo do plano no cartão público e nas propostas, painel de ganhos (`get_my_earnings`, só Pro) | aplicada (2026-11-12) |
 | `0068`–`0073` | Ver PR #41 a #47 (planos, trabalhos por dias, lembretes, "a combinar" expira) | aplicadas (2026-11-12) |
 | `0074_audit_fixes.sql` | Correções da auditoria de 12/11 (BUG-001 a BUG-009, BUG-012): bloqueios em retirar proposta e fotos, pesquisa pela base gravada, campos de execução limpos no INSERT, data no passado, limites de raio, horas, dias e textos, avaliações só com sessão, aviso de avaliação repetida | aplicada (2026-11-12) |
-| `0075_web_test_fixes.sql` | Achados dos testes web de 12/11: pedido novo pela app sem morada é recusado (W-2) e o painel admin deixa de contar contas eliminadas nos novos do período (W-7) | **por aplicar** |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.
