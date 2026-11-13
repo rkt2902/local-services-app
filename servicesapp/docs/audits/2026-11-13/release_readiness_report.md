@@ -1,5 +1,8 @@
 # Relatório de prontidão para lançamento: ProJardim (13/11/2026)
 
+
+> **Atualização 13/11 (tarde):** o Henrique confirmou que push, email (SMTP), login com Google, pesquisa de moradas e mapa estão configurados e a funcionar em produção. AUD-01, AUD-02 e a parte Google do AUD-06 passam a **confirmado pelo dono** (não verificado por mim: continuam nos testes manuais). AUD-05 e AUD-12 foram corrigidos no PR #53. Ficam 6 P1 abertos.
+
 **Estado auditado:** `main` em `5cd9c59` (último merge: PR #52), migrations `0001` a `0075`.
 **Âmbito:** código Flutter, migrations, Edge Function, configuração Android e iOS, testes automáticos, documentação, histórico Git. Auditoria só de leitura: nenhum comportamento da app nem da BD foi alterado, nenhuma migration aplicada, nada tocado em produção. Única adição: um teste novo da BD (`supabase/tests/audit/40_help_slot_race.sh`).
 **Não acessível daqui:** BD de produção, painel do Supabase, Firebase, Google Play, dispositivos. Tudo o que depende disso está marcado **NÃO VERIFICADO**.
@@ -17,7 +20,7 @@ Não é por o código estar mau. É o contrário: o código e as regras do servi
 | Regras de negócio e segurança no servidor | **Forte.** RLS em 28/28 tabelas, escritas só por RPC, identidade por `auth.uid()`, 182 asserções e 7 corridas a passar, 0 vulnerabilidades encontradas |
 | Código Flutter | **Bom.** `flutter analyze` 0 issues, 645 testes a passar, design system respeitado (0 cores soltas), 0 SnackBars |
 | Fluxos | **Completos.** 71 funcionalidades inventariadas, 0 quebradas conhecidas, 53 verificadas fora de dispositivo |
-| Integrações reais (push, email, OAuth, moradas, mapa) | **Por configurar ou por verificar** |
+| Integrações reais (push, email, OAuth, moradas, mapa) | **A funcionar, segundo o dono (13/11)**; por ver nos testes manuais |
 | Build de release e lojas | **Por fazer** (assinatura, permissões, ficha, Data safety) |
 | Operação (monitorização, backups, rollback) | **Inexistente ou por confirmar** |
 | Legal | **Rascunho** sem responsável nem revisão jurídica |
@@ -42,12 +45,12 @@ Não é por o código estar mau. É o contrário: o código e as regras do servi
 
 | ID | O quê | Quem |
 |---|---|---|
-| AUD-01 | Push FCM em produção por configurar ou confirmar | Henrique |
-| AUD-02 | Email real (SMTP, recuperação de senha, confirmação) | Henrique |
+| ~~AUD-01~~ | Push FCM: confirmado pelo dono a 13/11 | |
+| ~~AUD-02~~ | Email real: confirmado pelo dono a 13/11 | |
 | AUD-03 | Nenhum teste num Android físico nem com a build de release | Henrique |
 | AUD-04 | Release assinado com chave de debug sem aviso; build sem `--dart-define` arranca sem backend | Código (S) |
-| AUD-05 | `READ_MEDIA_IMAGES` desnecessária, risco de rejeição na Play | Código (S) |
-| AUD-06 | Botão Google sempre visível sem configuração confirmada; iOS exige Apple | Henrique ou código (S) |
+| ~~AUD-05~~ | `READ_MEDIA_IMAGES` removida no PR #53 | |
+| AUD-06 | Google confirmado pelo dono; fica Sign in with Apple, só para iOS | iOS (fase 2) |
 | AUD-07 | Sem monitorização de erros | Código (S a M) |
 | AUD-08 | Plano Free do Supabase sem backups recuperáveis | Henrique |
 | AUD-09 | Termos e Política sem responsável, sem revisão jurídica, desatualizados | Henrique |
@@ -60,7 +63,7 @@ Não é por o código estar mau. É o contrário: o código e as regras do servi
 3. **Jardineiros não recebem pedidos.** Sem push, o lado da oferta morre nas primeiras semanas.
 4. **Utilizadores presos fora da conta.** O SMTP de teste do Supabase só envia alguns emails por hora.
 5. **Erros invisíveis.** Sem monitorização, só se sabe dos crashes pelas avaliações da loja.
-6. **Serviços gratuitos de moradas e mapa** (Photon, Nominatim, tiles OSM) sem garantia e com a política de uso por cumprir (AUD-12, AUD-13).
+6. **Serviços gratuitos de moradas e mapa** (Photon, Nominatim, tiles OSM) sem garantia (AUD-13); a política dos tiles ficou cumprida no PR #53 (AUD-12).
 
 ## Segurança (resumo de `security_audit.md`)
 
@@ -91,7 +94,7 @@ Push, Realtime, SMTP, OAuth, Storage real, GPS, câmara, moradas e mapa com os s
 - O `STATUS.md` diz que o A12 está "por integrar", mas o `JobFlowStepper` já está em 4 ecrãs; e diz que eliminar conta não apaga tudo, mas a 0066 e a 0070 resolveram (AUD-19).
 - A `0075` está no `main` por aplicar (AUD-11).
 - Cartão frota visível como benefício do Pro+ sem parceiro (AUD-28).
-- O mapa ainda usa o User-Agent `com.example.servicesapp` e não mostra a atribuição do OpenStreetMap (AUD-12).
+- ~~O mapa ainda usa o User-Agent `com.example.servicesapp` e não mostra a atribuição do OpenStreetMap (AUD-12).~~ Corrigido no PR #53.
 - O pedido falava de "cerca de 22 tipos de notificação": são **38**, todos implementados e com navegação.
 - O pedido falava de preço/hora único com horas mínimas e máximas: desde a 0058 há preço por hora **ou** valor total, com dias e validade.
 
@@ -101,7 +104,7 @@ Mini-chat (não recomendado: contraria o WhatsApp), feed de descoberta, trabalho
 
 ## Melhorias indispensáveis
 
-As 10 P1 e, das P2: aplicar a 0075, corrigir o mapa OSM, tirar o Nominatim das sugestões, regras de senha no painel, atualizar a documentação, esconder o cartão frota.
+As P1 ainda abertas (AUD-03, 04, 07, 08, 09, 10) e, das P2: aplicar a 0075, tirar o Nominatim das sugestões, regras de senha no painel, atualizar a documentação, esconder o cartão frota.
 
 ## Sequência ideal até ao lançamento
 

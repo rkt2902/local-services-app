@@ -12,11 +12,11 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [x] Versão `1.0.0+1` no `pubspec.yaml`
 - [x] `minSdk`, `targetSdk` e `compileSdk` do Flutter 3.44.1 (o `targetSdk` exigido pela Play para apps novas)
 - [x] Localização só em primeiro plano; sem permissões sensíveis (SMS, contactos, todos os ficheiros)
-- [!] `READ_MEDIA_IMAGES` desnecessária, remover (AUD-05)
+- [x] `READ_MEDIA_IMAGES` removida (AUD-05, PR #53); testar a escolha de fotos (TR-13)
 - [!] Release cai para a chave de debug sem `key.properties` (AUD-04)
 - [ ] Gerar a upload key e `android/key.properties` (fora do git)
 - [ ] `flutter build appbundle --release` com **todos** os `--dart-define`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_PUBLIC_URL`, `SUPPORT_EMAIL` (e `TERMS_URL`/`PRIVACY_POLICY_URL` se mudarem)
-- [?] `google-services.json` no build de release (push)
+- [x] Push a funcionar, confirmado pelo dono a 13/11
 - [?] Bibliotecas nativas alinhadas a 16 KB (verificar no APK Analyzer do Android Studio, sobretudo o ML Kit)
 - [ ] Testes manuais P0 num Android físico com a build de release (`manual_test_plan.md`)
 - [ ] Conta Google Play (pessoal: 14 dias de teste fechado com 12 testadores antes de produção; organização: D-U-N-S)
@@ -55,9 +55,9 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [ ] Procedimento de restauro escrito e testado uma vez (TR-25)
 - [?] Região do projeto na UE
 - [?] Auth: senha mínima 8, exigências de caracteres, limites de taxa, CAPTCHA (AUD-18)
-- [?] Auth: "Confirm email" ligado depois do SMTP; templates com `{{ .Token }}` (AUD-02)
+- [x] Email (SMTP) a funcionar, confirmado pelo dono a 13/11 (AUD-02)
 - [?] Auth: Redirect URLs com `pt.projardim.app://login-callback` e o domínio web
-- [?] Auth: Google configurado (ou botão escondido) (AUD-06)
+- [x] Google configurado, confirmado pelo dono a 13/11 (AUD-06)
 - [?] Edge Function `send-push` publicada com `--no-verify-jwt`; segredos `FCM_SERVICE_ACCOUNT` e `PUSH_WEBHOOK_SECRET`; `push_webhook_secret` no Vault (AUD-01)
 - [?] Realtime ativo na tabela `notifications`
 - [?] DPA da Supabase aceite

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -376,7 +377,10 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
                         TileLayer(
                           urlTemplate:
                               'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.servicesapp',
+                          // A política dos tiles do OSM exige um
+                          // User-Agent que identifique a app (bloqueia o
+                          // `com.example` por omissão).
+                          userAgentPackageName: 'pt.projardim.app',
                         ),
                         if (_pinPosition != null)
                           MarkerLayer(
@@ -394,6 +398,20 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
                               ),
                             ],
                           ),
+                        // Atribuição obrigatória pela licença ODbL e pela
+                        // política dos tiles do OpenStreetMap.
+                        SimpleAttributionWidget(
+                          backgroundColor: AppColors.surface,
+                          onTap: () => launchUrl(
+                            Uri.parse('https://www.openstreetmap.org/copyright'),
+                            mode: LaunchMode.externalApplication,
+                          ),
+                          source: Text(
+                            'OpenStreetMap contributors',
+                            style: textTheme.labelSmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ),
                       ],
                     ),
                   ),

@@ -2,7 +2,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Sem READ_MEDIA_IMAGES: o image_picker usa o Photo Picker do Android,
+         que não precisa de acesso à galeria toda (política de fotos da Play). -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <!-- Android 13+: pedir permissão para mostrar notificações push. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

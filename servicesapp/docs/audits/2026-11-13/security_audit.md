@@ -118,10 +118,10 @@ Detalhe completo em `remediation_plan.md` e `release_readiness_report.md`.
 
 | ID | Título | Sev. |
 |---|---|---|
-| AUD-02 | Email real (SMTP, recuperação, confirmação) não configurado ou não verificado | P1 |
+| AUD-02 | Email real (SMTP, recuperação, confirmação): confirmado pelo dono a 13/11 | P1, fechado |
 | AUD-04 | Release assinado com a chave de debug sem aviso; build sem `--dart-define` arranca sem backend | P1 |
-| AUD-05 | `READ_MEDIA_IMAGES` desnecessária, risco de rejeição na Play | P1 |
-| AUD-06 | Login Google sempre visível sem configuração confirmada; iOS exige Sign in with Apple | P1 |
+| AUD-05 | `READ_MEDIA_IMAGES` desnecessária: removida no PR #53 | P1, corrigido |
+| AUD-06 | Login Google confirmado pelo dono; iOS exige Sign in with Apple | P1, só iOS |
 | AUD-08 | Plano Free do Supabase: sem backups recuperáveis | P1 |
 | AUD-09 | Termos e Política sem responsável, sem revisão jurídica, desatualizados | P1 |
 | AUD-14 | Fotos de pedidos legíveis por URL público sem sessão | P2 |

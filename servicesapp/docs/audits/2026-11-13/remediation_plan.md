@@ -1,5 +1,8 @@
 # Plano de correção (13/11/2026)
 
+
+> **Atualização 13/11 (tarde):** o Henrique confirmou que push, email (SMTP), login com Google, pesquisa de moradas e mapa estão configurados e a funcionar em produção. AUD-01, AUD-02 e a parte Google do AUD-06 passam a **confirmado pelo dono** (não verificado por mim: continuam nos testes manuais). AUD-05 e AUD-12 foram corrigidos no PR #53. Ficam 6 P1 abertos.
+
 Todos os problemas encontrados nesta auditoria, por severidade, e a ordem recomendada para os resolver. **Nada foi corrigido durante a auditoria**: só foi acrescentado um teste novo da BD (`supabase/tests/audit/40_help_slot_race.sh`).
 
 Severidade: **P0** bloqueador crítico, **P1** grave, **P2** médio, **P3** baixo (definições do pedido de auditoria).
@@ -11,7 +14,7 @@ Esforço: S (até 1 h), M (meio dia), L (1 a 3 dias), XL (mais).
 | Severidade | N.º | Antes do lançamento |
 |---|---|---|
 | P0 | 0 conhecidos | |
-| P1 | 10 | todos |
+| P1 | 10 (3 confirmados pelo dono, 2 corrigidos, 5 abertos e 1 só para iOS) | os abertos |
 | P2 | 11 | 6 (mais 2 recomendados) |
 | P3 | 8 | nenhum |
 
@@ -21,7 +24,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 
 ## P1
 
-### AUD-01 · Push FCM em produção por configurar ou por verificar
+### AUD-01 · Push FCM em produção por configurar ou por verificar · CONFIRMADO PELO DONO (13/11)
 - **Funcionalidade:** notificações com a app fechada (novos pedidos, propostas, aceitação, lembretes).
 - **Evidência:** `STATUS.md` ("Firebase e push FCM... É o bloqueador nº 1 para jardineiros reais"); `google-services.json` fora do repositório (correto) e sem confirmação de existir num build; Edge Function `send-push` e segredos `FCM_SERVICE_ACCOUNT`/`PUSH_WEBHOOK_SECRET`/Vault sem confirmação de deploy. **NÃO VERIFICADO.**
 - **Reproduzir:** instalar a app de release, fechar, criar um pedido noutra conta na zona: não chega nada.
@@ -29,7 +32,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Solução:** `SETUP.md` passo 4 e `push_notifications.md`; depois TM-046 e TM-047.
 - **Esforço:** M · **Quem:** H · **Antes do lançamento:** sim.
 
-### AUD-02 · Email real por configurar ou por verificar (SMTP, recuperação, confirmação)
+### AUD-02 · Email real por configurar ou por verificar (SMTP, recuperação, confirmação) · CONFIRMADO PELO DONO (13/11)
 - **Funcionalidade:** recuperação de senha, confirmação de email.
 - **Evidência:** `STATUS.md` ("Emails pelo SMTP de teste do Supabase, com limite baixo"); o template de recuperação tem de usar `{{ .Token }}` porque a app pede um código. **NÃO VERIFICADO.**
 - **Reproduzir:** pedir 3 ou 4 recuperações de senha na mesma hora com o SMTP por omissão.
@@ -52,14 +55,14 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Solução:** no `release`, falhar o Gradle se `key.properties` não existir; em `main.dart`, se `SupabaseConfig.url` ou `anonKey` estiverem vazios em release, mostrar um ecrã de erro claro (ou `assert` + verificação no CI do comando de build).
 - **Esforço:** S · **Quem:** C · **Antes do lançamento:** sim.
 
-### AUD-05 · Permissão `READ_MEDIA_IMAGES` desnecessária
+### AUD-05 · Permissão `READ_MEDIA_IMAGES` desnecessária · CORRIGIDO no PR #53 (falta TR-13 num Android)
 - **Funcionalidade:** fotos do pedido, avatar, antes e depois.
 - **Evidência:** `android/app/src/main/AndroidManifest.xml:5-6`. O `image_picker` 1.2 usa o Photo Picker do Android, que não precisa desta permissão.
 - **Impacto:** a política "Photo and Video Permissions" da Google Play só aceita `READ_MEDIA_IMAGES` para apps cujo uso principal é aceder a toda a galeria; aqui leva a declaração extra e rejeição provável.
 - **Solução:** remover `READ_MEDIA_IMAGES` (e avaliar `READ_EXTERNAL_STORAGE`), testar a escolha de fotos em Android 13+ e em Android 10 a 12.
 - **Esforço:** S · **Quem:** C, depois H testa · **Antes do lançamento:** sim.
 
-### AUD-06 · Login social: Google sem configuração confirmada; Apple em falta para iOS
+### AUD-06 · Login social: Google sem configuração confirmada; Apple em falta para iOS · Google CONFIRMADO PELO DONO (13/11); fica só a parte iOS
 - **Funcionalidade:** "Continuar com Google".
 - **Evidência:** `lib/features/auth/presentation/widgets/social_sign_in_buttons.dart:32` mostra sempre o botão; `STATUS.md` diz "falta configurar; os botões dão erro". **NÃO VERIFICADO** no painel. A App Store (regra 4.8) exige "Sign in with Apple" quando há login com Google.
 - **Impacto:** o primeiro botão que muita gente toca dá erro; o iOS é recusado na revisão.
@@ -103,12 +106,12 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Impacto:** pela API ainda se cria um pedido sem morada (a app já não deixa) e o painel admin conta contas eliminadas.
 - **Solução:** aplicar no SQL Editor depois de um dump. **Esforço:** S · **Quem:** H · **Antes:** sim.
 
-### AUD-12 · Mapa OSM com User-Agent de exemplo e sem atribuição
+### AUD-12 · Mapa OSM com User-Agent de exemplo e sem atribuição · CORRIGIDO no PR #53
 - **Evidência:** `lib/features/client/presentation/widgets/job_location_picker.dart:377-380` (`userAgentPackageName: 'com.example.servicesapp'`); nenhum `RichAttributionWidget` nem texto "© OpenStreetMap" em `lib/`.
 - **Impacto:** a política dos tiles do OSM bloqueia User-Agents genéricos e exige atribuição visível (licença ODbL). Mapa em branco possível em produção.
 - **Solução:** `userAgentPackageName: 'pt.projardim.app'` e `RichAttributionWidget` com "© OpenStreetMap contributors". **Esforço:** S · **Quem:** C · **Antes:** sim.
 
-### AUD-13 · Pesquisa de moradas dependente de serviços gratuitos sem garantia
+### AUD-13 · Pesquisa de moradas dependente de serviços gratuitos sem garantia (a funcionar hoje, segundo o dono; o risco é de escala)
 - **Evidência:** `lib/core/services/geocoding_service.dart:214` usa o Nominatim como alternativa às sugestões ao escrever quando o Photon falha. A política do Nominatim proíbe autocompletar e limita a 1 pedido por segundo por aplicação; o Photon público não tem SLA. O W-2 de 12/11 mostrou o efeito de uma falha (pedidos sem morada).
 - **Impacto:** com crescimento, sugestões e morada por GPS falham ou são bloqueadas.
 - **Solução:** curto prazo, não usar o Nominatim nas sugestões (só no botão "procurar") e garantir a morada escrita à mão; médio prazo, fornecedor com contrato (Google Places, Mapbox, ou Photon próprio).
