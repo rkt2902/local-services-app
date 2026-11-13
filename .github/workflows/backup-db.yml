@@ -1,0 +1,73 @@
+# Backup diário da BD de produção (o plano Free do Supabase não deixa
+# descarregar backups). Corre todos os dias às 04:15 UTC e também à mão em
+# Actions > Backup BD > Run workflow (é assim que se faz um dump avulso).
+#
+# O repositório é público, por isso o dump sai SEMPRE cifrado (GPG, AES256)
+# antes de ser guardado como artifact. Sem a frase não abre.
+#
+# Configuração única (Settings > Secrets and variables > Actions > Secrets):
+# - SUPABASE_DB_URL: connection string do "Session pooler" (porta 5432), em
+#   Supabase > Connect, com a palavra-passe da BD no lugar de [YOUR-PASSWORD].
+#   Não usar a "Direct connection": os runners do GitHub não têm IPv6.
+# - BACKUP_PASSPHRASE: frase longa só tua, guardada também no gestor de
+#   passwords.
+#
+# Restaurar: ver servicesapp/docs/SETUP.md, secção "Backups".
+name: Backup BD
+
+on:
+  schedule:
+    - cron: "15 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-db
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Confirmar secrets
+        run: |
+          for name in SUPABASE_DB_URL BACKUP_PASSPHRASE; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Falta o secret $name (Settings > Secrets and variables > Actions)."
+              exit 1
+            fi
+          done
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump (roles, schema e dados)
+        run: |
+          mkdir dump
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f dump/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f dump/data.sql
+          ls -la dump
+
+      - name: Cifrar
+        id: pack
+        run: |
+          name="projardim-$(date -u +%F).tar.gz.gpg"
+          tar czf - -C dump . | gpg --batch --yes --pinentry-mode loopback \
+            --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_PASSPHRASE" -o "$name"
+          rm -rf dump
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack.outputs.name }}
+          path: ${{ steps.pack.outputs.name }}
+          retention-days: 30
+          if-no-files-found: error
