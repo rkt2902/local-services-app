@@ -18,6 +18,7 @@ import '../../../core/widgets/service_icon.dart';
 import '../../jobs/application/job_providers.dart';
 import '../application/agenda_entry_actions.dart';
 import '../application/agenda_entry_form.dart';
+import '../application/agenda_intro_providers.dart';
 import '../application/agenda_providers.dart';
 import '../data/agenda_calendar_entry.dart';
 import '../data/agenda_entry_model.dart';
@@ -549,6 +550,12 @@ class _AgendaEntryEditorScreenState
     final repo = ref.read(agendaRepositoryProvider);
     if (entry == null) {
       final id = await repo.createCalendarEntry(form.toRow());
+      // O cartão de boas-vindas ("Adicionar o primeiro trabalho") deixa de
+      // fazer sentido, venha o primeiro registo de onde vier.
+      ref
+          .read(agendaIntroDoneProvider.notifier)
+          .markDone()
+          .catchError((Object _) {});
       return AgendaEditorResult(
         outcome: AgendaEditorOutcome.created,
         day: form.date,

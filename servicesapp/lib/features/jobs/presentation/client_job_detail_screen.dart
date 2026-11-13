@@ -1252,6 +1252,7 @@ class _ClientJobDetailScreenState
   }
 
   Future<void> _showClientRatingSheet() async {
+    final repo = ref.read(ratingRepositoryProvider);
     final submitted = await showSubmitRatingSheet(
       context: context,
       title: 'Avaliar o trabalho',
@@ -1262,7 +1263,7 @@ class _ClientJobDetailScreenState
           ? 'Avaliação enviada! Cobre o jardineiro responsável e os ajudantes deste trabalho.'
           : 'Avaliação enviada! Obrigado por avaliares o jardineiro.',
       onSubmit: (stars, comment) async {
-        await ref.read(ratingRepositoryProvider).submitClientRating(
+        await repo.submitClientRating(
               jobId: widget.jobId,
               stars: stars,
               comment: comment,

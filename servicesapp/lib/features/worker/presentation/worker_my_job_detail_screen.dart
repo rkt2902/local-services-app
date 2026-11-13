@@ -351,11 +351,12 @@ class _WorkerMyJobDetailScreenState
   /// Folha "Iniciar o trabalho agora?" → upload das fotos de antes →
   /// `start_job` (migration 0052). Fica no ecrã: o provider do pedido é
   /// invalidado e o ecrã passa a "Em curso".
-  Future<void> _startJob(String clientName) async {
+  Future<void> _startJob(String clientName, {bool countsTime = true}) async {
     final toast = AppToast.of(context);
     final started = await StartJobSheet.show(
       context,
       clientName: clientName,
+      countsTime: countsTime,
       onStart: (photos) async {
         try {
           final repo = ref.read(jobRepositoryProvider);
@@ -503,7 +504,8 @@ class _WorkerMyJobDetailScreenState
     if (start != null && done != null && isMultiDayWork(proposal)) {
       workedLabel = 'Durou ${workDaysSpanLabel(start, done)}.';
     } else {
-      final days = ref.watch(jobWorkDaysProvider(job.id)).asData?.value ??
+      final days =
+          ref.watch(jobWorkDaysProvider(job.id)).asData?.value ??
           const <JobWorkDay>[];
       final worked = days.isNotEmpty
           ? workedDuration(days, now: DateTime.now())
@@ -718,7 +720,8 @@ class _WorkerMyJobDetailScreenState
       jobStatus: job.status,
       cancelReason: job.cancelReason,
       otherProposalAccepted:
-          job.acceptedProposalId != null && job.acceptedProposalId != proposal.id,
+          job.acceptedProposalId != null &&
+          job.acceptedProposalId != proposal.id,
     );
 
     // Badge do design A1: "Agendado" e, depois de iniciado, "Em curso";
@@ -942,7 +945,8 @@ class _WorkerMyJobDetailScreenState
         dayBased: isMultiDayWork(proposal),
         fixedValue: proposal.isFixedTotal,
       ),
-      onStartJob: () => _startJob(data.clientName),
+      onStartJob: () =>
+          _startJob(data.clientName, countsTime: !isMultiDayWork(proposal)),
       onReportProblem: _reportProblem,
       onCompletionFeedbackFinished: _onCompletionFeedbackFinished,
       onProposeReschedule: _proposeReschedule,

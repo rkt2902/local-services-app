@@ -3,18 +3,24 @@ import 'package:flutter/material.dart';
 import 'package:servicesapp/core/theme/app_colors.dart';
 import 'package:servicesapp/core/theme/app_motion_tokens.dart';
 import 'package:servicesapp/core/theme/app_radius.dart';
+import 'package:servicesapp/core/theme/app_sizes.dart';
 import 'package:servicesapp/core/theme/app_spacing.dart';
+import 'package:servicesapp/core/theme/app_status_color.dart';
 
 class AppBottomNavigationItem {
   const AppBottomNavigationItem({
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    this.badgeCount = 0,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+
+  /// Número por ler (ex. Alertas). 0 esconde o contador.
+  final int badgeCount;
 }
 
 /// Bottom navigation partilhada com quatro destinos e uma ação central.
@@ -34,9 +40,9 @@ class AppBottomNavigation extends StatelessWidget {
     this.centralActionTooltip = 'Nova ação',
     this.centralActionActive = false,
   }) : assert(
-          items.length == 4,
-          'AppBottomNavigation requer exatamente quatro destinos.',
-        );
+         items.length == 4,
+         'AppBottomNavigation requer exatamente quatro destinos.',
+       );
 
   final List<AppBottomNavigationItem> items;
   final int selectedIndex;
@@ -75,17 +81,11 @@ class AppBottomNavigation extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.card,
-                    ),
-                    border: Border.all(
-                      color: AppColors.divider,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
+                    border: Border.all(color: AppColors.divider),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.textPrimary.withValues(
-                          alpha: 0.08,
-                        ),
+                        color: AppColors.textPrimary.withValues(alpha: 0.08),
                         blurRadius: 18,
                         offset: const Offset(0, 7),
                       ),
@@ -189,36 +189,24 @@ class _CentralActionButtonState extends State<_CentralActionButton> {
           child: FilledButton(
             onPressed: widget.onPressed,
             style: ButtonStyle(
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.zero,
-              ),
+              padding: const WidgetStatePropertyAll(EdgeInsets.zero),
               elevation: const WidgetStatePropertyAll(4),
               shadowColor: WidgetStatePropertyAll(
-                AppColors.textPrimary.withValues(
-                  alpha: 0.16,
-                ),
+                AppColors.textPrimary.withValues(alpha: 0.16),
               ),
-              backgroundColor: WidgetStateProperty.resolveWith<Color>(
-                (states) {
-                  if (states.contains(
-                    WidgetState.pressed,
-                  )) {
-                    return widget.active
-                        ? AppColors.textSecondary
-                        : AppColors.primaryPressed;
-                  }
-
+              backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.pressed)) {
                   return widget.active
-                      ? AppColors.textPrimary
-                      : AppColors.primary;
-                },
-              ),
-              foregroundColor: const WidgetStatePropertyAll(
-                AppColors.surface,
-              ),
-              shape: const WidgetStatePropertyAll(
-                CircleBorder(),
-              ),
+                      ? AppColors.textSecondary
+                      : AppColors.primaryPressed;
+                }
+
+                return widget.active
+                    ? AppColors.textPrimary
+                    : AppColors.primary;
+              }),
+              foregroundColor: const WidgetStatePropertyAll(AppColors.surface),
+              shape: const WidgetStatePropertyAll(CircleBorder()),
             ),
             // "+" ↔ "✕" com a mesma rotação curta; sem animação com
             // reduced motion (motion_spec §5).
@@ -260,9 +248,7 @@ class _AppBottomNavigationDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    final contentColor = selected
-        ? AppColors.primary
-        : AppColors.textSecondary;
+    final contentColor = selected ? AppColors.primary : AppColors.textSecondary;
 
     // docs/motion_spec.md §3, "Bottom nav": ícone cruza outline→preenchido,
     // cor e peso do label animam em simultâneo. Reduced motion mantém a
@@ -270,18 +256,20 @@ class _AppBottomNavigationDestination extends StatelessWidget {
     // (§5) — duração zero em vez de fast.
     final disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final transitionDuration =
-        disableAnimations ? Duration.zero : AppMotionDuration.fast;
+    final transitionDuration = disableAnimations
+        ? Duration.zero
+        : AppMotionDuration.fast;
 
     return Semantics(
       button: true,
       selected: selected,
-      label: item.label,
+      label: item.badgeCount > 0
+          ? '${item.label}, ${item.badgeCount} por ler'
+          : item.label,
+      excludeSemantics: true,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(
-          AppRadius.input,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.xs,
@@ -292,16 +280,27 @@ class _AppBottomNavigationDestination extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedSwitcher(
-                duration: transitionDuration,
-                switchInCurve: AppMotionCurve.standard,
-                switchOutCurve: AppMotionCurve.standard,
-                child: Icon(
-                  selected ? item.selectedIcon : item.icon,
-                  key: ValueKey<bool>(selected),
-                  size: 22,
-                  color: contentColor,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedSwitcher(
+                    duration: transitionDuration,
+                    switchInCurve: AppMotionCurve.standard,
+                    switchOutCurve: AppMotionCurve.standard,
+                    child: Icon(
+                      selected ? item.selectedIcon : item.icon,
+                      key: ValueKey<bool>(selected),
+                      size: 22,
+                      color: contentColor,
+                    ),
+                  ),
+                  if (item.badgeCount > 0)
+                    Positioned(
+                      top: -AppSpacing.xxs,
+                      right: -AppSpacing.xs,
+                      child: _UnreadDot(count: item.badgeCount),
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpacing.xxs),
               AnimatedDefaultTextStyle(
@@ -319,6 +318,40 @@ class _AppBottomNavigationDestination extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Contador por ler no ícone de um destino (mesmo estilo do sino do
+/// jardineiro, `HomeNotificationButton`).
+class _UnreadDot extends StatelessWidget {
+  const _UnreadDot({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      constraints: const BoxConstraints(
+        minWidth: AppSizes.unreadBadge,
+        minHeight: AppSizes.unreadBadge,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppStatusColor.cancelled.foreground,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: AppColors.surface, width: 1.5),
+      ),
+      child: Text(
+        count > 9 ? '9+' : '$count',
+        style: textTheme.labelMedium?.copyWith(
+          color: AppColors.surface,
+          fontWeight: FontWeight.w800,
+          height: 1.1,
         ),
       ),
     );

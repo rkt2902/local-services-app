@@ -260,8 +260,8 @@ Antes de começar:
 - **Dispositivo necessário:** Telemóvel Android com a app de teste instalada
 - **Pré-condições:** Jardineiro
 - **Dados de teste:** nenhum
-- **Passos exatos:** 1. Editar as 3 secções. 2. Pôr 5 destaques. 3. Pôr um link http (deve recusar) e um https. 4. Abrir o cartão público e ver as mudanças.
-- **Resultado esperado:** Cartão reflete os dados; http recusado.
+- **Passos exatos:** 1. Editar as 3 secções. 2. Pôr 5 destaques. 3. Pôr um link http (passa a https ao guardar) e um javascript: (deve recusar). 4. Abrir o cartão público e ver as mudanças.
+- **Resultado esperado:** Cartão reflete os dados; o link http fica guardado como https; o javascript: é recusado.
 - **Evidência a recolher:** Capturas
 - **Porque não foi automatizado:** UI real
 - **Impacto de não executar:** Cartão público errado
@@ -666,7 +666,7 @@ Antes de começar:
 - **Dispositivo necessário:** Telemóvel Android com a app de teste instalada
 - **Pré-condições:** Várias notificações
 - **Dados de teste:** nenhum
-- **Passos exatos:** 1. Filtrar Todas/Trabalhos. 2. Abrir uma (fica lida). 3. Limpar tudo e Desfazer. 4. Limpar e esperar.
+- **Passos exatos:** 1. Filtrar Todas/Trabalhos. 2. Abrir uma (fica lida). 3. Limpar tudo e escolher "Não apagar". 4. Limpar tudo, "Apagar para sempre" e recarregar. 5. Ver o número por ler no separador Alertas (cliente) ou no sino (jardineiro).
 - **Resultado esperado:** Lista e contador certos.
 - **Evidência a recolher:** Capturas
 - **Porque não foi automatizado:** UI real

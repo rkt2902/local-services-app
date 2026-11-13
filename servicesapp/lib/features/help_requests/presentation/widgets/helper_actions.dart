@@ -35,13 +35,16 @@ Future<bool> showRatePrincipalSheet(
   HelpAcceptanceSummary acceptance,
 ) async {
   final jobId = acceptance.jobId;
+  // Lido antes de abrir a folha (o `ref` pode deixar de servir se o ecrã
+  // por trás recarregar enquanto a folha está aberta).
+  final repo = ref.read(ratingRepositoryProvider);
   final submitted = await showSubmitRatingSheet(
     context: context,
     title: 'Avaliar o jardineiro responsável',
     subtitle: acceptance.principalName,
     successMessage: 'Avaliação enviada!',
     onSubmit: (stars, comment) async {
-      await ref.read(ratingRepositoryProvider).submitHelperRating(
+      await repo.submitHelperRating(
             jobId: jobId,
             stars: stars,
             comment: comment,

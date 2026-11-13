@@ -2044,14 +2044,16 @@ class _RatingTargetRowState extends ConsumerState<_RatingTargetRow> {
   }
 
   Future<void> _showSheet() async {
+    // Lido antes de abrir a folha: se o ecrã por trás recarregar, esta
+    // linha pode ser descartada e o `ref` deixa de servir (a avaliação
+    // falhava com "erro inesperado" sem chegar ao servidor).
+    final repo = ref.read(ratingRepositoryProvider);
     final submitted = await showSubmitRatingSheet(
       context: context,
       title: widget.actionTitle,
       successMessage: 'Avaliação enviada!',
       onSubmit: (stars, comment) async {
-        await ref
-            .read(ratingRepositoryProvider)
-            .submitPrincipalRating(
+        await repo.submitPrincipalRating(
               jobId: widget.jobId,
               rateeId: widget.rateeId,
               stars: stars,
