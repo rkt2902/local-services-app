@@ -1,4 +1,4 @@
-# Resultados dos testes Android (13/11/2026)
+﻿# Resultados dos testes Android (13/11/2026)
 
 Execução do `manual_test_plan.md` desta auditoria em Android, com build de release assinada e BD de produção.
 
@@ -11,7 +11,7 @@ Execução do `manual_test_plan.md` desta auditoria em Android, com build de rel
 - 2 contas de teste (cliente e jardineiro), GPS simulado em Bragança. As duas foram eliminadas pela app no fim (TR-09).
 - AAB final: `servicesapp/build/app/outputs/bundle/release/app-release.aab` (81,6 MB, 17:34), já com a correção do `app.dart`.
 
-As capturas estão em `capturas-android/` (179 ficheiros, uma por passo). **Não entram no repositório**: mostram o email das contas de teste.
+As capturas estão em `capturas-android/` (230 ficheiros, uma por passo). **Não entram no repositório**: mostram o email das contas de teste.
 
 ## Resumo
 
@@ -43,7 +43,25 @@ As capturas estão em `capturas-android/` (179 ficheiros, uma por passo). **Não
 | Notificações in-app | PASSA | Lista, filtro "Trabalhos", tocar abre o ecrã certo, "Marcar lidas" limpa o contador. | `TR-NOTIF_*` |
 | Voltar do Android dentro da app | PASSA | Depois de abrir um alerta, voltar vai ao Início (os alertas usam `go()`, como decidido). | `TR-VOLTAR_01_*` |
 
-TR-11, TR-12, TR-13 (Android 10), TR-15, TR-17, TR-18, TR-22, TR-25, TR-26 e o bloco P2 não foram feitos nesta sessão.
+TR-11, TR-12, TR-13 (Android 10), TR-15, TR-18, TR-22, TR-25, TR-26 e o bloco P2 não foram feitos nesta sessão.
+
+## Ajudantes (segunda ronda, 18:25 a 18:50)
+
+4 emuladores (cliente, jardineiro responsável, 2 ajudantes), 4 contas novas criadas para isto (o Henrique escreveu as senhas e os códigos) e eliminadas pela app no fim.
+
+| Teste | Resultado | Nota | Capturas |
+|---|---|---|---|
+| Push "Novo pedido" em contas acabadas de criar | PASSA | Chegou aos 3 jardineiros logo depois do registo. Confirma a correção do token em `lib/app.dart`. | `TR-AJ_03_*` |
+| Proposta com 1 ajudante | PASSA | Resumo com ajudante; o cliente vê "Ajudantes: 1" e, depois de aceitar, a fase "Equipa". | `TR-AJ_04..08` |
+| Push "Pedido de ajuda perto de ti" | PASSA | Chegou aos 2 ajudantes. | `TR-AJ_09_*` |
+| Tocar no push "Pedido de ajuda perto de ti" | A CONFIRMAR | Nos 2 ajudantes (app em segundo plano e app fechada) abriu o Início em vez da candidatura. O código parece certo, e o toque pode ter caído na notificação agrupada errada. Repetir com uma só notificação na gaveta. | `TR-AJ_10_*`, `TR-AJ_11_*` |
+| Candidatura (alerta in-app e Descobrir) | PASSA | Os 2 caminhos abrem "Candidatar-me". Sem equipamento: 10,50 €/h; com equipamento: 15,00 €/h. | `TR-AJ_12..17` |
+| TR-17 Dois candidatos para 1 vaga | PASSA (parcial) | A folha "Aceitar candidato" é modal, por isso num só aparelho não dá para aceitar os dois ao mesmo tempo. Com o toque duplo em "Confirmar e adicionar" ficou 1 só ajudante. O outro recebeu "Candidatura não selecionada" e o aceite "Candidatura aceite!". A corrida no servidor já estava provada na BD local (RACE-06). | `TR-17_*` |
+| Alterar vagas de 1 para 2 | PASSA | O candidato recusado recebe "Vaga disponível novamente", volta a candidatar-se e entra com a taxa de 15,00 €/h. Equipa 2 de 2. Não pediu aprovação do cliente. | `TR-AJ_23..28` |
+| Agenda do ajudante | PASSA | O trabalho aparece na semana seguinte como "Ajudante, com henrique". | `TR-AJ_31_*` |
+| Cliente cancela com equipa | PASSA | Responsável e os 2 ajudantes recebem "Trabalho cancelado". | `TR-AJ_32_*`, `TR-AJ_33_*` |
+| Eliminar as 4 contas | PASSA | Todas voltam ao ecrã de entrada. | `TR-AJ_34_*` |
+| Aprovação do cliente (`pending_approval`) | NÃO TESTADO | Com os ajudantes pedidos na proposta, o pedido de ajuda abre logo. Falta o caso de pedir ajudantes depois de o cliente aceitar. | |
 
 ## Falhas e notas
 
@@ -56,6 +74,11 @@ TR-11, TR-12, TR-13 (Android 10), TR-15, TR-17, TR-18, TR-22, TR-25, TR-26 e o b
 | F5 | Baixa | Os pushes usam o canal `fcm_fallback_notification_channel`: falta `com.google.firebase.messaging.default_notification_channel_id` no `AndroidManifest.xml`, por isso nas definições do Android aparece um canal genérico em vez de um nome da app. | `adb shell dumpsys notification` com um push recebido. |
 | F6 | Baixa | O alerta "Trabalho concluído!" mantém o botão "Confirmar conclusão" depois de o cliente já ter confirmado (abre o detalhe já "Concluído", sem erro). | `TR-NOTIF_02_*` |
 | F7 | Baixa | No detalhe do pedido do cliente, a fila de fotos do pedido encosta ao cartão do jardineiro, sem espaço entre os dois. | `TR-07_13_cliente-fotos-pedido` |
+| F8 | Média | No lobby da equipa (`worker_help_requests_lobby_view.dart`), depois de aceitar um candidato ou de alterar vagas, o `AppSuccessFeedback` ("Ajudante adicionado à equipa.", "Vagas atualizadas.") fica no ecrã para sempre, opaco e a bloquear os toques (nem os separadores respondem). `_successVisible` nunca volta a `false`. Só se sai com o voltar. Afeta também "Candidatura recusada." e as outras ações da equipa. | Responsável, separador Equipa, Aceitar, Confirmar. `TR-AJ_22_feedback-preso`. |
+| F9 | Baixa | Colar o código do email no ecrã de código não preenche as caixas todas (relatado pelo Henrique no registo). | Copiar o código de 6 dígitos e colar na 1.ª caixa. |
+| F10 | Baixa | O detalhe do trabalho do cliente não atualiza a equipa sozinho (ficou "0/1" com o ajudante já aceite) até sair e voltar a entrar. | `TR-AJ_19_*`, `TR-AJ_20_*` |
+| F11 | Baixa | O Início do ajudante diz "Ainda não existem trabalhos agendados" com um trabalho de ajudante marcado (só aparece na Agenda). O Descobrir mostra "2 vagas" quando só falta 1. | `TR-AJ_29_*`, `TR-AJ_25_*` |
+| F12 | Info | Existe a RPC `reject_proposal`, mas o cliente não tem botão para recusar uma proposta. | |
 
 ## Correções pendentes (no PC, fora deste ramo)
 
