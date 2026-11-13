@@ -23,7 +23,7 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [ ] Play App Signing ativo; SHA-1 da chave da Play no Google Cloud (login Google) e no Firebase
 - [ ] Ficha: ícone 512, gráfico 1024x500, 4 a 8 capturas, nome, descrições curta e longa
 - [ ] Data safety a bater com a Política (nome, email, telefone, localização precisa e aproximada, fotos, avaliações, identificador do aparelho do cartão, tokens de push, dados de diagnóstico se houver Crashlytics)
-- [ ] URL web para pedir a eliminação de conta
+- [x] URL web para pedir a eliminação de conta: `https://projardim.pt/eliminar-conta.html`
 - [ ] Classificação de conteúdo (IARC), público 18+, sem anúncios
 - [ ] Credenciais de teste para a revisão (uma conta de cliente e uma de jardineiro)
 
@@ -47,14 +47,14 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [x] 43 migrations aplicam sem erro numa BD vazia (Postgres 16)
 - [x] RLS ligada em todas as tabelas; testes positivos e negativos passam (`security_audit.md`)
 - [?] BD viva com todas as migrations até à 0074 (palavra do Henrique a 12/11)
-- [ ] Aplicar a `0075_web_test_fixes.sql` (AUD-11)
+- [x] `0075` e `0076` aplicadas (Henrique, 13/11)
 - [ ] Comparar o schema da BD viva com o do repositório, a partir de `servicesapp/`:
   `supabase db dump --schema public -f /tmp/live.sql` e comparar com `pg_dump --schema-only` da BD de `supabase/tests/audit/run.sh keep` (TR-26)
-- [ ] 11 jobs do `pg_cron` ativos e a correr (TR-10)
-- [?] Plano: Pro (backups) ou dump diário automático (AUD-08)
+- [x] 11 jobs do `pg_cron` ativos e sem erros (Henrique, 13/11)
+- [x] Dump diário automático, cifrado, 30 dias (GitHub Action "Backup BD", primeiro a 13/11)
 - [ ] Procedimento de restauro escrito e testado uma vez (TR-25)
 - [?] Região do projeto na UE
-- [?] Auth: senha mínima 8, exigências de caracteres, limites de taxa, CAPTCHA (AUD-18)
+- [x] Auth: senha mínima 8 com letras e números (13/11); [?] CAPTCHA; limites de envio 30 emails/h
 - [x] Email (SMTP) a funcionar, confirmado pelo dono a 13/11 (AUD-02)
 - [?] Auth: Redirect URLs com `pt.projardim.app://login-callback` e o domínio web
 - [x] Google configurado, confirmado pelo dono a 13/11 (AUD-06)
@@ -80,7 +80,7 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [ ] Revisão jurídica (papel de intermediário, Livro de Reclamações Eletrónico, RAL, DSA e P2B para jardineiros)
 - [ ] Política com a Agenda (dados de terceiros), visitas ao cartão, Photon/OSM, Crashlytics, retenção e exportação de dados
 - [ ] DPAs com Supabase, Firebase, Netlify e Brevo
-- [?] Domínio próprio e email de suporte nesse domínio (AUD-10)
+- [x] `projardim.pt` com HTTPS, remetente `noreply@` autenticado no Brevo e `suporte@` reencaminhado (13/11)
 - [ ] Procedimento para reclamações e denúncias (relatos de problema chegam a `job_reports`; quem os lê e em quanto tempo)
 
 ## Escala (primeiros meses)

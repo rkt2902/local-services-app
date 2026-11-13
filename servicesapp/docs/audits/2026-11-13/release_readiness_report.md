@@ -3,6 +3,8 @@
 
 > **Atualização 13/11 (tarde):** o Henrique confirmou que push, email (SMTP), login com Google, pesquisa de moradas e mapa estão configurados e a funcionar em produção. AUD-01, AUD-02 e a parte Google do AUD-06 passam a **confirmado pelo dono** (não verificado por mim: continuam nos testes manuais). AUD-05 e AUD-12 foram corrigidos no PR #53, e depois AUD-04 e AUD-07 (código feito; falta a upload key e ativar o Crashlytics). Ficam 5 P1 abertos, todos do lado do Henrique.
 
+> **Atualização 13/11 (fim do dia), segundo o Henrique:** 0075 e 0076 aplicadas; backup diário cifrado por GitHub Action desde 13/11 (AUD-08); domínio `projardim.pt` com HTTPS, remetente e `suporte@` no domínio (AUD-10); senha mínima 8 com letras e números no Auth (AUD-18, limites de envio sem mudança); 11 crons ativos e sem erros (TR-10); templates de email e página de eliminação de conta publicados. Ficam 3 P1: AUD-03 (build de release e testes num Android), AUD-09 (Termos e Política, falta o Crashlytics e a revisão jurídica) e a parte Apple do AUD-06 (só iOS).
+
 **Estado auditado:** `main` em `5cd9c59` (último merge: PR #52), migrations `0001` a `0075`.
 **Âmbito:** código Flutter, migrations, Edge Function, configuração Android e iOS, testes automáticos, documentação, histórico Git. Auditoria só de leitura: nenhum comportamento da app nem da BD foi alterado, nenhuma migration aplicada, nada tocado em produção. Única adição: um teste novo da BD (`supabase/tests/audit/40_help_slot_race.sh`).
 **Não acessível daqui:** BD de produção, painel do Supabase, Firebase, Google Play, dispositivos. Tudo o que depende disso está marcado **NÃO VERIFICADO**.
@@ -52,9 +54,9 @@ Não é por o código estar mau. É o contrário: o código e as regras do servi
 | ~~AUD-05~~ | `READ_MEDIA_IMAGES` removida no PR #53 | |
 | AUD-06 | Google confirmado pelo dono; fica Sign in with Apple, só para iOS | iOS (fase 2) |
 | ~~AUD-07~~ | Crashlytics integrado no PR #53; falta ativar no Firebase e testar | Henrique |
-| AUD-08 | Plano Free do Supabase sem backups recuperáveis | Henrique |
+| ~~AUD-08~~ | Backup diário cifrado por GitHub Action (30 dias), primeiro a 13/11; restauro por testar (TR-25) | |
 | AUD-09 | Termos e Política sem responsável, sem revisão jurídica, desatualizados | Henrique |
-| AUD-10 | Links e QR das apps apontam para `projardim.pt` (posse por confirmar) | Henrique |
+| ~~AUD-10~~ | `projardim.pt` comprado e a servir a app; a app usa-o na próxima build com `APP_PUBLIC_URL` | |
 
 ## Maiores riscos
 

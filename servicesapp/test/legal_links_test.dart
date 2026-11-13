@@ -10,8 +10,8 @@ void main() {
     expect(AppLinks.termsUrl, startsWith('https://docs.google.com/'));
     expect(AppLinks.privacyPolicyUrl, startsWith('https://docs.google.com/'));
     expect(AppLinks.termsUrl, isNot(AppLinks.privacyPolicyUrl));
-    expect(AppLinks.supportEmail, 'projardim26@gmail.com');
-    expect(AppLinks.supportEmailOrDefault('Noth'), 'projardim26@gmail.com');
+    expect(AppLinks.supportEmail, 'suporte@projardim.pt');
+    expect(AppLinks.supportEmailOrDefault('Noth'), 'suporte@projardim.pt');
     expect(AppLinks.supportEmailOrDefault(' ajuda@projardim.pt '),
         'ajuda@projardim.pt');
   });
