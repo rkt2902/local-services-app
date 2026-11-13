@@ -201,16 +201,8 @@ equipa do projeto. Para utilizadores reais é obrigatório.
 - [ ] Authentication > Providers > Email: confirmar que **Email OTP Length** é **6**
       (a app tem 6 caixas para o código).
 - [ ] Authentication > Emails > Templates > **Reset Password**. A app usa o código de 6
-      dígitos, não o link. Assunto e corpo:
-
-      Assunto: `O teu código ProJardim`
-
-      ```html
-      <h2>Recuperar a palavra-passe</h2>
-      <p>Usa este código na app ProJardim para escolher uma palavra-passe nova:</p>
-      <p style="font-size:28px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
-      <p>O código expira dentro de 1 hora. Se não pediste isto, ignora este email.</p>
-      ```
+      dígitos, não o link. Assunto e corpo estão em `supabase/templates/recovery.html` e
+      `supabase/templates/subjects.json` (feito a 13/11, ver o README dessa pasta).
 
 ### Testar
 
@@ -232,16 +224,8 @@ por email antes de escolher o papel; quem tentar entrar sem ter confirmado receb
 código novo e vai para o mesmo ecrã. Com a opção desligada tudo funciona como hoje.
 Só liga depois de o 3.2 estar a funcionar (sem SMTP os emails não chegam).
 
-- [ ] Authentication > Emails > Templates > **Confirm signup**:
-
-      Assunto: `Confirma o teu email no ProJardim`
-
-      ```html
-      <h2>Bem-vindo ao ProJardim</h2>
-      <p>Usa este código na app para confirmar o teu email:</p>
-      <p style="font-size:28px;font-weight:700;letter-spacing:6px">{{ .Token }}</p>
-      <p>Se não criaste uma conta, ignora este email.</p>
-      ```
+- [ ] Authentication > Emails > Templates > **Confirm signup**: assunto e corpo em
+      `supabase/templates/confirmation.html` e `subjects.json` (feito a 13/11).
 - [ ] Authentication > Providers > Email > ligar **Confirm email** e guardar.
 
 Os utilizadores que já existem não são afetados (a migration 0036 marcou-os todos como
