@@ -23,6 +23,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     // Firebase (push FCM) — lê android/app/google-services.json.
     id("com.google.gms.google-services") version "4.4.4" apply false
+    // Crashlytics (envia os símbolos e liga o relatório de falhas).
+    id("com.google.firebase.crashlytics") version "3.0.6" apply false
 }
 
 include(":app")
