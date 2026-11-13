@@ -152,7 +152,7 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 - **Impacto:** só pela API; o link de WhatsApp da própria conta fica partido.
 - **Solução:** `CHECK` com o mesmo formato de `phone_utils.dart` (só depois de limpar valores antigos). **Esforço:** S · **Quem:** C (migration 0076) · **Antes:** não.
 
-### AUD-28 · Cartão frota é uma demonstração
+### AUD-28 · Cartão frota é uma demonstração · DECIDIDO 13/11: fica como está (decisão do Henrique)
 - **Evidência:** `STATUS.md`: dados fictícios, ativação manual por SQL, sem parceiro; visível como benefício do Pro+ no Perfil.
 - **Impacto:** um jardineiro Pro+ pode pedir um cartão que não existe.
 - **Solução:** esconder até haver parceiro (flag), ou deixar só para o pitch fora da build pública. **Esforço:** S · **Quem:** H decide · **Antes:** sim, se houver Pro+ no lançamento.
