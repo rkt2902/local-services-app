@@ -178,9 +178,11 @@ String scheduledCountdownLabel(JobRequest job, DateTime now) {
   return '$dayLabel às $hhmm · daqui a ${durationLabel(left)}';
 }
 
-/// "2h 10min", "45min", "3h".
+/// "2h 10min", "45min", "3h"; abaixo de 1 minuto, "menos de 1min" (e não
+/// "0min").
 String durationLabel(Duration d) {
   final minutes = d.inMinutes < 0 ? 0 : d.inMinutes;
+  if (minutes == 0) return 'menos de 1min';
   final h = minutes ~/ 60;
   final m = minutes % 60;
   if (h == 0) return '${m}min';

@@ -25,6 +25,12 @@ class AgendaIntroNotifier extends AsyncNotifier<bool> {
 
   /// ✕, "Agora não" ou o primeiro trabalho guardado pelo cartão.
   Future<void> markDone() async {
+    // Se a leitura inicial ainda está a decorrer, espera por ela: senão
+    // acabava depois e repunha o "por ver" (primeiro registo feito fora do
+    // cartão, testes de 13/11).
+    try {
+      await future;
+    } catch (_) {}
     state = const AsyncData(true);
     final key = _key;
     if (key == null) return;

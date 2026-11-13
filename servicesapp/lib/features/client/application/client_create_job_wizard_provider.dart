@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
+import '../data/create_job_draft_store.dart';
 
 /// Marca "não mexer" do `copyWith` para campos que podem voltar a `null`.
 const _unset = Object();
@@ -156,12 +157,50 @@ class ClientCreateJobWizardState {
 
 class ClientCreateJobWizardNotifier
     extends Notifier<ClientCreateJobWizardState> {
+  static const _store = CreateJobDraftStore();
+
+  /// Só grava depois de tentar recuperar o rascunho guardado: senão o
+  /// estado vazio inicial apagava-o antes de ser lido.
+  bool _restored = false;
+
   @override
   ClientCreateJobWizardState build() {
     // Rascunho por utilizador: ao terminar sessão ou trocar de conta o
     // provider reconstrói-se e o rascunho do anterior desaparece.
-    ref.watch(currentUserIdProvider);
+    final userId = ref.watch(currentUserIdProvider);
+    _restored = false;
+    listenSelf((_, next) {
+      if (userId != null && _restored) _save(userId, next);
+    });
+    if (userId != null) _restore(userId);
     return const ClientCreateJobWizardState();
+  }
+
+  /// Rascunho guardado no dispositivo (sobrevive a fechar a app). Só entra
+  /// se entretanto não se começou nada.
+  Future<void> _restore(String userId) async {
+    ClientCreateJobWizardState? draft;
+    try {
+      draft = await _store.load(userId);
+    } catch (_) {
+      draft = null;
+    }
+    if (!ref.mounted) return;
+    final untouched = state.serviceTypeId == null &&
+        state.description.isEmpty &&
+        state.locationLat == null &&
+        !state.isDirectRequest;
+    _restored = true;
+    if (draft != null && untouched) {
+      state = draft;
+    } else {
+      _save(userId, state);
+    }
+  }
+
+  /// Gravar é só conforto: sem armazenamento (testes, modo privado) segue.
+  void _save(String userId, ClientCreateJobWizardState value) {
+    _store.save(userId, value).catchError((_) {});
   }
 
   void setService(String serviceTypeId) {

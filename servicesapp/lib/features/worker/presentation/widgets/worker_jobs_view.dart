@@ -197,9 +197,7 @@ class WorkerJobsScreen extends StatelessWidget {
                 ),
               ],
               bottom: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: AppTabs(
                   items: [
                     const AppTabItem(label: 'Agenda'),
@@ -648,139 +646,144 @@ class _WorkerJobCardState extends State<_WorkerJobCard>
     final job = widget.job;
     final muted = job.muted;
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        onTap: widget.onPressed,
+    // Anunciado como botão (o cartão abre o trabalho); "Retirar proposta"
+    // continua a ser um botão à parte dentro dele.
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        child: AnimatedBuilder(
-          animation: _highlightController,
-          builder: (context, child) {
-            final t = _highlightController.value;
-            // Fundo âmbar claro (mesmo token dos badges "waiting") a
-            // desvanecer para a superfície normal do card.
-            final background = Color.lerp(
-              muted ? AppColors.background : AppColors.surface,
-              AppStatusColor.waiting.background,
-              t,
-            )!;
-            final warned = job.warningLabel != null;
-            // Com aviso de agenda o contorno fica âmbar e mais grosso (R1).
-            final border = warned
-                ? AppStatusColor.waiting.foreground
-                : Color.lerp(
-                    AppColors.divider,
-                    AppStatusColor.waiting.foreground,
-                    t,
-                  )!;
-            return Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: background,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: border, width: warned ? 2 : 1),
-              ),
-              child: child,
-            );
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ServiceIcon(icon: job.serviceIcon, muted: muted),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          job.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.titleMedium?.copyWith(
-                            color: muted
-                                ? AppColors.textSecondary
-                                : AppColors.textPrimary,
+        child: InkWell(
+          onTap: widget.onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: AnimatedBuilder(
+            animation: _highlightController,
+            builder: (context, child) {
+              final t = _highlightController.value;
+              // Fundo âmbar claro (mesmo token dos badges "waiting") a
+              // desvanecer para a superfície normal do card.
+              final background = Color.lerp(
+                muted ? AppColors.background : AppColors.surface,
+                AppStatusColor.waiting.background,
+                t,
+              )!;
+              final warned = job.warningLabel != null;
+              // Com aviso de agenda o contorno fica âmbar e mais grosso (R1).
+              final border = warned
+                  ? AppStatusColor.waiting.foreground
+                  : Color.lerp(
+                      AppColors.divider,
+                      AppStatusColor.waiting.foreground,
+                      t,
+                    )!;
+              return Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                  border: Border.all(color: border, width: warned ? 2 : 1),
+                ),
+                child: child,
+              );
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ServiceIcon(icon: job.serviceIcon, muted: muted),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            job.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium?.copyWith(
+                              color: muted
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        // Papel e estado por baixo do título, e não ao lado:
-                        // ao lado roubavam a largura e cortavam a data, a
-                        // hora e o preço.
-                        const SizedBox(height: AppSpacing.xs),
-                        Wrap(
-                          spacing: AppSpacing.xxs,
-                          runSpacing: AppSpacing.xxs,
-                          children: [
-                            if (job.roleLabel != null)
-                              _RoleChip(label: job.roleLabel!),
-                            AppStatusBadge.fromPresentation(
-                              presentation: job.status,
+                          // Papel e estado por baixo do título, e não ao lado:
+                          // ao lado roubavam a largura e cortavam a data, a
+                          // hora e o preço.
+                          const SizedBox(height: AppSpacing.xs),
+                          Wrap(
+                            spacing: AppSpacing.xxs,
+                            runSpacing: AppSpacing.xxs,
+                            children: [
+                              if (job.roleLabel != null)
+                                _RoleChip(label: job.roleLabel!),
+                              AppStatusBadge.fromPresentation(
+                                presentation: job.status,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            job.metaLabel,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          if (job.amountLabel != null) ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              job.amountLabel!,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          job.metaLabel,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        if (job.amountLabel != null) ...[
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            job.amountLabel!,
-                            maxLines: 1,
-                            softWrap: false,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
                         ],
-                      ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (job.warningLabel != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _AgendaWarningNote(
+                    label: job.warningLabel!,
+                    onPressed: widget.onWarningPressed,
+                  ),
+                ],
+                if (job.withdrawLabel != null && widget.onWithdraw != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton(
+                      onPressed: job.withdrawing ? null : widget.onWithdraw,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppStatusColor.cancelled.foreground,
+                        minimumSize: const Size(0, AppSizes.headerIconButton),
+                        side: const BorderSide(
+                          color: AppColors.divider,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.input),
+                        ),
+                        textStyle: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: Text(
+                        job.withdrawing ? 'A retirar…' : job.withdrawLabel!,
+                      ),
                     ),
                   ),
                 ],
-              ),
-              if (job.warningLabel != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _AgendaWarningNote(
-                  label: job.warningLabel!,
-                  onPressed: widget.onWarningPressed,
-                ),
               ],
-              if (job.withdrawLabel != null && widget.onWithdraw != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: OutlinedButton(
-                    onPressed: job.withdrawing ? null : widget.onWithdraw,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppStatusColor.cancelled.foreground,
-                      minimumSize: const Size(0, AppSizes.headerIconButton),
-                      side: const BorderSide(
-                        color: AppColors.divider,
-                        width: 1.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.input),
-                      ),
-                      textStyle: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    child: Text(
-                      job.withdrawing ? 'A retirar…' : job.withdrawLabel!,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
