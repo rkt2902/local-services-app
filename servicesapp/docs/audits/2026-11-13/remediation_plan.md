@@ -164,11 +164,11 @@ Não encontrei nenhum P0 no código. Os P1 são quase todos **configuração, ve
 | ID | Título | Evidência | Solução | Esf. |
 |---|---|---|---|---|
 | AUD-21 (0076, aplicada) | 14 chaves estrangeiras sem índice | ex. `job_requests(direct_worker_id)` lido pelo cron a cada 5 min | índices numa migration futura quando houver volume | S |
-| AUD-22 (corrigido, PR #57) | `debugPrint` também escreve em release | 15 chamadas em `lib/` | trocar por um logger que só escreve em debug ou para o Crashlytics | S |
+| AUD-22 (corrigido, PR #58) | `debugPrint` também escreve em release | 15 chamadas em `lib/` | trocar por um logger que só escreve em debug ou para o Crashlytics | S |
 | AUD-23 | Ficheiros de UI muito grandes | `worker_my_job_detail_view.dart` 2739 linhas, `worker_edit_profile_view.dart` 2375 | partir quando se mexer neles, não antes do lançamento | L |
 | AUD-24 | Dependências atrás e 16 KB do ML Kit | `flutter pub outdated`; ML Kit 0.15 | atualizar depois do lançamento; verificar 16 KB no AAB antes | M |
-| AUD-25 (imagens corrigidas, PR #57) | Lista de pedidos do cliente sem paginação; 21 `Image.network` sem `cacheWidth` | `job_repository.dart:155` | imagens: avatares e miniaturas descodificados no tamanho certo (`network_image_sizes.dart`); paginar quando um cliente tiver dezenas de pedidos (por fazer) | S |
-| AUD-26 (corrigido, PR #57) | Botões abaixo de 48 px | remover foto (26 px), contador de ajudantes (36 px) (`STATUS.md`) | aumentar a área de toque | S |
+| AUD-25 (imagens corrigidas, PR #58) | Lista de pedidos do cliente sem paginação; 21 `Image.network` sem `cacheWidth` | `job_repository.dart:155` | imagens: avatares e miniaturas descodificados no tamanho certo (`network_image_sizes.dart`); paginar quando um cliente tiver dezenas de pedidos (por fazer) | S |
+| AUD-26 (corrigido, PR #58) | Botões abaixo de 48 px | remover foto (26 px), contador de ajudantes (36 px) (`STATUS.md`) | aumentar a área de toque | S |
 | AUD-27 (corrigido) | `allowBackup` por omissão | `AndroidManifest.xml` sem `android:allowBackup` | `android:allowBackup="false"` ou regras de backup sem as preferências da sessão | S |
 | AUD-29 (0076, aplicada) | Grants por omissão do `anon` incluem `TRUNCATE` | `information_schema.role_table_grants` | `REVOKE TRUNCATE ... FROM anon, authenticated` numa migration futura | S |
 
