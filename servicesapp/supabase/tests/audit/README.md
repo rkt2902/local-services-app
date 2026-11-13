@@ -11,6 +11,7 @@ Resultados e explicação em `docs/systematic-debugging-audit/` (03, 04 e 07).
 - `10_flows.sql`: 162 asserções, um bloco por fluxo (T-PROF, T-JOB, T-DISC, T-PROP, T-HELP, T-RESCH, T-EXEC, T-RATE, T-CANC, T-EDIT, T-PLAN, T-ADM, T-NOTIF, T-PUSH, T-AG, T-FLEET, T-CARD, T-STOR, T-CRON, T-DEL).
 - `30_findings.sql`: regressão dos bugs corrigidos na 0074 (F-002, F-003, F-004, F-006, F-007, F-008). Corre depois do `10_flows.sql`.
 - `20_concurrency.sh`: duas sessões ao mesmo tempo (RACE-01 a RACE-05).
+- `40_help_slot_race.sh` (13/11): última vaga de ajudante disputada por dois candidatos (RACE-06) e aceitar enquanto se mudam as vagas (RACE-07). Corre depois do `10_flows.sql`.
 - `run.sh`: monta a BD `pj_audit` e corre o `10_flows.sql`.
 
 ## Como correr
@@ -27,6 +28,7 @@ cd servicesapp/supabase/tests/audit
 bash run.sh keep                                            # migrations + 10_flows
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 30_findings.sql
 bash 20_concurrency.sh
+bash 40_help_slot_race.sh
 ```
 
 No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**. Com a 0074 passam todas (162/162 e RACE-01 a RACE-04); qualquer `FAIL` é uma regressão.

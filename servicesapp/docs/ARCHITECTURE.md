@@ -550,7 +550,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Próxima migration: `0066`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+A `0075` e a `0076` estão no repositório por aplicar. Próxima migration: `0077`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

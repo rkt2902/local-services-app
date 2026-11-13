@@ -40,7 +40,9 @@ da `0001` à `0065` (a `0050` não existe). A lista com o que cada uma faz está
 `supabase/migrations/README.md`. Os passos de aplicação e de teste de cada uma (antigos
 0.1 a 0.17) saíram daqui; ficam no histórico do git se precisares deles.
 
-Quando o Claude criar uma migration nova (a próxima é a `0066`): SQL Editor, colar o
+Por aplicar a 13/11: `0075` e `0076` (por esta ordem, com um dump antes).
+
+Quando o Claude criar uma migration nova (a próxima é a `0077`): SQL Editor, colar o
 ficheiro, correr, e dizer ao Claude "00xx aplicada". As migrations recentes podem
 correr-se mais do que uma vez sem erro.
 
@@ -493,40 +495,28 @@ o que falhou foi ..."
 
 ---
 
-## 8. Backups
+## 8. Build de release Android (auditoria de 13/11)
 
-O plano Free do Supabase não deixa descarregar backups, por isso a action
-`.github/workflows/backup-db.yml` faz um dump todos os dias às 04:15 UTC.
+- O build de release **falha** sem `android/key.properties` (de propósito: a Play recusa
+  a chave de debug). Criar a upload key e o ficheiro como em
+  `projardim/play-store/checklist-lancamento.md`.
+- Sem `SUPABASE_URL` e `SUPABASE_ANON_KEY` a app abre só um ecrã "Build sem
+  configuração". Passar também `APP_PUBLIC_URL` e `SUPPORT_EMAIL` (sem o primeiro, os
+  links e o QR do cartão apontam para `projardim.pt`).
+- **Crashlytics:** com o `google-services.json` presente, o Gradle aplica o plugin do
+  Crashlytics e a app envia os erros não tratados **só em release**. Ativar no Firebase
+  Console > Crashlytics (primeira vez: abrir a app de release, forçar um erro e esperar
+  uns minutos). Se o Gradle disser que não encontra `com.google.firebase.crashlytics`
+  3.0.4, muda a versão em `android/settings.gradle.kts` para a última de
+  https://firebase.google.com/support/release-notes/android.
+- A fonte Plus Jakarta Sans vem nos assets; a app já não a descarrega da Google.
 
-**Onde fica:** em GitHub > Actions > "Backup BD" > cada execução >
-Artifacts, um ficheiro `projardim-AAAA-MM-DD.tar.gz.gpg`. Fica 30 dias e
-depois apaga-se sozinho. Vai cifrado porque o repositório é público.
+### Testar
 
-**Configurar (uma vez)**, em Settings > Secrets and variables > Actions >
-New repository secret:
+- [ ] `flutter build appbundle --release` sem `key.properties` falha com "Falta android/key.properties".
+- [ ] Com tudo, o AAB instala e abre no onboarding; um erro forçado aparece no Crashlytics.
 
-1. `SUPABASE_DB_URL`: Supabase > Connect > "Session pooler" (porta 5432),
-   com a palavra-passe da BD no lugar de `[YOUR-PASSWORD]`. A "Direct
-   connection" não funciona nos runners (só IPv6).
-2. `BACKUP_PASSPHRASE`: uma frase longa só tua. Guarda-a também no gestor
-   de passwords; sem ela os backups não abrem.
-
-Depois, Actions > "Backup BD" > Run workflow faz o primeiro dump na hora
-(e serve para qualquer dump avulso).
-
-**Abrir um backup** (Linux, Mac ou Git Bash no Windows):
-
-```bash
-gpg --decrypt projardim-AAAA-MM-DD.tar.gz.gpg | tar xz
-```
-
-Ficam `roles.sql`, `schema.sql` e `data.sql`. Para restaurar numa BD nova,
-aplicar por esta ordem com `psql`, com `session_replication_role = replica`
-no `data.sql` para os triggers não dispararem.
-
-**Copiar para fora do GitHub:** uma vez por mês, descarregar o mais recente
-e guardá-lo noutro sítio (disco ou Google Drive), porque o GitHub só guarda
-30 dias.
+---
 
 ## Não ligar ainda
 

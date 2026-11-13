@@ -63,6 +63,7 @@ dependencies:
   firebase_messaging: ^17.0.0
   font_awesome_flutter: ^11.0.0
   pdf: ^3.13.1
+  firebase_crashlytics: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -92,6 +93,9 @@ flutter:
   # e flutter_native_splash no fim deste ficheiro.
   assets:
     - assets/branding/app_icon_rounded.png
+    # Plus Jakarta Sans empacotada (AUD-17): o google_fonts usa estes
+    # ficheiros e não descarrega nada em runtime (ver main.dart).
+    - assets/google_fonts/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

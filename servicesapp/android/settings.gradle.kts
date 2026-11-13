@@ -23,6 +23,9 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     // Firebase (push FCM) — lê android/app/google-services.json.
     id("com.google.gms.google-services") version "4.4.4" apply false
+    // Crashlytics (AUD-07): só se aplica com o google-services.json, como o
+    // plugin acima. Sem ele o SDK do Android recusa arrancar ("build ID").
+    id("com.google.firebase.crashlytics") version "3.0.4" apply false
 }
 
 include(":app")

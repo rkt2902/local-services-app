@@ -142,7 +142,11 @@ class GeocodingService {
     // Primeiro a mesma pesquisa das sugestões (mais tolerante a moradas
     // incompletas); só sem resultado é que segue como antes.
     try {
-      final suggestions = await suggestAddresses(text, limit: 1);
+      final suggestions = await suggestAddresses(
+        text,
+        limit: 1,
+        allowNominatimFallback: true,
+      );
       if (suggestions.isNotEmpty) {
         return (lat: suggestions.first.lat, lng: suggestions.first.lng);
       }
@@ -174,16 +178,20 @@ class GeocodingService {
     return (lat: lat, lng: lng);
   }
 
-  /// Sugestões enquanto se escreve (até [limit]). Primeiro o Photon (feito
-  /// para pesquisa à medida que se escreve: aceita moradas incompletas e
-  /// erros pequenos), perto de [nearLat]/[nearLng] quando há; se falhar ou
-  /// vier vazio, o Nominatim. Lista vazia sem resultados; lança só se os
-  /// dois falharem por rede.
+  /// Sugestões enquanto se escreve (até [limit]). Só o Photon (feito para
+  /// pesquisa à medida que se escreve: aceita moradas incompletas e erros
+  /// pequenos), perto de [nearLat]/[nearLng] quando há. Lista vazia sem
+  /// resultados; lança se o Photon falhar por rede.
+  ///
+  /// O Nominatim só entra com [allowNominatimFallback] (pesquisa pedida de
+  /// propósito, como [searchAddress]): a política de uso do Nominatim
+  /// proíbe autocompletar e limita a 1 pedido por segundo (AUD-13).
   static Future<List<AddressSuggestion>> suggestAddresses(
     String text, {
     double? nearLat,
     double? nearLng,
     int limit = 5,
+    bool allowNominatimFallback = false,
   }) async {
     final query = text.trim();
     if (query.length < 3) return const [];
@@ -209,6 +217,13 @@ class GeocodingService {
       }
     } catch (e) {
       photonError = e;
+    }
+    if (!allowNominatimFallback) {
+      if (photonError != null) {
+        debugPrint('GeocodingService.suggestAddresses: $photonError');
+        throw photonError;
+      }
+      return const [];
     }
     try {
       final uri = Uri.parse(_nominatimSearchUrl).replace(queryParameters: {

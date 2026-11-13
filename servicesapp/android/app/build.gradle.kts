@@ -12,11 +12,12 @@ plugins {
 // (sem ele o push fica simplesmente desligado — ver PushNotificationService).
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 // Assinatura de release: lê android/key.properties (fora do git, ver
 // .gitignore) com storeFile, storePassword, keyAlias e keyPassword. Sem esse
-// ficheiro, o release continua assinado com a chave de debug, como antes.
+// ficheiro, o build de release falha (ver o bloco taskGraph mais abaixo).
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
@@ -64,6 +65,19 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+// AUD-04 (auditoria 13/11): um release assinado com a chave de debug não
+// entra na Play. Sem key.properties, qualquer tarefa de release falha logo
+// com uma mensagem clara (debug e profile continuam a funcionar).
+gradle.taskGraph.whenReady {
+    val wantsRelease = allTasks.any { it.name.contains("Release") }
+    if (wantsRelease && !keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "Falta android/key.properties: o build de release tem de ser " +
+                "assinado com a upload key (ver docs/SETUP.md).",
+        )
     }
 }
 

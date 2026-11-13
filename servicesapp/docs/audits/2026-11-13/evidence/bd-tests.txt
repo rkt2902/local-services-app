@@ -1,0 +1,10 @@
+migrations: 43 ficheiros aplicados sem erro
+TOTAL 162 | PASS 162 | FAIL 0
+     20 PASS 
+PASS | RACE-01 duas aceitações em paralelo: só uma proposta fica aceite | esperado=1 obtido=1
+PASS | RACE-02 aceitar e retirar ao mesmo tempo: estado coerente | esperado=confirmed/accepted obtido=confirmed/accepted
+PASS | RACE-03 fotos em paralelo respeitam o máximo de 2 | esperado=2 obtido=2
+PASS | RACE-04 duplo envio de proposta cria só uma | esperado=1 obtido=1
+INFO | RACE-05 aceitar e depois cancelar em paralelo: pedido=cancelled proposta=accepted (o cancelamento espera pela aceitação e decide sobre o estado final)
+PASS | RACE-06 dois candidatos aceites em paralelo para a última vaga: só um entra | esperado=1/filled obtido=1/filled
+INFO | RACE-07 aceitar e aumentar vagas ao mesmo tempo: aceites=1 pedido=open/2 | B: 
