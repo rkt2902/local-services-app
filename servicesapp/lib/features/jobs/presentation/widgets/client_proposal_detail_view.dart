@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/widgets/app_confirm_dialog.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
@@ -130,6 +131,8 @@ class ClientProposalDetailView extends StatefulWidget {
     required this.onAccept,
     required this.onAccepted,
     required this.onBackToList,
+    this.onReject,
+    this.onRejected,
   });
 
   /// `data(null)`: a proposta já não está na lista (retirada ou aceite
@@ -147,6 +150,14 @@ class ClientProposalDetailView extends StatefulWidget {
   final VoidCallback onAccepted;
   final VoidCallback onBackToList;
 
+  /// "Recusar proposta" (`reject_proposal`, F12 dos testes Android de
+  /// 13/11). Devolve `true` só depois de o servidor confirmar. Nulo
+  /// esconde o botão.
+  final Future<bool> Function(String proposalId)? onReject;
+
+  /// Chamado depois da recusa confirmada; quem integra navega.
+  final VoidCallback? onRejected;
+
   @override
   State<ClientProposalDetailView> createState() =>
       _ClientProposalDetailViewState();
@@ -154,6 +165,7 @@ class ClientProposalDetailView extends StatefulWidget {
 
 class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
   bool _accepting = false;
+  bool _rejecting = false;
   bool _expiredNow = false;
   bool _unavailable = false;
   String? _error;
@@ -196,6 +208,38 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
     }
   }
 
+  Future<void> _reject(ClientProposalDetailViewData data) async {
+    final onReject = widget.onReject;
+    if (onReject == null || _rejecting || _accepting) return;
+    final firstName = data.workerName.split(' ').first;
+    final go = await AppConfirmDialog.show(
+      context,
+      icon: Icons.close_rounded,
+      title: 'Recusar esta proposta?',
+      message: '$firstName fica a saber que a proposta não foi '
+          'selecionada. As outras propostas continuam abertas.',
+      confirmLabel: 'Recusar',
+      destructive: true,
+    );
+    if (go != true || !mounted) return;
+    setState(() {
+      _rejecting = true;
+      _error = null;
+    });
+    var ok = false;
+    try {
+      ok = await onReject(data.proposalId);
+    } catch (_) {
+      ok = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _rejecting = false;
+      if (!ok) _error = 'Não foi possível recusar a proposta. Tenta novamente.';
+    });
+    if (ok) widget.onRejected?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = widget.dataAsync.value;
@@ -222,9 +266,11 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
         data: data,
         expired: data.expired || _expiredNow,
         accepting: _accepting,
+        rejecting: _rejecting,
         error: _error,
         onOpenProfile: widget.onOpenWorkerProfile,
         onAccept: () => _accept(data),
+        onReject: widget.onReject == null ? null : () => _reject(data),
       );
     } else if (widget.dataAsync.hasError) {
       title = 'Proposta';
@@ -320,17 +366,21 @@ class _DetailBody extends StatelessWidget {
     required this.data,
     required this.expired,
     required this.accepting,
+    required this.rejecting,
     required this.error,
     required this.onOpenProfile,
     required this.onAccept,
+    required this.onReject,
   });
 
   final ClientProposalDetailViewData data;
   final bool expired;
   final bool accepting;
+  final bool rejecting;
   final String? error;
   final VoidCallback onOpenProfile;
   final VoidCallback onAccept;
+  final VoidCallback? onReject;
 
   @override
   Widget build(BuildContext context) {
@@ -454,10 +504,31 @@ class _DetailBody extends StatelessWidget {
             AppSpacing.md,
             AppSpacing.md,
           ),
-          child: PrimaryActionButton(
-            label: accepting ? 'A aceitar...' : data.acceptActionLabel,
-            isLoading: accepting,
-            onPressed: (expired || accepting) ? null : onAccept,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PrimaryActionButton(
+                label: accepting ? 'A aceitar...' : data.acceptActionLabel,
+                isLoading: accepting,
+                onPressed:
+                    (expired || accepting || rejecting) ? null : onAccept,
+              ),
+              if (onReject != null && !expired) ...[
+                const SizedBox(height: AppSpacing.xs),
+                TextButton(
+                  onPressed: (accepting || rejecting) ? null : onReject,
+                  child: Text(
+                    rejecting ? 'A recusar...' : 'Recusar proposta',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: (accepting || rejecting)
+                          ? AppStatusColor.neutral.foreground
+                          : AppStatusColor.cancelled.foreground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],

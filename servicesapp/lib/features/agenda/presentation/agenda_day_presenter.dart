@@ -425,14 +425,20 @@ AgendaDayContentViewData buildAgendaDay({
   var nowPlaced = !isToday || units.isEmpty;
   int? previousEnd;
   for (final unit in units) {
+    // Concluídos e cancelados não ocupam tempo: não contam para os
+    // intervalos livres ("Só 8 min até ao próximo" num trabalho já
+    // concluído, F4 dos testes Android de 13/11).
+    final occupies = unit.entries.any(
+      (e) => !e.isClosed && e.status != 'cancelled',
+    );
     if (!nowPlaced && nowMinutes < unit.start) {
       items.add(AgendaDayItem.now(formatMinutes(nowMinutes)));
       nowPlaced = true;
       final from = previousEnd == null || previousEnd < nowMinutes
           ? nowMinutes
           : previousEnd;
-      addGap(from, unit.start, sinceNow: true);
-    } else if (previousEnd != null) {
+      if (occupies) addGap(from, unit.start, sinceNow: true);
+    } else if (previousEnd != null && occupies) {
       addGap(previousEnd, unit.start);
     }
 
@@ -470,9 +476,11 @@ AgendaDayContentViewData buildAgendaDay({
       items.add(AgendaDayItem.now(formatMinutes(nowMinutes)));
       nowPlaced = true;
     }
-    previousEnd = previousEnd == null || unit.end > previousEnd
-        ? unit.end
-        : previousEnd;
+    if (occupies) {
+      previousEnd = previousEnd == null || unit.end > previousEnd
+          ? unit.end
+          : previousEnd;
+    }
   }
   if (!nowPlaced) items.add(AgendaDayItem.now(formatMinutes(nowMinutes)));
 

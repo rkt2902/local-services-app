@@ -1200,7 +1200,7 @@ class _HelpRequestCard extends StatelessWidget {
     final secondary = textTheme.labelMedium?.copyWith(
       color: AppColors.textSecondary,
     );
-    final slots = summary.slotsNeeded;
+    final slots = summary.slotsRemaining;
     final distance = distanceMeters == null
         ? null
         : distanceLabel(distanceMeters!);

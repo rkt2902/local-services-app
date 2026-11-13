@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,7 +54,41 @@ class ClientScheduledJobDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ClientScheduledJobDetailScreenState
-    extends ConsumerState<ClientScheduledJobDetailScreen> {
+    extends ConsumerState<ClientScheduledJobDetailScreen>
+    with WidgetsBindingObserver {
+  /// A cliente não recebe aviso quando um ajudante entra na equipa: sem
+  /// isto a equipa ficava "0/1" até sair e voltar a entrar (F10 dos testes
+  /// Android de 13/11). Recarrega a equipa de 30 em 30 s e ao voltar à app.
+  Timer? _teamRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _teamRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _refreshTeam(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _teamRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshTeam();
+  }
+
+  void _refreshTeam() {
+    if (!mounted) return;
+    ref.invalidate(acceptedHelpersForJobProvider(widget.jobId));
+    ref.invalidate(helpRequestsForJobProvider(widget.jobId));
+  }
+
   bool _saving = false;
   bool _proposingReschedule = false;
   bool _respondingReschedule = false;

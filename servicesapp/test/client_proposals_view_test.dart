@@ -102,6 +102,8 @@ Widget _detailScreen(
   AsyncValue<ClientProposalDetailViewData?> data, {
   Future<ClientProposalAcceptResult> Function(String)? onAccept,
   VoidCallback? onAccepted,
+  Future<bool> Function(String)? onReject,
+  VoidCallback? onRejected,
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -114,6 +116,8 @@ Widget _detailScreen(
             onAccept ?? (_) async => const ClientProposalAcceptResult.accepted(),
         onAccepted: onAccepted ?? () {},
         onBackToList: () {},
+        onReject: onReject,
+        onRejected: onRejected,
       ),
     ),
   );
@@ -234,6 +238,37 @@ void main() {
     await tester.tap(find.text('Aceitar por 450 €'));
     await tester.pumpAndSettle();
     expect(accepted, isTrue);
+  });
+
+  testWidgets('detalhe: recusar pede confirmação e só sai depois do servidor',
+      (tester) async {
+    String? rejectedId;
+    var rejected = false;
+    await tester.pumpWidget(_detailScreen(
+      const AsyncData(_detail),
+      onReject: (id) async {
+        rejectedId = id;
+        return true;
+      },
+      onRejected: () => rejected = true,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Recusar proposta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recusar esta proposta?'), findsOneWidget);
+    expect(rejectedId, isNull);
+
+    await tester.tap(find.text('Recusar'));
+    await tester.pumpAndSettle();
+    expect(rejectedId, _detail.proposalId);
+    expect(rejected, isTrue);
+  });
+
+  testWidgets('detalhe: sem onReject não há botão de recusar', (tester) async {
+    await tester.pumpWidget(_detailScreen(const AsyncData(_detail)));
+    await tester.pumpAndSettle();
+    expect(find.text('Recusar proposta'), findsNothing);
   });
 
   testWidgets('detalhe: expirou ao aceitar mostra o aviso', (tester) async {

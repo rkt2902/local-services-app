@@ -20,6 +20,15 @@ class HelpRequestSummary {
   final double paymentPerHelper;
   final DateTime? confirmedDate;
   final String? confirmedTime; // "HH:MM:SS" from DB
+  // 0077: ajudantes já aceites. 0 quando a RPC ainda não foi atualizada.
+  final int slotsFilled;
+
+  /// Vagas que ainda faltam preencher (F11 dos testes Android de 13/11:
+  /// o Descobrir mostrava as vagas totais).
+  int get slotsRemaining {
+    final left = slotsNeeded - slotsFilled;
+    return left < 0 ? 0 : left;
+  }
 
   const HelpRequestSummary({
     required this.id,
@@ -38,6 +47,7 @@ class HelpRequestSummary {
     this.paymentPerHelper = 0.0,
     this.confirmedDate,
     this.confirmedTime,
+    this.slotsFilled = 0,
   });
 
   factory HelpRequestSummary.fromJson(Map<String, dynamic> json) =>
@@ -61,6 +71,7 @@ class HelpRequestSummary {
             ? DateTime.parse(json['confirmed_date'] as String)
             : null,
         confirmedTime: json['confirmed_time'] as String?,
+        slotsFilled: (json['slots_filled'] as num?)?.toInt() ?? 0,
       );
 }
 

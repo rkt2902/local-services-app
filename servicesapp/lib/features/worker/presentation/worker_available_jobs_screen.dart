@@ -251,15 +251,22 @@ class _WorkerAvailableJobsScreenState
       serviceTypeIdOf: (s) => s.id,
       serviceTypeLabelOf: (s) => s.name,
       serviceTypeIconOf: (s) => serviceIconFor(s.icon),
-      onJobPressed: (id) => context.push('/worker/job/$id'),
+      onJobPressed: (id) async {
+        await context.push('/worker/job/$id');
+        // Ao voltar, a lista reflete o que mudou entretanto (ex.: o cliente
+        // cancelou o pedido; F1 dos testes Android de 13/11).
+        if (mounted) ref.invalidate(jobsInRadiusProvider);
+      },
       onSearchChanged: (query) => setState(() => _searchQuery = query),
       onFiltersChanged: (filters) => setState(() => _filters = filters),
       onDistancePressed: () => _pickDistance(profileRadiusKm),
       distanceLabel: '≤ $effectiveRadiusKm km',
-      isLoadingJobs: jobsAsync.isLoading,
+      // Ao recarregar (voltar do detalhe, puxar) mantém a lista à vista.
+      isLoadingJobs: jobsAsync.isLoading && !jobsAsync.hasValue,
       jobsErrorMessage:
           jobsAsync.hasError ? friendlyError(jobsAsync.error!) : null,
       onRetryJobs: () => ref.invalidate(jobsInRadiusProvider),
+      onRefreshJobs: () => ref.refresh(jobsInRadiusProvider.future),
       unreadNotifications: ref.watch(unreadCountProvider),
       onNotificationsPressed: () => context.push('/notifications'),
     );

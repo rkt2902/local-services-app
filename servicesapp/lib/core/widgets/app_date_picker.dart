@@ -19,6 +19,10 @@ Future<DateTime?> showAppDatePicker({
   required DateTime firstDate,
   required DateTime lastDate,
 }) {
+  // Sem isto, ao fechar o calendário o foco voltava ao último campo de
+  // texto e o teclado reabria por cima do formulário (F3 dos testes
+  // Android de 13/11).
+  FocusManager.instance.primaryFocus?.unfocus();
   return showDatePicker(
     context: context,
     initialDate: initialDate,

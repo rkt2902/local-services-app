@@ -107,6 +107,7 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
     this.isLoadingJobs = false,
     this.jobsErrorMessage,
     this.onRetryJobs,
+    this.onRefreshJobs,
     this.unreadNotifications = 0,
     this.onNotificationsPressed,
     this.onFiltersPressed,
@@ -140,6 +141,10 @@ class WorkerAvailableJobsScreen<TServiceType> extends StatefulWidget {
   final bool isLoadingJobs;
   final String? jobsErrorMessage;
   final VoidCallback? onRetryJobs;
+
+  /// Puxar para baixo para recarregar a lista (ex.: um pedido cancelado
+  /// pelo cliente desaparece). Nulo desliga o gesto.
+  final Future<void> Function()? onRefreshJobs;
 
   /// Sino do cabeçalho, igual ao do Início e de Trabalhos (A11). Nulo
   /// esconde o sino. "Pedidos de ajuda" vive no "+" e no Perfil.
@@ -364,6 +369,7 @@ class _WorkerAvailableJobsScreenState<TServiceType>
                 loading: widget.isLoadingJobs,
                 errorMessage: widget.jobsErrorMessage,
                 onRetry: widget.onRetryJobs,
+                onRefresh: widget.onRefreshJobs,
                 onJobPressed: widget.onJobPressed,
               ),
             ),
@@ -380,6 +386,7 @@ class _JobsContent extends StatelessWidget {
     required this.loading,
     required this.errorMessage,
     required this.onRetry,
+    required this.onRefresh,
     required this.onJobPressed,
   });
 
@@ -387,7 +394,28 @@ class _JobsContent extends StatelessWidget {
   final bool loading;
   final String? errorMessage;
   final VoidCallback? onRetry;
+  final Future<void> Function()? onRefresh;
   final ValueChanged<String> onJobPressed;
+
+  /// Com `onRefresh`, qualquer estado (lista ou vazio) aceita puxar para
+  /// baixo; o estado vazio fica num scroll com a altura do ecrã.
+  Widget _refreshable(Widget child, {required bool scrollable}) {
+    final refresh = onRefresh;
+    if (refresh == null) return child;
+    if (scrollable) return RefreshIndicator(onRefresh: refresh, child: child);
+    return LayoutBuilder(
+      builder: (context, constraints) => RefreshIndicator(
+        onRefresh: refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -405,35 +433,42 @@ class _JobsContent extends StatelessWidget {
     }
 
     if (jobs.isEmpty) {
-      return const _JobsMessageState(
-        icon: Icons.search_off_rounded,
-        message: 'Não existem pedidos disponíveis para estes filtros.',
+      return _refreshable(
+        const _JobsMessageState(
+          icon: Icons.search_off_rounded,
+          message: 'Não existem pedidos disponíveis para estes filtros.',
+        ),
+        scrollable: false,
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
-        AppSpacing.xl,
-      ),
-      itemCount: jobs.length,
-      separatorBuilder: (_, _) {
-        return const SizedBox(height: AppSpacing.sm);
-      },
-      itemBuilder: (context, index) {
-        final job = jobs[index];
+    return _refreshable(
+      scrollable: true,
+      ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
+        itemCount: jobs.length,
+        separatorBuilder: (_, _) {
+          return const SizedBox(height: AppSpacing.sm);
+        },
+        itemBuilder: (context, index) {
+          final job = jobs[index];
 
-        return AppStaggeredEntrance(
-          key: ValueKey<String>(job.id),
-          index: index,
-          child: _AvailableJobCard(
-            job: job,
-            onPressed: () => onJobPressed(job.id),
-          ),
-        );
-      },
+          return AppStaggeredEntrance(
+            key: ValueKey<String>(job.id),
+            index: index,
+            child: _AvailableJobCard(
+              job: job,
+              onPressed: () => onJobPressed(job.id),
+            ),
+          );
+        },
+      ),
     );
   }
 }

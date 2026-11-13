@@ -190,6 +190,36 @@ class WorkerDashboardScreen extends ConsumerWidget {
       );
     }
 
+    // Sem trabalho próprio marcado, o próximo trabalho como ajudante: antes
+    // o Início dizia "Ainda não existem trabalhos agendados" com um
+    // trabalho de ajudante marcado (F11 dos testes Android de 13/11).
+    String? nextHelperAcceptanceId;
+    if (nextJob == null) {
+      final helper = nextHelperJob(
+        ref.watch(myHelpAcceptancesProvider).asData?.value ??
+            const <HelpAcceptanceSummary>[],
+        today: DateUtils.dateOnly(DateTime.now()),
+      );
+      if (helper != null) {
+        nextHelperAcceptanceId = helper.id;
+        final status = JobStatus.fromValue(helper.jobStatus).presentation();
+        final serviceType = serviceTypes
+            .where((s) => s.name == helper.serviceTypeName)
+            .firstOrNull;
+        nextJob = WorkerDashboardJobSummary(
+          id: helper.jobId,
+          title: helper.serviceTypeName.isEmpty ? '—' : helper.serviceTypeName,
+          dateTimeLabel: _helperScheduleLabel(helper),
+          clientName: helper.principalName.isEmpty
+              ? 'Ajudante'
+              : 'Ajudante de ${helper.principalName}',
+          statusLabel: status.label,
+          statusColor: status.color,
+          icon: serviceIconFor(serviceType?.icon),
+        );
+      }
+    }
+
     final myId = ref.watch(currentUserIdProvider);
     final opportunities = <WorkerDashboardOpportunitySummary>[
       for (final job in opportunitiesRaw.take(_maxOpportunities))
@@ -312,11 +342,15 @@ class WorkerDashboardScreen extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.sm),
                           _NextJobSection(
                             job: data.nextJob,
-                            onPressed: nextJobProposalId == null
-                                ? null
-                                : (jobId) => context.push(
+                            onPressed: nextJobProposalId != null
+                                ? (jobId) => context.push(
                                     '/worker/my-job/$nextJobProposalId?jobId=$jobId',
-                                  ),
+                                  )
+                                : nextHelperAcceptanceId != null
+                                ? (_) => context.push(
+                                    '/worker/help/$nextHelperAcceptanceId',
+                                  )
+                                : null,
                           ),
                         ],
                       ),
@@ -485,6 +519,38 @@ int _scheduledThisWeek(List<Map<String, dynamic>> scheduledRaw, DateTime now) {
     if (!day.isBefore(monday) && day.isBefore(nextMonday)) count++;
   }
   return count;
+}
+
+/// Próximo trabalho como ajudante: candidatura aceite, trabalho por fazer,
+/// de hoje em diante (sem data vai para o fim). Público para os testes.
+HelpAcceptanceSummary? nextHelperJob(
+  List<HelpAcceptanceSummary> acceptances, {
+  required DateTime today,
+}) {
+  final upcoming = [
+    for (final a in acceptances)
+      if (a.status == HelpAcceptanceStatus.accepted &&
+          (a.jobStatus == 'confirmed' || a.jobStatus == 'in_progress') &&
+          (a.confirmedDate == null || !a.confirmedDate!.isBefore(today)))
+        a,
+  ]..sort((a, b) {
+      final da = a.confirmedDate, db = b.confirmedDate;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      final byDate = da.compareTo(db);
+      return byDate != 0
+          ? byDate
+          : (a.confirmedTime ?? '').compareTo(b.confirmedTime ?? '');
+    });
+  return upcoming.firstOrNull;
+}
+
+String _helperScheduleLabel(HelpAcceptanceSummary a) {
+  if (a.confirmedDate == null) return 'Data a combinar';
+  final date = DateFormat('dd/MM/yyyy').format(a.confirmedDate!);
+  final time = a.confirmedTime;
+  return time == null ? date : '$date às ${shortTimeLabel(time)}';
 }
 
 String _confirmedScheduleLabel(JobRequest job) {
