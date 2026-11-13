@@ -68,6 +68,9 @@ class _MarkCompletedSheetState extends State<MarkCompletedSheet> {
   bool _sending = false;
 
   Future<void> _send() async {
+    // Toque duplo: o segundo toque chega antes de o botão se desligar e
+    // fazia uma segunda chamada (que falhava e deixava o ecrã por atualizar).
+    if (_sending) return;
     setState(() => _sending = true);
     final ok = await widget.onSend(_photos);
     if (!mounted) return;

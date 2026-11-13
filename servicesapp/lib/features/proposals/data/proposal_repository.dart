@@ -288,6 +288,22 @@ class ProposalRepository {
       'description': description,
     });
   }
+
+  /// Data do relato mais recente que eu fiz neste trabalho (a policy só
+  /// deixa ler os próprios relatos), ou `null` se não houver.
+  Future<DateTime?> fetchMyLatestReportAt(String jobId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    final rows = await _client
+        .from('job_reports')
+        .select('created_at')
+        .eq('job_id', jobId)
+        .eq('reporter_id', userId)
+        .order('created_at', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) return null;
+    return DateTime.tryParse(rows.first['created_at'] as String? ?? '');
+  }
 }
 
 /// Erro de "proposta repetida" do `create_proposal`, ou `null` para deixar

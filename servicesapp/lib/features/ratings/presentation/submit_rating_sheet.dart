@@ -75,6 +75,8 @@ class _SubmitRatingSheetState extends State<_SubmitRatingSheet> {
   }
 
   Future<void> _submit() async {
+    // Toque duplo: só um envio (o servidor já recusava o segundo).
+    if (_submitting) return;
     setState(() {
       _submitting = true;
       _errorText = null;

@@ -62,6 +62,8 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     }
     if (pending == null || !mounted || _selectedRole != null) return;
     setState(() => _selectedRole = UserRole.client);
+    // Só o ecrã que está à frente cria o perfil sozinho (ver _submit).
+    if (ModalRoute.of(context)?.isCurrent == false) return;
     if (!_identity.needsContact) await _submit();
   }
 
@@ -97,7 +99,14 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       // O email já está confirmado neste ponto (código em /verify-email, ou
       // confirmação desligada no Supabase). O router leva ao início do papel
       // (ou a /worker/setup) assim que sessionStatusProvider recarregar.
-      context.go('/');
+      // Só se o router ainda estiver neste ecrã. Com o pedido pelo cartão
+      // (A7) o ecrã pode ser construído duas vezes; se o primeiro já levou
+      // ao início e abriu o pedido, um segundo go('/') apagava-o.
+      final router = GoRouter.of(context);
+      if (router.routerDelegate.currentConfiguration.uri.path ==
+          '/choose-role') {
+        router.go('/');
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

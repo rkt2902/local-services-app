@@ -19,6 +19,9 @@ const _ratingsCacheTtl = Duration(minutes: 5);
 /// Aggregated rating stats for a worker (avg + count), keyed by workerId.
 final ratingSummaryProvider =
     FutureProvider.autoDispose.family<RatingSummary, String>((ref, workerId) {
+  // Enquanto a proposta aceite carrega, os ecrãs pedem com id vazio: não
+  // vale um pedido (dava 400 "invalid input syntax for type uuid").
+  if (workerId.isEmpty) return (avgRating: 0.0, ratingCount: 0);
   cacheFor(ref, _ratingsCacheTtl);
   return ref.read(ratingRepositoryProvider).fetchRatingSummary(workerId);
 });

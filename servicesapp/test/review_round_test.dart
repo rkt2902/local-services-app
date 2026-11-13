@@ -106,6 +106,27 @@ void main() {
         isNull,
       );
     });
+
+    test('pin sem rua pede a morada (W-2)', () {
+      expect(
+        createJobScheduleMissingLabel(
+          hasDate: true,
+          hasLocation: true,
+          hasAddress: false,
+          hasSize: true,
+        ),
+        'Falta escolher a morada.',
+      );
+      expect(
+        createJobScheduleMissingLabel(
+          hasDate: true,
+          hasLocation: false,
+          hasAddress: false,
+          hasSize: true,
+        ),
+        'Falta escolher o local no mapa.',
+      );
+    });
   });
 
   group('pesquisa de morada', () {

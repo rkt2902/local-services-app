@@ -28,6 +28,14 @@ final pendingProposalsForJobProvider =
       .fetchPendingProposalsForJob(jobId);
 });
 
+/// Quando é que eu reportei um problema neste trabalho pela última vez
+/// (`null` se nunca). A cliente vê o prazo da confirmação automática
+/// passar de 48 horas para 7 dias (0071).
+final myLatestJobReportAtProvider =
+    FutureProvider.autoDispose.family<DateTime?, String>((ref, jobId) {
+  return ref.read(proposalRepositoryProvider).fetchMyLatestReportAt(jobId);
+});
+
 /// Opções de "O que inclui" (migration 0058). Mudam raramente.
 final proposalIncludeOptionsProvider =
     FutureProvider.autoDispose<List<ProposalIncludeOption>>((ref) {

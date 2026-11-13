@@ -66,6 +66,7 @@ class _ClientJobDetailScreenState
     extends ConsumerState<ClientJobDetailScreen> {
   bool _saving = false;
   bool _confirming = false;
+  bool _confirmFlowOpen = false;
   bool _showCompletedFeedback = false;
   String? _selectedProblemId;
 
@@ -263,6 +264,18 @@ class _ClientJobDetailScreenState
   /// ficam em [_handleConfirmCompleted], que mostra o AppSuccessFeedback
   /// antes de sair do ecrã.
   Future<bool> _confirmJobCompletion() async {
+    // Toque duplo em "Trabalho concluído" abria dois diálogos e duas
+    // chamadas (a segunda falhava com erro). Um fluxo de cada vez.
+    if (_confirmFlowOpen || _confirming) return false;
+    _confirmFlowOpen = true;
+    try {
+      return await _confirmJobCompletionOnce();
+    } finally {
+      _confirmFlowOpen = false;
+    }
+  }
+
+  Future<bool> _confirmJobCompletionOnce() async {
     final confirmed = await AppConfirmDialog.show(
       context,
       icon: Icons.task_alt_rounded,
@@ -516,6 +529,8 @@ class _ClientJobDetailScreenState
     if (submitted != true || !mounted) return;
 
     toast.show('Relato enviado. A nossa equipa vai analisar.');
+    // Sem navegação: o prazo da confirmação automática passa a 7 dias.
+    ref.invalidate(myLatestJobReportAtProvider(widget.jobId));
 
     if (!mounted) return;
     final confirmAnyway = await AppConfirmDialog.show(
@@ -953,10 +968,13 @@ class _ClientJobDetailScreenState
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Confirma a conclusão ou reporta um problema. Sem resposta, '
-                  'fica confirmado automaticamente 48 horas depois de o '
-                  'jardineiro o dar por concluído. Depois de confirmares, '
-                  'podes avaliar o jardineiro.',
+                  clientAutoConfirmHint(
+                    markedDoneAt: job.markedDoneAt,
+                    myLatestReportAt: ref
+                        .watch(myLatestJobReportAtProvider(job.id))
+                        .asData
+                        ?.value,
+                  ),
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: AppColors.textSecondary),
                 ),
@@ -1266,7 +1284,7 @@ String _formatConfirmedSchedule(JobRequest job) {
   final date = DateFormat('dd/MM/yyyy').format(job.confirmedDate!);
   if (job.confirmedFlexible) return 'Agendado para: $date (horário flexível)';
   if (job.confirmedTime != null) {
-    return 'Agendado para: $date às ${job.confirmedTime}';
+    return 'Agendado para: $date às ${shortTimeLabel(job.confirmedTime!)}';
   }
   return 'Agendado para: $date';
 }

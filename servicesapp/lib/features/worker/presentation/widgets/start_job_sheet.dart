@@ -41,6 +41,8 @@ class _StartJobSheetState extends State<StartJobSheet> {
   bool _starting = false;
 
   Future<void> _start() async {
+    // Toque duplo: só uma chamada (ver MarkCompletedSheet).
+    if (_starting) return;
     setState(() => _starting = true);
     final ok = await widget.onStart(_photos);
     if (!mounted) return;

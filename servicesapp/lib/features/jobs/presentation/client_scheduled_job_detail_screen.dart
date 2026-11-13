@@ -284,7 +284,7 @@ class _ClientScheduledJobDetailScreenState
               : '—';
           final timeStr = job.rescheduleProposedFlexible == true
               ? '(horário flexível)'
-              : (job.rescheduleProposedTime != null ? 'às ${job.rescheduleProposedTime}' : '');
+              : (job.rescheduleProposedTime != null ? 'às ${shortTimeLabel(job.rescheduleProposedTime!)}' : '');
           rescheduleIncomingBanner = Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
