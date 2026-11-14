@@ -120,5 +120,5 @@ Depois de reiniciar os emuladores, o mesmo passo funcionou nos 4, incluindo com 
 
 ### Notas novas
 
-- O Início do cliente não mostra em "Precisa de ti" um pedido de ajudantes à espera de aprovação (só aparece nos Alertas e no detalhe). Sem resposta, é aprovado sozinho em 24 horas.
+- O Início do cliente não mostrava em "Precisa de ti" um pedido de ajudantes à espera de aprovação (só nos Alertas e no detalhe). Corrigido no commit `f1553ab`. No emulador, uma versão equivalente feita em paralelo mostrou a linha "Aprovar ajudantes", que abre o detalhe e sai depois de aprovar (`AJ3_36`, `AJ3_37`). Falta ver a versão do commit num APK.
 - Aumentar as vagas de 2 para 3 depois de a equipa estar completa não pediu nova aprovação ao cliente (o primeiro pedido de ajudantes pediu). Confirmar se é a regra pretendida.
