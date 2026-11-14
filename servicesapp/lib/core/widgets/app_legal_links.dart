@@ -1,34 +1,26 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 
-import '../config/app_links.dart';
+import '../../features/legal/domain/legal_document.dart';
 import '../theme/app_colors.dart';
-import 'app_toast.dart';
 
-/// Abre os Termos de utilização no browser, fora da app.
+/// Abre os Termos de utilização no ecrã da app (`/termos`).
 Future<void> openTermsOfUse(BuildContext context) =>
-    _openLegalPage(context, AppLinks.termsUrl);
+    _openLegalPage(context, LegalDocumentKind.terms);
 
-/// Abre a Política de Privacidade no browser, fora da app.
+/// Abre a Política de Privacidade no ecrã da app (`/privacidade`).
 Future<void> openPrivacyPolicy(BuildContext context) =>
-    _openLegalPage(context, AppLinks.privacyPolicyUrl);
+    _openLegalPage(context, LegalDocumentKind.privacy);
 
-Future<void> _openLegalPage(BuildContext context, String url) async {
-  // Guardado antes do await: o contexto pode já não existir no fim.
-  final toast = AppToast.maybeOf(context);
-  var opened = false;
-  try {
-    opened = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
-    );
-  } catch (_) {
-    opened = false;
-  }
-  if (!opened) {
-    toast?.error('Não foi possível abrir a página. Tenta outra vez.');
-  }
+Future<void> _openLegalPage(
+  BuildContext context,
+  LegalDocumentKind kind,
+) async {
+  // O texto vem empacotado na app: abre sem rede e sem sair da app. Os
+  // URLs públicos (AppLinks.termsUrl / privacyPolicyUrl) são para as lojas,
+  // o Google Cloud e a Meta.
+  await GoRouter.of(context).push(kind.route);
 }
 
 /// "`prefix` + Termos e a Política de Privacidade.", com os dois nomes a verde
@@ -49,7 +41,7 @@ class AppLegalConsentText extends StatefulWidget {
   final TextStyle? style;
   final TextAlign textAlign;
 
-  /// Por omissão abrem [AppLinks.termsUrl] e [AppLinks.privacyPolicyUrl].
+  /// Por omissão abrem os ecrãs `/termos` e `/privacidade`.
   final VoidCallback? onTermsPressed;
   final VoidCallback? onPrivacyPressed;
 

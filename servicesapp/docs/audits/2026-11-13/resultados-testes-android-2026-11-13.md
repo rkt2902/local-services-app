@@ -82,4 +82,43 @@ TR-11, TR-12, TR-13 (Android 10), TR-15, TR-18, TR-22, TR-25, TR-26 e o bloco P2
 
 ## Correções pendentes
 
-- A correção do registo do token push está no commit `ba763b1` deste ramo, numa versão refeita (provider e testes) da que foi testada no APK. Convém instalar um APK novo deste ramo e repetir o registo de uma conta nova e o push "Novo pedido".
+- A correção do registo do token push está no commit `ba763b1` deste ramo, numa versão refeita (provider e testes) da que foi testada no APK. Convém instalar um APK novo deste ramo e repetir o registo de uma conta nova e o push "Novo pedido". **Feito a 14/11, ver a terceira ronda: passa.**
+
+## Terceira ronda: correções do ramo (14/11, 04:05 a 04:40)
+
+APK de release do ramo `claude/project-thread-d58w4x` no commit `2cc08a6` (com as correções F1 a F12, os Termos e a Política na app e a paginação). 4 contas novas (`+teste1` cliente; `+teste2`, `+teste3`, `+teste4` jardineiros). O Henrique escreveu as senhas e os códigos. As contas ficam ativas: não foram eliminadas. Capturas `AJ3_*` fora do repositório (pasta temporária da sessão, porque mostram o email).
+
+| Teste | Resultado | Nota | Capturas |
+|---|---|---|---|
+| Registo das 4 contas (F9, colar o código) | A CONFIRMAR | As 4 contas foram criadas pelo Henrique; falta ele dizer se colar o código preencheu as 6 caixas. | |
+| Push "Novo pedido" em contas acabadas de criar | PASSA | Chegou aos 3 jardineiros logo a seguir ao setup (correção do token, versão do commit). | `AJ3_11_*` |
+| Termos e Política na app | PASSA, com nota | Perfil > Sobre > Termos abre o ecrã novo: cabeçalho com a data, índice que abre e salta para a secção, secções em cartões, "Ler a Política de Privacidade" no fim; voltar regressa ao "Sobre" sem acumular páginas. **Nota:** o responsável aparece como "[NOME OU DENOMINAÇÃO]", "[NÚMERO]" e "[MORADA COMPLETA]", por preencher antes de publicar. | `AJ3_03..07` |
+| Contacto e suporte | PASSA | Prazos de resposta (1 dia útil, reclamações 15 dias úteis, dados 1 mês) e o botão "Livro de Reclamações Eletrónico", que abre o browser; voltar regressa à app. | `AJ3_01`, `AJ3_02` |
+| Pedido com data fixa | PASSA | 17/11, GPS, 300+ m². | `AJ3_08..11` |
+| Duas propostas, cliente recusa uma e aceita a outra | PASSA | Botão novo "Recusar proposta" com confirmação; toque duplo em "Recusar" sem erro; a lista passa a 1 proposta; o jardineiro recusado recebe "Proposta não selecionada". Aceitar a outra: "Pedido confirmado!". | `AJ3_13..17`, `AJ3_34` |
+| Responsável pede 2 ajudantes depois do aceite | PASSA | Folha "Adicionar ajudante" ("O pedido segue para o cliente aprovar"); toque duplo em "Enviar pedido" sem duplicados. | `AJ3_18`, `AJ3_19` |
+| Cliente aprova os ajudantes | PASSA, com nota | Alerta "Pedido de ajudantes ... Sem resposta, fica aprovado em 24 horas", que abre o detalhe com "Aprovar". **Nota:** o Início do cliente não mostra este pedido em "Precisa de ti"; só nos Alertas. | `AJ3_20..23` |
+| Toque no push "Pedido de ajuda" com a app fechada | PASSA | Uma só notificação na gaveta, processo morto antes: os 2 ajudantes abrem diretamente "Candidatar-me" (antes abria o Início). | `AJ3_24..26` |
+| Candidaturas dos 2 ajudantes | PASSA | Sem equipamento 10,50 €/h, com equipamento 15,00 €/h. Depois de enviar vão para o Início (não há ecrã por baixo quando se entra pelo push). | `AJ3_27_*` |
+| Responsável aceita os 2 (F8) | PASSA | O aviso "Ajudante adicionado à equipa." desaparece sozinho e a lista fica utilizável. Equipa 2 de 2. | `AJ3_28..30` |
+| Próximo trabalho no Início do ajudante (F11) | PASSA | "Próximo trabalho / Corte de relva / 17/11 às 14:00 · Ajudante de Teste Jardineiro" nos 2 ajudantes. | `AJ3_31_*` |
+| Vagas no Descobrir (F11) | NÃO VERIFICADO | Com 3 vagas e 2 preenchidas, o Descobrir não mostra o pedido a quem já está na equipa, e não havia um quarto jardineiro para o ver. | `AJ3_32`, `AJ3_33` |
+| Equipa no detalhe do cliente sem reabrir (F10) | PASSA | Passou sozinho a "2 de 3" depois de o responsável mudar as vagas. | `AJ3_35` |
+| Iniciar com fotos, concluir, confirmar, avaliar | BLOQUEADO | O trabalho é a 17/11 e a remarcação só aceita datas a partir de amanhã. Um trabalho de hoje só abre o "Iniciar" 1 hora antes (o mais cedo é Manhã, 09:00) e os testes foram às 04:30. Já tinha passado no TR-07 a 13/11. | |
+
+### Bloqueio da app ao pedir o GPS (ambiente)
+
+Nos 4 emuladores, ligados há cerca de 9 horas, a app ficou sem responder ("ProJardim isn't responding") ao tocar em "Usar GPS" ou "Usar a minha localização" logo depois de dar a permissão. A stack da ANR (guardada em `anr-jardineiro-gps.txt` e `anr-cliente-gps.txt`, fora do repositório) mostra a thread principal parada numa chamada ao serviço de localização do Android:
+
+```
+at android.location.ILocationManager$Stub$Proxy.unregisterGnssNmeaCallback
+at android.location.LocationManager.removeNmeaListener
+at o1.d.f (plugin geolocator, ofuscado pelo R8)
+```
+
+Depois de reiniciar os emuladores, o mesmo passo funcionou nos 4, incluindo com a permissão retirada e dada de novo (o caso que tinha bloqueado). Conclusão: é o serviço de GPS do emulador que encravou com o tempo ligado, não um erro da app. Fica a nota de que o `geolocator` faz esta chamada na thread principal: se aparecer uma ANR igual em telemóveis reais no Crashlytics ou na Play Console, rever a versão do plugin.
+
+### Notas novas
+
+- O Início do cliente não mostrava em "Precisa de ti" um pedido de ajudantes à espera de aprovação (só nos Alertas e no detalhe). Corrigido no commit `f1553ab`. No emulador, uma versão equivalente feita em paralelo mostrou a linha "Aprovar ajudantes", que abre o detalhe e sai depois de aprovar (`AJ3_36`, `AJ3_37`). Falta ver a versão do commit num APK.
+- Aumentar as vagas de 2 para 3 depois de a equipa estar completa não pediu nova aprovação ao cliente (o primeiro pedido de ajudantes pediu). Confirmar se é a regra pretendida.

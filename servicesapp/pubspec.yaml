@@ -93,6 +93,8 @@ flutter:
   # e flutter_native_splash no fim deste ficheiro.
   assets:
     - assets/branding/app_icon_rounded.png
+    # Termos e Política (ecrãs /termos e /privacidade e páginas web).
+    - assets/legal/
     # Plus Jakarta Sans empacotada (AUD-17): o google_fonts usa estes
     # ficheiros e não descarrega nada em runtime (ver main.dart).
     - assets/google_fonts/

@@ -88,15 +88,27 @@ String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
 
 
 /// O que o pedido espera do cliente, para "Precisa de ti" no Início (A11).
-enum ClientJobAttention { confirmDone, answerReschedule, seeProposals }
+enum ClientJobAttention {
+  confirmDone,
+  answerReschedule,
+  approveHelpers,
+  seeProposals,
+}
 
 /// `null` quando o pedido não espera nada do cliente (o mesmo critério de
-/// [clientJobNeedsAction]).
-ClientJobAttention? clientJobAttention(JobRequest job) {
+/// [clientJobNeedsAction]). [pendingHelperApproval]: o jardineiro pediu
+/// ajudantes e falta a aprovação do cliente (antes só aparecia nos Alertas).
+ClientJobAttention? clientJobAttention(
+  JobRequest job, {
+  bool pendingHelperApproval = false,
+}) {
   if (job.status == JobStatus.awaitingConfirmation) {
     return ClientJobAttention.confirmDone;
   }
   if (_rescheduleAwaitsClient(job)) return ClientJobAttention.answerReschedule;
+  if (pendingHelperApproval && job.status == JobStatus.confirmed) {
+    return ClientJobAttention.approveHelpers;
+  }
   if (job.status == JobStatus.open && job.proposalCount > 0) {
     return ClientJobAttention.seeProposals;
   }
@@ -108,6 +120,7 @@ String clientJobAttentionTitle(ClientJobAttention kind, JobRequest job) =>
     switch (kind) {
       ClientJobAttention.confirmDone => 'Confirma o trabalho feito',
       ClientJobAttention.answerReschedule => 'Nova data proposta',
+      ClientJobAttention.approveHelpers => 'Aprovar ajudantes',
       ClientJobAttention.seeProposals => job.proposalCount == 1
           ? '1 proposta para ver'
           : '${job.proposalCount} propostas para ver',

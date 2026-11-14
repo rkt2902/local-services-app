@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_status_color.dart';
 import '../../../../core/theme/app_status_presentation.dart';
@@ -24,10 +25,16 @@ class ClientJobsViewData {
   const ClientJobsViewData({
     required this.activeJobs,
     required this.historyJobs,
+    this.hasMoreHistory = false,
+    this.loadingMoreHistory = false,
   });
 
   final List<ClientJobListItemViewData> activeJobs;
   final List<ClientJobListItemViewData> historyJobs;
+
+  /// Há pedidos mais antigos por carregar (AUD-25).
+  final bool hasMoreHistory;
+  final bool loadingMoreHistory;
 }
 
 class ClientJobListItemViewData {
@@ -94,9 +101,13 @@ class ClientJobsScreen extends StatefulWidget {
     required this.onCreateJob,
     this.onRetry,
     this.onRefresh,
+    this.onLoadMoreHistory,
   });
 
   final AsyncValue<ClientJobsViewData> dataAsync;
+
+  /// "Ver pedidos mais antigos" no fim do Histórico.
+  final VoidCallback? onLoadMoreHistory;
 
   final ValueChanged<String> onOpenJob;
   final VoidCallback onCreateJob;
@@ -156,6 +167,7 @@ class _ClientJobsScreenState extends State<ClientJobsScreen> {
                   onOpenJob: widget.onOpenJob,
                   onCreateJob: widget.onCreateJob,
                   onRefresh: widget.onRefresh,
+                  onLoadMoreHistory: widget.onLoadMoreHistory,
                 ),
               ),
             ),
@@ -173,10 +185,12 @@ class _ClientJobsContent extends StatelessWidget {
     required this.onOpenJob,
     required this.onCreateJob,
     this.onRefresh,
+    this.onLoadMoreHistory,
   });
 
   final ClientJobsViewData data;
   final ClientJobsTab selectedTab;
+  final VoidCallback? onLoadMoreHistory;
 
   final ValueChanged<String> onOpenJob;
   final VoidCallback onCreateJob;
@@ -204,6 +218,11 @@ class _ClientJobsContent extends StatelessWidget {
                       jobs: jobs,
                       tab: selectedTab,
                       onOpenJob: onOpenJob,
+                      onLoadMore: selectedTab == ClientJobsTab.history &&
+                              data.hasMoreHistory
+                          ? onLoadMoreHistory
+                          : null,
+                      loadingMore: data.loadingMoreHistory,
                     ),
             ),
           ),
@@ -235,12 +254,22 @@ class _Refreshable extends StatelessWidget {
 }
 
 class _JobsList extends StatelessWidget {
-  const _JobsList({required this.jobs, required this.tab, required this.onOpenJob});
+  const _JobsList({
+    required this.jobs,
+    required this.tab,
+    required this.onOpenJob,
+    this.onLoadMore,
+    this.loadingMore = false,
+  });
 
   final List<ClientJobListItemViewData> jobs;
   final ClientJobsTab tab;
 
   final ValueChanged<String> onOpenJob;
+
+  /// Não nulo quando há mais pedidos antigos: botão no fim da lista.
+  final VoidCallback? onLoadMore;
+  final bool loadingMore;
 
   @override
   Widget build(BuildContext context) {
@@ -253,9 +282,32 @@ class _JobsList extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.lg,
       ),
-      itemCount: jobs.length,
+      itemCount: jobs.length + (onLoadMore == null ? 0 : 1),
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
+        if (index == jobs.length) {
+          return Center(
+            child: OutlinedButton.icon(
+              onPressed: loadingMore ? null : onLoadMore,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, AppSizes.minTapTarget),
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.divider),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.input),
+                ),
+              ),
+              icon: loadingMore
+                  ? const SizedBox(
+                      width: AppSizes.inlineIcon,
+                      height: AppSizes.inlineIcon,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more_rounded),
+              label: const Text('Ver pedidos mais antigos'),
+            ),
+          );
+        }
         final job = jobs[index];
 
         return AppStaggeredEntrance(

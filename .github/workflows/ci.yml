@@ -39,6 +39,10 @@ jobs:
 
       - run: flutter pub get
 
+      # As páginas web /termos e /privacidade têm de bater com assets/legal/.
+      - name: Páginas legais atualizadas
+        run: python3 tool/build_legal_pages.py --check
+
       - name: flutter analyze
         run: flutter analyze
 

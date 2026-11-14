@@ -35,7 +35,7 @@
 - Login com Google e Facebook pelo OAuth do Supabase (código feito; falta configurar;
   o botão do Facebook está escondido por `--dart-define`).
 - Eliminar conta (anonimiza e bloqueia o login, 0049). Ver gaps de RGPD abaixo.
-- Termos e Política de Privacidade ligados no registo, no login social e no Perfil.
+- Termos e Política de Privacidade dentro da app (`/termos`, `/privacidade`), ligados no registo, no login social e no Perfil; os mesmos textos em projardim.pt/termos e /privacidade.
 
 ### Cliente
 - Shell com **Início · Pedidos · Alertas · Perfil** (A11). Início com "Precisa de ti",
@@ -123,14 +123,10 @@
 ## Gaps conhecidos (sem spin)
 
 ### Antes de publicar
-- **RGPD:** eliminar conta já apaga tudo no servidor (0066 e 0070, `erase_account_data`)
-  e a app apaga os ficheiros do Storage. Falta a Política de Privacidade mencionar o
-  registo de visitas ao cartão, as dicas da época, Photon/OSM, o geocoder nativo e o
-  Crashlytics.
-- **Política de Privacidade da Agenda:** as secções 3.7 e 8 foram atualizadas no
-  rascunho, para publicar no Google Doc quando a Agenda saísse. A Agenda já está no
-  `main`; falta publicar essa versão e atualizar o `.docx`.
-- Termos e Política são rascunhos sem dados da empresa e sem revisão jurídica.
+- **Termos e Política:** atualizados a 13/11 e empacotados na app (`assets/legal/`,
+  ecrãs `/termos` e `/privacidade`, páginas web geradas). Falta preencher a
+  identificação do responsável (`[NOME OU DENOMINAÇÃO]`, NIF, morada), a revisão
+  jurídica e fazer o deploy da web. Notas em `projardim/legal/notas-antes-de-publicar.md`.
 
 ### Produto por fazer
 - Restos do A11: cartão "Agora" com Iniciar e Mapa no Início do jardineiro, cartões
