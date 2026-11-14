@@ -3,6 +3,17 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-14 — Ajudantes por aprovar no Início do cliente; vagas extra sem nova aprovação
+
+- O pedido de ajudantes à espera da aprovação do cliente passa a aparecer em
+  "Precisa de ti" no Início ("Aprovar ajudantes"), não só nos Alertas.
+- Aumentar as vagas de um pedido de ajuda já aprovado (ex.: de 2 para 3) **não** pede
+  nova aprovação ao cliente. O cliente aprovou a equipa; mais um ajudante não muda o
+  preço combinado com o jardineiro e pedir de novo atrasava o trabalho. O cliente vê a
+  equipa atualizada no detalhe do pedido.
+- Decidido pelo Henrique ("faz o que achares melhor") depois da terceira ronda de testes
+  Android.
+
 ## 2026-11-13 — Termos e Política dentro da app e no domínio
 
 - **Decisão:** os textos legais passam a viver no repositório
