@@ -89,6 +89,11 @@
 - `/admin` só para contas em `admin_users`, com segundo fator (TOTP). Visão geral,
   jardineiros com pesquisa e filtro por plano, ficha com números e "Mudar plano"
   (Grátis, Pro, Pro+). Funciona desde 23/10.
+- Suporte, fase A (0078, **por aplicar**): pesquisa global (email, telefone, nome, id
+  curto), Pedidos com filtros e ficha do pedido (linha do tempo, fotos, propostas,
+  equipa, avisos com token de push, morada com clique registado), Clientes com ficha.
+  Telefones mascarados até "Mostrar contacto". Consultas registadas em `admin_actions`.
+  Fases B (casos, denúncias, ações) e C (contas, mapa) em `docs/admin_portal_spec.md`.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,
@@ -137,7 +142,9 @@
   J4/C5, linha "Serviço · data" nas notificações.
 - A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
   está nos detalhes do cliente, do jardineiro e do ajudante.
-- Painel `/admin` fases 2 e 3 (mapa, pedidos, moderação, funil, CSV, avisos a grupos).
+- Painel `/admin` de suporte: fases B (caixa de suporte, casos, denúncias, ações sobre
+  pedidos, ocultar avaliações e fotos, ecrã Registo) e C (suspender, encerrar, exportar,
+  mapa). A fase A está no PR do painel de suporte.
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.
