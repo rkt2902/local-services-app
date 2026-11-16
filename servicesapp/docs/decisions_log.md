@@ -3,6 +3,29 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Painel de admin para suporte, fase B (0079)
+
+- Ocultar não apaga e não usa colunas novas em `ratings`: a avaliação passa para
+  `ratings_hidden` (e a foto para `job_photos_hidden`). A spec falava em
+  `ratings.hidden_at`, mas isso obrigava a mudar 2 vistas e cerca de 11 funções que
+  leem `ratings` (médias, cartão público, "Pedir de novo"); com o arquivo nenhuma muda
+  e repor é mover de volta. Um trigger impede avaliar de novo o mesmo trabalho
+  enquanto a avaliação está oculta.
+- Prazos dos casos pela tabela do `docs/SUPORTE.md`, calculados na BD
+  (`support_case_due`, `add_business_days`) em hora de Lisboa. Os feriados não estão
+  na conta: o prazo fica um pouco mais curto, nunca mais longo. A confirmação de
+  receção conta até à primeira "Resposta enviada" registada no caso.
+- O painel não envia emails: a resposta vai do Gmail de suporte e cola-se no caso
+  como "Resposta enviada". Fica a prova do que se respondeu e quando.
+- Cancelar pelo suporte deixa `cancelled_by` vazio e `cancel_reason = 'support'`. A
+  app passa a dizer "O suporte cancelou este trabalho" e não deixa "Publicar de novo".
+  O aviso às propostas pendentes também diz que foi o suporte.
+- Reabrir só a partir de `no_response`, por 48 horas, e um pedido direto passa a ser
+  de todos. Anular a confirmação automática dá à cliente 7 dias novos (o relógio da
+  confirmação automática recomeça).
+- Motivos fixos (7) mais nota de 5 carateres ou mais em todas as ações; o que vai no
+  aviso ao utilizador é texto fixo, com mensagem própria opcional só no cancelamento.
+
 ## 2026-11-13 — Painel de admin para suporte, fase A (0078)
 
 - O painel passa a ter barra lateral e pesquisa global num `ShellRoute` próprio por

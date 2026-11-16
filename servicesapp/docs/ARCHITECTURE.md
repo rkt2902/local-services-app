@@ -255,9 +255,13 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/choose-role` | `ChooseRoleScreen` | fora | shared-axis |
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
 | `/admin` | `AdminGateScreen` (login, segundo fator) e depois `AdminShell` com a Visão geral | `ShellRoute` próprio do painel (barra lateral + pesquisa global, sem bottom nav), sem regras de papel | sem transição; o conteúdo troca com fade-through |
-| `/admin/pedidos`, `/admin/pedidos/:jobId` | `AdminJobsPage` (lista + `AdminJobDetailPanel`, 0078) | shell do painel | idem; lista e ficha lado a lado a partir de 1024 px |
+| `/admin/suporte`, `/admin/suporte/:caseId` | `AdminCasesPage` (Caixa de suporte: casos pelo prazo + `AdminCaseDetailPanel`, 0079) | shell do painel | idem; lista e caso lado a lado a partir de 1024 px |
+| `/admin/denuncias` | `AdminReportsPage` (reportes da app: abrir caso ou dispensar, 0079) | shell do painel | idem |
+| `/admin/pedidos`, `/admin/pedidos/:jobId` | `AdminJobsPage` (lista + `AdminJobDetailPanel`, 0078; ações do suporte, casos e notas internas na ficha desde a 0079) | shell do painel | idem; lista e ficha lado a lado a partir de 1024 px |
 | `/admin/clientes`, `/admin/clientes/:clientId` | `AdminClientsPage` (lista + ficha, 0078) | shell do painel | idem |
 | `/admin/workers`, `/admin/workers/:workerId` | `AdminWorkersPage` (lista + `AdminWorkerDetailPanel`) | shell do painel | idem |
+| `/admin/avaliacoes` | `AdminRatingsPage` (ocultar e repor avaliações, 0079) | shell do painel | idem |
+| `/admin/registo` | `AdminLogPage` (todas as `admin_actions`, 0079) | shell do painel | idem |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
@@ -395,10 +399,14 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `help_requests` | pedido de ajudantes | `status` incl. `pending_approval` |
 | `help_acceptances` | candidaturas de ajudantes | `agreed_rate`, `brought_equipment`, `message` (0034 — ver secção 16) |
 | `ratings` | avaliações | `UNIQUE(job_id, rater_id, ratee_id)`, `CHECK(rater_id <> ratee_id)` |
-| `job_reports` | reports pós-trabalho | moderação manual, sem RLS de leitura cruzada |
+| `job_reports` | reports pós-trabalho | moderação no painel (0079: `status` new/in_review/resolved/dismissed, `resolved_at`, `case_id`; a app só cria com `new`), sem RLS de leitura cruzada |
 | `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
 | `admin_users` (0060) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
 | `admin_actions` (0060) | registo das mudanças **e das consultas** feitas no painel (desde a 0078: `search`, `view_job`, `view_client`, `view_worker`, `view_job_photos`, `reveal_phone`, `reveal_address`) | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
+| `support_cases` (0079) | casos de suporte | `number` curto, `kind` (help/report/abuse/appeal/complaint/gdpr/delete_account), `status` (open/waiting_user/resolved), `person_id`, `job_id`, `contact_email`, `summary`, `decision`, `ack_due_at` (1 dia útil), `due_at` (prazo do tipo, `support_case_due`, dias úteis sem feriados), `first_reply_at`; RLS sem policies |
+| `support_case_notes` (0079) | notas de um caso | `kind` internal/reply (resposta enviada por email, colada; a primeira marca `first_reply_at`); RLS sem policies |
+| `admin_notes` (0079) | notas internas em qualquer ficha | `target_id` (pedido ou pessoa), `body`; RLS sem policies |
+| `ratings_hidden` / `job_photos_hidden` (0079) | arquivo do que o suporte ocultou | a linha sai de `ratings` (ou o caminho sai de `job_photos`/`before_photo_paths`/`after_photo_paths`/`completion_photo_path`) e fica aqui com `hidden_reason`, `hidden_note`, `hidden_by`; nenhuma vista ou RPC da app mudou; trigger `trg_block_rating_while_hidden` impede avaliar outra vez o mesmo trabalho; RLS sem policies |
 | `job_events` (0078) | linha do tempo de cada pedido | `job_id`, `event_type`, `actor_id`, `actor_kind` (client/worker/helper/admin/system/user), `data` jsonb; preenchida por triggers em `job_requests`, `job_proposals`, `job_work_days`, `job_reports`, `ratings`, `help_requests` (sem `auth.uid()` = sistema, ex.: crons); pedidos antigos com eventos tirados dos carimbos (`data.backfill`); RLS sem policies |
 | `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status` scheduled/done/cancelled (cancelado continua na agenda), `status_at` (trigger); RLS só do dono, INSERT só com papel worker |
 | `worker_calendar_exceptions` (0064) | "Só este dia" numa série | `entry_id`, `occurrence_date`, `action` skipped (sai da agenda)/moved/changed/status, `new_*`, `status` done/cancelled só nesse dia, `status_at`; RLS só do dono |
@@ -510,9 +518,23 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_get_job_photos` (0078) | `p_job_id` | `TABLE(kind, storage_path, taken_by, created_at)`; regista | `AdminRepository.fetchJobPhotos` |
 | `admin_list_clients` / `admin_get_client` (0078) | filtros / `p_client_id` | telefone mascarado; a ficha regista | `AdminRepository.fetchClients` / `fetchClient` |
 | `admin_reveal_contact` (0078) | `p_target_id, p_kind` ('phone' pessoa, 'address' pedido), `p_reason?` | `jsonb` com o telefone ou a morada, coordenadas e distância à base do jardineiro; regista | `AdminRepository.revealPhone` / `revealAddress` |
+| `admin_case_create` (0079) | `p_kind, p_summary, p_person_id?, p_job_id?, p_report_id?, p_contact_email?` | `uuid`; com reporte herda pessoa e pedido e põe o reporte em análise | `AdminRepository.createCase` |
+| `admin_case_update` / `admin_case_add_note` (0079) | `p_case_id, p_status?, p_decision?` / `p_case_id, p_body, p_kind` (internal/reply) | fechar exige decisão e resolve o reporte ligado | `updateCase` / `addCaseNote` |
+| `admin_list_cases` / `admin_get_case` (0079) | `p_status?` (NULL = por tratar, 'all'), `p_kind?, p_target_id?` / `p_case_id` | pelo prazo / `jsonb` com notas e reportes; a ficha regista `view_case` | `fetchCases` / `fetchCase` |
+| `admin_list_reports` / `admin_set_report_status` (0079) | `p_status?` / `p_report_id, p_status, p_note` (nota obrigatória para fechar) | reportes com prazo (2 dias úteis ou o do caso) | `fetchReports` / `setReportStatus` |
+| `admin_cancel_job` (0079) | `p_job_id, p_reason, p_note, p_public_message?` | de open/confirmed/awaiting_confirmation; `cancel_reason = 'support'`, `cancelled_by` NULL; mesmos efeitos do `cancel_job` sem as regras das 24 h; `job_cancelled` aos dois, `help_job_cancelled` aos ajudantes | `cancelJob` |
+| `admin_reopen_job` (0079) | `p_job_id, p_reason, p_note` | só de `no_response`; `open` por 48 h, data passada fica flexível, pedido direto libertado; `job_reopened` ao cliente | `reopenJob` |
+| `admin_set_job_status` (0079) | `p_job_id, p_status` ('completed' de confirmed/awaiting; 'awaiting_confirmation' de completed), `p_reason, p_note` | `job_completed` aos dois / `job_marked_done` ao cliente (7 dias novos) e `support_notice` ao jardineiro | `setJobStatus` |
+| `admin_hide_rating` / `admin_restore_rating` (0079) | `p_rating_id, p_reason, p_note` / `p_rating_id, p_note` | move para `ratings_hidden` e de volta; `support_notice` a quem avaliou | `hideRating` / `restoreRating` |
+| `admin_hide_photo` (0079) | `p_job_id, p_storage_path, p_reason, p_note` | foto do pedido ou de antes/depois/conclusão vai para `job_photos_hidden` (ficheiro fica no Storage); `support_notice` ao dono | `hidePhoto` |
+| `admin_list_ratings` (0079) | `p_stars?, p_hidden, p_with_comment?` | visíveis ou ocultas | `fetchRatings` |
+| `admin_add_note` / `admin_list_notes` (0079) | `p_target_id, p_body` / `p_target_id` | notas internas | `addNote` / `fetchNotes` |
+| `admin_list_actions` (0079) | `p_action?, p_target_id?, p_include_reads, p_limit, p_offset` | Registo, com email do admin | `fetchActions` |
 | `admin_set_worker_plan` (0060) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
 
 As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`. Desde a 0078, `admin_list_workers` e `admin_get_worker` devolvem o telefone mascarado (`admin_mask_phone`); o número inteiro só sai de `admin_reveal_contact`. Nenhuma `admin_*` lê a Agenda (`worker_calendar_entries`).
+
+Desde a 0079, cada ação que muda alguma coisa pede um motivo da lista fixa (`admin_assert_reason`: user_request, app_error, terms_violation, illegal_content, personal_data, duplicate, other) e uma nota de 5 carateres ou mais, grava os dois em `admin_actions.details` e avisa as pessoas com tipos que a app já conhecia (`job_cancelled`, `job_reopened`, `job_completed`, `job_marked_done`) ou com `support_notice`. Na app, a ação abre `showAdminActionDialog` (o que acontece, quem é avisado, motivo, nota; o erro da BD fica no diálogo).
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -559,7 +581,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Todas as migrations até à `0076` estão aplicadas (13/11). Próxima migration: `0077`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11 e a `0079` está criada e por aplicar. Próxima migration: `0080`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -582,6 +604,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | pedido aberto sem propostas (continua `open`, 0062) | `process_open_job_followups` (cron): às 6h lembra os jardineiros da zona, às 24h mostra o pedido 10 km mais longe e estende o prazo 24h; o cliente pode alargar até 30 km (`widen_job_search`) | `job_opportunity_reminder`, `new_job_in_radius` ao anel novo, `job_no_proposals_yet` ao cliente |
 | 48h sem proposta → `no_response` | `auto_expire_jobs` (cron) | `job_no_response` |
 | cancelar | `cancel_job` | `job_cancelled` (+ `job_reopened` se reaberto) |
+| suporte cancela, reabre ou corrige o estado (0079) | `admin_cancel_job` (→ `cancelled`, motivo `support`), `admin_reopen_job` (`no_response` → `open`), `admin_set_job_status` (`confirmed`/`awaiting_confirmation` → `completed`, `completed` → `awaiting_confirmation`) | `job_cancelled`, `job_reopened`, `job_completed`, `job_marked_done`, `support_notice` |
 
 ### `ProposalStatus`: `pending → accepted/rejected/superseded` — `create_proposal`,
 `accept_proposal` (auto-rejeita as outras), `reject_proposal`, `withdraw_proposal`.
@@ -636,7 +659,8 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `proposal_accepted` | `accept_proposal` | `/worker/my-job/:id` (fetch async) | go |
 | `proposal_rejected` | `accept_proposal` (outras propostas) | `/worker/job/:id` | go |
 | `job_cancelled` | `cancel_job` | `/client/job/:id` ou `/worker/my-job/:id` | go |
-| `job_reopened` | `cancel_job` | `/worker/job/:id` | go |
+| `job_reopened` | `cancel_job`, `admin_reopen_job` (0079, o mesmo pedido) | `/worker/job/:id` ou `/client/job/:id` pelo papel | go |
+| `support_notice` (0079) | `admin_hide_rating`, `admin_hide_photo`, `admin_set_job_status` | como `job_cancelled` (`/client/job/:id` ou `/worker/my-job/:id`) | go |
 | `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |

@@ -10,8 +10,9 @@
 
 ## Resumo
 
-- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0076`
-  (confirmado pelo Henrique a 2026-11-13; a `0050` não existe). Próxima: `0077`.
+- Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
+  2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
+  (painel de suporte, fase B) está **por aplicar**. Próxima: `0080`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).
@@ -93,7 +94,16 @@
   curto), Pedidos com filtros e ficha do pedido (linha do tempo, fotos, propostas,
   equipa, avisos com token de push, morada com clique registado), Clientes com ficha.
   Telefones mascarados até "Mostrar contacto". Consultas registadas em `admin_actions`.
-  Fases B (casos, denúncias, ações) e C (contas, mapa) em `docs/admin_portal_spec.md`.
+- Suporte, fase B (0079, **por aplicar**): Caixa de suporte com casos e prazos em
+  dias úteis (verde, âmbar, vermelho; confirmação de receção em 1 dia útil), notas e
+  respostas coladas, decisão para fechar. Denúncias e reportes (abrir caso ou
+  dispensar). Na ficha do pedido: cancelar, reabrir expirado, marcar concluído ou
+  anular a confirmação, ocultar fotos e avaliações. Avaliações com ocultar e repor.
+  Registo de tudo. Notas internas e casos no fundo de cada ficha. Cada ação pede
+  motivo e nota, fica no registo e avisa as pessoas. Feriados não contam nos prazos
+  (ficam mais curtos, nunca mais longos). Fotos de perfil e do portefólio ainda não se
+  ocultam pelo painel.
+  Fase C (contas, mapa) em `docs/admin_portal_spec.md`.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,

@@ -7,9 +7,10 @@
 `0067` a `0076`. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-A `0075` e a `0076` estão no repositório **por aplicar** (ver a tabela).
+Aplicadas até à `0077` (Henrique, 2026-11-13). A `0078` foi corrida a 2026-11-16; a
+`0079` está criada e **por aplicar** (ver a tabela).
 
-**Próxima migration nova: `0079`.** Antes de numerar, confirmar com
+**Próxima migration nova: `0080`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -51,10 +52,11 @@ Editor do Supabase e confirma.
 | `0067_plan_badges_and_earnings.sql` | Selo do plano no cartão público e nas propostas, painel de ganhos (`get_my_earnings`, só Pro) | aplicada (2026-11-12) |
 | `0068`–`0073` | Ver PR #41 a #47 (planos, trabalhos por dias, lembretes, "a combinar" expira) | aplicadas (2026-11-12) |
 | `0074_audit_fixes.sql` | Correções da auditoria de 12/11 (BUG-001 a BUG-009, BUG-012): bloqueios em retirar proposta e fotos, pesquisa pela base gravada, campos de execução limpos no INSERT, data no passado, limites de raio, horas, dias e textos, avaliações só com sessão, aviso de avaliação repetida | aplicada (2026-11-12) |
-| `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | **por aplicar** |
-| `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | **por aplicar** (depois da 0075) |
-| `0077_help_request_slots_filled.sql` | Testes Android de 13/11 (F11): `get_help_requests_in_radius` devolve `slots_filled` para o Descobrir mostrar as vagas que faltam | **por aplicar** (depois da 0076) |
-| `0078_admin_support_tracking.sql` | Painel de suporte, fase A: `job_events` com triggers e eventos dos pedidos antigos, `admin_search`, `admin_list_jobs`, `admin_get_job`, `admin_get_job_photos`, `admin_list_clients`, `admin_get_client`, `admin_reveal_contact`; telefone mascarado em `admin_list_workers`/`admin_get_worker` | **por aplicar** (depois da 0077) |
+| `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | aplicada (2026-11-13) |
+| `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | aplicada (2026-11-13) |
+| `0077_help_request_slots_filled.sql` | Testes Android de 13/11 (F11): `get_help_requests_in_radius` devolve `slots_filled` para o Descobrir mostrar as vagas que faltam | aplicada (2026-11-13) |
+| `0078_admin_support_tracking.sql` | Painel de suporte, fase A: `job_events` com triggers e eventos dos pedidos antigos, `admin_search`, `admin_list_jobs`, `admin_get_job`, `admin_get_job_photos`, `admin_list_clients`, `admin_get_client`, `admin_reveal_contact`; telefone mascarado em `admin_list_workers`/`admin_get_worker` | corrida no SQL Editor a 2026-11-16 (com "Run and enable RLS") |
+| `0079_admin_support_resolve.sql` | Painel de suporte, fase B: `support_cases`, `support_case_notes`, `admin_notes`, estado nos `job_reports`, arquivo `ratings_hidden`/`job_photos_hidden`, RPCs de casos, reportes, cancelar/reabrir/corrigir estado, ocultar e repor, notas e registo; aviso às propostas pendentes diz quando foi o suporte | **por aplicar** (depois da 0078) |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.
