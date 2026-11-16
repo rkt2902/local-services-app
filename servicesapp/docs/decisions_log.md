@@ -29,6 +29,21 @@
 - Histórico de pedidos do cliente paginado (20 de cada vez, AUD-25); os números da
   conta vêm de uma contagem por estado.
 
+## 2026-11-13 — Painel de admin para suporte, fase A (0078)
+
+- O painel passa a ter barra lateral e pesquisa global num `ShellRoute` próprio por
+  trás do `AdminGateScreen`; lista e ficha lado a lado a partir de 1024 px, cada ficha
+  com URL próprio (`/admin/pedidos/<id>`, `/admin/clientes/<id>`) para colar no caso.
+- Linha do tempo em `job_events`, escrita por triggers (não pelas RPCs), para apanhar
+  também os crons e as RPCs antigas sem mexer nelas. Um erro ao escrever o evento só
+  deixa WARNING: nunca rebenta a ação do utilizador.
+- Ler regista-se: ficha, fotos, pesquisa e revelar contacto escrevem em
+  `admin_actions`. Telefone e morada só com clique. A Agenda nunca entra no painel.
+- As fotos são pedidas à parte (`admin_get_job_photos`) para o registo dizer quando
+  foram vistas, e não só quando a ficha abriu.
+- "Tinha aparelho" nos avisos é aproximado: tokens apagados ao terminar sessão já não
+  aparecem.
+
 ## 2026-11-09 — Proposta fechada sem trabalho: ecrã próprio no detalhe do jardineiro
 
 O detalhe de uma proposta recusada ou retirada mostrava o timeline do PEDIDO

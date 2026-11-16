@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_brand_badge.dart';
+import '../../../core/widgets/app_content_width.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_otp_input.dart';
 import '../../../core/widgets/app_system_state_screen.dart';
@@ -18,24 +19,33 @@ import '../../../core/widgets/primary_action_button.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_repository.dart';
-import 'admin_home_screen.dart';
 
 /// Entrada do painel (`/admin`). Decide o passo pelo estado da sessão:
 /// sem sessão → login; conta normal → "Sem acesso"; administrador sem o
-/// segundo fator → app autenticadora; tudo certo → o painel.
+/// segundo fator → app autenticadora; tudo certo → [child] (o painel,
+/// dentro do [AdminShell]). Os passos de entrada ficam na largura de
+/// telemóvel; o painel usa o ecrã todo.
 ///
 /// Isto é só a interface: quem decide o acesso são as RPCs `admin_*`
 /// (migration 0060), que recusam tudo sem `admin_users` + aal2.
 class AdminGateScreen extends ConsumerWidget {
-  const AdminGateScreen({super.key});
+  const AdminGateScreen({required this.child, super.key});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final step = _step(context, ref);
+    return step == null ? child : AppContentWidth(child: step);
+  }
+
+  /// O passo de entrada a mostrar, ou `null` quando já se pode ver o painel.
+  Widget? _step(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     if (user == null) return const _AdminLoginView();
 
     final accessAsync = ref.watch(adminAccessProvider);
-    return accessAsync.when(
+    return accessAsync.when<Widget?>(
       loading: () => const _AdminLoadingView(),
       error: (error, _) => AppSystemStateScreen(
         icon: Icons.cloud_off_rounded,
@@ -59,15 +69,14 @@ class AdminGateScreen extends ConsumerWidget {
             message: user.email == null
                 ? 'Esta conta não tem acesso à administração.'
                 : 'Entraste como ${user.email}. Esta conta não tem acesso '
-                    'à administração. Se é a tua conta de admin, confirma '
-                    'que está na tabela admin_users.',
+                      'à administração. Se é a tua conta de admin, confirma '
+                      'que está na tabela admin_users.',
             primaryActionLabel: 'Terminar sessão',
-            onPrimaryAction: () =>
-                ref.read(adminRepositoryProvider).signOut(),
+            onPrimaryAction: () => ref.read(adminRepositoryProvider).signOut(),
           );
         }
         if (!access.hasMfa) return const _AdminMfaView();
-        return const AdminHomeScreen();
+        return null;
       },
     );
   }
@@ -80,9 +89,7 @@ class _AdminLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
+      body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
     );
   }
 }
@@ -116,8 +123,9 @@ class _AdminEntryFrame extends StatelessWidget {
                 index: 1,
                 child: Text(
                   title,
-                  style: textTheme.displaySmall
-                      ?.copyWith(color: AppColors.textPrimary),
+                  style: textTheme.displaySmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -125,8 +133,9 @@ class _AdminEntryFrame extends StatelessWidget {
                 index: 2,
                 child: Text(
                   message,
-                  style: textTheme.bodyMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -171,7 +180,9 @@ class _AdminLoginViewState extends ConsumerState<_AdminLoginView> {
     setState(() => _submitting = true);
     final toast = AppToast.of(context);
     try {
-      await ref.read(adminRepositoryProvider).signIn(
+      await ref
+          .read(adminRepositoryProvider)
+          .signIn(
             email: _emailController.text,
             password: _passwordController.text,
           );
@@ -269,8 +280,9 @@ class _AdminMfaViewState extends ConsumerState<_AdminMfaView> {
     final repository = ref.read(adminRepositoryProvider);
     try {
       final factorId = await repository.verifiedTotpFactorId();
-      final enrollment =
-          factorId == null ? await repository.enrollTotp() : null;
+      final enrollment = factorId == null
+          ? await repository.enrollTotp()
+          : null;
       if (!mounted) return;
       setState(() {
         _factorId = factorId ?? enrollment!.factorId;
@@ -343,13 +355,18 @@ class _AdminMfaViewState extends ConsumerState<_AdminMfaView> {
       return _AdminEntryFrame(
         title: 'Código de acesso',
         message: 'Escreve o código de 6 dígitos da tua app autenticadora.',
-        children: [codeInput, const SizedBox(height: AppSpacing.lg), signOut],
+        children: [
+          codeInput,
+          const SizedBox(height: AppSpacing.lg),
+          signOut,
+        ],
       );
     }
 
     return _AdminEntryFrame(
       title: 'Proteger o acesso',
-      message: 'Lê este código com uma app autenticadora (Google '
+      message:
+          'Lê este código com uma app autenticadora (Google '
           'Authenticator, Microsoft Authenticator ou outra) e escreve o '
           'código de 6 dígitos que ela mostrar. A partir daí pedimos '
           'sempre esse código.',
@@ -382,10 +399,7 @@ class _AdminMfaViewState extends ConsumerState<_AdminMfaView> {
             toast.show('Chave copiada.');
           },
           icon: const Icon(Icons.copy_rounded),
-          label: Text(
-            enrollment.secret,
-            overflow: TextOverflow.ellipsis,
-          ),
+          label: Text(enrollment.secret, overflow: TextOverflow.ellipsis),
         ),
         const SizedBox(height: AppSpacing.md),
         codeInput,

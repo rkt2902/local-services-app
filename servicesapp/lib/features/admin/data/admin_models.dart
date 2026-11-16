@@ -102,6 +102,8 @@ class AdminWorkerRow {
 
   final String workerId;
   final String fullName;
+  /// Mascarado desde a 0078 ("••• ••• 123"). O número inteiro só sai
+  /// de `admin_reveal_contact`, que fica registado.
   final String? phone;
   final String? avatarUrl;
   final String? locationName;
@@ -194,6 +196,7 @@ class AdminWorkerDetail {
     required this.workerId,
     required this.fullName,
     required this.phone,
+    this.hasPhone = false,
     required this.avatarUrl,
     required this.createdAt,
     required this.lastSignInAt,
@@ -219,7 +222,12 @@ class AdminWorkerDetail {
 
   final String workerId;
   final String fullName;
+  /// Mascarado desde a 0078 ("••• ••• 123"). O número inteiro só sai
+  /// de `admin_reveal_contact`, que fica registado.
   final String? phone;
+
+  /// Há telefone por trás da máscara (0078).
+  final bool hasPhone;
   final String? avatarUrl;
   final DateTime? createdAt;
   final DateTime? lastSignInAt;
@@ -264,6 +272,7 @@ class AdminWorkerDetail {
       workerId: json['worker_id'] as String,
       fullName: json['full_name'] as String? ?? '',
       phone: json['phone'] as String?,
+      hasPhone: json['has_phone'] as bool? ?? (json['phone'] != null),
       avatarUrl: json['avatar_url'] as String?,
       createdAt: _date(json['created_at']),
       lastSignInAt: _date(json['last_sign_in_at']),

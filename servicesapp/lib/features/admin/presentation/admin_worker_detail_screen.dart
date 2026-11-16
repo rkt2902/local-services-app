@@ -7,28 +7,37 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
-import '../../../core/utils/phone_utils.dart';
-import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_inline_error.dart';
 import '../../../core/widgets/app_motion.dart';
 import '../../../core/widgets/app_status_badge.dart';
 import '../../../core/widgets/app_toast.dart';
-import '../../../core/widgets/app_whatsapp_button.dart';
 import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/admin_labels.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_models.dart';
+import 'widgets/admin_panel_widgets.dart';
 import 'widgets/admin_plan_sheet.dart';
 import 'widgets/admin_stat_widgets.dart';
 
-/// Ficha de um jardineiro no painel (`/admin/workers/:id`).
-class AdminWorkerDetailScreen extends ConsumerWidget {
-  const AdminWorkerDetailScreen({required this.workerId, super.key});
+/// Ficha de um jardineiro no painel (`/admin/workers/:id`), à direita da
+/// lista. Abrir a ficha fica registado (admin_get_worker, 0078).
+class AdminWorkerDetailPanel extends ConsumerWidget {
+  const AdminWorkerDetailPanel({
+    required this.workerId,
+    this.onClose,
+    super.key,
+  });
 
   final String workerId;
 
+  /// Voltar à lista (só quando a ficha está por cima dela).
+  final VoidCallback? onClose;
+
   Future<void> _editPlan(
-      BuildContext context, WidgetRef ref, AdminWorkerDetail worker) async {
+    BuildContext context,
+    WidgetRef ref,
+    AdminWorkerDetail worker,
+  ) async {
     final saved = await showAdminPlanSheet(context, worker: worker);
     if (saved != true || !context.mounted) return;
     // T4: o folha já fechou; aviso, depois invalidar.
@@ -41,40 +50,25 @@ class AdminWorkerDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final workerAsync = ref.watch(adminWorkerDetailProvider(workerId));
-    final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: AppColors.background,
-        elevation: 0,
-        leading: const AppBackButton(fallbackLocation: '/admin'),
-        title: Text('Jardineiro',
-            style:
-                textTheme.titleLarge?.copyWith(color: AppColors.textPrimary)),
+    return workerAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: AdminLoadingBlocks(),
       ),
-      body: SafeArea(
-        child: workerAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: AdminLoadingBlocks(),
-          ),
-          error: (error, _) => Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: AppInlineError(
-              message: friendlyError(error),
-              onRetry: () =>
-                  ref.invalidate(adminWorkerDetailProvider(workerId)),
-            ),
-          ),
-          data: (worker) => RefreshIndicator(
-            onRefresh: () =>
-                ref.refresh(adminWorkerDetailProvider(workerId).future),
-            child: _WorkerDetailContent(
-              worker: worker,
-              onEditPlan: () => _editPlan(context, ref, worker),
-            ),
-          ),
+      error: (error, _) => Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: AppInlineError(
+          message: friendlyError(error),
+          onRetry: () => ref.invalidate(adminWorkerDetailProvider(workerId)),
+        ),
+      ),
+      data: (worker) => RefreshIndicator(
+        onRefresh: () =>
+            ref.refresh(adminWorkerDetailProvider(workerId).future),
+        child: _WorkerDetailContent(
+          worker: worker,
+          onClose: onClose,
+          onEditPlan: () => _editPlan(context, ref, worker),
         ),
       ),
     );
@@ -82,16 +76,20 @@ class AdminWorkerDetailScreen extends ConsumerWidget {
 }
 
 class _WorkerDetailContent extends StatelessWidget {
-  const _WorkerDetailContent({required this.worker, required this.onEditPlan});
+  const _WorkerDetailContent({
+    required this.worker,
+    required this.onEditPlan,
+    this.onClose,
+  });
 
   final AdminWorkerDetail worker;
   final VoidCallback onEditPlan;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
     final w = worker;
     final textTheme = Theme.of(context).textTheme;
-    final phone = w.phone;
 
     final sections = <Widget>[
       _Card(
@@ -100,14 +98,21 @@ class _WorkerDetailContent extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (onClose != null)
+                  IconButton(
+                    tooltip: 'Voltar à lista',
+                    onPressed: onClose,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
                 Expanded(
                   child: UserAvatarWithName(
                     name: w.fullName,
                     avatarUrl: w.avatarUrl,
                     radius: 26,
                     fallbackLabel: 'Sem nome',
-                    nameStyle: textTheme.titleLarge
-                        ?.copyWith(color: AppColors.textPrimary),
+                    nameStyle: textTheme.titleLarge?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                     subtitle: [
                       if ((w.locationName ?? '').isNotEmpty) w.locationName!,
                       if (w.radiusKm != null) 'raio de ${w.radiusKm} km',
@@ -124,24 +129,26 @@ class _WorkerDetailContent extends StatelessWidget {
             Text(
               'Registo a ${adminDateLabel(w.createdAt)} · última entrada '
               '${adminRelativeDateLabel(w.lastSignInAt)}',
-              style:
-                  textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             if (w.services.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 w.services.join(', '),
-                style: textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
-            if (phone != null && phone.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              AppWhatsAppButton(
-                compact: true,
-                onPressed: () => openWhatsAppOrWarn(context, phone),
-              ),
-            ],
+            const SizedBox(height: AppSpacing.sm),
+            // Telefone mascarado (0078): o número só com "Mostrar
+            // contacto", que fica registado.
+            AdminRevealPhone(
+              personId: w.workerId,
+              maskedPhone: w.hasPhone ? w.phone : null,
+            ),
           ],
         ),
       ),
@@ -150,8 +157,7 @@ class _WorkerDetailContent extends StatelessWidget {
         stats: [
           AdminStat(label: 'Concluídos', value: '${w.jobsCompleted}'),
           AdminStat(label: 'Em curso ou agendados', value: '${w.jobsActive}'),
-          AdminStat(
-              label: 'Aceites este mês', value: '${w.jobsThisMonth}'),
+          AdminStat(label: 'Aceites este mês', value: '${w.jobsThisMonth}'),
           AdminStat(
             label: 'Horas registadas',
             value: adminHoursLabel(w.trackedHours),
@@ -184,10 +190,7 @@ class _WorkerDetailContent extends StatelessWidget {
             value: adminRatingLabel(w.avgRating),
             caption: '${w.ratingCount} avaliações',
           ),
-          AdminStat(
-            label: 'Cancelou',
-            value: '${w.jobsCancelledByWorker}',
-          ),
+          AdminStat(label: 'Cancelou', value: '${w.jobsCancelledByWorker}'),
         ],
       ),
       _Card(child: _MonthlyBars(months: w.monthlyJobs)),
@@ -196,7 +199,11 @@ class _WorkerDetailContent extends StatelessWidget {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.xl),
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
       children: [
         for (final (i, section) in sections.indexed) ...[
           if (i > 0) const SizedBox(height: AppSpacing.md),
@@ -242,9 +249,10 @@ class _MonthlyBars extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Trabalhos aceites por mês',
-            style:
-                textTheme.titleMedium?.copyWith(color: AppColors.textPrimary)),
+        Text(
+          'Trabalhos aceites por mês',
+          style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
+        ),
         const SizedBox(height: AppSpacing.md),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -253,17 +261,23 @@ class _MonthlyBars extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    Text('${month.count}',
-                        style: textTheme.labelSmall
-                            ?.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      '${month.count}',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     const SizedBox(height: AppSpacing.xxs),
                     Container(
                       height: maxCount == 0
                           ? AppSpacing.xxs
-                          : math.max(AppSpacing.xxs,
-                              _maxBarHeight * month.count / maxCount),
+                          : math.max(
+                              AppSpacing.xxs,
+                              _maxBarHeight * month.count / maxCount,
+                            ),
                       margin: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs),
+                        horizontal: AppSpacing.xs,
+                      ),
                       decoration: BoxDecoration(
                         color: month.count == 0
                             ? AppColors.divider
@@ -272,9 +286,12 @@ class _MonthlyBars extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
-                    Text(adminMonthShortLabel(month.month),
-                        style: textTheme.labelSmall
-                            ?.copyWith(color: AppColors.textSecondary)),
+                    Text(
+                      adminMonthShortLabel(month.month),
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -297,8 +314,9 @@ class _PlanCard extends StatelessWidget {
     final plan = worker.plan;
     final saved = plan.tier;
     final expired = saved != null && saved.isPaid && !plan.activeTier.isPaid;
-    final secondary =
-        textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary);
+    final secondary = textTheme.bodyMedium?.copyWith(
+      color: AppColors.textSecondary,
+    );
 
     return _Card(
       child: Column(
@@ -307,9 +325,12 @@ class _PlanCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('Plano',
-                    style: textTheme.titleMedium
-                        ?.copyWith(color: AppColors.textPrimary)),
+                child: Text(
+                  'Plano',
+                  style: textTheme.titleMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
               ),
               AppStatusBadge(
                 label: plan.activeTier.label,
@@ -319,8 +340,10 @@ class _PlanCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           if (saved == null)
-            Text('Nunca teve plano atribuído: está no Grátis.',
-                style: secondary)
+            Text(
+              'Nunca teve plano atribuído: está no Grátis.',
+              style: secondary,
+            )
           else ...[
             Text(
               '${saved.label} de ${adminDateLabel(plan.startsAt)} a '
@@ -347,9 +370,12 @@ class _PlanCard extends StatelessWidget {
           ),
           if (worker.planHistory.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
-            Text('Histórico',
-                style: textTheme.titleSmall
-                    ?.copyWith(color: AppColors.textPrimary)),
+            Text(
+              'Histórico',
+              style: textTheme.titleSmall?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xxs),
             for (final change in worker.planHistory)
               Padding(
