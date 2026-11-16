@@ -328,6 +328,13 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
   telemóvel quando os metadados não trazem telemóvel (`RegistrationIdentity`) e copia a foto
   da conta (`avatar_url`/`picture`) para `avatars/<id>.jpg` (`importSocialAvatar`, melhor
   esforço). Configuração: `SETUP.md` passo 7.
+- **Google sem supabase.co (2026-11-16)**: com `--dart-define=GOOGLE_WEB_CLIENT_ID`,
+  `GoogleIdTokenAuth` (`auth/data/google_id_token_auth.dart`, pacote `google_sign_in` 7)
+  faz o login Google na própria app e `signInWithIdToken` entrega o ID token ao Supabase.
+  Android: folha nativa (`authenticate()`, `serverClientId` = ID web). Web: botão oficial
+  da Google (`google_web_button*.dart`, import condicional) e `authenticationEvents`. iOS
+  e builds sem o ID continuam em `signInWithOAuth`. Facebook continua por browser.
+  Configuração: `SETUP.md` 7.5.
 - **Login**: `signInWithPassword`. Conta com email por confirmar (`email_not_confirmed`)
   → `AuthEmailNotConfirmed`: reenvia o código e vai para `/verify-email`.
 - **Confirmação de email por código (2026-10-17)**: funciona com "Confirm email" ligado

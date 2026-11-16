@@ -4,6 +4,7 @@ import '../../../core/constants/enums.dart';
 import '../../notifications/application/push_notification_service.dart';
 import '../../../core/utils/error_utils.dart';
 import '../data/auth_repository.dart';
+import '../data/google_id_token_auth.dart';
 import 'auth_providers.dart';
 import 'session_provider.dart';
 
@@ -130,11 +131,23 @@ class AuthController extends Notifier<AuthControllerState> {
     }
   }
 
+  /// Web: a pessoa escolheu a conta no botão da Google.
+  Future<void> signInWithGoogleIdToken(String idToken) async {
+    state = const AuthLoading();
+    try {
+      await _repo.signInWithGoogleIdToken(idToken);
+      state = const AuthIdle();
+    } catch (e) {
+      state = AuthError(friendlyError(e));
+    }
+  }
+
   Future<void> signOut() async {
     state = const AuthLoading();
     try {
       await ref.read(pushNotificationServiceProvider).unregister();
       await _repo.signOut();
+      await GoogleIdTokenAuth.signOut();
       await ref.read(sessionStatusProvider.notifier).refresh();
       state = const AuthSuccess();
     } catch (e) {

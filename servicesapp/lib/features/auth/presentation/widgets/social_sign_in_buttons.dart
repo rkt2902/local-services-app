@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
 import '../../../../core/config/app_links.dart';
@@ -6,6 +9,8 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_legal_links.dart';
+import '../../data/google_id_token_auth.dart';
+import 'google_web_button.dart';
 
 /// "Continuar com Google" e "Continuar com Facebook", no login e no
 /// registo. Quem entra pela primeira vez assim não passa pela caixa dos
@@ -16,11 +21,16 @@ class SocialSignInButtons extends StatelessWidget {
     super.key,
     required this.enabled,
     required this.onPressed,
+    this.onGoogleIdToken,
     this.showFacebook = AppLinks.facebookLoginEnabled,
   });
 
   final bool enabled;
   final ValueChanged<OAuthProvider> onPressed;
+
+  /// Web com `GOOGLE_WEB_CLIENT_ID`: a conta escolhida no botão da Google.
+  /// Sem isto (ou sem o ID), a web usa o botão próprio e o login por browser.
+  final ValueChanged<String>? onGoogleIdToken;
   final bool showFacebook;
 
   @override
@@ -28,11 +38,14 @@ class SocialSignInButtons extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SocialButton(
-          label: 'Continuar com Google',
-          icon: const _GoogleMark(),
-          onPressed: enabled ? () => onPressed(OAuthProvider.google) : null,
-        ),
+        if (kIsWeb && GoogleIdTokenAuth.enabled && onGoogleIdToken != null)
+          _GoogleWebSignIn(enabled: enabled, onIdToken: onGoogleIdToken!)
+        else
+          _SocialButton(
+            label: 'Continuar com Google',
+            icon: const _GoogleMark(),
+            onPressed: enabled ? () => onPressed(OAuthProvider.google) : null,
+          ),
         // Facebook pede o botão azul da marca com texto e "f" brancos.
         if (showFacebook) ...[
           const SizedBox(height: AppSpacing.sm),
@@ -52,6 +65,64 @@ class SocialSignInButtons extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         _LegalNotice(withFacebook: showFacebook),
       ],
+    );
+  }
+}
+
+/// Botão da Google na web. Ouve as contas escolhidas enquanto está no ecrã
+/// e só desenha o botão depois de o plugin estar iniciado (a Google exige).
+class _GoogleWebSignIn extends StatefulWidget {
+  const _GoogleWebSignIn({required this.enabled, required this.onIdToken});
+
+  final bool enabled;
+  final ValueChanged<String> onIdToken;
+
+  @override
+  State<_GoogleWebSignIn> createState() => _GoogleWebSignInState();
+}
+
+class _GoogleWebSignInState extends State<_GoogleWebSignIn> {
+  late final Future<void> _ready = GoogleIdTokenAuth.ensureInitialized();
+  StreamSubscription<String>? _tokens;
+
+  @override
+  void initState() {
+    super.initState();
+    _tokens = GoogleIdTokenAuth.webIdTokens().listen(
+      (token) {
+        if (mounted && widget.enabled) widget.onIdToken(token);
+      },
+      onError: (Object _) {},
+    );
+  }
+
+  @override
+  void dispose() {
+    _tokens?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: AppSizes.buttonHeight,
+      child: FutureBuilder<void>(
+        future: _ready,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done ||
+              snapshot.hasError) {
+            return const SizedBox.shrink();
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) => Center(
+              child: IgnorePointer(
+                ignoring: !widget.enabled,
+                child: buildGoogleWebButton(width: constraints.maxWidth),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

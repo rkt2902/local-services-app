@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'google_id_token_auth.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/utils/error_utils.dart';
@@ -81,6 +82,16 @@ class AuthRepository {
     OAuthProvider provider, {
     String? returnTo,
   }) async {
+    // Android com o ID web configurado: folha nativa da Google, sem browser
+    // nem endereço do Supabase à vista (ver GoogleIdTokenAuth).
+    if (provider == OAuthProvider.google &&
+        !kIsWeb &&
+        GoogleIdTokenAuth.enabled) {
+      final idToken = await GoogleIdTokenAuth.pickAccountIdToken();
+      if (idToken == null) return;
+      await signInWithGoogleIdToken(idToken);
+      return;
+    }
     final String redirectTo;
     if (kIsWeb) {
       final query = returnTo == null || returnTo.isEmpty
@@ -97,6 +108,17 @@ class AuthRepository {
       scopes: provider == OAuthProvider.facebook
           ? 'email public_profile'
           : null,
+    );
+  }
+
+  /// Entra no Supabase com o ID token que a Google deu à app (folha nativa
+  /// no Android, botão da Google na web). A sessão chega por
+  /// `onAuthStateChange` e o router decide o destino, como no login por
+  /// browser.
+  Future<void> signInWithGoogleIdToken(String idToken) async {
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
     );
   }
 

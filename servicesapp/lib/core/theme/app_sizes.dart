@@ -13,6 +13,9 @@ abstract final class AppSizes {
   /// Logo do Google/Facebook dentro dos botões de login social.
   static const double socialLogo = 20.0;
 
+  /// Largura máxima que o botão da Google (web) aceita.
+  static const double googleWebButtonMaxWidth = 400.0;
+
   /// Botões lado a lado dentro de um diálogo ("Voltar" / "Confirmar").
   static const double compactButtonHeight = 48.0;
 

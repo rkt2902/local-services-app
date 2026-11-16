@@ -3,6 +3,17 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Login Google feito pela app (sem supabase.co à vista)
+
+- **Decisão:** o login Google passa a ser feito pela própria app (folha nativa no
+  Android, botão oficial da Google na web) e só o ID token vai para o Supabase
+  (`signInWithIdToken`). Fica atrás de `GOOGLE_WEB_CLIENT_ID`; sem ele, login antigo.
+- **Motivo:** o Henrique achou pouco atrativo a página da Google dizer "Continuar para
+  twpflvcoyeiysnychkom.supabase.co". O domínio próprio do Supabase (auth.projardim.pt)
+  exige o plano Pro e um add-on pago. Um proxy em projardim.pt não serve: a Google
+  exige o mesmo redirect_uri no pedido e na troca do código, que o Supabase faz direto.
+- Facebook e iOS ficam no login por browser por agora.
+
 ## 2026-11-13 — Painel de admin para suporte, fase A (0078)
 
 - O painel passa a ter barra lateral e pesquisa global num `ShellRoute` próprio por

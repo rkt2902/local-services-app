@@ -250,6 +250,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         onPressed: (provider) => ref
                             .read(authControllerProvider.notifier)
                             .signInWithSocial(provider),
+                        onGoogleIdToken: (idToken) => ref
+                            .read(authControllerProvider.notifier)
+                            .signInWithGoogleIdToken(idToken),
                       ),
                     ],
                   ),
