@@ -16,6 +16,7 @@ Resultados e explicação em `docs/systematic-debugging-audit/` (03, 04 e 07).
 - `60_admin_resolve.sql` (16/11, 0079): painel de suporte, fase B. Casos com prazos em dias úteis, reportes, cancelar/reabrir/corrigir estado pelo suporte, ocultar e repor avaliações e fotos, notas internas e registo. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator; cada ação com motivo, nota, registo e aviso (132 asserções). Corre depois do `10_flows.sql`.
 - `70_admin_accounts.sql` (16/11, 0080): painel de suporte, fase C. Suspender e reativar (pedidos abertos fecham, propostas saem, trabalhos aceites ficam), conta suspensa não age mas pode eliminar-se, encerramento com aviso de 30 dias e cron, exportar dados, eliminar a pedido com a lista de ficheiros, fotos de perfil e portefólio, reenviar código, mapa. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (109 asserções). Corre depois do `10_flows.sql`. O `T-SUP-42` do 50 passa a abrir exceção para `admin_export_user_data` (a Agenda vai na exportação).
 - `80_admin_growth.sql` (16/11, 0081): painel, fase 3. Funil (por diferenças, antes e depois de criar contas), exportar CSV sem telefone, email nem morada, avisos a grupos (contagem, filtros por plano, serviço e localidade, contagem que mudou, repetido em 24 h, suspensos de fora), histórico e registo. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (48 asserções). Corre depois do `10_flows.sql`.
+- `90_admin_partners_zones.sql` (16/11, 0082): cartões frota no painel (só o mais recente, aprovar, recusar com motivo, retirar, aviso e mensagem ao jardineiro, conta suspensa não pede), gasolineiras parceiras (validação, jardineiros e pedidos perto, apagar) e zonas do mapa (pedidos sem resposta, mediana da 1.ª proposta, quem cobre, suspensos e gasolineiras acabadas de fora), com contas nos Açores. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (57 asserções). Corre depois do `10_flows.sql`.
 - `run.sh`: monta a BD `pj_audit` e corre o `10_flows.sql`.
 
 ## Como correr
@@ -37,6 +38,7 @@ psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 50_admin_support.sql  # depo
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 60_admin_resolve.sql  # idem
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 70_admin_accounts.sql  # idem
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 80_admin_growth.sql  # idem
+psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 90_admin_partners_zones.sql  # idem
 ```
 
 No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**. Com a 0074 passam todas (162/162 e RACE-01 a RACE-04); qualquer `FAIL` é uma regressão.
