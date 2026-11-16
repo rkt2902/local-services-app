@@ -66,7 +66,8 @@ insert into z_calls values
   ('admin_list_partners',           $q$select * from admin_list_partners()$q$),
   ('admin_save_partner',            $q$select admin_save_partner(null, '{"name": "Posto"}')$q$),
   ('admin_delete_partner',          $q$select admin_delete_partner('00000000-0000-0000-0000-000000000000')$q$),
-  ('admin_map_zones',               $q$select * from admin_map_zones()$q$);
+  ('admin_map_zones',               $q$select * from admin_map_zones()$q$),
+  ('admin_partner_alerts',          $q$select * from admin_partner_alerts()$q$);
 grant select on z_calls to anon, authenticated;
 
 set role anon;
@@ -246,6 +247,74 @@ select audit.eq('T-PZ-61 Grátis: o de exemplo (aberto a todos) mostra tudo; sem
 select t_as(:'C8');
 select audit.ok('T-PZ-62 clientes também conseguem ler (a app só mostra aos jardineiros)', $q$select * from get_partners()$q$);
 
+-- ── Distância, uso, alertas e avisos de parceiro ──
+select t_aal2(:'AD');
+select admin_save_partner(null, '{"name": "Loja Perto", "status": "active", "visible_in_app": true, "pro_plus_only": false,
+  "sort_order": 2, "lat": 38.71, "lng": -27.21}') as pn \gset
+select t_as(:'WA');
+select audit.eq('T-PZ-80 com a mesma ordem, o mais perto da base primeiro (com a distância)',
+  $q$select string_agg(name || ':' || coalesce(round(distance_km)::text, '-'), ',' order by ord)
+     from (select name, distance_km, row_number() over () ord from get_partners()) s
+     where name in ('Loja Perto', 'Loja Aberta')$q$,
+  'Loja Perto:1,Loja Aberta:-');
+select t_as(:'WB');
+select audit.eq('T-PZ-81 sem base marcada não há distância',
+  $q$select coalesce(distance_km::text, '-') from get_partners() where name = 'Loja Perto'$q$, '-');
+
+select t_as(:'WA');
+select log_partner_event(:'pf', 'open');
+select log_partner_event(:'pf', 'open');
+select log_partner_event(:'pf', 'copy_code');
+select log_partner_event(:'pf', 'open_link');
+select log_partner_event(:'pv', 'open');
+select audit.err('T-PZ-82 gesto desconhecido', format($q$select log_partner_event(%L, 'share')$q$, :'pf'), 'Gesto desconhecido');
+select t_as(:'C8');
+select log_partner_event(:'pf', 'open');
+set role anon;
+select t_as('');
+select audit.err('T-PZ-83 sem sessão não regista', format($q$select log_partner_event(%L, 'open')$q$, :'pf'), 'permission denied');
+reset role;
+select audit.eq('T-PZ-84 o mesmo gesto conta uma vez por hora; parceiro escondido e clientes não contam',
+  format($q$select (select count(*) from partner_events where partner_id = %L and kind = 'open') || '/'
+     || (select count(*) from partner_events where partner_id = %L) || '/'
+     || (select count(*) from partner_events where worker_id = %L)$q$, :'pf', :'pv', :'C8'),
+  '1/0/0');
+set role authenticated;
+select t_aal2(:'AD');
+select audit.eq('T-PZ-85 painel: jardineiros que abriram, copiaram e abriram o link',
+  format($q$select workers_opened_30d || '/' || workers_opened_total || '/' || workers_copied_30d || '/'
+     || workers_link_30d || '/' || workers_map_30d from admin_list_partners() where id = %L$q$, :'pf'),
+  '1/1/1/1/0');
+
+reset role;
+update partners set valid_until = current_date + 3 where id = :'pn';
+set role authenticated;
+select t_aal2(:'AD');
+select audit.eq('T-PZ-86 alerta: 1 acaba em 7 dias, 1 na app já passou a validade',
+  $q$select ending_soon || '/' || expired_visible from admin_partner_alerts()$q$, '1/1');
+
+select audit.err('T-PZ-87 aviso de parceiro só para jardineiros',
+  format($q$select admin_send_notice('Parceiro novo', 'Há um parceiro novo na app.', 'client', null, null, null, 1, %L)$q$, :'pf'),
+  'só para jardineiros');
+select audit.err('T-PZ-88 aviso de um parceiro que não aparece na app',
+  format($q$select admin_send_notice('Parceiro novo', 'Há um parceiro novo na app.', 'worker', null, null, null, 1, %L)$q$, :'pv'),
+  'não aparece na app');
+select admin_notice_audience('worker', null, null, 'Angra Teste') as na \gset
+select audit.eq('T-PZ-89 aviso de parceiro: chega aos jardineiros e abre o parceiro',
+  format($q$select admin_send_notice('Parceiro novo: Loja Aberta', 'Há um parceiro novo na app.', 'worker', null, null, 'Angra Teste', %s, %L)::text$q$, :'na', :'pf'),
+  :'na');
+reset role;
+select audit.eq('T-PZ-90 notificação do tipo partner_new com o parceiro',
+  format($q$select type || '/' || related_type || '/' || (related_id = %L) from notifications
+     where user_id = %L and title = 'Parceiro novo: Loja Aberta'$q$, :'pf', :'WA'),
+  'partner_new/partner/true');
+update notifications set read = true where user_id = :'WA' and title = 'Parceiro novo: Loja Aberta';
+set role authenticated;
+select t_aal2(:'AD');
+select audit.eq('T-PZ-91 histórico: de que parceiro era e quantos leram',
+  $q$select partner_name || '/' || read_count from admin_list_notices() where title = 'Parceiro novo: Loja Aberta'$q$,
+  'Loja Aberta/1');
+
 -- Fotos: só o admin com segundo fator escreve no bucket.
 select t_as(:'WA');
 select audit.err('T-PZ-63 jardineiro não envia fotos de parceiros',
@@ -263,7 +332,8 @@ select audit.eq('T-PZ-47 auxiliar das bases não se chama pela API',
   $q$select has_function_privilege('authenticated', 'public.admin_active_worker_bases()', 'execute')::text$q$, 'false');
 select audit.eq('T-PZ-48 nenhuma RPC nova recebe ids de pessoas',
   $q$select count(*)::text from pg_proc p where proname in ('admin_list_fleet_cards','admin_review_fleet_card',
-     'admin_list_partners','admin_save_partner','admin_delete_partner','admin_map_zones','get_partners')
+     'admin_list_partners','admin_save_partner','admin_delete_partner','admin_map_zones','get_partners',
+     'log_partner_event','admin_partner_alerts','admin_send_notice')
      and exists (select 1 from unnest(p.proargnames) a where a in ('p_worker_id','p_client_id','p_user_id','p_admin_id'))$q$, '0');
 
 -- ── Correr a migration outra vez ──
@@ -275,7 +345,7 @@ select audit.eq('T-PZ-67 fotos dos parceiros: até 5 MB, só JPEG, PNG ou WebP',
   '5242880:image/jpeg,image/png,image/webp');
 select audit.eq('T-PZ-70 correr outra vez não perde parceiros nem decisões',
   format($q$select (select count(*) from partners) || ':' || (select review_message is not null from worker_fleet_cards where id = %L)$q$, :'fb'),
-  '5:true');
+  '6:true');
 
 select format('%s | %s | %s', case when ok then 'PASS' else 'FAIL' end, id, coalesce(detail, ''))
 from audit.results where id like 'T-PZ-%' order by seq;

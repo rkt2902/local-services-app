@@ -77,6 +77,7 @@ class Partner {
     this.hasDiscountCode = false,
     this.hasBarcode = false,
     this.hasQr = false,
+    this.distanceKm,
   });
 
   final String id;
@@ -108,6 +109,9 @@ class Partner {
   final bool hasDiscountCode;
   final bool hasBarcode;
   final bool hasQr;
+
+  /// Da base do jardineiro ao parceiro; `null` sem uma das duas.
+  final double? distanceKm;
 
   String? get imageUrl => partnerImageUrl(imagePath);
   bool get hasLocation => lat != null && lng != null;
@@ -147,7 +151,26 @@ class Partner {
     hasDiscountCode: json['has_discount_code'] == true,
     hasBarcode: json['has_barcode'] == true,
     hasQr: json['has_qr'] == true,
+    distanceKm: (json['distance_km'] as num?)?.toDouble(),
   );
+}
+
+/// "a 3 km", "a menos de 1 km"; `null` sem distância.
+String? partnerDistanceLabel(double? km) {
+  if (km == null) return null;
+  if (km < 1) return 'a menos de 1 km';
+  return 'a ${km.round()} km';
+}
+
+/// O que a app regista do uso de um parceiro (`log_partner_event`).
+enum PartnerEvent {
+  open('open'),
+  copyCode('copy_code'),
+  openLink('open_link'),
+  openMap('open_map');
+
+  const PartnerEvent(this.value);
+  final String value;
 }
 
 /// Partes do ecrã de um parceiro, pela ordem em que aparecem. Só entram as

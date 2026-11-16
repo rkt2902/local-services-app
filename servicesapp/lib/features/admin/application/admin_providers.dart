@@ -232,11 +232,16 @@ final adminFleetCardsProvider = FutureProvider.autoDispose
       return ref.read(adminRepositoryProvider).fetchFleetCards(status: status);
     });
 
-/// Parceiros (todos os estados), com jardineiros e pedidos perto.
-final adminPartnersProvider =
-    FutureProvider.autoDispose<List<AdminPartner>>(
-      (ref) => ref.read(adminRepositoryProvider).fetchPartners(),
+/// Alerta de validade dos parceiros na Visão geral (0082).
+final adminPartnerAlertsProvider =
+    FutureProvider.autoDispose<AdminPartnerAlerts>(
+      (ref) => ref.read(adminRepositoryProvider).fetchPartnerAlerts(),
     );
+
+/// Parceiros (todos os estados), com jardineiros e pedidos perto.
+final adminPartnersProvider = FutureProvider.autoDispose<List<AdminPartner>>(
+  (ref) => ref.read(adminRepositoryProvider).fetchPartners(),
+);
 
 /// Zonas do mapa (quadrados de 10 km, 90 dias).
 final adminMapZonesProvider = FutureProvider.autoDispose<List<AdminMapZone>>(

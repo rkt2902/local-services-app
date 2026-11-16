@@ -15,6 +15,8 @@ import 'features/notifications/application/notification_presentation.dart';
 import 'features/notifications/application/notification_providers.dart';
 import 'features/notifications/application/push_notification_service.dart';
 import 'features/notifications/data/notification_model.dart';
+import 'features/partners/application/partner_providers.dart';
+import 'features/worker/application/worker_providers.dart';
 import 'core/utils/app_log.dart';
 
 class App extends ConsumerStatefulWidget {
@@ -137,6 +139,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.invalidate(sessionStatusProvider);
+      // O plano e os parceiros mudam no painel, fora da app: ao voltar,
+      // lê-se outra vez (sem isto, quem passava a Pro+ continuava a ver
+      // os códigos trancados até puxar a lista).
+      ref.invalidate(myWorkerPlanProvider);
+      ref.invalidate(partnersProvider);
     }
   }
 

@@ -8,6 +8,7 @@ import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/application/helper_job_state.dart';
 import '../../help_requests/data/help_request_model.dart';
+import '../../partners/application/partner_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
@@ -329,6 +330,17 @@ class NotificationHandler {
         // só depois pedir o estado novo (regra T4).
         context.push('/worker/fleet-card');
         ref.invalidate(myFleetCardProvider);
+
+      case NotificationType.partnerNew:
+        // 0082: aviso de parceiro. Navegar primeiro e só depois ler a
+        // lista outra vez (regra T4); o ecrã espera pela lista nova.
+        final partnerId = notification.relatedId;
+        if (partnerId == null) {
+          context.go('/worker/partners');
+        } else {
+          context.push('/worker/partners/$partnerId');
+        }
+        ref.invalidate(partnersProvider);
 
       case NotificationType.helpRequestPendingApproval:
       case NotificationType.helpRequestAutoApproved:

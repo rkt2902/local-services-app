@@ -6,6 +6,7 @@ import '../../jobs/application/job_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../../worker/application/worker_job_board_providers.dart';
+import '../../partners/application/partner_providers.dart';
 import '../../worker/application/worker_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_repository.dart';
@@ -147,6 +148,9 @@ final notificationSyncProvider = Provider<void>((ref) {
           ref.invalidate(clientJobsProvider);
           // O pedido passou a `no_response`: o detalhe aberto tem de mudar.
           if (notification.relatedId != null) ref.invalidate(jobByIdProvider(notification.relatedId!));
+        case NotificationType.partnerNew:
+          // 0082: parceiro novo ou com novidades; a tab pode aparecer agora.
+          ref.invalidate(partnersProvider);
         case NotificationType.helpRequestApproved:
           // Principal worker's help_request moved from pending_approval → open.
           ref.invalidate(helpRequestsForJobProvider);

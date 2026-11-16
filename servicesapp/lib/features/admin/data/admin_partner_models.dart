@@ -183,6 +183,11 @@ class AdminPartner {
     this.workersNearby = 0,
     this.jobsNearby = 0,
     this.jobsUnanswered = 0,
+    this.workersOpened30d = 0,
+    this.workersOpenedTotal = 0,
+    this.workersCopied30d = 0,
+    this.workersLink30d = 0,
+    this.workersMap30d = 0,
   });
 
   final String id;
@@ -222,6 +227,14 @@ class AdminPartner {
   final int workersNearby;
   final int jobsNearby;
   final int jobsUnanswered;
+
+  /// Uso na app (jardineiros diferentes): abriram nos últimos 30 dias e
+  /// desde sempre; copiaram o código, abriram o link e o mapa em 30 dias.
+  final int workersOpened30d;
+  final int workersOpenedTotal;
+  final int workersCopied30d;
+  final int workersLink30d;
+  final int workersMap30d;
 
   bool get hasLocation => lat != null && lng != null;
 
@@ -272,7 +285,76 @@ class AdminPartner {
     workersNearby: _int(json['workers_nearby']),
     jobsNearby: _int(json['jobs_nearby']),
     jobsUnanswered: _int(json['jobs_unanswered']),
+    workersOpened30d: _int(json['workers_opened_30d']),
+    workersOpenedTotal: _int(json['workers_opened_total']),
+    workersCopied30d: _int(json['workers_copied_30d']),
+    workersLink30d: _int(json['workers_link_30d']),
+    workersMap30d: _int(json['workers_map_30d']),
   );
+}
+
+/// Uso na app nos últimos 30 dias: "12 jardineiros abriram · 4 copiaram o
+/// código · 3 abriram o link (40 desde o início)". `null` quando nunca
+/// ninguém o abriu e não está na app (nada a dizer).
+String? adminPartnerUsageLabel(AdminPartner p) {
+  if (p.workersOpenedTotal == 0) {
+    return p.shownInApp() ? 'Ainda nenhum jardineiro o abriu na app' : null;
+  }
+  String workers(int n) => n == 1 ? '1 jardineiro' : '$n jardineiros';
+  final parts = [
+    '${workers(p.workersOpened30d)} '
+        '${p.workersOpened30d == 1 ? 'abriu' : 'abriram'}',
+    if (p.workersCopied30d > 0)
+      '${p.workersCopied30d} '
+          '${p.workersCopied30d == 1 ? 'copiou' : 'copiaram'} o código',
+    if (p.workersLink30d > 0)
+      '${p.workersLink30d} ${p.workersLink30d == 1 ? 'abriu' : 'abriram'} o link',
+    if (p.workersMap30d > 0)
+      '${p.workersMap30d} ${p.workersMap30d == 1 ? 'abriu' : 'abriram'} o mapa',
+  ];
+  return 'Últimos 30 dias: ${parts.join(' · ')} '
+      '(${workers(p.workersOpenedTotal)} desde o início)';
+}
+
+/// Alerta da Visão geral (`admin_partner_alerts`).
+class AdminPartnerAlerts {
+  const AdminPartnerAlerts({this.endingSoon = 0, this.expiredVisible = 0});
+
+  /// Na app e acabam nos próximos 7 dias.
+  final int endingSoon;
+
+  /// Marcados "na app" mas já passaram a validade (já não aparecem).
+  final int expiredVisible;
+
+  static const none = AdminPartnerAlerts();
+
+  factory AdminPartnerAlerts.fromJson(Map<String, dynamic> json) =>
+      AdminPartnerAlerts(
+        endingSoon: _int(json['ending_soon']),
+        expiredVisible: _int(json['expired_visible']),
+      );
+}
+
+/// Texto dos alertas da Visão geral, um por linha.
+List<String> adminPartnerAlertMessages(AdminPartnerAlerts a) => [
+  if (a.endingSoon > 0)
+    a.endingSoon == 1
+        ? '1 parceiro acaba nos próximos 7 dias'
+        : '${a.endingSoon} parceiros acabam nos próximos 7 dias',
+  if (a.expiredVisible > 0)
+    a.expiredVisible == 1
+        ? '1 parceiro passou a validade e já não aparece na app'
+        : '${a.expiredVisible} parceiros passaram a validade e já não '
+              'aparecem na app',
+];
+
+/// Título e texto sugeridos para avisar os jardineiros de um parceiro.
+(String, String) adminPartnerNoticeDraft(AdminPartner p) {
+  final title = 'Parceiro novo: ${p.name}';
+  final body = p.headline != null
+      ? '${p.headline}. Vê os detalhes na tab Parceiros.'
+      : 'Há um parceiro novo na tab Parceiros. Toca para ver.';
+  return (title.length > 80 ? '${title.substring(0, 79)}…' : title, body);
 }
 
 /// "2 jardineiros cobrem · 5 pedidos a 10 km (1 sem resposta)". Sem

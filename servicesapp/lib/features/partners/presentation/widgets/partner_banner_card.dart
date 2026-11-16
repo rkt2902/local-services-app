@@ -107,7 +107,11 @@ class PartnerBannerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final p = partner;
-    final subtitle = {?p.brand, p.kind.label}.join(' · ');
+    final subtitle = {
+      ?p.brand,
+      p.kind.label,
+      ?partnerDistanceLabel(p.distanceKm),
+    }.join(' · ');
     return Semantics(
       button: true,
       label: [p.name, ?p.headline].join(', '),

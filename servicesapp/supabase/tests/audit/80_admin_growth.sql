@@ -172,6 +172,9 @@ select audit.eq('T-GRO-52 nenhuma RPC recebe o id de quem chama',
 -- ── Correr a migration outra vez ──
 \set QUIET on
 \ir ../../migrations/0081_admin_growth.sql
+-- A 0081 outra vez tira a versão da 0082 do admin_send_notice: volta-se a
+-- correr a 0082, pela ordem certa.
+\ir ../../migrations/0082_admin_partners_zones.sql
 \set QUIET off
 select audit.eq('T-GRO-60 correr outra vez não perde o histórico',
   $q$select count(*)::text from admin_notices$q$, '1');

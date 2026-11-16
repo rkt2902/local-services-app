@@ -341,6 +341,10 @@ GRANT EXECUTE ON FUNCTION public.admin_notice_audience(text, text[], uuid, text)
 -- recusa (conta outra vez antes de enviar). Recusa o mesmo texto duas
 -- vezes em 24 h.
 DROP FUNCTION IF EXISTS public.admin_send_notice(text, text, text, text[], uuid, text, integer);
+-- A 0082 acrescenta p_partner_id. Se esta migration voltar a correr
+-- depois da 0082, tira essa versão (para não haver duas) e é preciso
+-- correr a 0082 outra vez.
+DROP FUNCTION IF EXISTS public.admin_send_notice(text, text, text, text[], uuid, text, integer, uuid);
 CREATE FUNCTION public.admin_send_notice(
   p_title           text,
   p_body            text,

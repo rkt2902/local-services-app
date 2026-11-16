@@ -209,6 +209,8 @@ class AdminNoticeRow {
     required this.readCount,
     required this.createdAt,
     this.adminEmail,
+    this.partnerId,
+    this.partnerName,
     this.totalCount = 0,
   });
 
@@ -220,6 +222,10 @@ class AdminNoticeRow {
   final int readCount;
   final DateTime? createdAt;
   final String? adminEmail;
+
+  /// Aviso de parceiro (0082): ao tocar, o jardineiro abre este parceiro.
+  final String? partnerId;
+  final String? partnerName;
   final int totalCount;
 
   factory AdminNoticeRow.fromJson(Map<String, dynamic> json) => AdminNoticeRow(
@@ -233,6 +239,8 @@ class AdminNoticeRow {
         ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
         : null,
     adminEmail: json['admin_email'] as String?,
+    partnerId: json['partner_id'] as String?,
+    partnerName: json['partner_name'] as String?,
     totalCount: _int(json['total_count']),
   );
 }

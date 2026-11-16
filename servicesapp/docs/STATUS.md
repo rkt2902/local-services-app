@@ -138,7 +138,13 @@
   Pro+ vê os parceiros só-Pro+ com o aviso "Disponível no Pro+" e sem códigos (a BD
   não os envia). A 0082 traz um "Parceiro de exemplo" (notas "MOCK") para ver o
   ecrã: **apagar no painel antes do lançamento**. Sem a 0082 aplicada a tab não
-  aparece.
+  aparece. A lista vem do mais perto para o mais longe da base (com "a 3 km"), sem
+  passar à frente da ordem do painel. A app conta quem abriu, copiou o código, abriu o
+  link ou o mapa, e o painel mostra esses números em cada parceiro (últimos 30 dias e
+  desde o início). "Avisar os jardineiros" num parceiro abre os Avisos com o texto
+  sugerido; o aviso abre o parceiro na app. A Visão geral avisa dos parceiros que
+  acabam nos próximos 7 dias e dos que passaram a validade. Quem passa a Pro+ vê os
+  códigos quando a app volta ao primeiro plano ou o plano é lido outra vez.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,

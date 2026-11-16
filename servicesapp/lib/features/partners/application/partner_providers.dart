@@ -19,3 +19,9 @@ final partnersProvider = FutureProvider<List<Partner>>((ref) {
 final hasPartnersProvider = Provider<bool>(
   (ref) => ref.watch(partnersProvider).asData?.value.isNotEmpty ?? false,
 );
+
+/// O plano mudou (Grátis ou Pro passou a Pro+, ou o contrário): os códigos
+/// dos parceiros só Pro+ mudam, por isso a lista tem de vir outra vez.
+/// `null` = ainda a carregar, não conta como mudança.
+bool partnersStaleAfterPlanChange(Object? previousTier, Object? nextTier) =>
+    previousTier != null && nextTier != null && previousTier != nextTier;

@@ -278,9 +278,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '$adminRoutePrefix/avisos',
-            pageBuilder: (_, _) => const NoTransitionPage(
-              key: ValueKey('admin-notices'),
-              child: AdminNoticesPage(),
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-notices'),
+              child: AdminNoticesPage(
+                partnerId: state.uri.queryParameters['parceiro'],
+              ),
             ),
           ),
           GoRoute(

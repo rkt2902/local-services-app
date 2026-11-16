@@ -649,6 +649,7 @@ class AdminRepository {
     required String body,
     required AdminNoticeAudience audience,
     required int expected,
+    String? partnerId,
   }) async {
     final data = await _client.rpc(
       'admin_send_notice',
@@ -657,6 +658,8 @@ class AdminRepository {
         'p_body': body.trim(),
         ...audience.toParams(),
         'p_expected': expected,
+        // Só com parceiro: sem a 0082 a chamada antiga continua a servir.
+        'p_partner_id': ?partnerId,
       },
     );
     return (data as num).toInt();
@@ -735,6 +738,23 @@ class AdminRepository {
     );
     if (image is String && image.isNotEmpty) {
       await removePartnerImage(image);
+    }
+  }
+
+  /// Alerta da Visão geral. Sem a 0082 aplicada não há alerta.
+  Future<AdminPartnerAlerts> fetchPartnerAlerts() async {
+    try {
+      final data = await _client.rpc('admin_partner_alerts');
+      final rows = data as List;
+      if (rows.isEmpty) return AdminPartnerAlerts.none;
+      return AdminPartnerAlerts.fromJson(
+        (rows.first as Map).cast<String, dynamic>(),
+      );
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202' || e.code == '42883') {
+        return AdminPartnerAlerts.none;
+      }
+      rethrow;
     }
   }
 

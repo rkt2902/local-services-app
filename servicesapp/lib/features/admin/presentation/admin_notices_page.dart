@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -19,6 +21,7 @@ import '../../worker/data/service_type_model.dart';
 import '../application/admin_labels.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_growth_models.dart';
+import '../data/admin_partner_models.dart';
 import 'widgets/admin_panel_widgets.dart';
 import 'widgets/admin_stat_widgets.dart';
 
@@ -28,8 +31,14 @@ const adminNoticeBodyMax = 500;
 /// Avisos (`/admin/avisos`, 0081): mensagem da ProJardim a um grupo de
 /// jardineiros ou clientes, na app e por push. Primeiro conta quem
 /// recebe; a BD só envia se o número ainda for o mesmo.
+///
+/// Com [partnerId] (`?parceiro=`, botão "Avisar os jardineiros" de um
+/// parceiro, 0082) o aviso é só para jardineiros e, ao tocar, abre o
+/// ecrã desse parceiro na app.
 class AdminNoticesPage extends ConsumerStatefulWidget {
-  const AdminNoticesPage({super.key});
+  const AdminNoticesPage({this.partnerId, super.key});
+
+  final String? partnerId;
 
   @override
   ConsumerState<AdminNoticesPage> createState() => _AdminNoticesPageState();
@@ -44,12 +53,55 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
   bool _counting = false;
   bool _sending = false;
 
+  /// Parceiro do aviso (`null` = aviso normal).
+  AdminPartner? _partner;
+  late String? _partnerId = widget.partnerId;
+
   @override
   void initState() {
     super.initState();
     _title.addListener(_rebuild);
     _body.addListener(_rebuild);
     _area.addListener(_areaChanged);
+    _loadPartner();
+  }
+
+  @override
+  void didUpdateWidget(AdminNoticesPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.partnerId != widget.partnerId) {
+      _partnerId = widget.partnerId;
+      _partner = null;
+      _loadPartner();
+    }
+  }
+
+  /// Vai buscar o parceiro e sugere o título e o texto.
+  Future<void> _loadPartner() async {
+    final id = _partnerId;
+    if (id == null) return;
+    try {
+      final partners = await ref.read(adminRepositoryProvider).fetchPartners();
+      final partner = partners.where((p) => p.id == id).firstOrNull;
+      if (!mounted || partner == null || _partnerId != id) return;
+      final (title, body) = adminPartnerNoticeDraft(partner);
+      setState(() {
+        _partner = partner;
+        if (_title.text.trim().isEmpty) _title.text = title;
+        if (_body.text.trim().isEmpty) _body.text = body;
+      });
+      _setAudience(_audience.copyWith(role: 'worker'));
+    } catch (_) {
+      // Sem a lista: fica um aviso normal.
+    }
+  }
+
+  void _clearPartner() {
+    setState(() {
+      _partner = null;
+      _partnerId = null;
+    });
+    if (widget.partnerId != null) context.go('/admin/avisos');
   }
 
   @override
@@ -111,12 +163,17 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
             body: _body.text,
             audience: _audience,
             expected: count,
+            partnerId: _partner?.id,
           );
       if (!mounted) return;
       toast.show('Aviso enviado a $sent pessoas.');
       _title.clear();
       _body.clear();
-      setState(() => _count = null);
+      setState(() {
+        _count = null;
+        _partner = null;
+        _partnerId = null;
+      });
       ref.invalidate(adminNoticesProvider);
       ref.invalidate(adminActionsProvider);
     } catch (e) {
@@ -143,6 +200,8 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
         body.length <= adminNoticeBodyMax;
     final count = _count;
     final a = _audience;
+    final partner = _partner;
+    final partnerHidden = partner != null && !partner.shownInApp();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -164,6 +223,16 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
           style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
+        if (partner != null) ...[
+          AppStaggeredEntrance(
+            index: 0,
+            child: AdminNoticePartnerCard(
+              partner: partner,
+              onRemove: _clearPartner,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         AppStaggeredEntrance(
           index: 0,
           child: AdminPanelCard(
@@ -175,9 +244,10 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    for (final (role, label) in const [
+                    for (final (role, label) in [
                       ('worker', 'Jardineiros'),
-                      ('client', 'Clientes'),
+                      // Avisos de parceiro são só para jardineiros.
+                      if (partner == null) ('client', 'Clientes'),
                     ])
                       AppFilterChip(
                         label: label,
@@ -314,7 +384,8 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
                       ? 'Conta os destinatários primeiro'
                       : 'Enviar a $count pessoas',
                   isLoading: _sending,
-                  onPressed: textOk && (count ?? 0) > 0 && !_sending
+                  onPressed:
+                      textOk && (count ?? 0) > 0 && !_sending && !partnerHidden
                       ? _send
                       : null,
                 ),
@@ -467,6 +538,8 @@ class AdminNoticeCard extends StatelessWidget {
             adminNoticeAudienceLabel(n.audience, serviceName: serviceName),
             style: secondary,
           ),
+          if (n.partnerName != null)
+            Text('Abre o parceiro ${n.partnerName}', style: secondary),
           Text(
             [
               '${n.recipients} destinatários',
@@ -476,6 +549,61 @@ class AdminNoticeCard extends StatelessWidget {
             ].join(' · '),
             style: secondary,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// O aviso é sobre um parceiro: ao tocar, o jardineiro abre o ecrã dele.
+class AdminNoticePartnerCard extends StatelessWidget {
+  const AdminNoticePartnerCard({
+    required this.partner,
+    required this.onRemove,
+    super.key,
+  });
+
+  final AdminPartner partner;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final hidden = !partner.shownInApp();
+    return AdminPanelCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(partner.kind.icon, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aviso sobre ${partner.name}',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  hidden
+                      ? 'Este parceiro não aparece na app (tem de estar '
+                            '"Parceiro", com "Mostrar na app" e dentro da '
+                            'validade). Muda isso antes de avisar.'
+                      : 'Só para jardineiros. Ao tocar no aviso, abre o '
+                            'ecrã do parceiro na app.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: hidden
+                        ? AppStatusColor.cancelled.foreground
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onRemove, child: const Text('Tirar')),
         ],
       ),
     );

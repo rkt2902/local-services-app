@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:servicesapp/core/widgets/primary_action_button.dart';
 import 'package:servicesapp/features/admin/application/admin_labels.dart';
 import 'package:servicesapp/features/admin/application/admin_providers.dart';
 import 'package:servicesapp/features/admin/data/admin_growth_models.dart';
+import 'package:servicesapp/features/admin/data/admin_partner_models.dart';
 import 'package:servicesapp/features/admin/data/admin_repository.dart';
 import 'package:servicesapp/features/admin/presentation/admin_funnel_page.dart';
 import 'package:servicesapp/features/admin/presentation/admin_notices_page.dart';
@@ -50,7 +52,16 @@ Map<String, dynamic> _funnelJson({Object? median = 5.5}) => {
 class _FakeRepo implements AdminRepository {
   int audienceCalls = 0;
   int count = 7;
-  final sent = <({String title, AdminNoticeAudience audience, int expected})>[];
+  final sent =
+      <
+        ({
+          String title,
+          AdminNoticeAudience audience,
+          int expected,
+          String? partnerId,
+        })
+      >[];
+  List<AdminPartner> partners = const [];
 
   @override
   Future<int> noticeAudience(AdminNoticeAudience audience) async {
@@ -64,10 +75,19 @@ class _FakeRepo implements AdminRepository {
     required String body,
     required AdminNoticeAudience audience,
     required int expected,
+    String? partnerId,
   }) async {
-    sent.add((title: title, audience: audience, expected: expected));
+    sent.add((
+      title: title,
+      audience: audience,
+      expected: expected,
+      partnerId: partnerId,
+    ));
     return expected;
   }
+
+  @override
+  Future<List<AdminPartner>> fetchPartners() async => partners;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -300,9 +320,11 @@ void main() {
     Future<_FakeRepo> pumpPage(
       WidgetTester tester, {
       List<AdminNoticeRow> notices = const [],
+      String? partnerId,
+      List<AdminPartner> partners = const [],
     }) async {
       _tall(tester);
-      final repo = _FakeRepo();
+      final repo = _FakeRepo()..partners = partners;
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -314,12 +336,58 @@ void main() {
               ],
             ),
           ],
-          child: const MaterialApp(home: Scaffold(body: AdminNoticesPage())),
+          child: MaterialApp(
+            home: Scaffold(body: AdminNoticesPage(partnerId: partnerId)),
+          ),
         ),
       );
       await tester.pumpAndSettle();
       return repo;
     }
+
+    testWidgets('aviso de parceiro: texto sugerido, só jardineiros, abre o '
+        'parceiro', (tester) async {
+      final partner = AdminPartner.fromJson({
+        'id': 'p1',
+        'name': 'Posto Avenida',
+        'status': 'active',
+        'visible_in_app': true,
+        'headline': '10% em combustível',
+      });
+      final repo = await pumpPage(tester, partnerId: 'p1', partners: [partner]);
+      expect(find.text('Aviso sobre Posto Avenida'), findsOneWidget);
+      expect(find.text('Parceiro novo: Posto Avenida'), findsWidgets);
+      expect(find.text('Clientes'), findsNothing);
+      await tester.tap(find.text('Contar destinatários'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enviar a 7 pessoas'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Enviar'));
+      await tester.pumpAndSettle();
+      expect(repo.sent.single.partnerId, 'p1');
+      expect(repo.sent.single.audience.role, 'worker');
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('parceiro que não aparece na app não deixa enviar', (
+      tester,
+    ) async {
+      final partner = AdminPartner.fromJson({
+        'id': 'p2',
+        'name': 'Loja Escondida',
+        'status': 'prospect',
+        'visible_in_app': true,
+      });
+      await pumpPage(tester, partnerId: 'p2', partners: [partner]);
+      expect(find.textContaining('não aparece na app'), findsOneWidget);
+      await tester.tap(find.text('Contar destinatários'));
+      await tester.pumpAndSettle();
+      final send = find.widgetWithText(
+        PrimaryActionButton,
+        'Enviar a 7 pessoas',
+      );
+      expect(tester.widget<PrimaryActionButton>(send).onPressed, isNull);
+    });
 
     testWidgets('conta, confirma e envia com o número contado', (tester) async {
       final repo = await pumpPage(tester);

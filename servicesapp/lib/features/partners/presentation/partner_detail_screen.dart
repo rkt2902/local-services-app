@@ -17,17 +17,36 @@ import '../../worker/application/worker_providers.dart';
 import '../../worker/data/worker_plan_model.dart';
 import '../../worker/presentation/worker_plan_sheet.dart';
 import '../application/partner_providers.dart';
+import '../data/partner_model.dart';
 import 'widgets/partner_detail_view.dart';
 
 /// Ecrã de um parceiro (`/worker/partners/:id`, fora do shell). O corpo é
 /// o [PartnerDetailView], que só mostra o que o parceiro tem preenchido.
-class PartnerDetailScreen extends ConsumerWidget {
+class PartnerDetailScreen extends ConsumerStatefulWidget {
   const PartnerDetailScreen({required this.partnerId, super.key});
 
   final String partnerId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PartnerDetailScreen> createState() =>
+      _PartnerDetailScreenState();
+}
+
+class _PartnerDetailScreenState extends ConsumerState<PartnerDetailScreen> {
+  String get partnerId => widget.partnerId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Conta para o painel (quantos jardineiros abriram este parceiro).
+    _log(PartnerEvent.open);
+  }
+
+  void _log(PartnerEvent event) =>
+      ref.read(partnerRepositoryProvider).logEvent(partnerId, event);
+
+  @override
+  Widget build(BuildContext context) {
     final partnersAsync = ref.watch(partnersProvider);
     final partner = partnersAsync.asData?.value
         .where((p) => p.id == partnerId)
@@ -75,7 +94,10 @@ class PartnerDetailScreen extends ConsumerWidget {
                             partner: partner,
                             onCopyCode: (code) => _copy(context, code),
                             onOpenLink: _openLink,
-                            onOpenMap: AddressMapLink.openInMaps,
+                            onOpenMap: (lat, lng) {
+                              _log(PartnerEvent.openMap);
+                              AddressMapLink.openInMaps(lat, lng);
+                            },
                             onUnlock: () => showWorkerPlanSheet(
                               context,
                               ref.read(myWorkerPlanProvider).asData?.value ??
@@ -94,6 +116,7 @@ class PartnerDetailScreen extends ConsumerWidget {
 
   Future<void> _copy(BuildContext context, String code) async {
     final toast = AppToast.of(context);
+    _log(PartnerEvent.copyCode);
     await Clipboard.setData(ClipboardData(text: code));
     toast.show('Código copiado.');
   }
@@ -101,6 +124,7 @@ class PartnerDetailScreen extends ConsumerWidget {
   Future<void> _openLink(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
+    _log(PartnerEvent.openLink);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

@@ -20,6 +20,15 @@
   e apaga as funções antigas.
 - Parceiro de exemplo na migration (id fixo, notas "MOCK"), para ver a tab antes de
   haver parceiros reais. Apaga-se no painel.
+- Uso contado por jardineiros diferentes (não por toques): o mesmo gesto do mesmo
+  jardineiro conta uma vez por hora, para os números servirem de argumento com o
+  parceiro sem inflar. Não se conta mostrar o código de barras ou o QR no balcão (não
+  há como saber).
+- Proximidade: a ordem do painel manda; com a mesma ordem (por omissão, 100), o mais
+  perto da base vem primeiro.
+- Aviso de parceiro reaproveita os Avisos (0081) em vez de um envio à parte: mesma
+  contagem antes de enviar, mesmo histórico. Tem tipo próprio (`partner_new`) para a
+  app saber abrir o parceiro.
 
 ## 2026-11-16 — Cartões frota no painel, gasolineiras e zonas no mapa (0082)
 

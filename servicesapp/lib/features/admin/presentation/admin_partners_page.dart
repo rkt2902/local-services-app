@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/error_utils.dart';
@@ -282,6 +283,8 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
                           partner: p,
                           onEdit: () => _edit(p),
                           onDelete: () => _delete(p),
+                          onNotify: () =>
+                              context.go('/admin/avisos?parceiro=${p.id}'),
                         ),
                       ),
                     ],
@@ -598,12 +601,16 @@ class AdminPartnerTile extends StatelessWidget {
     required this.partner,
     required this.onEdit,
     required this.onDelete,
+    this.onNotify,
     super.key,
   });
 
   final AdminPartner partner;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+
+  /// "Avisar os jardineiros" (só para os que aparecem na app).
+  final VoidCallback? onNotify;
 
   @override
   Widget build(BuildContext context) {
@@ -698,9 +705,37 @@ class AdminPartnerTile extends StatelessWidget {
                   : AppColors.textPrimary,
             ),
           ),
+          if (adminPartnerUsageLabel(p) case final usage?) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(right: AppSpacing.xxs),
+                  child: Icon(
+                    Icons.insights_outlined,
+                    size: AppSizes.metaIcon,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Expanded(child: Text(usage, style: secondary)),
+              ],
+            ),
+          ],
           if (p.notes != null) ...[
             const SizedBox(height: AppSpacing.xxs),
             Text(p.notes!, style: secondary),
+          ],
+          if (onNotify != null && p.shownInApp()) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: onNotify,
+                icon: const Icon(Icons.campaign_outlined),
+                label: const Text('Avisar os jardineiros'),
+              ),
+            ),
           ],
         ],
       ),

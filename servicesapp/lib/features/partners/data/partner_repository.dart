@@ -20,4 +20,15 @@ class PartnerRepository {
       rethrow;
     }
   }
+
+  /// Regista o uso para o painel. Nunca falha para quem usa a app: sem
+  /// rede ou sem a 0082, fica por contar.
+  Future<void> logEvent(String partnerId, PartnerEvent event) async {
+    try {
+      await _client.rpc(
+        'log_partner_event',
+        params: {'p_partner_id': partnerId, 'p_kind': event.value},
+      );
+    } catch (_) {}
+  }
 }

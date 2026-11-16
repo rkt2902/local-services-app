@@ -50,7 +50,11 @@ class PartnerDetailView extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final p = partner;
     final sections = partnerSections(p);
-    final subtitle = {?p.brand, p.kind.label}.join(' · ');
+    final subtitle = {
+      ?p.brand,
+      p.kind.label,
+      ?partnerDistanceLabel(p.distanceKm),
+    }.join(' · ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

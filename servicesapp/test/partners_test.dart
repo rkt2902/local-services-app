@@ -3,7 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:servicesapp/core/widgets/app_bottom_navigation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:servicesapp/features/notifications/application/notification_presentation.dart';
+import 'package:servicesapp/features/notifications/data/notification_types.dart';
+import 'package:servicesapp/features/partners/application/partner_providers.dart';
 import 'package:servicesapp/features/partners/data/partner_model.dart';
+import 'package:servicesapp/features/partners/data/partner_repository.dart';
+import 'package:servicesapp/features/partners/presentation/partner_detail_screen.dart';
 import 'package:servicesapp/features/partners/presentation/partners_screen.dart';
 import 'package:servicesapp/features/partners/presentation/widgets/partner_detail_view.dart';
 import 'package:servicesapp/features/worker/presentation/worker_shell.dart';
@@ -38,6 +44,23 @@ Map<String, dynamic> _full = {
   'has_barcode': true,
   'has_qr': true,
 };
+
+class _FakePartnerRepo implements PartnerRepository {
+  _FakePartnerRepo(this.partners);
+
+  final List<Partner> partners;
+  final events = <PartnerEvent>[];
+
+  @override
+  Future<List<Partner>> fetchPartners() async => partners;
+
+  @override
+  Future<void> logEvent(String partnerId, PartnerEvent event) async =>
+      events.add(event);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 Partner _partner([Map<String, dynamic> changes = const {}]) =>
     Partner.fromJson({..._full, ...changes});
@@ -121,6 +144,28 @@ void main() {
       expect(
         partnerSections(_locked),
         isNot(contains(PartnerSection.discountCode)),
+      );
+    });
+
+    test('distância', () {
+      expect(partnerDistanceLabel(null), isNull);
+      expect(partnerDistanceLabel(0.4), 'a menos de 1 km');
+      expect(partnerDistanceLabel(2.6), 'a 3 km');
+      expect(_partner({'distance_km': 2.6}).distanceKm, 2.6);
+    });
+
+    test('plano mudou: a lista vem outra vez', () {
+      expect(partnersStaleAfterPlanChange(null, 'pro_plus'), isFalse);
+      expect(partnersStaleAfterPlanChange('free', 'free'), isFalse);
+      expect(partnersStaleAfterPlanChange('free', 'pro_plus'), isTrue);
+      expect(partnersStaleAfterPlanChange('pro_plus', null), isFalse);
+    });
+
+    test('aviso de parceiro não conta como aviso de trabalho', () {
+      expect(isJobNotification(NotificationType.partnerNew), isFalse);
+      expect(
+        notificationLook(NotificationType.partnerNew).icon,
+        Icons.storefront_outlined,
       );
     });
 
@@ -225,6 +270,33 @@ void main() {
     });
   });
 
+  group('uso', () {
+    testWidgets('abrir e copiar ficam registados', (tester) async {
+      tester.view.physicalSize = const Size(420, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repo = _FakePartnerRepo([
+        _partner({'distance_km': 0.5}),
+      ]);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            partnerRepositoryProvider.overrideWithValue(repo),
+            partnersProvider.overrideWith((ref) async => repo.partners),
+          ],
+          child: const MaterialApp(home: PartnerDetailScreen(partnerId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(repo.events, [PartnerEvent.open]);
+      expect(find.textContaining('a menos de 1 km'), findsOneWidget);
+      await tester.tap(find.text('Copiar'));
+      await tester.pumpAndSettle();
+      expect(repo.events, [PartnerEvent.open, PartnerEvent.copyCode]);
+      await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
   group('lista', () {
     testWidgets('um banner por parceiro; tocar abre', (tester) async {
       Partner? opened;
@@ -242,6 +314,7 @@ void main() {
       expect(find.text('Posto Avenida'), findsNWidgets(2));
       expect(find.text('Loja Verde'), findsOneWidget);
       expect(find.text('Pro+'), findsOneWidget);
+      expect(find.textContaining('a menos de 1 km'), findsNothing);
       await tester.ensureVisible(find.text('Loja Verde'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Loja Verde'));

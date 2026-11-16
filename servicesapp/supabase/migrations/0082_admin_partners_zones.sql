@@ -18,9 +18,15 @@
 --      app lê get_partners (só ativos e visíveis; os códigos dos que são
 --      só Pro+ ficam escondidos a quem não é Pro+). Um parceiro de
 --      exemplo para ver o ecrã (apagar antes do lançamento).
+--      A app regista o uso (log_partner_event: abrir, copiar o código,
+--      abrir o link ou o mapa) e o painel mostra os números de cada um.
+--      get_partners devolve a distância à base do jardineiro.
+--      admin_partner_alerts diz quantos acabam nos próximos 7 dias.
 --   3. admin_map_zones: o país em quadrados (10 km por omissão) com
 --      pedidos, pedidos sem resposta, jardineiros que cobrem a zona e
 --      parceiros com localização, para as camadas "Sem resposta" e "Densidade".
+--   4. Avisos de parceiro novo: admin_send_notice aceita p_partner_id e
+--      o aviso (tipo 'partner_new') abre o parceiro na app.
 --
 -- Regras de sempre: cada admin_* chama assert_verified_admin(); quem
 -- chama é auth.uid(); nenhuma RPC recebe worker_id/client_id/user_id.
@@ -282,6 +288,24 @@ ALTER TABLE public.partners ADD CONSTRAINT partners_location_pair
 
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.partners FROM anon, authenticated;
+
+-- Uso de cada parceiro na app, para o painel mostrar quantos jardineiros
+-- o abriram, copiaram o código ou tocaram no link (argumento para fechar
+-- e renovar parcerias). Só escreve log_partner_event.
+CREATE TABLE IF NOT EXISTS public.partner_events (
+  id         bigserial   PRIMARY KEY,
+  partner_id uuid        NOT NULL REFERENCES public.partners(id) ON DELETE CASCADE,
+  worker_id  uuid        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  kind       text        NOT NULL
+                         CHECK (kind IN ('open', 'copy_code', 'open_link', 'open_map')),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS partner_events_partner_idx
+  ON public.partner_events (partner_id, kind, created_at DESC);
+CREATE INDEX IF NOT EXISTS partner_events_worker_idx
+  ON public.partner_events (worker_id, partner_id, kind, created_at DESC);
+ALTER TABLE public.partner_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.partner_events FROM anon, authenticated;
 CREATE INDEX IF NOT EXISTS partners_app_idx ON public.partners (sort_order, name)
   WHERE status = 'active' AND visible_in_app;
 
@@ -344,6 +368,69 @@ AS $function$
           FROM generate_series(1, 12) i) % 10) % 10 = substr(p_code, 13, 1)::int;
 $function$;
 
+-- A app regista o uso. Só jardineiros, só parceiros que a app mostra, e
+-- o mesmo gesto do mesmo jardineiro conta uma vez por hora (abrir e
+-- fechar várias vezes não infla os números). Falhar aqui não pode
+-- estragar o ecrã: a app ignora erros.
+DROP FUNCTION IF EXISTS public.log_partner_event(uuid, text);
+CREATE FUNCTION public.log_partner_event(p_partner_id uuid, p_kind text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid uuid := auth.uid();
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Sem sessão.' USING ERRCODE = '42501';
+  END IF;
+  IF p_kind IS NULL OR p_kind NOT IN ('open', 'copy_code', 'open_link', 'open_map') THEN
+    RAISE EXCEPTION 'Gesto desconhecido.';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = v_uid AND role = 'worker') THEN
+    RETURN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM partners pa WHERE pa.id = p_partner_id
+                   AND pa.status = 'active' AND pa.visible_in_app
+                   AND (pa.valid_until IS NULL OR pa.valid_until >= CURRENT_DATE)) THEN
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM partner_events e
+             WHERE e.worker_id = v_uid AND e.partner_id = p_partner_id
+               AND e.kind = p_kind AND e.created_at > now() - interval '1 hour') THEN
+    RETURN;
+  END IF;
+  INSERT INTO partner_events (partner_id, worker_id, kind)
+  VALUES (p_partner_id, v_uid, p_kind);
+END;
+$function$;
+REVOKE EXECUTE ON FUNCTION public.log_partner_event(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.log_partner_event(uuid, text) TO authenticated, service_role;
+
+-- Alerta da Visão geral: parceiros na app que acabam nos próximos 7 dias
+-- e os que estão marcados "na app" mas já passaram a validade (e por
+-- isso já não aparecem).
+DROP FUNCTION IF EXISTS public.admin_partner_alerts();
+CREATE FUNCTION public.admin_partner_alerts()
+RETURNS TABLE(ending_soon integer, expired_visible integer)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  PERFORM public.assert_verified_admin();
+  RETURN QUERY
+  SELECT count(*) FILTER (WHERE pa.valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + 7)::integer,
+         count(*) FILTER (WHERE pa.valid_until < CURRENT_DATE)::integer
+  FROM partners pa
+  WHERE pa.status = 'active' AND pa.visible_in_app;
+END;
+$function$;
+REVOKE EXECUTE ON FUNCTION public.admin_partner_alerts() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_partner_alerts() TO authenticated, service_role;
+
 -- Lista do painel: tudo, mais o que há perto de quem tem localização
 -- (10 km; pedidos dos últimos 90 dias). Sem localização, os números
 -- vêm a NULL.
@@ -379,7 +466,13 @@ RETURNS TABLE(
   workers_covering integer,
   workers_nearby   integer,
   jobs_nearby      integer,
-  jobs_unanswered  integer
+  jobs_unanswered  integer,
+  -- Uso na app nos últimos 30 dias (jardineiros diferentes) e desde sempre.
+  workers_opened_30d    integer,
+  workers_opened_total  integer,
+  workers_copied_30d    integer,
+  workers_link_30d      integer,
+  workers_map_30d       integer
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -412,8 +505,19 @@ BEGIN
          CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM j
            WHERE public.km_between(j.lat, j.lng, pa.lat, pa.lng) <= 10) END,
          CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM j
-           WHERE j.unanswered AND public.km_between(j.lat, j.lng, pa.lat, pa.lng) <= 10) END
+           WHERE j.unanswered AND public.km_between(j.lat, j.lng, pa.lat, pa.lng) <= 10) END,
+         COALESCE(u.opened_30d, 0), COALESCE(u.opened_total, 0), COALESCE(u.copied_30d, 0),
+         COALESCE(u.link_30d, 0), COALESCE(u.map_30d, 0)
   FROM partners pa
+  LEFT JOIN LATERAL (
+    SELECT count(DISTINCT e.worker_id) FILTER (WHERE e.kind = 'open' AND e.created_at > now() - interval '30 days')::integer AS opened_30d,
+           count(DISTINCT e.worker_id) FILTER (WHERE e.kind = 'open')::integer AS opened_total,
+           count(DISTINCT e.worker_id) FILTER (WHERE e.kind = 'copy_code' AND e.created_at > now() - interval '30 days')::integer AS copied_30d,
+           count(DISTINCT e.worker_id) FILTER (WHERE e.kind = 'open_link' AND e.created_at > now() - interval '30 days')::integer AS link_30d,
+           count(DISTINCT e.worker_id) FILTER (WHERE e.kind = 'open_map' AND e.created_at > now() - interval '30 days')::integer AS map_30d
+    FROM partner_events e
+    WHERE e.partner_id = pa.id AND public.admin_counts_person(e.worker_id)
+  ) u ON true
   ORDER BY CASE pa.status WHEN 'active' THEN 0 WHEN 'prospect' THEN 1 ELSE 2 END,
            pa.sort_order, pa.name;
 END;
@@ -597,7 +701,9 @@ RETURNS TABLE(
   locked            boolean,
   has_discount_code boolean,
   has_barcode       boolean,
-  has_qr            boolean
+  has_qr            boolean,
+  -- Distância (km) da base do jardineiro ao parceiro; NULL sem uma das duas.
+  distance_km       double precision
 )
 LANGUAGE plpgsql
 STABLE
@@ -606,11 +712,17 @@ SET search_path TO 'public'
 AS $function$
 DECLARE
   v_plus boolean;
+  v_lat  numeric;
+  v_lng  numeric;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Sem sessão.' USING ERRCODE = '42501';
   END IF;
   v_plus := public.worker_active_tier(auth.uid()) = 'pro_plus';
+  SELECT wp.base_lat, wp.base_lng INTO v_lat, v_lng
+  FROM worker_profiles wp
+  WHERE wp.profile_id = auth.uid()
+    AND wp.base_lat IS NOT NULL AND NOT (wp.base_lat = 0 AND wp.base_lng = 0);
   RETURN QUERY
   SELECT pa.id, pa.kind, pa.name, pa.brand, pa.headline, pa.description, pa.image_path,
          CASE WHEN l.locked THEN NULL ELSE pa.discount_code END,
@@ -620,14 +732,19 @@ BEGIN
          pa.link_url, pa.link_label, pa.terms, pa.valid_until,
          pa.address, pa.locality, pa.lat::double precision, pa.lng::double precision,
          l.locked,
-         pa.discount_code IS NOT NULL, pa.barcode_value IS NOT NULL, pa.qr_value IS NOT NULL
+         pa.discount_code IS NOT NULL, pa.barcode_value IS NOT NULL, pa.qr_value IS NOT NULL,
+         d.km
   FROM partners pa
+  CROSS JOIN LATERAL (SELECT CASE WHEN v_lat IS NOT NULL AND pa.lat IS NOT NULL
+                              THEN public.km_between(v_lat, v_lng, pa.lat, pa.lng)::double precision
+                              END AS km) d
   CROSS JOIN LATERAL (SELECT (pa.pro_plus_only AND NOT v_plus
                               AND (pa.discount_code IS NOT NULL OR pa.barcode_value IS NOT NULL
                                    OR pa.qr_value IS NOT NULL)) AS locked) l
   WHERE pa.status = 'active' AND pa.visible_in_app
     AND (pa.valid_until IS NULL OR pa.valid_until >= CURRENT_DATE)
-  ORDER BY pa.sort_order, pa.name;
+  -- A ordem do painel manda; com a mesma ordem, o mais perto primeiro.
+  ORDER BY pa.sort_order, d.km NULLS LAST, pa.name;
 END;
 $function$;
 REVOKE EXECUTE ON FUNCTION public.get_partners() FROM PUBLIC, anon;
@@ -743,3 +860,141 @@ END;
 $function$;
 REVOKE EXECUTE ON FUNCTION public.admin_map_zones(integer, numeric) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_map_zones(integer, numeric) TO authenticated, service_role;
+
+
+-- ── 4. Avisos de parceiro novo ──────────────────────────────────
+
+-- Um aviso pode apontar para um parceiro: os jardineiros recebem-no com o
+-- tipo 'partner_new' (relatedId = parceiro) e, ao tocar, abre o ecrã
+-- dele. Só para jardineiros e só se o parceiro aparece na app.
+ALTER TABLE public.admin_notices
+  ADD COLUMN IF NOT EXISTS partner_id uuid REFERENCES public.partners(id) ON DELETE SET NULL;
+
+DROP FUNCTION IF EXISTS public.admin_send_notice(text, text, text, text[], uuid, text, integer);
+DROP FUNCTION IF EXISTS public.admin_send_notice(text, text, text, text[], uuid, text, integer, uuid);
+CREATE FUNCTION public.admin_send_notice(
+  p_title           text,
+  p_body            text,
+  p_role            text,
+  p_tiers           text[],
+  p_service_type_id uuid,
+  p_area            text,
+  p_expected        integer,
+  p_partner_id      uuid DEFAULT NULL
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_title    text := btrim(COALESCE(p_title, ''));
+  v_body     text := btrim(COALESCE(p_body, ''));
+  v_n        integer;
+  v_id       uuid;
+  v_audience jsonb;
+  v_partner  text;
+BEGIN
+  PERFORM public.assert_verified_admin();
+  PERFORM public.admin_check_notice_audience(p_role, p_tiers);
+  IF length(v_title) < 3 OR length(v_title) > 80 THEN
+    RAISE EXCEPTION 'O título tem de ter entre 3 e 80 carateres.';
+  END IF;
+  IF length(v_body) < 10 OR length(v_body) > 500 THEN
+    RAISE EXCEPTION 'O texto tem de ter entre 10 e 500 carateres.';
+  END IF;
+  IF p_partner_id IS NOT NULL THEN
+    IF p_role <> 'worker' THEN
+      RAISE EXCEPTION 'Os avisos de parceiro são só para jardineiros.';
+    END IF;
+    SELECT pa.name INTO v_partner FROM partners pa
+    WHERE pa.id = p_partner_id AND pa.status = 'active' AND pa.visible_in_app
+      AND (pa.valid_until IS NULL OR pa.valid_until >= CURRENT_DATE);
+    IF v_partner IS NULL THEN
+      RAISE EXCEPTION 'Este parceiro não aparece na app (tem de estar "Parceiro", com "Mostrar na app" e dentro da validade).';
+    END IF;
+  END IF;
+  IF EXISTS (SELECT 1 FROM admin_notices
+             WHERE title = v_title AND body = v_body AND created_at > now() - interval '24 hours') THEN
+    RAISE EXCEPTION 'Este aviso já foi enviado nas últimas 24 horas.';
+  END IF;
+
+  SELECT count(*) INTO v_n
+  FROM public.admin_notice_recipients(p_role, p_tiers, p_service_type_id, p_area);
+  IF v_n = 0 THEN
+    RAISE EXCEPTION 'Ninguém corresponde a estes filtros.';
+  END IF;
+  IF p_expected IS DISTINCT FROM v_n THEN
+    RAISE EXCEPTION 'O número de destinatários mudou (agora %). Conta outra vez antes de enviar.', v_n;
+  END IF;
+
+  v_audience := jsonb_strip_nulls(jsonb_build_object(
+    'role', p_role, 'tiers', to_jsonb(NULLIF(p_tiers, '{}')),
+    'service_type_id', p_service_type_id, 'area', NULLIF(btrim(COALESCE(p_area, '')), '')));
+  INSERT INTO admin_notices (title, body, audience, recipients, created_by, partner_id)
+  VALUES (v_title, v_body, v_audience, v_n, auth.uid(), p_partner_id)
+  RETURNING id INTO v_id;
+
+  -- Com parceiro, relatedId é o parceiro (a app abre-o); sem parceiro, é o
+  -- envio, como na 0081.
+  INSERT INTO notifications (user_id, type, title, body, related_id, related_type)
+  SELECT r.user_id,
+         CASE WHEN p_partner_id IS NULL THEN 'admin_notice' ELSE 'partner_new' END,
+         v_title, v_body,
+         COALESCE(p_partner_id, v_id),
+         CASE WHEN p_partner_id IS NULL THEN 'admin_notice' ELSE 'partner' END
+  FROM public.admin_notice_recipients(p_role, p_tiers, p_service_type_id, p_area) r;
+
+  PERFORM public.admin_log('send_notice', v_id, v_audience || jsonb_strip_nulls(jsonb_build_object(
+    'title', v_title, 'recipients', v_n, 'partner', v_partner)));
+  RETURN v_n;
+END;
+$function$;
+REVOKE EXECUTE ON FUNCTION public.admin_send_notice(text, text, text, text[], uuid, text, integer, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_send_notice(text, text, text, text[], uuid, text, integer, uuid) TO authenticated, service_role;
+
+-- O histórico diz de que parceiro era o aviso. Os lidos de um aviso de
+-- parceiro contam-se pelo parceiro e pela hora do envio (a mesma
+-- transação dá o mesmo now() às duas tabelas).
+DROP FUNCTION IF EXISTS public.admin_list_notices(integer, integer);
+CREATE FUNCTION public.admin_list_notices(p_limit integer DEFAULT 30, p_offset integer DEFAULT 0)
+RETURNS TABLE(
+  id           uuid,
+  title        text,
+  body         text,
+  audience     jsonb,
+  recipients   integer,
+  read_count   integer,
+  created_at   timestamptz,
+  admin_email  text,
+  partner_id   uuid,
+  partner_name text,
+  total_count  bigint
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  PERFORM public.assert_verified_admin();
+  RETURN QUERY
+  SELECT n.id, n.title, n.body, n.audience, n.recipients,
+         CASE WHEN n.partner_id IS NULL THEN
+           (SELECT count(*)::integer FROM notifications x
+            WHERE x.related_id = n.id AND x.type = 'admin_notice' AND x.read)
+         ELSE
+           (SELECT count(*)::integer FROM notifications x
+            WHERE x.related_id = n.partner_id AND x.type = 'partner_new'
+              AND x.created_at = n.created_at AND x.read)
+         END,
+         n.created_at, u.email::text, n.partner_id, pa.name, count(*) OVER ()
+  FROM admin_notices n
+  LEFT JOIN auth.users u ON u.id = n.created_by
+  LEFT JOIN partners pa ON pa.id = n.partner_id
+  ORDER BY n.created_at DESC
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 30), 1), 100)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+END;
+$function$;
+REVOKE EXECUTE ON FUNCTION public.admin_list_notices(integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_list_notices(integer, integer) TO authenticated, service_role;

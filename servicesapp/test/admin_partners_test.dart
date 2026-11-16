@@ -51,6 +51,7 @@ AdminPartner _partner({
   bool located = true,
   bool visible = true,
   String? validUntil,
+  int opened = 0,
 }) => AdminPartner.fromJson({
   'id': id,
   'kind': 'fuel_station',
@@ -81,6 +82,11 @@ AdminPartner _partner({
   'workers_nearby': 1,
   'jobs_nearby': 5,
   'jobs_unanswered': 1,
+  'workers_opened_30d': opened,
+  'workers_opened_total': opened * 3,
+  'workers_copied_30d': opened > 0 ? 1 : 0,
+  'workers_link_30d': opened > 0 ? 2 : 0,
+  'workers_map_30d': 0,
 });
 
 AdminMapZone _zone(
@@ -353,6 +359,36 @@ void main() {
       expect(adminLinkError(''), isNull);
     });
 
+    test('uso na app', () {
+      expect(
+        adminPartnerUsageLabel(_partner(opened: 4)),
+        'Últimos 30 dias: 4 jardineiros abriram · 1 copiou o código · '
+        '2 abriram o link (12 jardineiros desde o início)',
+      );
+      expect(
+        adminPartnerUsageLabel(_partner()),
+        'Ainda nenhum jardineiro o abriu na app',
+      );
+      expect(adminPartnerUsageLabel(_partner(visible: false)), isNull);
+    });
+
+    test('alertas de validade e texto do aviso', () {
+      expect(adminPartnerAlertMessages(AdminPartnerAlerts.none), isEmpty);
+      expect(
+        adminPartnerAlertMessages(
+          AdminPartnerAlerts.fromJson({'ending_soon': 2, 'expired_visible': 1}),
+        ),
+        [
+          '2 parceiros acabam nos próximos 7 dias',
+          '1 parceiro passou a validade e já não aparece na app',
+        ],
+      );
+      expect(adminPartnerNoticeDraft(_partner()), (
+        'Parceiro novo: Posto Avenida',
+        '10% em combustível. Vê os detalhes na tab Parceiros.',
+      ));
+    });
+
     test('resumo do que está preenchido', () {
       expect(adminPartnerFilledLabel(_partner()), 'Código');
       expect(adminPartnerHasCodes(_partner()), isTrue);
@@ -490,6 +526,11 @@ void main() {
       expect(find.textContaining('2 jardineiros cobrem'), findsOneWidget);
       expect(find.text('Na app'), findsOneWidget);
       expect(find.text('Códigos só Pro+'), findsOneWidget);
+      expect(find.text('Avisar os jardineiros'), findsOneWidget);
+      expect(
+        find.text('Ainda nenhum jardineiro o abriu na app'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Cartões frota'));
       await tester.pumpAndSettle();

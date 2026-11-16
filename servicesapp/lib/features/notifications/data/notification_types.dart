@@ -103,4 +103,8 @@ abstract class NotificationType {
   /// 0082: o painel aprovou, recusou ou retirou o cartão frota. relatedId =
   /// id do cartão; tocar abre o ecrã do cartão frota.
   static const fleetCardReviewed = 'fleet_card_reviewed';
+
+  /// 0082: aviso do painel sobre um parceiro (novo ou com novidades).
+  /// relatedId = id do parceiro; tocar abre o ecrã dele.
+  static const partnerNew = 'partner_new';
 }
