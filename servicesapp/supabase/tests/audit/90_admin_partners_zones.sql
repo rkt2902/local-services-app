@@ -1,5 +1,5 @@
 -- Painel de admin (migration 0082), 16/11/2026: cartões frota no painel,
--- gasolineiras parceiras e zonas do mapa. Corre depois do 10_flows.sql
+-- parceiros (painel e app) e zonas do mapa. Corre depois do 10_flows.sql
 -- (bash run.sh keep), na mesma BD. Cria contas próprias (C8, WA, WB, WC)
 -- com tudo nos Açores, longe dos outros ficheiros, para as contas das
 -- zonas não dependerem deles.
@@ -63,9 +63,9 @@ create temp table z_calls(name text, sql text);
 insert into z_calls values
   ('admin_list_fleet_cards',        $q$select * from admin_list_fleet_cards()$q$),
   ('admin_review_fleet_card',       format($q$select admin_review_fleet_card(%L, 'active')$q$, :'fa')),
-  ('admin_list_partner_locations',  $q$select * from admin_list_partner_locations()$q$),
-  ('admin_save_partner_location',   $q$select admin_save_partner_location(null, 'Posto', null, 'fuel_station', 'active', null, null, 38.7, -27.2, null)$q$),
-  ('admin_delete_partner_location', $q$select admin_delete_partner_location('00000000-0000-0000-0000-000000000000')$q$),
+  ('admin_list_partners',           $q$select * from admin_list_partners()$q$),
+  ('admin_save_partner',            $q$select admin_save_partner(null, '{"name": "Posto"}')$q$),
+  ('admin_delete_partner',          $q$select admin_delete_partner('00000000-0000-0000-0000-000000000000')$q$),
   ('admin_map_zones',               $q$select * from admin_map_zones()$q$);
 grant select on z_calls to anon, authenticated;
 
@@ -88,8 +88,8 @@ select t_as(:'WB');
 select audit.err('T-PZ-05 jardineiro não escreve a decisão no pedido do cartão',
   format($q$insert into worker_fleet_cards(worker_id, barcode_value, status, review_message) values (%L, 'X', 'pending', 'aprovado')$q$, :'WB'),
   'row-level security');
-select audit.err('T-PZ-06 gasolineiras são só do servidor',
-  $q$select count(*) from partner_locations$q$, 'permission denied');
+select audit.err('T-PZ-06 a tabela dos parceiros é só do servidor',
+  $q$select count(*) from partners$q$, 'permission denied');
 select t_as(:'WC');
 select audit.err('T-PZ-07 conta suspensa não pede cartão',
   format($q$insert into worker_fleet_cards(worker_id, barcode_value, status) values (%L, 'X', 'pending')$q$, :'WC'),
@@ -142,31 +142,31 @@ select audit.eq('T-PZ-25 o jardineiro lê a mensagem da recusa no seu cartão',
 -- ── Gasolineiras ──
 select t_aal2(:'AD');
 select audit.err('T-PZ-30 fora de Portugal',
-  $q$select admin_save_partner_location(null, 'Posto', null, 'fuel_station', 'active', null, null, 40.4, -3.7, null)$q$, 'em Portugal');
+  $q$select admin_save_partner(null, '{"name": "Posto", "lat": 40.4, "lng": -3.7}')$q$, 'em Portugal');
 select audit.err('T-PZ-31 nome curto',
-  $q$select admin_save_partner_location(null, 'P', null, 'fuel_station', 'active', null, null, 38.7, -27.2, null)$q$, 'nome');
+  $q$select admin_save_partner(null, '{"name": "P"}')$q$, 'nome');
 select audit.err('T-PZ-32 estado inválido',
-  $q$select admin_save_partner_location(null, 'Posto', null, 'fuel_station', 'aberto', null, null, 38.7, -27.2, null)$q$, 'Estado');
+  $q$select admin_save_partner(null, '{"name": "Posto", "status": "aberto"}')$q$, 'Estado');
 select audit.err('T-PZ-33 tipo inválido',
-  $q$select admin_save_partner_location(null, 'Posto', null, 'banco', 'active', null, null, 38.7, -27.2, null)$q$, 'Tipo');
-select admin_save_partner_location(null, '  Posto Angra  ', 'Marca X', 'fuel_station', 'active', 'Estrada 1', 'Angra Teste', 38.705, -27.205, null) as pa1 \gset
-select admin_save_partner_location(null, 'Posto Ponta', 'Marca Y', 'fuel_station', 'prospect', null, 'Ponta Teste', 37.80, -25.50, 'Falar com o gerente') as pa2 \gset
-select admin_save_partner_location(null, 'Posto Fechado', null, 'fuel_station', 'ended', null, 'Angra Teste', 38.705, -27.205, null) as pa3 \gset
+  $q$select admin_save_partner(null, '{"name": "Posto", "kind": "banco"}')$q$, 'Tipo');
+select admin_save_partner(null, '{"name": "  Posto Angra  ", "brand": "Marca X", "status": "active", "address": "Estrada 1", "locality": "Angra Teste", "lat": 38.705, "lng": -27.205}') as pa1 \gset
+select admin_save_partner(null, '{"name": "Posto Ponta", "brand": "Marca Y", "status": "prospect", "locality": "Ponta Teste", "lat": 37.80, "lng": -25.50, "notes": "Falar com o gerente"}') as pa2 \gset
+select admin_save_partner(null, '{"name": "Posto Fechado", "status": "ended", "locality": "Angra Teste", "lat": 38.705, "lng": -27.205}') as pa3 \gset
 select audit.eq('T-PZ-34 alterar mantém o id',
-  format($q$select (admin_save_partner_location(%L, 'Posto Angra', 'Marca X', 'fuel_station', 'active', 'Estrada 1', 'Angra Teste', 38.705, -27.205, 'Parceira desde novembro') = %L)::text$q$, :'pa1', :'pa1'),
+  format($q$select (admin_save_partner(%L, '{"name": "Posto Angra", "brand": "Marca X", "status": "active", "address": "Estrada 1", "locality": "Angra Teste", "lat": 38.705, "lng": -27.205, "notes": "Parceira desde novembro"}') = %L)::text$q$, :'pa1', :'pa1'),
   'true');
 select audit.err('T-PZ-35 alterar um que não existe',
-  $q$select admin_save_partner_location('00000000-0000-0000-0000-000000000000', 'Posto', null, 'fuel_station', 'active', null, null, 38.7, -27.2, null)$q$, 'não encontrado');
+  $q$select admin_save_partner('00000000-0000-0000-0000-000000000000', '{"name": "Posto"}')$q$, 'não encontrado');
 select audit.eq('T-PZ-36 Angra: nome sem espaços, 1 jardineiro cobre (o suspenso não), 3 pedidos perto, 2 sem resposta',
   format($q$select name || '/' || workers_covering || '/' || workers_nearby || '/' || jobs_nearby || '/' || jobs_unanswered || '/' || notes
-     from admin_list_partner_locations() where id = %L$q$, :'pa1'),
+     from admin_list_partners() where id = %L$q$, :'pa1'),
   'Posto Angra/1/1/3/2/Parceira desde novembro');
 select audit.eq('T-PZ-37 Ponta Delgada: ninguém cobre, 1 pedido recente (ainda não sem resposta)',
-  format($q$select workers_covering || '/' || jobs_nearby || '/' || jobs_unanswered from admin_list_partner_locations() where id = %L$q$, :'pa2'),
+  format($q$select workers_covering || '/' || jobs_nearby || '/' || jobs_unanswered from admin_list_partners() where id = %L$q$, :'pa2'),
   '0/1/0');
 select audit.eq('T-PZ-38 parceiras primeiro, depois em conversa, depois acabadas',
   format($q$select string_agg(status, ',' order by ord) from (select status, row_number() over () ord
-     from admin_list_partner_locations() where id in (%L, %L, %L)) s$q$, :'pa1', :'pa2', :'pa3'),
+     from admin_list_partners() where id in (%L, %L, %L)) s$q$, :'pa1', :'pa2', :'pa3'),
   'active,prospect,ended');
 
 -- ── Zonas ──
@@ -186,27 +186,93 @@ select audit.eq('T-PZ-43 período de 1 dia: em Ponta Delgada conta o pedido de h
      where 37.80 between lat_min and lat_max and -25.50 between lng_min and lng_max$q$,
   '1/1');
 select audit.eq('T-PZ-44 apagar uma gasolineira',
-  format($q$select admin_delete_partner_location(%L)::text || (select count(*) from admin_list_partner_locations() where id = %L)$q$, :'pa3', :'pa3'),
+  format($q$select coalesce(admin_delete_partner(%L), '') || (select count(*) from admin_list_partners() where id = %L)$q$, :'pa3', :'pa3'),
   '0');
-select audit.err('T-PZ-45 apagar outra vez', format($q$select admin_delete_partner_location(%L)$q$, :'pa3'), 'não encontrado');
+select audit.err('T-PZ-45 apagar outra vez', format($q$select admin_delete_partner(%L)$q$, :'pa3'), 'não encontrado');
 reset role;
 select audit.eq('T-PZ-46 registo das gasolineiras',
   $q$select string_agg(action, ',' order by created_at, id) from admin_actions where action like 'partner\_%'$q$,
   'partner_created,partner_created,partner_created,partner_updated,partner_deleted');
+-- ── Parceiros na app ──
+set role authenticated;
+select t_aal2(:'AD');
+select audit.err('T-PZ-50 link sem https', $q$select admin_save_partner(null, '{"name": "Loja", "link_url": "http://x.pt"}')$q$, 'https://');
+select audit.err('T-PZ-51 EAN-13 com o último dígito errado',
+  $q$select admin_save_partner(null, '{"name": "Loja", "barcode_value": "4006381333932", "barcode_format": "ean13"}')$q$, 'EAN-13');
+select audit.err('T-PZ-52 latitude sem longitude', $q$select admin_save_partner(null, '{"name": "Loja", "lat": 38.7}')$q$, 'latitude e longitude');
+select audit.err('T-PZ-53 frase do banner longa',
+  format($q$select admin_save_partner(null, %L)$q$, jsonb_build_object('name', 'Loja', 'headline', repeat('x', 81))), 'banner');
+select audit.err('T-PZ-54 caminho da foto para fora da pasta',
+  $q$select admin_save_partner(null, '{"name": "Loja", "image_path": "../avatars/x.jpg"}')$q$, 'Foto inválida');
+select audit.err('T-PZ-55 code128 com acentos',
+  $q$select admin_save_partner(null, '{"name": "Loja", "barcode_value": "ÇÃO-1"}')$q$, 'sem acentos');
+-- Parceiro só Pro+ com tudo, sem localização; outro aberto a todos só com descrição.
+select admin_save_partner(null, '{"name": "Loja Pro", "kind": "garden_store", "status": "active", "visible_in_app": true,
+  "headline": "15% em sementes", "description": "Loja de teste.", "image_path": "x/foto.jpg", "discount_code": "PJ15",
+  "barcode_value": "4006381333931", "barcode_format": "ean13", "qr_value": "https://exemplo.pt/promo",
+  "link_url": "https://exemplo.pt", "link_label": "Ver loja", "terms": "Até ao fim do ano.", "sort_order": 1,
+  "notes": "Nota interna"}') as pp \gset
+select admin_save_partner(null, '{"name": "Loja Aberta", "status": "active", "visible_in_app": true, "pro_plus_only": false,
+  "description": "Só texto.", "sort_order": 2}') as pf \gset
+select admin_save_partner(null, '{"name": "Loja Antiga", "status": "active", "visible_in_app": true,
+  "valid_until": "2020-01-01"}') as pv \gset
+select audit.eq('T-PZ-56 painel lê os campos novos; sem localização não há números',
+  format($q$select headline || '/' || barcode_format || '/' || visible_in_app || '/' || pro_plus_only || '/' || coalesce(workers_covering::text, 'null')
+     from admin_list_partners() where id = %L$q$, :'pp'),
+  '15% em sementes/ean13/true/true/null');
+
+set role anon;
+select t_as('');
+select audit.err('T-PZ-57 sem sessão não lê parceiros', $q$select * from get_partners()$q$, 'permission denied');
+reset role;
+set role authenticated;
+select t_as(:'WA');
+select audit.eq('T-PZ-58 Pro+: só ativos, visíveis e dentro da validade, por ordem (o de exemplo primeiro)',
+  format($q$select string_agg(name, ',' order by ord) from (select name, row_number() over () ord from get_partners()) s
+     where name in ('Parceiro de exemplo', 'Loja Pro', 'Loja Aberta', 'Loja Antiga', 'Posto Angra', 'Posto Ponta')$q$),
+  'Parceiro de exemplo,Loja Pro,Loja Aberta');
+select audit.eq('T-PZ-59 Pro+ recebe os códigos',
+  format($q$select locked || '/' || discount_code || '/' || barcode_value || '/' || qr_value from get_partners() where id = %L$q$, :'pp'),
+  'false/PJ15/4006381333931/https://exemplo.pt/promo');
+select t_as(:'WB');
+select audit.eq('T-PZ-60 Grátis: os códigos do só-Pro+ vêm escondidos, mas sabe o que há',
+  format($q$select locked || '/' || coalesce(discount_code, '-') || '/' || coalesce(barcode_value, '-') || '/' || coalesce(qr_value, '-')
+     || '/' || has_discount_code || has_barcode || has_qr || '/' || link_url from get_partners() where id = %L$q$, :'pp'),
+  'true/-/-/-/truetruetrue/https://exemplo.pt');
+select audit.eq('T-PZ-61 Grátis: o de exemplo (aberto a todos) mostra tudo; sem códigos não fica trancado',
+  format($q$select (select locked || '/' || discount_code from get_partners() where name = 'Parceiro de exemplo')
+     || '|' || (select locked::text from get_partners() where id = %L)$q$, :'pf'),
+  'false/PROJARDIM10|false');
+select t_as(:'C8');
+select audit.ok('T-PZ-62 clientes também conseguem ler (a app só mostra aos jardineiros)', $q$select * from get_partners()$q$);
+
+-- Fotos: só o admin com segundo fator escreve no bucket.
+select t_as(:'WA');
+select audit.err('T-PZ-63 jardineiro não envia fotos de parceiros',
+  $q$insert into storage.objects(bucket_id, name) values ('partner-images', 'x/foto.jpg')$q$, 'row-level security');
+select t_as(:'AD');
+select audit.err('T-PZ-64 admin sem segundo fator também não',
+  $q$insert into storage.objects(bucket_id, name) values ('partner-images', 'x/foto.jpg')$q$, 'row-level security');
+select t_aal2(:'AD');
+select audit.ok('T-PZ-65 admin com segundo fator envia',
+  $q$insert into storage.objects(bucket_id, name) values ('partner-images', 'x/foto.jpg')$q$);
+select audit.eq('T-PZ-66 apagar devolve o caminho da foto',
+  format($q$select admin_delete_partner(%L)$q$, :'pp'), 'x/foto.jpg');
+reset role;
 select audit.eq('T-PZ-47 auxiliar das bases não se chama pela API',
   $q$select has_function_privilege('authenticated', 'public.admin_active_worker_bases()', 'execute')::text$q$, 'false');
 select audit.eq('T-PZ-48 nenhuma RPC nova recebe ids de pessoas',
   $q$select count(*)::text from pg_proc p where proname in ('admin_list_fleet_cards','admin_review_fleet_card',
-     'admin_list_partner_locations','admin_save_partner_location','admin_delete_partner_location','admin_map_zones')
+     'admin_list_partners','admin_save_partner','admin_delete_partner','admin_map_zones','get_partners')
      and exists (select 1 from unnest(p.proargnames) a where a in ('p_worker_id','p_client_id','p_user_id','p_admin_id'))$q$, '0');
 
 -- ── Correr a migration outra vez ──
 \set QUIET on
 \ir ../../migrations/0082_admin_partners_zones.sql
 \set QUIET off
-select audit.eq('T-PZ-60 correr outra vez não perde gasolineiras nem decisões',
-  format($q$select (select count(*) from partner_locations) || ':' || (select review_message is not null from worker_fleet_cards where id = %L)$q$, :'fb'),
-  '2:true');
+select audit.eq('T-PZ-70 correr outra vez não perde gasolineiras nem decisões',
+  format($q$select (select count(*) from partners) || ':' || (select review_message is not null from worker_fleet_cards where id = %L)$q$, :'fb'),
+  '5:true');
 
 select format('%s | %s | %s', case when ok then 'PASS' else 'FAIL' end, id, coalesce(detail, ''))
 from audit.results where id like 'T-PZ-%' order by seq;

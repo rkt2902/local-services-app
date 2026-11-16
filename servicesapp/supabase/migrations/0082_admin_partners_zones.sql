@@ -11,12 +11,16 @@
 --      admin_review_fleet_card (aprovar, recusar, retirar). Deixa de ser
 --      preciso o UPDATE à mão no SQL Editor (0037). O jardineiro recebe
 --      um aviso (tipo 'fleet_card_reviewed') e vê a mensagem da recusa.
---   2. Gasolineiras parceiras (tabela partner_locations, só do painel):
---      admin_list_partner_locations (com jardineiros e pedidos perto),
---      admin_save_partner_location, admin_delete_partner_location.
+--   2. Parceiros (tabela partners): o painel cria e altera
+--      (admin_list_partners, admin_save_partner, admin_delete_partner),
+--      com foto (bucket partner-images), descrição, código de desconto,
+--      código de barras, QR, link, condições e localização opcionais. A
+--      app lê get_partners (só ativos e visíveis; os códigos dos que são
+--      só Pro+ ficam escondidos a quem não é Pro+). Um parceiro de
+--      exemplo para ver o ecrã (apagar antes do lançamento).
 --   3. admin_map_zones: o país em quadrados (10 km por omissão) com
 --      pedidos, pedidos sem resposta, jardineiros que cobrem a zona e
---      gasolineiras, para as camadas "Sem resposta" e "Densidade".
+--      parceiros com localização, para as camadas "Sem resposta" e "Densidade".
 --
 -- Regras de sempre: cada admin_* chama assert_verified_admin(); quem
 -- chama é auth.uid(); nenhuma RPC recebe worker_id/client_id/user_id.
@@ -204,28 +208,108 @@ REVOKE EXECUTE ON FUNCTION public.admin_review_fleet_card(uuid, text, text, text
 GRANT EXECUTE ON FUNCTION public.admin_review_fleet_card(uuid, text, text, text) TO authenticated, service_role;
 
 
--- ── 2. Gasolineiras parceiras ───────────────────────────────────
+-- ── 2. Parceiros ────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS public.partner_locations (
+-- Um parceiro (gasolineira, loja, ...) com o que o jardineiro vê na app
+-- e o que só o painel vê (estado, notas). A localização é opcional.
+-- Uma versão anterior desta migration criava "partner_locations": se
+-- já existir, passa a "partners".
+DO $$
+BEGIN
+  IF to_regclass('public.partner_locations') IS NOT NULL
+     AND to_regclass('public.partners') IS NULL THEN
+    ALTER TABLE public.partner_locations RENAME TO partners;
+  END IF;
+END $$;
+DROP FUNCTION IF EXISTS public.admin_list_partner_locations();
+DROP FUNCTION IF EXISTS public.admin_save_partner_location(uuid, text, text, text, text, text, text, numeric, numeric, text);
+DROP FUNCTION IF EXISTS public.admin_delete_partner_location(uuid);
+
+CREATE TABLE IF NOT EXISTS public.partners (
   id         uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
-  kind       text        NOT NULL DEFAULT 'fuel_station'
-                         CHECK (kind IN ('fuel_station', 'other')),
+  kind       text        NOT NULL DEFAULT 'fuel_station',
   name       text        NOT NULL,
   brand      text,
-  -- prospect = em conversa; active = parceira; ended = deixou de ser.
+  -- prospect = em conversa; active = parceiro; ended = deixou de ser.
   status     text        NOT NULL DEFAULT 'prospect'
                          CHECK (status IN ('prospect', 'active', 'ended')),
   address    text,
   locality   text,
-  lat        numeric(9,6) NOT NULL,
-  lng        numeric(9,6) NOT NULL,
+  lat        numeric(9,6),
+  lng        numeric(9,6),
   notes      text,
   created_by uuid        REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-ALTER TABLE public.partner_locations ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.partner_locations FROM anon, authenticated;
+ALTER TABLE public.partners ALTER COLUMN lat DROP NOT NULL;
+ALTER TABLE public.partners ALTER COLUMN lng DROP NOT NULL;
+ALTER TABLE public.partners
+  ADD COLUMN IF NOT EXISTS headline       text,
+  ADD COLUMN IF NOT EXISTS description    text,
+  ADD COLUMN IF NOT EXISTS image_path     text,
+  ADD COLUMN IF NOT EXISTS discount_code  text,
+  ADD COLUMN IF NOT EXISTS barcode_value  text,
+  ADD COLUMN IF NOT EXISTS barcode_format text    NOT NULL DEFAULT 'code128',
+  ADD COLUMN IF NOT EXISTS qr_value       text,
+  ADD COLUMN IF NOT EXISTS link_url       text,
+  ADD COLUMN IF NOT EXISTS link_label     text,
+  ADD COLUMN IF NOT EXISTS terms          text,
+  ADD COLUMN IF NOT EXISTS valid_until    date,
+  ADD COLUMN IF NOT EXISTS visible_in_app boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS pro_plus_only  boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS sort_order     integer NOT NULL DEFAULT 100;
+
+-- Os CHECK do tipo vêm de nomes antigos; refazem-se com nomes fixos.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT conname FROM pg_constraint
+           WHERE conrelid = 'public.partners'::regclass AND contype = 'c'
+             AND pg_get_constraintdef(oid) LIKE '%kind%'
+  LOOP
+    EXECUTE format('ALTER TABLE public.partners DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+END $$;
+ALTER TABLE public.partners ADD CONSTRAINT partners_kind_check
+  CHECK (kind IN ('fuel_station', 'garden_store', 'equipment', 'services', 'other'));
+ALTER TABLE public.partners DROP CONSTRAINT IF EXISTS partners_barcode_format_check;
+ALTER TABLE public.partners ADD CONSTRAINT partners_barcode_format_check
+  CHECK (barcode_format IN ('code128', 'ean13'));
+ALTER TABLE public.partners DROP CONSTRAINT IF EXISTS partners_location_pair;
+ALTER TABLE public.partners ADD CONSTRAINT partners_location_pair
+  CHECK ((lat IS NULL) = (lng IS NULL));
+
+ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.partners FROM anon, authenticated;
+CREATE INDEX IF NOT EXISTS partners_app_idx ON public.partners (sort_order, name)
+  WHERE status = 'active' AND visible_in_app;
+
+-- Fotos dos parceiros: leitura pública (vão nos banners), escrita só do
+-- admin com segundo fator. is_verified_admin() só diz se quem chama é
+-- admin; as policies do Storage correm como 'authenticated'.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('partner-images', 'partner-images', true)
+ON CONFLICT (id) DO NOTHING;
+GRANT EXECUTE ON FUNCTION public.is_verified_admin() TO authenticated;
+
+DROP POLICY IF EXISTS "partner-images: leitura pública" ON storage.objects;
+CREATE POLICY "partner-images: leitura pública"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'partner-images');
+DROP POLICY IF EXISTS "partner-images: admin envia" ON storage.objects;
+CREATE POLICY "partner-images: admin envia"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'partner-images' AND public.is_verified_admin());
+DROP POLICY IF EXISTS "partner-images: admin altera" ON storage.objects;
+CREATE POLICY "partner-images: admin altera"
+  ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'partner-images' AND public.is_verified_admin())
+  WITH CHECK (bucket_id = 'partner-images' AND public.is_verified_admin());
+DROP POLICY IF EXISTS "partner-images: admin apaga" ON storage.objects;
+CREATE POLICY "partner-images: admin apaga"
+  ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'partner-images' AND public.is_verified_admin());
 
 -- Jardineiros que contam para o mapa: com base marcada, ativos, reais.
 CREATE OR REPLACE FUNCTION public.admin_active_worker_bases()
@@ -244,26 +328,53 @@ AS $function$
 $function$;
 REVOKE EXECUTE ON FUNCTION public.admin_active_worker_bases() FROM PUBLIC, anon, authenticated;
 
--- "Perto" de uma gasolineira = 10 km. Pedidos dos últimos 90 dias.
-DROP FUNCTION IF EXISTS public.admin_list_partner_locations();
-CREATE FUNCTION public.admin_list_partner_locations()
+-- EAN-13: 13 dígitos com o dígito de controlo certo.
+CREATE OR REPLACE FUNCTION public.is_valid_ean13(p_code text)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+AS $function$
+  SELECT p_code ~ '^\d{13}$' AND (
+    10 - (SELECT sum(substr(p_code, i, 1)::int * CASE WHEN i % 2 = 0 THEN 3 ELSE 1 END)
+          FROM generate_series(1, 12) i) % 10) % 10 = substr(p_code, 13, 1)::int;
+$function$;
+
+-- Lista do painel: tudo, mais o que há perto de quem tem localização
+-- (10 km; pedidos dos últimos 90 dias). Sem localização, os números
+-- vêm a NULL.
+DROP FUNCTION IF EXISTS public.admin_list_partners();
+CREATE FUNCTION public.admin_list_partners()
 RETURNS TABLE(
-  id                 uuid,
-  kind               text,
-  name               text,
-  brand              text,
-  status             text,
-  address            text,
-  locality           text,
-  lat                double precision,
-  lng                double precision,
-  notes              text,
-  created_at         timestamptz,
-  updated_at         timestamptz,
-  workers_covering   integer,
-  workers_nearby     integer,
-  jobs_nearby        integer,
-  jobs_unanswered    integer
+  id               uuid,
+  kind             text,
+  name             text,
+  brand            text,
+  status           text,
+  headline         text,
+  description      text,
+  image_path       text,
+  discount_code    text,
+  barcode_value    text,
+  barcode_format   text,
+  qr_value         text,
+  link_url         text,
+  link_label       text,
+  terms            text,
+  valid_until      date,
+  visible_in_app   boolean,
+  pro_plus_only    boolean,
+  sort_order       integer,
+  address          text,
+  locality         text,
+  lat              double precision,
+  lng              double precision,
+  notes            text,
+  created_at       timestamptz,
+  updated_at       timestamptz,
+  workers_covering integer,
+  workers_nearby   integer,
+  jobs_nearby      integer,
+  jobs_unanswered  integer
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -283,116 +394,259 @@ BEGIN
       AND jr.location_lat IS NOT NULL AND jr.location_lng IS NOT NULL
       AND public.admin_counts_person(jr.client_id)
   )
-  SELECT pl.id, pl.kind, pl.name, pl.brand, pl.status, pl.address, pl.locality,
-         pl.lat::double precision, pl.lng::double precision, pl.notes,
-         pl.created_at, pl.updated_at,
-         (SELECT count(*)::integer FROM w
-          WHERE public.km_between(w.lat, w.lng, pl.lat, pl.lng) <= w.radius_km),
-         (SELECT count(*)::integer FROM w
-          WHERE public.km_between(w.lat, w.lng, pl.lat, pl.lng) <= 10),
-         (SELECT count(*)::integer FROM j
-          WHERE public.km_between(j.lat, j.lng, pl.lat, pl.lng) <= 10),
-         (SELECT count(*)::integer FROM j
-          WHERE j.unanswered AND public.km_between(j.lat, j.lng, pl.lat, pl.lng) <= 10)
-  FROM partner_locations pl
-  ORDER BY CASE pl.status WHEN 'active' THEN 0 WHEN 'prospect' THEN 1 ELSE 2 END,
-           pl.name;
+  SELECT pa.id, pa.kind, pa.name, pa.brand, pa.status, pa.headline, pa.description,
+         pa.image_path, pa.discount_code, pa.barcode_value, pa.barcode_format,
+         pa.qr_value, pa.link_url, pa.link_label, pa.terms, pa.valid_until,
+         pa.visible_in_app, pa.pro_plus_only, pa.sort_order,
+         pa.address, pa.locality, pa.lat::double precision, pa.lng::double precision,
+         pa.notes, pa.created_at, pa.updated_at,
+         CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM w
+           WHERE public.km_between(w.lat, w.lng, pa.lat, pa.lng) <= w.radius_km) END,
+         CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM w
+           WHERE public.km_between(w.lat, w.lng, pa.lat, pa.lng) <= 10) END,
+         CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM j
+           WHERE public.km_between(j.lat, j.lng, pa.lat, pa.lng) <= 10) END,
+         CASE WHEN pa.lat IS NOT NULL THEN (SELECT count(*)::integer FROM j
+           WHERE j.unanswered AND public.km_between(j.lat, j.lng, pa.lat, pa.lng) <= 10) END
+  FROM partners pa
+  ORDER BY CASE pa.status WHEN 'active' THEN 0 WHEN 'prospect' THEN 1 ELSE 2 END,
+           pa.sort_order, pa.name;
 END;
 $function$;
-REVOKE EXECUTE ON FUNCTION public.admin_list_partner_locations() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_list_partner_locations() TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.admin_list_partners() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_list_partners() TO authenticated, service_role;
 
--- p_id NULL cria; senão altera. Devolve o id.
-DROP FUNCTION IF EXISTS public.admin_save_partner_location(uuid, text, text, text, text, text, text, numeric, numeric, text);
-CREATE FUNCTION public.admin_save_partner_location(
-  p_id       uuid,
-  p_name     text,
-  p_brand    text,
-  p_kind     text,
-  p_status   text,
-  p_address  text,
-  p_locality text,
-  p_lat      numeric,
-  p_lng      numeric,
-  p_notes    text
-)
+-- Cria (p_id NULL) ou altera. p_data leva os campos pelo nome da coluna;
+-- texto vazio fica NULL (e a app não mostra essa parte).
+DROP FUNCTION IF EXISTS public.admin_save_partner(uuid, jsonb);
+CREATE FUNCTION public.admin_save_partner(p_id uuid, p_data jsonb)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_name text := btrim(COALESCE(p_name, ''));
-  v_id   uuid;
+  d       jsonb := COALESCE(p_data, '{}'::jsonb);
+  v_name  text := btrim(COALESCE(d->>'name', ''));
+  v_kind  text := COALESCE(NULLIF(btrim(d->>'kind'), ''), 'fuel_station');
+  v_status text := COALESCE(NULLIF(btrim(d->>'status'), ''), 'prospect');
+  v_lat   numeric := NULLIF(d->>'lat', '')::numeric;
+  v_lng   numeric := NULLIF(d->>'lng', '')::numeric;
+  v_fmt   text := COALESCE(NULLIF(btrim(d->>'barcode_format'), ''), 'code128');
+  v_bar   text := NULLIF(btrim(COALESCE(d->>'barcode_value', '')), '');
+  v_link  text := NULLIF(btrim(COALESCE(d->>'link_url', '')), '');
+  v_img   text := NULLIF(btrim(COALESCE(d->>'image_path', '')), '');
+  v_sort  integer := COALESCE(NULLIF(d->>'sort_order', '')::integer, 100);
+  v_until date := NULLIF(d->>'valid_until', '')::date;
+  v_id    uuid;
 BEGIN
   PERFORM public.assert_verified_admin();
   IF length(v_name) < 2 OR length(v_name) > 80 THEN
     RAISE EXCEPTION 'O nome tem de ter entre 2 e 80 carateres.';
   END IF;
-  IF COALESCE(p_kind, '') NOT IN ('fuel_station', 'other') THEN
+  IF v_kind NOT IN ('fuel_station', 'garden_store', 'equipment', 'services', 'other') THEN
     RAISE EXCEPTION 'Tipo de parceiro desconhecido.';
   END IF;
-  IF COALESCE(p_status, '') NOT IN ('prospect', 'active', 'ended') THEN
+  IF v_status NOT IN ('prospect', 'active', 'ended') THEN
     RAISE EXCEPTION 'Estado de parceiro desconhecido.';
   END IF;
+  IF (v_lat IS NULL) <> (v_lng IS NULL) THEN
+    RAISE EXCEPTION 'A localização precisa de latitude e longitude.';
+  END IF;
   -- Portugal continental, Açores e Madeira.
-  IF p_lat IS NULL OR p_lng IS NULL
-     OR p_lat NOT BETWEEN 30 AND 42.2 OR p_lng NOT BETWEEN -31.5 AND -6.1 THEN
+  IF v_lat IS NOT NULL AND (v_lat NOT BETWEEN 30 AND 42.2 OR v_lng NOT BETWEEN -31.5 AND -6.1) THEN
     RAISE EXCEPTION 'Escolhe a localização em Portugal (pesquisa a morada ou toca no mapa).';
   END IF;
-  IF length(COALESCE(p_notes, '')) > 1000 THEN
-    RAISE EXCEPTION 'As notas têm de ter até 1000 carateres.';
+  IF length(COALESCE(d->>'headline', '')) > 80 THEN
+    RAISE EXCEPTION 'A frase do banner tem de ter até 80 carateres.';
+  END IF;
+  IF length(COALESCE(d->>'description', '')) > 2000 THEN
+    RAISE EXCEPTION 'A descrição tem de ter até 2000 carateres.';
+  END IF;
+  IF length(COALESCE(d->>'terms', '')) > 1000 OR length(COALESCE(d->>'notes', '')) > 1000 THEN
+    RAISE EXCEPTION 'As condições e as notas têm de ter até 1000 carateres.';
+  END IF;
+  IF length(COALESCE(d->>'discount_code', '')) > 40 THEN
+    RAISE EXCEPTION 'O código de desconto tem de ter até 40 carateres.';
+  END IF;
+  IF v_fmt NOT IN ('code128', 'ean13') THEN
+    RAISE EXCEPTION 'Formato de código de barras desconhecido.';
+  END IF;
+  IF v_bar IS NOT NULL THEN
+    IF v_fmt = 'ean13' AND NOT public.is_valid_ean13(v_bar) THEN
+      RAISE EXCEPTION 'O código EAN-13 tem de ter 13 dígitos e o último tem de bater certo.';
+    END IF;
+    IF v_fmt = 'code128' AND (v_bar !~ '^[ -~]+$' OR length(v_bar) > 80) THEN
+      RAISE EXCEPTION 'O código de barras só pode ter letras sem acentos, números e símbolos simples (até 80).';
+    END IF;
+  END IF;
+  IF length(COALESCE(d->>'qr_value', '')) > 500 THEN
+    RAISE EXCEPTION 'O conteúdo do QR tem de ter até 500 carateres.';
+  END IF;
+  IF v_link IS NOT NULL AND (v_link !~ '^https://[^[:space:]]+$' OR length(v_link) > 500) THEN
+    RAISE EXCEPTION 'O link tem de começar por https://.';
+  END IF;
+  IF length(COALESCE(d->>'link_label', '')) > 40 THEN
+    RAISE EXCEPTION 'O texto do botão do link tem de ter até 40 carateres.';
+  END IF;
+  IF v_img IS NOT NULL AND (v_img LIKE '%..%' OR v_img LIKE '/%' OR length(v_img) > 300) THEN
+    RAISE EXCEPTION 'Foto inválida.';
+  END IF;
+  IF v_sort NOT BETWEEN 0 AND 1000 THEN
+    RAISE EXCEPTION 'A ordem tem de estar entre 0 e 1000.';
   END IF;
 
   IF p_id IS NULL THEN
-    INSERT INTO partner_locations (kind, name, brand, status, address, locality, lat, lng, notes, created_by)
-    VALUES (p_kind, v_name, NULLIF(btrim(COALESCE(p_brand, '')), ''), p_status,
-            NULLIF(btrim(COALESCE(p_address, '')), ''), NULLIF(btrim(COALESCE(p_locality, '')), ''),
-            round(p_lat, 6), round(p_lng, 6), NULLIF(btrim(COALESCE(p_notes, '')), ''), auth.uid())
+    INSERT INTO partners (kind, name, status, created_by)
+    VALUES (v_kind, v_name, v_status, auth.uid())
     RETURNING id INTO v_id;
-    PERFORM public.admin_log('partner_created', v_id,
-      jsonb_build_object('name', v_name, 'status', p_status));
   ELSE
-    UPDATE partner_locations
-    SET kind = p_kind, name = v_name, brand = NULLIF(btrim(COALESCE(p_brand, '')), ''),
-        status = p_status, address = NULLIF(btrim(COALESCE(p_address, '')), ''),
-        locality = NULLIF(btrim(COALESCE(p_locality, '')), ''),
-        lat = round(p_lat, 6), lng = round(p_lng, 6),
-        notes = NULLIF(btrim(COALESCE(p_notes, '')), ''), updated_at = now()
-    WHERE id = p_id
-    RETURNING id INTO v_id;
+    SELECT id INTO v_id FROM partners WHERE id = p_id FOR UPDATE;
     IF v_id IS NULL THEN
       RAISE EXCEPTION 'Parceiro não encontrado.';
     END IF;
-    PERFORM public.admin_log('partner_updated', v_id,
-      jsonb_build_object('name', v_name, 'status', p_status));
   END IF;
+
+  UPDATE partners SET
+    kind = v_kind, name = v_name, status = v_status,
+    brand = NULLIF(btrim(COALESCE(d->>'brand', '')), ''),
+    headline = NULLIF(btrim(COALESCE(d->>'headline', '')), ''),
+    description = NULLIF(btrim(COALESCE(d->>'description', '')), ''),
+    image_path = v_img,
+    discount_code = NULLIF(btrim(COALESCE(d->>'discount_code', '')), ''),
+    barcode_value = v_bar, barcode_format = v_fmt,
+    qr_value = NULLIF(btrim(COALESCE(d->>'qr_value', '')), ''),
+    link_url = v_link,
+    link_label = NULLIF(btrim(COALESCE(d->>'link_label', '')), ''),
+    terms = NULLIF(btrim(COALESCE(d->>'terms', '')), ''),
+    valid_until = v_until,
+    visible_in_app = COALESCE((d->>'visible_in_app')::boolean, false),
+    pro_plus_only = COALESCE((d->>'pro_plus_only')::boolean, true),
+    sort_order = v_sort,
+    address = NULLIF(btrim(COALESCE(d->>'address', '')), ''),
+    locality = NULLIF(btrim(COALESCE(d->>'locality', '')), ''),
+    lat = round(v_lat, 6), lng = round(v_lng, 6),
+    notes = NULLIF(btrim(COALESCE(d->>'notes', '')), ''),
+    updated_at = now()
+  WHERE id = v_id;
+
+  PERFORM public.admin_log(CASE WHEN p_id IS NULL THEN 'partner_created' ELSE 'partner_updated' END,
+    v_id, jsonb_build_object('name', v_name, 'status', v_status,
+      'visible_in_app', COALESCE((d->>'visible_in_app')::boolean, false)));
   RETURN v_id;
 END;
 $function$;
-REVOKE EXECUTE ON FUNCTION public.admin_save_partner_location(uuid, text, text, text, text, text, text, numeric, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_save_partner_location(uuid, text, text, text, text, text, text, numeric, numeric, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.admin_save_partner(uuid, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_save_partner(uuid, jsonb) TO authenticated, service_role;
 
-DROP FUNCTION IF EXISTS public.admin_delete_partner_location(uuid);
-CREATE FUNCTION public.admin_delete_partner_location(p_id uuid)
-RETURNS void
+-- Apaga e devolve o caminho da foto (a app apaga o ficheiro).
+DROP FUNCTION IF EXISTS public.admin_delete_partner(uuid);
+CREATE FUNCTION public.admin_delete_partner(p_id uuid)
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 DECLARE
   v_name text;
+  v_img  text;
 BEGIN
   PERFORM public.assert_verified_admin();
-  DELETE FROM partner_locations WHERE id = p_id RETURNING name INTO v_name;
+  DELETE FROM partners WHERE id = p_id RETURNING name, image_path INTO v_name, v_img;
   IF v_name IS NULL THEN
     RAISE EXCEPTION 'Parceiro não encontrado.';
   END IF;
   PERFORM public.admin_log('partner_deleted', p_id, jsonb_build_object('name', v_name));
+  RETURN v_img;
 END;
 $function$;
-REVOKE EXECUTE ON FUNCTION public.admin_delete_partner_location(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_delete_partner_location(uuid) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.admin_delete_partner(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_delete_partner(uuid) TO authenticated, service_role;
+
+-- Para a app: parceiros ativos e visíveis, dentro da validade. Nos que
+-- são só do Pro+, quem não é Pro+ não recebe os códigos (vêm a NULL e
+-- locked = true); os has_* dizem o que há, para a app mostrar o que se
+-- ganha com o Pro+. Sem estado interno nem notas.
+DROP FUNCTION IF EXISTS public.get_partners();
+CREATE FUNCTION public.get_partners()
+RETURNS TABLE(
+  id                uuid,
+  kind              text,
+  name              text,
+  brand             text,
+  headline          text,
+  description       text,
+  image_path        text,
+  discount_code     text,
+  barcode_value     text,
+  barcode_format    text,
+  qr_value          text,
+  link_url          text,
+  link_label        text,
+  terms             text,
+  valid_until       date,
+  address           text,
+  locality          text,
+  lat               double precision,
+  lng               double precision,
+  locked            boolean,
+  has_discount_code boolean,
+  has_barcode       boolean,
+  has_qr            boolean
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_plus boolean;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Sem sessão.' USING ERRCODE = '42501';
+  END IF;
+  v_plus := public.worker_active_tier(auth.uid()) = 'pro_plus';
+  RETURN QUERY
+  SELECT pa.id, pa.kind, pa.name, pa.brand, pa.headline, pa.description, pa.image_path,
+         CASE WHEN l.locked THEN NULL ELSE pa.discount_code END,
+         CASE WHEN l.locked THEN NULL ELSE pa.barcode_value END,
+         pa.barcode_format,
+         CASE WHEN l.locked THEN NULL ELSE pa.qr_value END,
+         pa.link_url, pa.link_label, pa.terms, pa.valid_until,
+         pa.address, pa.locality, pa.lat::double precision, pa.lng::double precision,
+         l.locked,
+         pa.discount_code IS NOT NULL, pa.barcode_value IS NOT NULL, pa.qr_value IS NOT NULL
+  FROM partners pa
+  CROSS JOIN LATERAL (SELECT (pa.pro_plus_only AND NOT v_plus
+                              AND (pa.discount_code IS NOT NULL OR pa.barcode_value IS NOT NULL
+                                   OR pa.qr_value IS NOT NULL)) AS locked) l
+  WHERE pa.status = 'active' AND pa.visible_in_app
+    AND (pa.valid_until IS NULL OR pa.valid_until >= CURRENT_DATE)
+  ORDER BY pa.sort_order, pa.name;
+END;
+$function$;
+REVOKE EXECUTE ON FUNCTION public.get_partners() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_partners() TO authenticated, service_role;
+
+-- Parceiro de exemplo, só para ver o ecrã com todos os campos (sem foto;
+-- a foto põe-se no painel). Apagar no painel (Parceiros) antes do
+-- lançamento. Se a migration voltar a correr depois de apagado, ele volta
+-- (o id fixo só evita duplicados): nessa altura, tirar este INSERT.
+INSERT INTO public.partners (
+  id, kind, name, brand, status, headline, description, discount_code,
+  barcode_value, barcode_format, qr_value, link_url, link_label, terms,
+  visible_in_app, pro_plus_only, sort_order, address, locality, lat, lng, notes)
+VALUES (
+  '7a1b0000-0000-4000-8000-000000000001', 'fuel_station', 'Parceiro de exemplo',
+  'Marca Exemplo', 'active', '10% de desconto em combustível',
+  'Exemplo de parceiro para ver como fica o ecrã. Mostra o cartão de cliente na '
+  'caixa ou usa o código de desconto. Válido em todos os postos da marca.',
+  'PROJARDIM10', 'PJ-EXEMPLO-0001', 'code128', 'https://projardim.pt',
+  'https://projardim.pt', 'Ver o site',
+  'Exemplo: desconto não acumulável com outras promoções.',
+  true, false, 0, 'Avenida da Liberdade 1, Lisboa', 'Lisboa', 38.716000, -9.142000,
+  'MOCK: apagar antes do lançamento.')
+ON CONFLICT (id) DO NOTHING;
 
 
 -- ── 3. Zonas: sem resposta e densidade ──────────────────────────
@@ -455,7 +709,7 @@ BEGIN
   pa AS (
     SELECT floor(pl.lat::double precision / v_dlat)::integer AS iy,
            floor(pl.lng::double precision / v_dlng)::integer AS ix, pl.locality
-    FROM partner_locations pl WHERE pl.status <> 'ended'
+    FROM partners pl WHERE pl.status <> 'ended' AND pl.lat IS NOT NULL
   ),
   cells AS (
     SELECT iy, ix FROM j UNION SELECT iy, ix FROM w UNION SELECT iy, ix FROM pa
