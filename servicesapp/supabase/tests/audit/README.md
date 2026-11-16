@@ -13,6 +13,7 @@ Resultados e explicação em `docs/systematic-debugging-audit/` (03, 04 e 07).
 - `20_concurrency.sh`: duas sessões ao mesmo tempo (RACE-01 a RACE-05).
 - `40_help_slot_race.sh` (13/11): última vaga de ajudante disputada por dois candidatos (RACE-06) e aceitar enquanto se mudam as vagas (RACE-07). Corre depois do `10_flows.sql`.
 - `50_admin_support.sql` (13/11, 0078): painel de suporte. Volta a correr a 0078 para provar o preenchimento dos pedidos antigos, eventos novos (cliente, sistema), e cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (51 asserções). Corre depois do `10_flows.sql`.
+- `60_admin_resolve.sql` (16/11, 0079): painel de suporte, fase B. Casos com prazos em dias úteis, reportes, cancelar/reabrir/corrigir estado pelo suporte, ocultar e repor avaliações e fotos, notas internas e registo. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator; cada ação com motivo, nota, registo e aviso (132 asserções). Corre depois do `10_flows.sql`.
 - `run.sh`: monta a BD `pj_audit` e corre o `10_flows.sql`.
 
 ## Como correr
@@ -31,6 +32,7 @@ psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 30_findings.sql
 bash 20_concurrency.sh
 bash 40_help_slot_race.sh
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 50_admin_support.sql  # depois de um run.sh keep novo
+psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 60_admin_resolve.sql  # idem
 ```
 
 No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**. Com a 0074 passam todas (162/162 e RACE-01 a RACE-04); qualquer `FAIL` é uma regressão.
