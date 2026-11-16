@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -20,6 +19,7 @@ import '../../application/admin_providers.dart';
 import '../../data/admin_account_models.dart';
 import '../../data/admin_resolve_models.dart';
 import 'admin_action_dialogs.dart';
+import 'admin_file_share.dart';
 import 'admin_panel_widgets.dart';
 import 'admin_stat_widgets.dart';
 
@@ -185,25 +185,17 @@ class AdminAccountCard extends ConsumerWidget {
           .exportUserData(personId);
       final text = const JsonEncoder.withIndent('  ').convert(data);
       final name = adminExportFileName(personId, DateTime.now());
-      try {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [
-              XFile.fromData(
-                utf8.encode(text),
-                mimeType: 'application/json',
-                name: name,
-              ),
-            ],
-            fileNameOverrides: [name],
-          ),
-        );
-        toast.show('Dados exportados. Envia o ficheiro à pessoa por email.');
-      } catch (_) {
-        // Sem folha de partilha (alguns browsers): fica no clipboard.
-        await Clipboard.setData(ClipboardData(text: text));
-        toast.show('Dados copiados. Cola num ficheiro $name.');
-      }
+      final shared = await adminShareTextFile(
+        name: name,
+        mimeType: 'application/json',
+        text: text,
+      );
+      toast.show(
+        shared
+            ? 'Dados exportados. Envia o ficheiro à pessoa por email.'
+            // Sem folha de partilha (alguns browsers): ficou no clipboard.
+            : 'Dados copiados. Cola num ficheiro $name.',
+      );
     } catch (e) {
       toast.error(friendlyError(e));
     }

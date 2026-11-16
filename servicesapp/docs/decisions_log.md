@@ -3,6 +3,23 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Painel de admin, fase 3: funil, CSV e avisos (0081)
+
+- O funil conta por coortes: pessoas que se registaram (ou pedidos criados) no
+  período e até onde chegaram, não eventos do período. Contas eliminadas,
+  suspensas e de admin ficam de fora.
+- O CSV sai sem telefone, email nem morada (minimização: o ficheiro sai do painel
+  e anda por email ou Drive). O servidor devolve colunas e linhas e a app escreve o
+  CSV com `;` e BOM, para abrir bem no Excel em português. Cada exportação fica no
+  Registo com o número de linhas.
+- Avisos a grupos só para avisos de serviço; promoções continuam nas dicas da
+  época, que se podem desligar (RGPD e regras de marketing). O admin conta primeiro
+  e o envio só segue se a contagem for a mesma, para não mandar a um grupo maior do
+  que o que viu. O mesmo título não se repete em 24h (duplo clique, reenvio sem
+  querer).
+- Plano e serviço só filtram jardineiros; clientes filtram-se pela localidade dos
+  pedidos que fizeram (não há localidade no perfil do cliente).
+
 ## 2026-11-16 — Painel de admin para suporte, fase C (0080)
 
 - Suspensão e encerramento ficam numa tabela à parte (`account_status`), não em

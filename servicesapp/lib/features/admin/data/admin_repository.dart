@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
 import 'admin_account_models.dart';
+import 'admin_growth_models.dart';
 import 'admin_models.dart';
 import 'admin_resolve_models.dart';
 import 'admin_support_models.dart';
@@ -611,4 +612,60 @@ class AdminRepository {
 
   static String? _orNull(String? text) =>
       (text ?? '').trim().isEmpty ? null : text!.trim();
+
+  // ── Fase 3: funil, CSV, avisos (0081) ──────────────────────────
+
+  /// [days] `null` = desde sempre.
+  Future<AdminFunnel> fetchFunnel({int? days}) async {
+    final data = await _client.rpc(
+      'admin_funnel',
+      params: {'p_days': days ?? 0},
+    );
+    return AdminFunnel.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<AdminExportTable> exportRows(AdminExportKind kind, {int? days}) async {
+    final data = await _client.rpc(
+      'admin_export_rows',
+      params: {'p_kind': kind.value, 'p_days': days ?? 0},
+    );
+    return AdminExportTable.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<int> noticeAudience(AdminNoticeAudience audience) async {
+    final data = await _client.rpc(
+      'admin_notice_audience',
+      params: audience.toParams(),
+    );
+    return (data as num).toInt();
+  }
+
+  /// [expected] é o número que o admin viu; a BD recusa se mudou.
+  Future<int> sendNotice({
+    required String title,
+    required String body,
+    required AdminNoticeAudience audience,
+    required int expected,
+  }) async {
+    final data = await _client.rpc(
+      'admin_send_notice',
+      params: {
+        'p_title': title.trim(),
+        'p_body': body.trim(),
+        ...audience.toParams(),
+        'p_expected': expected,
+      },
+    );
+    return (data as num).toInt();
+  }
+
+  Future<List<AdminNoticeRow>> fetchNotices({int page = 0}) async {
+    final data = await _client.rpc(
+      'admin_list_notices',
+      params: {'p_limit': 30, 'p_offset': page * 30},
+    );
+    return (data as List)
+        .map((e) => AdminNoticeRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
 }

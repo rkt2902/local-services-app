@@ -11,7 +11,7 @@ import '../application/admin_providers.dart';
 import 'widgets/admin_global_search.dart';
 import 'widgets/admin_panel_widgets.dart';
 
-/// Entradas da barra lateral (fases A, B e C).
+/// Entradas da barra lateral (suporte A, B e C; fase 3).
 enum AdminSection {
   overview('Visão geral', Icons.insights_rounded, '/admin'),
   support('Caixa de suporte', Icons.support_agent_rounded, '/admin/suporte'),
@@ -21,6 +21,8 @@ enum AdminSection {
   workers('Jardineiros', Icons.groups_outlined, '/admin/workers'),
   ratings('Avaliações', Icons.star_outline_rounded, '/admin/avaliacoes'),
   map('Mapa', Icons.map_outlined, '/admin/mapa'),
+  funnel('Funil e dados', Icons.filter_alt_outlined, '/admin/funil'),
+  notices('Avisos', Icons.campaign_outlined, '/admin/avisos'),
   log('Registo', Icons.history_rounded, '/admin/registo');
 
   const AdminSection(this.label, this.icon, this.route);

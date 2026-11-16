@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/admin_account_models.dart';
+import '../data/admin_growth_models.dart';
 import '../data/admin_models.dart';
 import '../data/admin_repository.dart';
 import '../data/admin_resolve_models.dart';
@@ -207,4 +208,17 @@ final adminAccountProvider = FutureProvider.autoDispose
 /// Pontos do mapa; cada leitura fica no registo como consulta.
 final adminMapPointsProvider = FutureProvider.autoDispose<List<AdminMapPoint>>(
   (ref) => ref.read(adminRepositoryProvider).fetchMapPoints(),
+);
+
+// ── Fase 3: funil, CSV, avisos ────────────────────────────────────
+
+/// Funil do período em dias; `null` = desde sempre. Fica no Registo.
+final adminFunnelProvider = FutureProvider.autoDispose
+    .family<AdminFunnel, int?>((ref, days) {
+      return ref.read(adminRepositoryProvider).fetchFunnel(days: days);
+    });
+
+/// Histórico dos avisos enviados (primeira página).
+final adminNoticesProvider = FutureProvider.autoDispose<List<AdminNoticeRow>>(
+  (ref) => ref.read(adminRepositoryProvider).fetchNotices(),
 );

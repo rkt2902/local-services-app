@@ -43,6 +43,8 @@ const adminLogActionFilters = [
   'export_user',
   'hide_profile_photo',
   'resend_code',
+  'export_csv',
+  'send_notice',
   'set_worker_plan',
   'reveal_phone',
   'reveal_address',

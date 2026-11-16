@@ -232,6 +232,9 @@ String adminHistoryActionLabel(String action) => switch (action) {
   'hide_profile_photo' => 'Foto de perfil retirada',
   'resend_code' => 'Código de confirmação reenviado',
   'view_map' => 'Mapa aberto',
+  'view_funnel' => 'Funil aberto',
+  'export_csv' => 'Lista exportada em CSV',
+  'send_notice' => 'Aviso enviado a um grupo',
   _ => action,
 };
 

@@ -85,6 +85,10 @@ import '../data/notification_types.dart';
           icon: Icons.eco_outlined,
           tone: AppStatusColor.info,
         ),
+      NotificationType.adminNotice => (
+          icon: Icons.campaign_outlined,
+          tone: AppStatusColor.info,
+        ),
       NotificationType.directJobRequest => (
           icon: Icons.assignment_ind_outlined,
           tone: AppStatusColor.info,
@@ -143,7 +147,8 @@ bool isJobNotification(String type) =>
     type != NotificationType.newHelpRequestInRadius &&
     type != NotificationType.helpRequestReopened &&
     type != NotificationType.jobOpportunityReminder &&
-    type != NotificationType.seasonalTip;
+    type != NotificationType.seasonalTip &&
+    type != NotificationType.adminNotice;
 
 /// A migration 0049 acrescenta " (Serviço, DD/MM)" ao fim do corpo; o design
 /// põe-no no título. A app muda-o de sítio, para as antigas e as novas.

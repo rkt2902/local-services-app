@@ -62,7 +62,9 @@ import '../../features/admin/presentation/admin_clients_page.dart';
 import '../../features/admin/presentation/admin_cases_page.dart';
 import '../../features/admin/presentation/admin_jobs_page.dart';
 import '../../features/admin/presentation/admin_log_page.dart';
+import '../../features/admin/presentation/admin_funnel_page.dart';
 import '../../features/admin/presentation/admin_map_page.dart';
+import '../../features/admin/presentation/admin_notices_page.dart';
 import '../../features/admin/presentation/admin_ratings_page.dart';
 import '../../features/admin/presentation/admin_reports_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
@@ -251,6 +253,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-map'),
               child: AdminMapPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/funil',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-funnel'),
+              child: AdminFunnelPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/avisos',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-notices'),
+              child: AdminNoticesPage(),
             ),
           ),
           GoRoute(

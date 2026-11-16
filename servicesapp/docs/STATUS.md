@@ -12,8 +12,8 @@
 
 - Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
   2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
-  (painel de suporte, fase B) e a `0080` (fase C) estão **por aplicar**, por esta
-  ordem. Próxima: `0081`.
+  (painel de suporte, fase B), a `0080` (fase C) e a `0081` (funil, CSV e avisos)
+  estão **por aplicar**, por esta ordem. Próxima: `0082`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).
@@ -114,6 +114,14 @@
   pedido. O painel não envia o email com os motivos (P2B): vai do Gmail de suporte.
   A app ainda não usa fotos de portefólio (`worker_profiles.photos`); na prática só
   a foto de perfil se retira.
+- Fase 3 do painel (0081, **por aplicar**): "Funil e dados" com três funis
+  (clientes, pedidos, jardineiros) por 7, 30, 90 dias ou desde sempre, e exportar
+  pedidos, clientes ou jardineiros em CSV para o Excel (sem telefones, emails nem
+  moradas). "Avisos" envia um aviso de serviço a jardineiros (por plano, serviço,
+  localidade) ou clientes (por localidade), na app e por push, com contagem antes de
+  enviar e histórico com quantos leram. Tocar no aviso na app não abre nada. A
+  localidade é texto livre (procura parcial), por isso "Braga" apanha "Braga de
+  Cima".
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,

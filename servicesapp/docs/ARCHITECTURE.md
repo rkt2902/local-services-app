@@ -263,6 +263,8 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/admin/avaliacoes` | `AdminRatingsPage` (ocultar e repor avaliações, 0079) | shell do painel | idem |
 | `/admin/registo` | `AdminLogPage` (todas as `admin_actions`, 0079) | shell do painel | idem |
 | `/admin/mapa` | `AdminMapPage` (pedidos e jardineiros com raio, camadas que se ligam e desligam, 0080) | shell do painel | idem |
+| `/admin/funil` | `AdminFunnelPage` (funil de clientes, pedidos e jardineiros por período; exportar pedidos, clientes ou jardineiros em CSV, 0081) | shell do painel | idem |
+| `/admin/avisos` | `AdminNoticesPage` (aviso de serviço a um grupo de jardineiros ou clientes, com contagem antes de enviar, e histórico, 0081) | shell do painel | idem |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
@@ -409,6 +411,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `support_case_notes` (0079) | notas de um caso | `kind` internal/reply (resposta enviada por email, colada; a primeira marca `first_reply_at`); RLS sem policies |
 | `admin_notes` (0079) | notas internas em qualquer ficha | `target_id` (pedido ou pessoa), `body`; RLS sem policies |
 | `account_status` (0080) | suspensão e encerramento marcado de uma conta | `profile_id`, `suspended_at`, `suspended_reason`, `suspended_message`, `closing_at`, `closing_reason`, `closing_message`. Fora de `profiles` de propósito: quem tem um trabalho confirmado lê o perfil da outra pessoa e não deve ver o motivo. RLS sem policies; a própria pessoa lê o seu com `get_my_account_status` (sem o motivo interno) |
+| `admin_notices` (0081) | avisos enviados pelo painel a um grupo | `title`, `body`, `audience` (jsonb: `role`, `tiers`, `service_type_id`, `area`), `recipients`, `created_by`; cada destinatário recebe uma linha em `notifications` (`type = 'admin_notice'`, `related_id` = id do aviso); RLS sem policies |
 | `profile_photos_hidden` (0080) | arquivo das fotos de perfil e do portefólio retiradas pelo suporte | `profile_id`, `kind` (avatar/portfolio), `url`, motivo e nota; o ficheiro fica no Storage; RLS sem policies |
 | `ratings_hidden` / `job_photos_hidden` (0079) | arquivo do que o suporte ocultou | a linha sai de `ratings` (ou o caminho sai de `job_photos`/`before_photo_paths`/`after_photo_paths`/`completion_photo_path`) e fica aqui com `hidden_reason`, `hidden_note`, `hidden_by`; nenhuma vista ou RPC da app mudou; trigger `trg_block_rating_while_hidden` impede avaliar outra vez o mesmo trabalho; RLS sem policies |
 | `job_events` (0078) | linha do tempo de cada pedido | `job_id`, `event_type`, `actor_id`, `actor_kind` (client/worker/helper/admin/system/user), `data` jsonb; preenchida por triggers em `job_requests`, `job_proposals`, `job_work_days`, `job_reports`, `ratings`, `help_requests` (sem `auth.uid()` = sistema, ex.: crons); pedidos antigos com eventos tirados dos carimbos (`data.backfill`); RLS sem policies |
@@ -543,6 +546,10 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_hide_profile_photo` (0080) | `p_target_id, p_url, p_reason, p_note` | `avatar_url` a NULL ou URL tirado de `worker_profiles.photos`, para `profile_photos_hidden`; `support_notice` | `hideProfilePhoto` |
 | `admin_resend_code` (0080) | `p_target_id` | `text` (email; só por confirmar); a app envia com `auth.resend(signup)`; registado | `resendConfirmationCode` |
 | `admin_map_points` (0080) | `p_days` (30) | pedidos `open`/`confirmed`/`awaiting_confirmation` e `completed` dos últimos dias; jardineiros com raio, plano e se estão suspensos; registado como `view_map` | `fetchMapPoints` |
+| `admin_funnel` (0081) | `p_days` (30; 0 ou NULL = desde sempre) | `jsonb` com `clients` (registaram-se, fizeram pedido, receberam proposta, aceitaram, concluído, avaliaram), `jobs` (criados, com proposta, aceite, concluídos, avaliados, mais abertos, sem resposta, cancelados e mediana de horas até à 1.ª proposta) e `workers` (registaram-se, perfil completo, propuseram, contratados, concluíram, plano pago); contas eliminadas, suspensas e de admin não contam (`admin_counts_person`); registado como `view_funnel` | `fetchFunnel` |
+| `admin_export_rows` (0081) | `p_kind` (jobs/clients/workers), `p_days` | `jsonb` `{columns, rows}`, até 10 000 linhas, sem telefone, email nem morada; registado como `export_csv` com o tipo e o número de linhas. A app escreve o CSV (`adminCsv`: `;`, BOM, CRLF) | `exportRows` |
+| `admin_notice_audience` / `admin_send_notice` (0081) | `p_role, p_tiers?, p_service_type_id?, p_area?` / mais `p_title` (3 a 80), `p_body` (10 a 500), `p_expected` | `integer` (quantas pessoas). Plano e serviço só para jardineiros; localidade: `worker_profiles.location_name` (jardineiros) ou algum pedido nessa `location_area` (clientes). Enviar recusa se a contagem mudou desde `p_expected`, se ninguém recebe ou se o mesmo título foi enviado nas últimas 24h; registado como `send_notice` | `noticeAudience` / `sendNotice` |
+| `admin_list_notices` (0081) | `p_limit, p_offset` | histórico com `read_count` (notificações lidas), email do admin e `total_count` | `fetchNotices` |
 | `admin_set_worker_plan` (0060) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
 
 As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`. Desde a 0078, `admin_list_workers` e `admin_get_worker` devolvem o telefone mascarado (`admin_mask_phone`); o número inteiro só sai de `admin_reveal_contact`. Nenhuma `admin_*` lê a Agenda (`worker_calendar_entries`).
@@ -550,6 +557,8 @@ As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth
 Desde a 0079, cada ação que muda alguma coisa pede um motivo da lista fixa (`admin_assert_reason`: user_request, app_error, terms_violation, illegal_content, personal_data, duplicate, other) e uma nota de 5 carateres ou mais, grava os dois em `admin_actions.details` e avisa as pessoas com tipos que a app já conhecia (`job_cancelled`, `job_reopened`, `job_completed`, `job_marked_done`) ou com `support_notice`. Na app, a ação abre `showAdminActionDialog` (o que acontece, quem é avisado, motivo, nota; o erro da BD fica no diálogo).
 
 Desde a 0080 (fase C), a ficha do cliente e do jardineiro tem o cartão "Conta" (`AdminAccountCard`, dentro de `AdminRecordFooter(showAccount: true)`). Conta suspensa não age: o trigger `trg_block_suspended_writes` (em `job_requests`, `job_proposals`, `help_requests`, `help_acceptances`, `ratings`, `job_photos`, `job_work_days`) recusa escritas quando `auth.uid()` está suspenso, incluindo as feitas dentro de RPCs; os crons e o admin passam. `account_delete_core` liga `projardim.allow_suspended` só na sua transação, para quem está suspenso poder eliminar a conta. `worker_can_use_public_card` e `job_candidate_workers` deixam de fora contas suspensas, e o trigger recusa pedidos diretos a um jardineiro suspenso. A exceção à regra "nenhuma `admin_*` lê a Agenda" é só `admin_export_user_data` (a pedido da própria pessoa).
+
+Desde a 0081 (fase 3), "Funil e dados" mostra até onde chegam clientes, pedidos e jardineiros do período e exporta listas em CSV (pela folha de partilha, ou para o clipboard), e "Avisos" envia avisos de serviço a um grupo. Os avisos são só de serviço (mudanças, manutenção): promoções vão nas dicas da época, que cada pessoa pode desligar. O admin conta primeiro os destinatários e a BD só envia se o número for o mesmo.
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -596,7 +605,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079` e a `0080` estão criadas e por aplicar (por esta ordem). Próxima migration: `0081`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079`, a `0080` e a `0081` estão criadas e por aplicar (por esta ordem). Próxima migration: `0082`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -677,6 +686,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `job_cancelled` | `cancel_job` | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_reopened` | `cancel_job`, `admin_reopen_job` (0079, o mesmo pedido) | `/worker/job/:id` ou `/client/job/:id` pelo papel | go |
 | `support_notice` (0079) | `admin_hide_rating`, `admin_hide_photo`, `admin_set_job_status`; desde a 0080 também suspensão, reativação, aviso e cancelamento de encerramento e foto de perfil retirada (estes sem `related_id`: tocar não navega) | como `job_cancelled` (`/client/job/:id` ou `/worker/my-job/:id`) | go |
+| `admin_notice` (0081) | `admin_send_notice` (aviso a um grupo; push pelo trigger de sempre) | nenhum (tocar não navega) | — |
 | `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |

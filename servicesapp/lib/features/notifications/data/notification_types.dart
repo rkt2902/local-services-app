@@ -95,4 +95,8 @@ abstract class NotificationType {
   /// 0079: aviso do suporte (avaliação ou foto ocultada, trabalho posto
   /// outra vez à espera de confirmação). relatedId = id do pedido.
   static const supportNotice = 'support_notice';
+
+  /// 0081: aviso da ProJardim a um grupo (painel > Avisos). relatedId = id
+  /// do envio, que a app não usa: tocar não navega.
+  static const adminNotice = 'admin_notice';
 }
