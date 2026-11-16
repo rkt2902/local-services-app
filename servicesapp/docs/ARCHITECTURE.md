@@ -254,8 +254,10 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/signup` | `SignupScreen` | fora | shared-axis |
 | `/choose-role` | `ChooseRoleScreen` | fora | shared-axis |
 | `/forgot-password/request` | `RequestPasswordResetScreen` | fora | shared-axis |
-| `/admin` | `AdminGateScreen` (login, segundo fator, depois `AdminHomeScreen`) | fora, sem regras de papel | default |
-| `/admin/workers/:workerId` | `AdminWorkerDetailScreen` | fora | shared-axis |
+| `/admin` | `AdminGateScreen` (login, segundo fator) e depois `AdminShell` com a Visão geral | `ShellRoute` próprio do painel (barra lateral + pesquisa global, sem bottom nav), sem regras de papel | sem transição; o conteúdo troca com fade-through |
+| `/admin/pedidos`, `/admin/pedidos/:jobId` | `AdminJobsPage` (lista + `AdminJobDetailPanel`, 0078) | shell do painel | idem; lista e ficha lado a lado a partir de 1024 px |
+| `/admin/clientes`, `/admin/clientes/:clientId` | `AdminClientsPage` (lista + ficha, 0078) | shell do painel | idem |
+| `/admin/workers`, `/admin/workers/:workerId` | `AdminWorkersPage` (lista + `AdminWorkerDetailPanel`) | shell do painel | idem |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
@@ -396,7 +398,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `job_reports` | reports pós-trabalho | moderação manual, sem RLS de leitura cruzada |
 | `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
 | `admin_users` (0060) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
-| `admin_actions` (0060) | registo das mudanças feitas no painel | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
+| `admin_actions` (0060) | registo das mudanças **e das consultas** feitas no painel (desde a 0078: `search`, `view_job`, `view_client`, `view_worker`, `view_job_photos`, `reveal_phone`, `reveal_address`) | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
+| `job_events` (0078) | linha do tempo de cada pedido | `job_id`, `event_type`, `actor_id`, `actor_kind` (client/worker/helper/admin/system/user), `data` jsonb; preenchida por triggers em `job_requests`, `job_proposals`, `job_work_days`, `job_reports`, `ratings`, `help_requests` (sem `auth.uid()` = sistema, ex.: crons); pedidos antigos com eventos tirados dos carimbos (`data.backfill`); RLS sem policies |
 | `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status` scheduled/done/cancelled (cancelado continua na agenda), `status_at` (trigger); RLS só do dono, INSERT só com papel worker |
 | `worker_calendar_exceptions` (0064) | "Só este dia" numa série | `entry_id`, `occurrence_date`, `action` skipped (sai da agenda)/moved/changed/status, `new_*`, `status` done/cancelled só nesse dia, `status_at`; RLS só do dono |
 | `worker_plans` (0060) | plano do jardineiro | `tier` free/pro/pro_plus, `starts_at`, `ends_at`, `verified_at`, `notes`; RLS sem policies (o jardineiro lê por `get_my_plan`, sem as notas). O `role` não muda |
@@ -501,9 +504,15 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_overview` (0060) | `p_days?` (NULL = sempre) | `jsonb` (utilizadores, coorte de pedidos do período, avaliações, planos, alertas) | `AdminRepository.fetchOverview` |
 | `admin_list_workers` (0060) | `p_search?, p_tier?, p_limit, p_offset` | `TABLE(... tier, plan_ends_at, last_sign_in_at, jobs_completed, avg_rating, total_count)` | `AdminRepository.fetchWorkers` |
 | `admin_get_worker` (0060) | `p_worker_id` (alvo, não identidade) | `jsonb` (ficha, números, 6 meses, plano e histórico) | `AdminRepository.fetchWorker` |
+| `admin_search` (0078) | `p_q` (email, telefone, nome, id ou início de id com 6+ carateres) | `TABLE(kind, target_id, title, subtitle, status, matched)`, máx. 20; regista | `AdminRepository.search` |
+| `admin_list_jobs` (0078) | `p_status?, p_service_id?, p_area?, p_from?, p_to?, p_with_report?, p_direct?, p_with_helpers?, p_limit, p_offset` | `TABLE(... has_report, is_direct, has_helpers, total_count)` | `AdminRepository.fetchJobs` |
+| `admin_get_job` (0078) | `p_job_id` | `jsonb` (cabeçalho, prazos, `timeline`, `proposals`, `team`, `notifications` com token de push, `reports`, `ratings`); sem morada exata; regista | `AdminRepository.fetchJob` |
+| `admin_get_job_photos` (0078) | `p_job_id` | `TABLE(kind, storage_path, taken_by, created_at)`; regista | `AdminRepository.fetchJobPhotos` |
+| `admin_list_clients` / `admin_get_client` (0078) | filtros / `p_client_id` | telefone mascarado; a ficha regista | `AdminRepository.fetchClients` / `fetchClient` |
+| `admin_reveal_contact` (0078) | `p_target_id, p_kind` ('phone' pessoa, 'address' pedido), `p_reason?` | `jsonb` com o telefone ou a morada, coordenadas e distância à base do jardineiro; regista | `AdminRepository.revealPhone` / `revealAddress` |
 | `admin_set_worker_plan` (0060) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
 
-As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`.
+As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`. Desde a 0078, `admin_list_workers` e `admin_get_worker` devolvem o telefone mascarado (`admin_mask_phone`); o número inteiro só sai de `admin_reveal_contact`. Nenhuma `admin_*` lê a Agenda (`worker_calendar_entries`).
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma

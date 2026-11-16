@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/enums.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/error_utils.dart';
 import '../../../../core/widgets/app_empty_state.dart';
@@ -19,10 +18,43 @@ import '../../../../core/widgets/user_avatar_with_name.dart';
 import '../../application/admin_labels.dart';
 import '../../application/admin_providers.dart';
 import '../../data/admin_models.dart';
+import '../admin_worker_detail_screen.dart';
+import 'admin_panel_widgets.dart';
 import 'admin_stat_widgets.dart';
 
+/// Secção Jardineiros (`/admin/workers` e `/admin/workers/:id`): lista à
+/// esquerda e ficha à direita.
+class AdminWorkersPage extends StatelessWidget {
+  const AdminWorkersPage({this.selectedWorkerId, super.key});
+
+  final String? selectedWorkerId;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = selectedWorkerId;
+    return AdminSplitView(
+      list: AdminWorkersTab(selectedWorkerId: id),
+      detailKey: id,
+      detailBuilder: id == null
+          ? null
+          : (overlay) => AdminWorkerDetailPanel(
+              key: ValueKey(id),
+              workerId: id,
+              onClose: overlay ? () => context.go('/admin/workers') : null,
+            ),
+      emptyDetail: const AppEmptyState(
+        icon: Icons.yard_outlined,
+        title: 'Escolhe um jardineiro',
+        message: 'A ficha abre aqui, com os números de 6 meses e o plano.',
+      ),
+    );
+  }
+}
+
 class AdminWorkersTab extends ConsumerStatefulWidget {
-  const AdminWorkersTab({super.key});
+  const AdminWorkersTab({this.selectedWorkerId, super.key});
+
+  final String? selectedWorkerId;
 
   @override
   ConsumerState<AdminWorkersTab> createState() => _AdminWorkersTabState();
@@ -62,7 +94,11 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
       onRefresh: () => ref.refresh(adminWorkersProvider(query).future),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.xl),
+          AppSpacing.lg,
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
         children: [
           AppSearchField(
             controller: _searchController,
@@ -119,10 +155,9 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
                 children: [
                   Text(
                     '$total jardineiros',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   for (final (i, row) in rows.indexed) ...[
@@ -131,8 +166,9 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
                       index: i < 6 ? i : 6,
                       child: _WorkerRowCard(
                         row: row,
+                        selected: row.workerId == widget.selectedWorkerId,
                         onPressed: () =>
-                            context.push('/admin/workers/${row.workerId}'),
+                            context.go('/admin/workers/${row.workerId}'),
                       ),
                     ),
                   ],
@@ -170,10 +206,15 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
 }
 
 class _WorkerRowCard extends StatelessWidget {
-  const _WorkerRowCard({required this.row, required this.onPressed});
+  const _WorkerRowCard({
+    required this.row,
+    required this.onPressed,
+    this.selected = false,
+  });
 
   final AdminWorkerRow row;
   final VoidCallback onPressed;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -184,39 +225,30 @@ class _WorkerRowCard extends StatelessWidget {
         '${adminRatingLabel(row.avgRating)} ★ (${row.ratingCount})',
       'entrou ${adminRelativeDateLabel(row.lastSignInAt)}',
     ].join(' · ');
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: onPressed,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.divider),
+    return AdminListTileCard(
+      selected: selected,
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Expanded(
+            child: UserAvatarWithName(
+              name: row.fullName,
+              avatarUrl: row.avatarUrl,
+              fallbackLabel: 'Sem nome',
+              subtitle: details,
+            ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: UserAvatarWithName(
-                  name: row.fullName,
-                  avatarUrl: row.avatarUrl,
-                  fallbackLabel: 'Sem nome',
-                  subtitle: details,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              AppStatusBadge(
-                label: row.tier.label,
-                statusColor: adminTierStatusColor(row.tier),
-                dense: true,
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary),
-            ],
+          const SizedBox(width: AppSpacing.xs),
+          AppStatusBadge(
+            label: row.tier.label,
+            statusColor: adminTierStatusColor(row.tier),
+            dense: true,
           ),
-        ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ],
       ),
     );
   }

@@ -3,31 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-11-14 — Ajudantes por aprovar no Início do cliente; vagas extra sem nova aprovação
+## 2026-11-13 — Painel de admin para suporte, fase A (0078)
 
-- O pedido de ajudantes à espera da aprovação do cliente passa a aparecer em
-  "Precisa de ti" no Início ("Aprovar ajudantes"), não só nos Alertas.
-- Aumentar as vagas de um pedido de ajuda já aprovado (ex.: de 2 para 3) **não** pede
-  nova aprovação ao cliente. O cliente aprovou a equipa; mais um ajudante não muda o
-  preço combinado com o jardineiro e pedir de novo atrasava o trabalho. O cliente vê a
-  equipa atualizada no detalhe do pedido.
-- Decidido pelo Henrique ("faz o que achares melhor") depois da terceira ronda de testes
-  Android.
-
-## 2026-11-13 — Termos e Política dentro da app e no domínio
-
-- **Decisão:** os textos legais passam a viver no repositório
-  (`assets/legal/*.md`). A app mostra-os num ecrã próprio (`/termos`,
-  `/privacidade`, públicos, fora dos shells) em vez de abrir o Google Doc no
-  browser. A web serve páginas estáticas nos mesmos caminhos, geradas por
-  `tool/build_legal_pages.py` (o CI verifica que estão atualizadas).
-- **Motivo:** o Henrique quer um ecrã bonito na app e um URL próprio na web; um só
-  texto evita a app, a web e o Google Doc ficarem diferentes; as páginas estáticas
-  abrem sem JavaScript (lojas, Meta, Google).
-- Textos revistos (RGPD, DSA, P2B, Livro de Reclamações, CNIACC); a ordenação das
-  propostas nos Termos estava errada ("por preço") e passou a descrever o código.
-- Histórico de pedidos do cliente paginado (20 de cada vez, AUD-25); os números da
-  conta vêm de uma contagem por estado.
+- O painel passa a ter barra lateral e pesquisa global num `ShellRoute` próprio por
+  trás do `AdminGateScreen`; lista e ficha lado a lado a partir de 1024 px, cada ficha
+  com URL próprio (`/admin/pedidos/<id>`, `/admin/clientes/<id>`) para colar no caso.
+- Linha do tempo em `job_events`, escrita por triggers (não pelas RPCs), para apanhar
+  também os crons e as RPCs antigas sem mexer nelas. Um erro ao escrever o evento só
+  deixa WARNING: nunca rebenta a ação do utilizador.
+- Ler regista-se: ficha, fotos, pesquisa e revelar contacto escrevem em
+  `admin_actions`. Telefone e morada só com clique. A Agenda nunca entra no painel.
+- As fotos são pedidas à parte (`admin_get_job_photos`) para o registo dizer quando
+  foram vistas, e não só quando a ficha abriu.
+- "Tinha aparelho" nos avisos é aproximado: tokens apagados ao terminar sessão já não
+  aparecem.
 
 ## 2026-11-09 — Proposta fechada sem trabalho: ecrã próprio no detalhe do jardineiro
 
