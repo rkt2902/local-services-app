@@ -3,6 +3,30 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Painel de admin para suporte, fase C (0080)
+
+- Suspensão e encerramento ficam numa tabela à parte (`account_status`), não em
+  `profiles`: quem tem um trabalho confirmado lê o perfil da outra pessoa e veria o
+  motivo. A app pergunta `get_my_account_status`, que só devolve a mensagem escrita
+  para a pessoa.
+- "Pausar" os pedidos abertos ao suspender é cancelá-los com
+  `cancel_reason = 'account_suspended'` (a cliente pode publicar de novo depois de
+  reativada), sem estado novo na máquina de estados. Trabalhos já aceites ficam
+  como estão; o suporte decide um a um na ficha do pedido (cancelar, concluir).
+- A conta suspensa não age por um trigger em todas as tabelas onde se escreve
+  trabalho, ligado a `auth.uid()`, para apanhar também as RPCs. Eliminar a conta
+  continua possível (RGPD): `account_delete_core` abre a exceção só na sua transação.
+- Aviso de encerramento sempre com 30 dias (P2B, art. 4) e suspensão automática por
+  cron na data. O email com os motivos vai do Gmail de suporte, como na fase B.
+- Eliminar a pedido usa o mesmo código que a app (`delete_my_account` passou a
+  chamar `account_delete_core`). O SQL não apaga ficheiros no Storage: o painel
+  mostra a lista e fica no Registo.
+- Exportar inclui a Agenda do jardineiro (é dele e foi ele que a pediu); é a única
+  `admin_*` que lê a Agenda. Ficam de fora quem avaliou, a morada exata dos pedidos
+  onde o jardineiro trabalhou e as notas internas do suporte.
+- Reenviar o código: a RPC regista e devolve o email; o envio é o `auth.resend` da
+  própria app (sem chave de serviço no browser).
+
 ## 2026-11-16 — Painel de admin para suporte, fase B (0079)
 
 - Ocultar não apaga e não usa colunas novas em `ratings`: a avaliação passa para

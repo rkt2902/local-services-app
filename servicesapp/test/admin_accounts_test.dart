@@ -12,6 +12,7 @@ import 'package:servicesapp/features/admin/presentation/widgets/admin_account_ac
 import 'package:servicesapp/features/auth/application/session_provider.dart';
 import 'package:servicesapp/features/auth/data/account_status.dart';
 import 'package:servicesapp/features/auth/presentation/account_suspended_screen.dart';
+import 'package:servicesapp/features/jobs/data/cancel_reasons.dart';
 
 // Painel de admin para suporte, fase C (0080): conta suspensa na app,
 // cartão "Conta" da ficha e mapa. As RPCs (recusas, efeitos, registo) são
@@ -96,6 +97,13 @@ AdminMapPoint _point(
 
 void main() {
   group('conta suspensa na app', () {
+    test('pedido fechado pela suspensão tem texto próprio', () {
+      expect(
+        CancelReason.label(CancelReason.accountSuspended),
+        'Fechado ao suspender a conta',
+      );
+    });
+
     test('estado vazio (sem 0080 ou sem nada) é conta ativa', () {
       final s = MyAccountStatus.fromJson(const {});
       expect(s.isSuspended, isFalse);

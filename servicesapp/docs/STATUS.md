@@ -12,7 +12,8 @@
 
 - Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
   2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
-  (painel de suporte, fase B) está **por aplicar**. Próxima: `0080`.
+  (painel de suporte, fase B) e a `0080` (fase C) estão **por aplicar**, por esta
+  ordem. Próxima: `0081`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).
@@ -101,9 +102,18 @@
   anular a confirmação, ocultar fotos e avaliações. Avaliações com ocultar e repor.
   Registo de tudo. Notas internas e casos no fundo de cada ficha. Cada ação pede
   motivo e nota, fica no registo e avisa as pessoas. Feriados não contam nos prazos
-  (ficam mais curtos, nunca mais longos). Fotos de perfil e do portefólio ainda não se
-  ocultam pelo painel.
-  Fase C (contas, mapa) em `docs/admin_portal_spec.md`.
+  (ficam mais curtos, nunca mais longos).
+- Suporte, fase C (0080, **por aplicar**): cartão "Conta" na ficha do cliente e do
+  jardineiro com suspender, reativar, aviso de encerramento com 30 dias (o cron
+  suspende na data), reenviar código, exportar os dados em JSON, eliminar a pedido
+  (o mesmo que a app; os ficheiros no Storage ficam numa lista para apagar à mão) e
+  retirar a foto de perfil ou do portefólio. Mapa com pedidos e jardineiros com raio.
+  Na app, conta suspensa só vê o ecrã "Conta suspensa" (contactar suporte, sair,
+  eliminar conta) e a BD recusa pedidos, propostas e ajudas dela. Trabalhos já
+  aceites de quem é suspenso não mudam sozinhos: o suporte decide cada um na ficha do
+  pedido. O painel não envia o email com os motivos (P2B): vai do Gmail de suporte.
+  A app ainda não usa fotos de portefólio (`worker_profiles.photos`); na prática só
+  a foto de perfil se retira.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,

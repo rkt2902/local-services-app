@@ -262,11 +262,13 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/admin/workers`, `/admin/workers/:workerId` | `AdminWorkersPage` (lista + `AdminWorkerDetailPanel`) | shell do painel | idem |
 | `/admin/avaliacoes` | `AdminRatingsPage` (ocultar e repor avaliações, 0079) | shell do painel | idem |
 | `/admin/registo` | `AdminLogPage` (todas as `admin_actions`, 0079) | shell do painel | idem |
+| `/admin/mapa` | `AdminMapPage` (pedidos e jardineiros com raio, camadas que se ligam e desligam, 0080) | shell do painel | idem |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
 | `/worker/help/:acceptanceId` | `WorkerHelperJobScreen` (trabalho visto pelo ajudante) | fora | container-transform / shared-axis |
 | `/session-error` | `SessionErrorScreen` (perfil não carregou: tentar de novo ou sair) | fora | shared-axis |
+| `/account-suspended` | `AccountSuspendedScreen` (0080: conta suspensa pelo suporte; contactar suporte, verificar de novo, terminar sessão, eliminar conta). `SessionStatus.suspended` vem de `get_my_account_status`; enquanto for `true`, `resolveRedirect` manda tudo para aqui | fora | default |
 | `/worker/setup` | `WorkerSetupScreen` | fora | default |
 | `/worker/profile/edit` | `WorkerEditProfileScreen` | fora | default |
 | `/notifications` | `NotificationsScreen` | fora | fade-through |
@@ -406,6 +408,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `support_cases` (0079) | casos de suporte | `number` curto, `kind` (help/report/abuse/appeal/complaint/gdpr/delete_account), `status` (open/waiting_user/resolved), `person_id`, `job_id`, `contact_email`, `summary`, `decision`, `ack_due_at` (1 dia útil), `due_at` (prazo do tipo, `support_case_due`, dias úteis sem feriados), `first_reply_at`; RLS sem policies |
 | `support_case_notes` (0079) | notas de um caso | `kind` internal/reply (resposta enviada por email, colada; a primeira marca `first_reply_at`); RLS sem policies |
 | `admin_notes` (0079) | notas internas em qualquer ficha | `target_id` (pedido ou pessoa), `body`; RLS sem policies |
+| `account_status` (0080) | suspensão e encerramento marcado de uma conta | `profile_id`, `suspended_at`, `suspended_reason`, `suspended_message`, `closing_at`, `closing_reason`, `closing_message`. Fora de `profiles` de propósito: quem tem um trabalho confirmado lê o perfil da outra pessoa e não deve ver o motivo. RLS sem policies; a própria pessoa lê o seu com `get_my_account_status` (sem o motivo interno) |
+| `profile_photos_hidden` (0080) | arquivo das fotos de perfil e do portefólio retiradas pelo suporte | `profile_id`, `kind` (avatar/portfolio), `url`, motivo e nota; o ficheiro fica no Storage; RLS sem policies |
 | `ratings_hidden` / `job_photos_hidden` (0079) | arquivo do que o suporte ocultou | a linha sai de `ratings` (ou o caminho sai de `job_photos`/`before_photo_paths`/`after_photo_paths`/`completion_photo_path`) e fica aqui com `hidden_reason`, `hidden_note`, `hidden_by`; nenhuma vista ou RPC da app mudou; trigger `trg_block_rating_while_hidden` impede avaliar outra vez o mesmo trabalho; RLS sem policies |
 | `job_events` (0078) | linha do tempo de cada pedido | `job_id`, `event_type`, `actor_id`, `actor_kind` (client/worker/helper/admin/system/user), `data` jsonb; preenchida por triggers em `job_requests`, `job_proposals`, `job_work_days`, `job_reports`, `ratings`, `help_requests` (sem `auth.uid()` = sistema, ex.: crons); pedidos antigos com eventos tirados dos carimbos (`data.backfill`); RLS sem policies |
 | `worker_calendar_entries` (0064) | Agenda: trabalhos fora da app (`kind = job`) e indisponibilidades (`block`) | `worker_id` DEFAULT `auth.uid()`, `starts_on`, `start_time`, `duration_minutes`, `ends_on`, `recurrence` none/weekly/biweekly/monthly, `recurrence_until`, `person_name`/`person_phone` (só para WhatsApp), `amount`, `status` scheduled/done/cancelled (cancelado continua na agenda), `status_at` (trigger); RLS só do dono, INSERT só com papel worker |
@@ -475,7 +479,8 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `apply_to_help_request` (0048) | `p_help_request_id, p_brought_equipment, p_message?` | `uuid` (permite voltar a candidatar depois de desistir) | `HelpRequestRepository` |
 | `cancel_help_request` / `update_help_request_slots` / `remove_help_helper` (0049; `remove_help_helper` revista na 0055) | `p_help_request_id` / `p_help_request_id, p_slots` / `p_help_acceptance_id` | `void` (só o jardineiro responsável: cancelar o pedido de ajuda, mudar vagas, retirar um ajudante) | `HelpRequestRepository` |
 | `update_job_request` (0049) | `p_job_id, p_description, p_date_mode, p_preferred_date, p_availability_text, p_address_text, p_location_lat/lng, p_location_area` | `void` (só o dono, pedido `open`; avisa quem já propôs com `job_updated`) | `JobRepository` ("Editar pedido") |
-| `delete_my_account` (0049) | — | `void` (anonimiza o perfil, marca `deleted_at` e bloqueia o login) | `AuthRepository` |
+| `delete_my_account` (0049) | — | `void` (anonimiza o perfil, marca `deleted_at` e bloqueia o login). Desde a 0080 é só a verificação da sessão e chama `account_delete_core(uid)`, o mesmo que o painel usa; funciona com a conta suspensa | `AuthRepository` |
+| `get_my_account_status` (0080) | — | `jsonb` (`suspended_at`, `suspended_message`, `closing_at`, `closing_message`; `{}` sem nada) | `AuthRepository.fetchMyAccountStatus` (sem a 0080 conta como ativa) |
 | `clear_my_notifications` / `restore_my_notifications` (0065) | — / `p_ids uuid[]` | `uuid[]` limpos / `integer` repostos | `NotificationRepository.clearAll` / `restore` ("Limpar tudo" e "Desfazer" de 6 s) |
 | `get_my_profile_stats` (0065) | — | `TABLE(completed_jobs, member_since)` | `WorkerRepository` (números do Perfil do jardineiro) |
 | `get_worker_agenda` (0064) | `p_from, p_to` (máx. 62 dias) | `TABLE(entry_kind, source_id, job_id, occurrence_date, series_date, start_time, end_time, day_index, day_count, title, service_type_id, location_label, person_name, person_phone, status, is_tentative, amount_min, amount_max, recurrence, is_exception, notes, proposal_id, location_lat, location_lng)`, uma linha por dia; `entry_kind` app_job/helper_job/proposal/reschedule/external/block | `AgendaRepository` (Agenda do jardineiro; sobreposições em `agenda_conflicts.dart`) |
@@ -530,11 +535,21 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_list_ratings` (0079) | `p_stars?, p_hidden, p_with_comment?` | visíveis ou ocultas | `fetchRatings` |
 | `admin_add_note` / `admin_list_notes` (0079) | `p_target_id, p_body` / `p_target_id` | notas internas | `addNote` / `fetchNotes` |
 | `admin_list_actions` (0079) | `p_action?, p_target_id?, p_include_reads, p_limit, p_offset` | Registo, com email do admin | `fetchActions` |
+| `admin_get_account` (0080) | `p_target_id` | `jsonb`: estado (suspensa, encerramento), email mascarado e se está confirmado, último acesso, foto de perfil e portefólio, trabalhos aceites em curso, `deletion_blocker` | `fetchAccount` |
+| `admin_suspend_user` / `admin_reactivate_user` (0080) | `p_target_id, p_reason, p_note, p_public_message?` / `p_target_id, p_note` | `integer` (trabalhos aceites que ficam por decidir) / `void`. Suspender (`account_suspend_core`): pedidos abertos da pessoa → `cancelled` com `cancel_reason = 'account_suspended'`, propostas pendentes dela `superseded`, pedidos diretos à espera dela libertados, candidaturas e pedidos de ajuda por preencher fechados; trabalhos `confirmed`/`awaiting_confirmation` ficam. `support_notice` à pessoa | `suspendUser` / `reactivateUser` |
+| `admin_schedule_closure` / `admin_cancel_closure` (0080) | `p_target_id, p_reason, p_note, p_public_message?` / `p_target_id, p_note` | `timestamptz` (agora + 30 dias) / `void`; aviso com a data; o cron `account-closures` (diário, 3h20 UTC, `process_account_closures`) suspende na data, com `admin_actions.action = 'closure_done'` e `admin_id` NULL | `scheduleClosure` / `cancelClosure` |
+| `admin_export_user_data` (0080) | `p_target_id` | `jsonb` com tudo o que se guarda da pessoa (conta, perfil, pedidos, propostas, ajudas, avaliações sem quem avaliou, reportes, casos, avisos, Agenda, ficheiros); sem morada de terceiros nem notas internas; registado como `export_user` | `exportUserData` (folha de partilha, ou clipboard) |
+| `admin_erase_user` (0080) | `p_target_id, p_note` | `jsonb` com os caminhos no Storage (`account_storage_paths`) que ficam para apagar à mão; corre `account_delete_core`; recusa a própria conta e contas de admin | `eraseUser` |
+| `admin_hide_profile_photo` (0080) | `p_target_id, p_url, p_reason, p_note` | `avatar_url` a NULL ou URL tirado de `worker_profiles.photos`, para `profile_photos_hidden`; `support_notice` | `hideProfilePhoto` |
+| `admin_resend_code` (0080) | `p_target_id` | `text` (email; só por confirmar); a app envia com `auth.resend(signup)`; registado | `resendConfirmationCode` |
+| `admin_map_points` (0080) | `p_days` (30) | pedidos `open`/`confirmed`/`awaiting_confirmation` e `completed` dos últimos dias; jardineiros com raio, plano e se estão suspensos; registado como `view_map` | `fetchMapPoints` |
 | `admin_set_worker_plan` (0060) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
 
 As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`. Desde a 0078, `admin_list_workers` e `admin_get_worker` devolvem o telefone mascarado (`admin_mask_phone`); o número inteiro só sai de `admin_reveal_contact`. Nenhuma `admin_*` lê a Agenda (`worker_calendar_entries`).
 
 Desde a 0079, cada ação que muda alguma coisa pede um motivo da lista fixa (`admin_assert_reason`: user_request, app_error, terms_violation, illegal_content, personal_data, duplicate, other) e uma nota de 5 carateres ou mais, grava os dois em `admin_actions.details` e avisa as pessoas com tipos que a app já conhecia (`job_cancelled`, `job_reopened`, `job_completed`, `job_marked_done`) ou com `support_notice`. Na app, a ação abre `showAdminActionDialog` (o que acontece, quem é avisado, motivo, nota; o erro da BD fica no diálogo).
+
+Desde a 0080 (fase C), a ficha do cliente e do jardineiro tem o cartão "Conta" (`AdminAccountCard`, dentro de `AdminRecordFooter(showAccount: true)`). Conta suspensa não age: o trigger `trg_block_suspended_writes` (em `job_requests`, `job_proposals`, `help_requests`, `help_acceptances`, `ratings`, `job_photos`, `job_work_days`) recusa escritas quando `auth.uid()` está suspenso, incluindo as feitas dentro de RPCs; os crons e o admin passam. `account_delete_core` liga `projardim.allow_suspended` só na sua transação, para quem está suspenso poder eliminar a conta. `worker_can_use_public_card` e `job_candidate_workers` deixam de fora contas suspensas, e o trigger recusa pedidos diretos a um jardineiro suspenso. A exceção à regra "nenhuma `admin_*` lê a Agenda" é só `admin_export_user_data` (a pedido da própria pessoa).
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -581,7 +596,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11 e a `0079` está criada e por aplicar. Próxima migration: `0080`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079` e a `0080` estão criadas e por aplicar (por esta ordem). Próxima migration: `0081`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -605,6 +620,7 @@ proposta aceite, via `auto_expire_jobs`) e `cancelled` como saídas.
 | 48h sem proposta → `no_response` | `auto_expire_jobs` (cron) | `job_no_response` |
 | cancelar | `cancel_job` | `job_cancelled` (+ `job_reopened` se reaberto) |
 | suporte cancela, reabre ou corrige o estado (0079) | `admin_cancel_job` (→ `cancelled`, motivo `support`), `admin_reopen_job` (`no_response` → `open`), `admin_set_job_status` (`confirmed`/`awaiting_confirmation` → `completed`, `completed` → `awaiting_confirmation`) | `job_cancelled`, `job_reopened`, `job_completed`, `job_marked_done`, `support_notice` |
+| conta suspensa pelo suporte (0080) | `admin_suspend_user` ou o cron `process_account_closures`: pedidos `open` da pessoa → `cancelled` (`cancel_reason = 'account_suspended'`, `cancelled_by` NULL); trabalhos aceites ficam | `proposal_rejected` ("O suporte da ProJardim cancelou…"), `proposal_withdrawn`, `support_notice` |
 
 ### `ProposalStatus`: `pending → accepted/rejected/superseded` — `create_proposal`,
 `accept_proposal` (auto-rejeita as outras), `reject_proposal`, `withdraw_proposal`.
@@ -660,7 +676,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `proposal_rejected` | `accept_proposal` (outras propostas) | `/worker/job/:id` | go |
 | `job_cancelled` | `cancel_job` | `/client/job/:id` ou `/worker/my-job/:id` | go |
 | `job_reopened` | `cancel_job`, `admin_reopen_job` (0079, o mesmo pedido) | `/worker/job/:id` ou `/client/job/:id` pelo papel | go |
-| `support_notice` (0079) | `admin_hide_rating`, `admin_hide_photo`, `admin_set_job_status` | como `job_cancelled` (`/client/job/:id` ou `/worker/my-job/:id`) | go |
+| `support_notice` (0079) | `admin_hide_rating`, `admin_hide_photo`, `admin_set_job_status`; desde a 0080 também suspensão, reativação, aviso e cancelamento de encerramento e foto de perfil retirada (estes sem `related_id`: tocar não navega) | como `job_cancelled` (`/client/job/:id` ou `/worker/my-job/:id`) | go |
 | `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |
