@@ -170,9 +170,9 @@
   J4/C5, linha "Serviço · data" nas notificações.
 - A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
   está nos detalhes do cliente, do jardineiro e do ajudante.
-- Painel `/admin` de suporte: fases B (caixa de suporte, casos, denúncias, ações sobre
-  pedidos, ocultar avaliações e fotos, ecrã Registo) e C (suspender, encerrar, exportar,
-  mapa). A fase A está no PR do painel de suporte.
+- Painel `/admin`: restos pequenos. Aprovar e recusar o cartão frota no painel (hoje é
+  por SQL) e camadas "zonas sem resposta" e densidade no mapa. A Política de Privacidade
+  ainda não diz que o admin vê moradas e posições, suspende contas e envia avisos.
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.
