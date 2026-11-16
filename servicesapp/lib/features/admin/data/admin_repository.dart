@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
+import 'admin_account_models.dart';
 import 'admin_models.dart';
 import 'admin_resolve_models.dart';
 import 'admin_support_models.dart';
@@ -378,7 +379,11 @@ class AdminRepository {
     required String note,
   }) => _client.rpc(
     'admin_reopen_job',
-    params: {'p_job_id': jobId, 'p_reason': reason.value, 'p_note': note.trim()},
+    params: {
+      'p_job_id': jobId,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+    },
   );
 
   /// `completed` ou `awaiting_confirmation` (anular a confirmação).
@@ -488,4 +493,122 @@ class AdminRepository {
         .map((e) => AdminActionRow.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  // ── Fase C: contas (0080) ──────────────────────────────────────
+
+  Future<AdminAccountState> fetchAccount(String personId) async {
+    final data = await _client.rpc(
+      'admin_get_account',
+      params: {'p_target_id': personId},
+    );
+    return AdminAccountState.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  /// Devolve quantos trabalhos já aceites ficaram por decidir.
+  Future<int> suspendUser(
+    String personId, {
+    required AdminActionReason reason,
+    required String note,
+    String? publicMessage,
+  }) async {
+    final data = await _client.rpc(
+      'admin_suspend_user',
+      params: {
+        'p_target_id': personId,
+        'p_reason': reason.value,
+        'p_note': note.trim(),
+        'p_public_message': _orNull(publicMessage),
+      },
+    );
+    return (data as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> reactivateUser(String personId, {required String note}) =>
+      _client.rpc(
+        'admin_reactivate_user',
+        params: {'p_target_id': personId, 'p_note': note.trim()},
+      );
+
+  /// Devolve a data em que a conta fica suspensa.
+  Future<DateTime?> scheduleClosure(
+    String personId, {
+    required AdminActionReason reason,
+    required String note,
+    String? publicMessage,
+  }) async {
+    final data = await _client.rpc(
+      'admin_schedule_closure',
+      params: {
+        'p_target_id': personId,
+        'p_reason': reason.value,
+        'p_note': note.trim(),
+        'p_public_message': _orNull(publicMessage),
+      },
+    );
+    return data is String ? DateTime.tryParse(data)?.toLocal() : null;
+  }
+
+  Future<void> cancelClosure(String personId, {required String note}) =>
+      _client.rpc(
+        'admin_cancel_closure',
+        params: {'p_target_id': personId, 'p_note': note.trim()},
+      );
+
+  /// JSON com tudo o que se guarda da pessoa (RGPD). Fica registado.
+  Future<Map<String, dynamic>> exportUserData(String personId) async {
+    final data = await _client.rpc(
+      'admin_export_user_data',
+      params: {'p_target_id': personId},
+    );
+    return (data as Map).cast<String, dynamic>();
+  }
+
+  Future<AdminErasedFiles> eraseUser(
+    String personId, {
+    required String note,
+  }) async {
+    final data = await _client.rpc(
+      'admin_erase_user',
+      params: {'p_target_id': personId, 'p_note': note.trim()},
+    );
+    return AdminErasedFiles.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  Future<void> hideProfilePhoto(
+    String personId, {
+    required String url,
+    required AdminActionReason reason,
+    required String note,
+  }) => _client.rpc(
+    'admin_hide_profile_photo',
+    params: {
+      'p_target_id': personId,
+      'p_url': url,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+    },
+  );
+
+  /// A RPC regista e devolve o email; o envio é o mesmo do ecrã "Confirma
+  /// o teu email" da app.
+  Future<void> resendConfirmationCode(String personId) async {
+    final email = await _client.rpc(
+      'admin_resend_code',
+      params: {'p_target_id': personId},
+    );
+    await _client.auth.resend(type: OtpType.signup, email: email as String);
+  }
+
+  Future<List<AdminMapPoint>> fetchMapPoints({int days = 30}) async {
+    final data = await _client.rpc(
+      'admin_map_points',
+      params: {'p_days': days},
+    );
+    return (data as List)
+        .map((e) => AdminMapPoint.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  static String? _orNull(String? text) =>
+      (text ?? '').trim().isEmpty ? null : text!.trim();
 }

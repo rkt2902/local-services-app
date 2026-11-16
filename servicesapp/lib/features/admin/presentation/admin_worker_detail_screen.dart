@@ -70,7 +70,11 @@ class AdminWorkerDetailPanel extends ConsumerWidget {
           worker: worker,
           onClose: onClose,
           onEditPlan: () => _editPlan(context, ref, worker),
-          footer: AdminRecordFooter(targetId: workerId, personId: workerId),
+          footer: AdminRecordFooter(
+            targetId: workerId,
+            personId: workerId,
+            showAccount: true,
+          ),
         ),
       ),
     );

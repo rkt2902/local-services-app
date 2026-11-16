@@ -24,6 +24,9 @@ const passwordResetRoute = '/forgot-password/reset';
 /// Ecrã de erro quando há sessão mas o perfil não se conseguiu ler.
 const sessionErrorRoute = '/session-error';
 
+/// Conta suspensa pelo suporte (0080): única rota de quem está suspenso.
+const accountSuspendedRoute = '/account-suspended';
+
 /// Painel de administração (`/admin` e `/admin/...`). Fica fora de todas as
 /// regras de papel: a conta de admin não tem papel de cliente nem de
 /// jardineiro, e o próprio ecrã decide o passo (login, segundo fator,
@@ -45,6 +48,7 @@ const _noReturnRoutes = {
   '/loading',
   '/choose-role',
   sessionErrorRoute,
+  accountSuspendedRoute,
 };
 
 bool _keepsReturnTarget(String path) => !_noReturnRoutes.contains(path);
@@ -135,6 +139,11 @@ String? resolveRedirect({
     return loc == sessionErrorRoute ? null : sessionErrorRoute;
   }
 
+  // Conta suspensa: só o ecrã que o explica (suporte, sair, eliminar).
+  if (session.suspended) {
+    return loc == accountSuspendedRoute ? null : accountSuspendedRoute;
+  }
+
   // Com sessão mas sem perfil ainda (registo novo, papel por escolher).
   if (role == null) {
     return loc == '/choose-role' ? null : '/choose-role';
@@ -154,7 +163,8 @@ String? resolveRedirect({
   }
 
   if (loc == '/' || loc == '/loading' || loc == '/login' || loc == '/signup' ||
-      loc == '/choose-role' || loc == sessionErrorRoute) {
+      loc == '/choose-role' || loc == sessionErrorRoute ||
+      loc == accountSuspendedRoute) {
     // Acabou de entrar vindo de uma rota privada: volta para lá.
     final target =
         safeReturnTarget(uri?.queryParameters[returnToParam], session);

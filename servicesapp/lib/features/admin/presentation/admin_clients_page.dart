@@ -294,6 +294,7 @@ class AdminClientDetailPanel extends ConsumerWidget {
           footer: AdminRecordFooter(
             targetId: client.clientId,
             personId: client.clientId,
+            showAccount: true,
           ),
         ),
       ),

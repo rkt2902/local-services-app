@@ -15,6 +15,7 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../application/admin_labels.dart';
 import '../../application/admin_providers.dart';
 import '../../data/admin_resolve_models.dart';
+import 'admin_account_actions.dart';
 import 'admin_panel_widgets.dart';
 
 /// Nota mínima de uma ação (igual à BD).
@@ -407,6 +408,7 @@ class AdminRecordFooter extends ConsumerWidget {
     required this.targetId,
     this.personId,
     this.jobId,
+    this.showAccount = false,
     super.key,
   });
 
@@ -414,11 +416,19 @@ class AdminRecordFooter extends ConsumerWidget {
   final String? personId;
   final String? jobId;
 
+  /// Ficha de uma pessoa: mostra o cartão "Conta" (fase C) por cima.
+  final bool showAccount;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final account = showAccount ? personId : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (account != null) ...[
+          AdminAccountCard(personId: account),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         AdminLinkedCasesCard(
           targetId: targetId,
           personId: personId,

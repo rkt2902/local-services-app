@@ -12,6 +12,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/auth/presentation/request_password_reset_screen.dart';
 import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
+import '../../features/auth/presentation/account_suspended_screen.dart';
 import '../../features/auth/presentation/session_error_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
@@ -61,6 +62,7 @@ import '../../features/admin/presentation/admin_clients_page.dart';
 import '../../features/admin/presentation/admin_cases_page.dart';
 import '../../features/admin/presentation/admin_jobs_page.dart';
 import '../../features/admin/presentation/admin_log_page.dart';
+import '../../features/admin/presentation/admin_map_page.dart';
 import '../../features/admin/presentation/admin_ratings_page.dart';
 import '../../features/admin/presentation/admin_reports_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
@@ -118,6 +120,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: sessionErrorRoute,
         builder: (_, _) => const SessionErrorScreen(),
+      ),
+      // Conta suspensa pelo suporte (0080): ver resolveRedirect.
+      GoRoute(
+        path: accountSuspendedRoute,
+        builder: (_, _) => const AccountSuspendedScreen(),
       ),
       // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
       // /forgot-password/reset. Os passos 2-4 (verificar código, nova
@@ -237,6 +244,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-ratings'),
               child: AdminRatingsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/mapa',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-map'),
+              child: AdminMapPage(),
             ),
           ),
           GoRoute(

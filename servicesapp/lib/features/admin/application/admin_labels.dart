@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../data/admin_account_models.dart';
 import '../data/admin_resolve_models.dart';
 import '../data/admin_support_models.dart';
 
@@ -221,6 +222,16 @@ String adminHistoryActionLabel(String action) => switch (action) {
   'restore_rating' => 'Avaliação reposta',
   'hide_photo' => 'Foto ocultada',
   'add_note' => 'Nota interna',
+  'suspend_user' => 'Conta suspensa',
+  'reactivate_user' => 'Conta reativada',
+  'schedule_closure' => 'Encerramento marcado (30 dias)',
+  'cancel_closure' => 'Encerramento cancelado',
+  'closure_done' => 'Conta encerrada na data marcada',
+  'export_user' => 'Dados exportados',
+  'erase_user' => 'Conta eliminada a pedido',
+  'hide_profile_photo' => 'Foto de perfil retirada',
+  'resend_code' => 'Código de confirmação reenviado',
+  'view_map' => 'Mapa aberto',
   _ => action,
 };
 
@@ -264,9 +275,34 @@ String adminDeadlineLabel(DateTime? due, {bool closed = false, DateTime? now}) {
 };
 
 /// Estado de um caso.
-AppStatusColor adminCaseStatusColor(AdminCaseStatus status) =>
-    switch (status) {
-      AdminCaseStatus.open => AppStatusColor.info,
-      AdminCaseStatus.waitingUser => AppStatusColor.waiting,
-      AdminCaseStatus.resolved => AppStatusColor.success,
-    };
+AppStatusColor adminCaseStatusColor(AdminCaseStatus status) => switch (status) {
+  AdminCaseStatus.open => AppStatusColor.info,
+  AdminCaseStatus.waitingUser => AppStatusColor.waiting,
+  AdminCaseStatus.resolved => AppStatusColor.success,
+};
+
+// ── Suporte, fase C ───────────────────────────────────────────────
+
+/// Selo do estado da conta na ficha.
+(String, AppStatusColor) adminAccountStatus(AdminAccountState a) {
+  if (a.isDeleted) return ('Eliminada', AppStatusColor.neutral);
+  if (a.isSuspended) {
+    return (
+      'Suspensa desde ${adminDateLabel(a.suspendedAt)}',
+      AppStatusColor.cancelled,
+    );
+  }
+  if (a.hasClosing) {
+    return ('Encerra a ${adminDateLabel(a.closingAt)}', AppStatusColor.waiting);
+  }
+  return ('Ativa', AppStatusColor.success);
+}
+
+/// Estado de um pedido no mapa.
+(String, AppStatusColor) adminMapJobStatus(String status) => switch (status) {
+  'open' => ('Aberto', AppStatusColor.info),
+  'confirmed' => ('Confirmado', AppStatusColor.success),
+  'awaiting_confirmation' => ('À espera da cliente', AppStatusColor.waiting),
+  'completed' => ('Concluído', AppStatusColor.neutral),
+  _ => (status, AppStatusColor.neutral),
+};

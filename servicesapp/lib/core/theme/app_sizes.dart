@@ -136,4 +136,10 @@ abstract final class AppSizes {
   static const double shareCardWidth = 340.0;
   static const double shareCardQr = 132.0;
   static const double shareCardAvatarRadius = 30.0;
+
+  // Painel de admin, fase C (2026-11-16): fotos de perfil e mapa.
+  static const double adminProfilePhoto = 96.0;
+  static const double adminMapMinHeight = 420.0;
+  static const double adminMapDot = 14.0;
+  static const double adminMapDotBorder = 2.0;
 }

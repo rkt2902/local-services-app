@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
+import '../data/admin_account_models.dart';
 import '../data/admin_models.dart';
 import '../data/admin_repository.dart';
 import '../data/admin_resolve_models.dart';
@@ -194,3 +195,16 @@ final adminActionsProvider = FutureProvider.autoDispose
           .read(adminRepositoryProvider)
           .fetchActions(query, limit: adminActionsPageSize);
     });
+
+// ── Suporte, fase C ───────────────────────────────────────────────
+
+/// Estado da conta de uma pessoa (suspensa, encerramento, email, fotos).
+final adminAccountProvider = FutureProvider.autoDispose
+    .family<AdminAccountState, String>((ref, personId) {
+      return ref.read(adminRepositoryProvider).fetchAccount(personId);
+    });
+
+/// Pontos do mapa; cada leitura fica no registo como consulta.
+final adminMapPointsProvider = FutureProvider.autoDispose<List<AdminMapPoint>>(
+  (ref) => ref.read(adminRepositoryProvider).fetchMapPoints(),
+);
