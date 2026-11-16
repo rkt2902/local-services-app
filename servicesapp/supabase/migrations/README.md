@@ -9,7 +9,7 @@ número ficou reservado para uma thread que não chegou a criar a migration).
 
 A `0075` e a `0076` estão no repositório **por aplicar** (ver a tabela).
 
-**Próxima migration nova: `0078`.** Antes de numerar, confirmar com
+**Próxima migration nova: `0079`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -54,6 +54,7 @@ Editor do Supabase e confirma.
 | `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | **por aplicar** |
 | `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | **por aplicar** (depois da 0075) |
 | `0077_help_request_slots_filled.sql` | Testes Android de 13/11 (F11): `get_help_requests_in_radius` devolve `slots_filled` para o Descobrir mostrar as vagas que faltam | **por aplicar** (depois da 0076) |
+| `0078_admin_support_tracking.sql` | Painel de suporte, fase A: `job_events` com triggers e eventos dos pedidos antigos, `admin_search`, `admin_list_jobs`, `admin_get_job`, `admin_get_job_photos`, `admin_list_clients`, `admin_get_client`, `admin_reveal_contact`; telefone mascarado em `admin_list_workers`/`admin_get_worker` | **por aplicar** (depois da 0077) |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

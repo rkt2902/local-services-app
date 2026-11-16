@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
 import 'admin_models.dart';
+import 'admin_support_models.dart';
 
 /// Inscrição nova de uma app autenticadora: o [uri] vai para o QR.
 class AdminTotpEnrollment {
@@ -74,9 +75,7 @@ class AdminRepository {
 
   Future<AdminOverview> fetchOverview({int? days}) async {
     final data = await _client.rpc('admin_overview', params: {'p_days': days});
-    return AdminOverview.fromJson(
-      (data as Map).cast<String, dynamic>(),
-    );
+    return AdminOverview.fromJson((data as Map).cast<String, dynamic>());
   }
 
   Future<List<AdminWorkerRow>> fetchWorkers({
@@ -85,20 +84,25 @@ class AdminRepository {
     required int limit,
     required int offset,
   }) async {
-    final data = await _client.rpc('admin_list_workers', params: {
-      'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
-      'p_tier': tier?.value,
-      'p_limit': limit,
-      'p_offset': offset,
-    });
+    final data = await _client.rpc(
+      'admin_list_workers',
+      params: {
+        'p_search': (search ?? '').trim().isEmpty ? null : search!.trim(),
+        'p_tier': tier?.value,
+        'p_limit': limit,
+        'p_offset': offset,
+      },
+    );
     return (data as List)
         .map((e) => AdminWorkerRow.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
   Future<AdminWorkerDetail> fetchWorker(String workerId) async {
-    final data = await _client
-        .rpc('admin_get_worker', params: {'p_worker_id': workerId});
+    final data = await _client.rpc(
+      'admin_get_worker',
+      params: {'p_worker_id': workerId},
+    );
     return AdminWorkerDetail.fromJson((data as Map).cast<String, dynamic>());
   }
 
@@ -111,13 +115,134 @@ class AdminRepository {
     String? notes,
   }) async {
     final day = DateFormat('yyyy-MM-dd');
-    await _client.rpc('admin_set_worker_plan', params: {
-      'p_worker_id': workerId,
-      'p_tier': tier.value,
-      'p_starts_at': day.format(startsAt),
-      'p_ends_at': endsAt == null ? null : day.format(endsAt),
-      'p_verified_at': verifiedAt == null ? null : day.format(verifiedAt),
-      'p_notes': notes,
-    });
+    await _client.rpc(
+      'admin_set_worker_plan',
+      params: {
+        'p_worker_id': workerId,
+        'p_tier': tier.value,
+        'p_starts_at': day.format(startsAt),
+        'p_ends_at': endsAt == null ? null : day.format(endsAt),
+        'p_verified_at': verifiedAt == null ? null : day.format(verifiedAt),
+        'p_notes': notes,
+      },
+    );
+  }
+
+  // ── Suporte, fase A (migration 0078) ───────────────────────────
+  // As consultas a fichas, fotos e contactos ficam registadas em
+  // admin_actions pela própria RPC.
+
+  Future<List<AdminSearchHit>> search(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    final data = await _client.rpc('admin_search', params: {'p_q': q});
+    return (data as List)
+        .map((e) => AdminSearchHit.fromJson((e as Map).cast<String, dynamic>()))
+        .whereType<AdminSearchHit>()
+        .toList();
+  }
+
+  Future<List<AdminJobRow>> fetchJobs(
+    AdminJobsFilter filter, {
+    required int limit,
+  }) async {
+    final day = DateFormat('yyyy-MM-dd');
+    final from = filter.lastDays == null
+        ? null
+        : DateTime.now().subtract(Duration(days: filter.lastDays!));
+    final data = await _client.rpc(
+      'admin_list_jobs',
+      params: {
+        'p_status': filter.status?.value,
+        'p_service_id': filter.serviceTypeId,
+        'p_area': filter.area.trim().isEmpty ? null : filter.area.trim(),
+        'p_from': from == null ? null : day.format(from),
+        'p_to': null,
+        'p_with_report': filter.withReport ? true : null,
+        'p_direct': filter.directOnly ? true : null,
+        'p_with_helpers': filter.withHelpers ? true : null,
+        'p_limit': limit,
+        'p_offset': filter.page * limit,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminJobRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<AdminJobDetail> fetchJob(String jobId) async {
+    final data = await _client.rpc(
+      'admin_get_job',
+      params: {'p_job_id': jobId},
+    );
+    return AdminJobDetail.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  /// Os buckets são públicos (AUD-14): basta o caminho para o URL.
+  Future<List<AdminJobPhoto>> fetchJobPhotos(String jobId) async {
+    final data = await _client.rpc(
+      'admin_get_job_photos',
+      params: {'p_job_id': jobId},
+    );
+    final bucket = _client.storage.from('job-photos');
+    return (data as List).map((e) {
+      final row = (e as Map).cast<String, dynamic>();
+      final created = row['created_at'];
+      return AdminJobPhoto(
+        kind: (row['kind'] as String?) ?? 'request',
+        url: bucket.getPublicUrl(row['storage_path'] as String),
+        takenBy: (row['taken_by'] as String?) ?? '',
+        createdAt: created is String ? DateTime.tryParse(created) : null,
+      );
+    }).toList();
+  }
+
+  Future<List<AdminClientRow>> fetchClients(
+    AdminClientsFilter filter, {
+    required int limit,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_clients',
+      params: {
+        'p_search': filter.search.trim().isEmpty ? null : filter.search.trim(),
+        'p_state': filter.state,
+        'p_with_reports': filter.withReports ? true : null,
+        'p_limit': limit,
+        'p_offset': filter.page * limit,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminClientRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<AdminClientDetail> fetchClient(String clientId) async {
+    final data = await _client.rpc(
+      'admin_get_client',
+      params: {'p_client_id': clientId},
+    );
+    return AdminClientDetail.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  /// Telefone inteiro de uma pessoa. Fica registado (com o motivo, se vier).
+  Future<String?> revealPhone(String personId, {String? reason}) async {
+    final data = await _client.rpc(
+      'admin_reveal_contact',
+      params: {'p_target_id': personId, 'p_kind': 'phone', 'p_reason': reason},
+    );
+    final phone = (data as Map?)?['phone'] as String?;
+    return phone == null || phone.trim().isEmpty ? null : phone;
+  }
+
+  /// Morada exata de um pedido. Fica registado.
+  Future<AdminRevealedAddress> revealAddress(
+    String jobId, {
+    String? reason,
+  }) async {
+    final data = await _client.rpc(
+      'admin_reveal_contact',
+      params: {'p_target_id': jobId, 'p_kind': 'address', 'p_reason': reason},
+    );
+    return AdminRevealedAddress.fromJson((data as Map).cast<String, dynamic>());
   }
 }
