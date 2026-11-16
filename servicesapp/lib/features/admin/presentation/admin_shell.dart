@@ -23,7 +23,7 @@ enum AdminSection {
   map('Mapa', Icons.map_outlined, '/admin/mapa'),
   partners(
     'Parceiros',
-    Icons.local_gas_station_outlined,
+    Icons.storefront_outlined,
     '/admin/parceiros',
   ),
   funnel('Funil e dados', Icons.filter_alt_outlined, '/admin/funil'),

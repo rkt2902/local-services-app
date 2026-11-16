@@ -4,16 +4,18 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_sizes.dart';
 import '../../data/admin_partner_models.dart';
 
-/// Ponto de uma gasolineira no mapa: círculo com a bomba, na cor do
-/// estado (parceira, em conversa, terminada).
+/// Ponto de um parceiro no mapa: círculo com o ícone do tipo (bomba,
+/// flor, ferramenta…), na cor do estado (parceiro, em conversa, terminado).
 class AdminPartnerMarker extends StatelessWidget {
   const AdminPartnerMarker({
     required this.status,
+    this.kind = PartnerKind.fuelStation,
     this.selected = false,
     super.key,
   });
 
   final AdminPartnerStatus status;
+  final PartnerKind kind;
   final bool selected;
 
   @override
@@ -30,8 +32,8 @@ class AdminPartnerMarker extends StatelessWidget {
           width: AppSizes.adminMapDotBorder,
         ),
       ),
-      child: const Icon(
-        Icons.local_gas_station_rounded,
+      child: Icon(
+        kind.icon,
         size: AppSizes.adminPartnerMarkerIcon,
         color: AppColors.surface,
       ),

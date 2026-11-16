@@ -42,6 +42,8 @@ import '../../features/worker/presentation/worker_public_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_screen.dart';
+import '../../features/partners/presentation/partner_detail_screen.dart';
+import '../../features/partners/presentation/partners_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_scan_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_confirm_data_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
@@ -261,9 +263,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, state) => NoTransitionPage(
               key: const ValueKey('admin-partners'),
               child: AdminPartnersPage(
-                initialTab: state.uri.queryParameters['tab'] == 'gasolineiras'
-                    ? AdminPartnersTab.stations
-                    : AdminPartnersTab.fleet,
+                initialTab: state.uri.queryParameters['tab'] == 'frota'
+                    ? AdminPartnersTab.fleet
+                    : AdminPartnersTab.partners,
               ),
             ),
           ),
@@ -658,6 +660,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             buildSharedAxisPage(context, state, const WorkerEarningsScreen()),
       ),
+      // Parceiros (0082): o ecrã de cada um fica fora do shell.
+      GoRoute(
+        path: '/worker/partners/:id',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          PartnerDetailScreen(partnerId: state.pathParameters['id']!),
+        ),
+      ),
       GoRoute(
         path: '/worker/fleet-card',
         pageBuilder: (context, state) =>
@@ -724,6 +735,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/profile',
             builder: (_, _) => const WorkerProfileScreen(),
+          ),
+          // Só tem botão no menu quando há parceiros (0082).
+          GoRoute(
+            path: '/worker/partners',
+            builder: (_, _) => const PartnersScreen(),
           ),
           GoRoute(
             path: '/worker/jobs',

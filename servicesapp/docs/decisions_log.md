@@ -3,6 +3,24 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Parceiros na app, geridos no painel (0082 alargada)
+
+- A tabela das gasolineiras passou a `partners`, para qualquer tipo de parceiro, com
+  os campos que a app mostra. Tudo menos o nome é opcional e o ecrã do parceiro só
+  mostra as partes preenchidas (sem QR não há espaço para o QR, sem link não há
+  botão). Texto em branco grava NULL.
+- Tab "Parceiros" no jardineiro: quinto botão no menu de baixo e entrada no Perfil,
+  só quando há parceiros visíveis (decisão do Henrique, "B e perfil"). O "+" continua
+  ao centro (2 botões, "+", 3 botões).
+- Pro+ por parceiro (`pro_plus_only`, ligado por omissão): quem não é Pro+ vê o
+  parceiro mas não os códigos, que a BD nem envia. O de exemplo está aberto a todos.
+- Localização opcional: um parceiro só online não precisa de ponto no mapa.
+- A 0082 ainda não estava aplicada, por isso foi alterada em vez de criar a 0083. É
+  idempotente: se a versão anterior tiver sido corrida, renomeia `partner_locations`
+  e apaga as funções antigas.
+- Parceiro de exemplo na migration (id fixo, notas "MOCK"), para ver a tab antes de
+  haver parceiros reais. Apaga-se no painel.
+
 ## 2026-11-16 — Cartões frota no painel, gasolineiras e zonas no mapa (0082)
 
 - Cartão frota decide-se no painel (aprovar, recusar, retirar). Só conta o pedido mais

@@ -461,7 +461,7 @@ Modelo de dados: `worker_client_relationships`, `relationship_messages`, `recurr
 
 ### Alta prioridade
 
-**Painel /admin, fases 2 e 3 (2026-10-22)** (feito até 2026-11-16: 0078 a 0082; falta a Política, importar listas de gasolineiras e mostrá-las aos jardineiros)
+**Painel /admin, fases 2 e 3 (2026-10-22)** (feito até 2026-11-16: 0078 a 0082, com a tab Parceiros na app; falta a Política e importar listas de parceiros)
 A fase 1 (0060) tem visão geral, jardineiros e planos. Faltava: mapa com camadas
 (pedidos por estado, jardineiros com raio, zonas sem resposta, densidade) com
 `flutter_map`/OSM; lista de pedidos parados; moderação (reports, cartões frota,

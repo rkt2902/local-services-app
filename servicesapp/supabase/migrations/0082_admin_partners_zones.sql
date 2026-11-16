@@ -288,9 +288,14 @@ CREATE INDEX IF NOT EXISTS partners_app_idx ON public.partners (sort_order, name
 -- Fotos dos parceiros: leitura pública (vão nos banners), escrita só do
 -- admin com segundo fator. is_verified_admin() só diz se quem chama é
 -- admin; as policies do Storage correm como 'authenticated'.
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('partner-images', 'partner-images', true)
-ON CONFLICT (id) DO NOTHING;
+-- Até 5 MB, só JPEG, PNG ou WebP (como os outros buckets desde a 0042).
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('partner-images', 'partner-images', true, 5242880,
+        ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO UPDATE
+  SET public = true,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types;
 GRANT EXECUTE ON FUNCTION public.is_verified_admin() TO authenticated;
 
 DROP POLICY IF EXISTS "partner-images: leitura pública" ON storage.objects;

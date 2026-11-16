@@ -13,8 +13,9 @@ import 'package:servicesapp/features/admin/presentation/admin_shell.dart';
 import 'package:servicesapp/features/admin/presentation/widgets/admin_partner_editor.dart';
 import 'package:servicesapp/features/fleet_card/data/fleet_card_model.dart';
 import 'package:servicesapp/features/notifications/data/notification_types.dart';
+import 'package:servicesapp/features/partners/data/partner_model.dart';
 
-// Painel de admin (0082): cartões frota, gasolineiras e zonas do mapa.
+// Painel de admin (0082): cartões frota, parceiros e zonas do mapa.
 // As RPCs (recusas, decisões, contas das zonas) são testadas na BD
 // (supabase/tests/audit/90_admin_partners_zones.sql).
 
@@ -43,20 +44,37 @@ Map<String, dynamic> _cardJson({
   'total_count': 1,
 };
 
-AdminPartnerLocation _partner({
+AdminPartner _partner({
   String id = 'p1',
   String status = 'active',
   int covering = 2,
-}) => AdminPartnerLocation.fromJson({
+  bool located = true,
+  bool visible = true,
+  String? validUntil,
+}) => AdminPartner.fromJson({
   'id': id,
   'kind': 'fuel_station',
   'name': 'Posto Avenida',
   'brand': 'Marca X',
   'status': status,
+  'headline': '10% em combustível',
+  'description': null,
+  'image_path': null,
+  'discount_code': 'PJ10',
+  'barcode_value': null,
+  'barcode_format': 'code128',
+  'qr_value': null,
+  'link_url': null,
+  'link_label': null,
+  'terms': null,
+  'valid_until': validUntil,
+  'visible_in_app': visible,
+  'pro_plus_only': true,
+  'sort_order': 5,
   'address': 'Av. Central 1',
   'locality': 'Braga',
-  'lat': 41.55,
-  'lng': -8.42,
+  'lat': located ? 41.55 : null,
+  'lng': located ? -8.42 : null,
   'notes': null,
   'created_at': '2026-11-16T10:00:00Z',
   'workers_covering': covering,
@@ -103,7 +121,7 @@ class _FakeRepo implements AdminRepository {
   Future<void> approveFleetCard(String cardId) async => approved.add(cardId);
 
   @override
-  Future<List<AdminPartnerLocation>> fetchPartners() async => [_partner()];
+  Future<List<AdminPartner>> fetchPartners() async => [_partner()];
 
   @override
   Future<String> savePartner(AdminPartnerDraft draft) async {
@@ -236,7 +254,7 @@ void main() {
     });
   });
 
-  group('gasolineiras', () {
+  group('parceiros', () {
     test('lê a linha e resume o que há perto', () {
       final p = _partner();
       expect(p.status, AdminPartnerStatus.active);
@@ -250,27 +268,100 @@ void main() {
       );
     });
 
+    test('sem localização: sem números', () {
+      final p = _partner(located: false);
+      expect(p.hasLocation, isFalse);
+      expect(adminPartnerReachLabel(p), 'Sem localização no mapa');
+    });
+
+    test('aparece na app: ativo, visível e dentro da validade', () {
+      final today = DateTime(2026, 11, 16);
+      expect(_partner().shownInApp(today: today), isTrue);
+      expect(_partner(visible: false).shownInApp(today: today), isFalse);
+      expect(_partner(status: 'prospect').shownInApp(today: today), isFalse);
+      expect(
+        _partner(validUntil: '2026-11-16').shownInApp(today: today),
+        isTrue,
+      );
+      expect(
+        _partner(validUntil: '2026-11-15').shownInApp(today: today),
+        isFalse,
+      );
+    });
+
     test('rascunho: vazios vão a null, nome sem espaços', () {
-      const d = AdminPartnerDraft(
+      final d = AdminPartnerDraft(
         name: '  Posto  ',
         status: AdminPartnerStatus.prospect,
+        kind: PartnerKind.gardenStore,
         lat: 38.7,
         lng: -27.2,
         brand: ' ',
+        discountCode: ' PJ10 ',
+        barcodeFormat: PartnerBarcodeFormat.ean13,
+        validUntil: DateTime(2027, 1, 5),
       );
-      expect(d.toParams(), {
-        'p_id': null,
-        'p_name': 'Posto',
-        'p_brand': null,
-        'p_kind': 'fuel_station',
-        'p_status': 'prospect',
-        'p_address': null,
-        'p_locality': null,
-        'p_lat': 38.7,
-        'p_lng': -27.2,
-        'p_notes': null,
-      });
-      expect(AdminPartnerDraft.from(_partner()).id, 'p1');
+      final data = d.toData();
+      expect(data['name'], 'Posto');
+      expect(data['kind'], 'garden_store');
+      expect(data['status'], 'prospect');
+      expect(data['brand'], isNull);
+      expect(data['headline'], isNull);
+      expect(data['discount_code'], 'PJ10');
+      expect(data['barcode_value'], isNull);
+      expect(data['barcode_format'], 'ean13');
+      expect(data['valid_until'], '2027-01-05');
+      expect(data['visible_in_app'], isFalse);
+      expect(data['pro_plus_only'], isTrue);
+      expect(data['lat'], 38.7);
+      expect(data['lng'], -27.2);
+      const noPlace = AdminPartnerDraft(
+        name: 'Loja',
+        status: AdminPartnerStatus.active,
+      );
+      expect(noPlace.toData()['lat'], isNull);
+      final again = AdminPartnerDraft.from(_partner());
+      expect(again.id, 'p1');
+      expect(again.discountCode, 'PJ10');
+      expect(again.visibleInApp, isTrue);
+      expect(again.withImage('p1/1.jpg').toData()['image_path'], 'p1/1.jpg');
+    });
+
+    test('pré-visualização tira os vazios', () {
+      const d = AdminPartnerDraft(
+        name: 'Loja',
+        status: AdminPartnerStatus.active,
+        headline: ' ',
+        qrValue: 'https://x.pt',
+      );
+      final p = d.toPreview();
+      expect(p.headline, isNull);
+      expect(p.locked, isFalse);
+      expect(partnerSections(p), [PartnerSection.qr]);
+    });
+
+    test('códigos de barras e link como na BD', () {
+      expect(adminIsValidEan13('5601234567890'), isFalse);
+      expect(adminIsValidEan13('4006381333931'), isTrue);
+      expect(adminIsValidEan13('400638133393'), isFalse);
+      expect(adminIsValidCode128('PJ-EXEMPLO-0001'), isTrue);
+      expect(adminIsValidCode128('Pão'), isFalse);
+      expect(adminBarcodeError('', PartnerBarcodeFormat.ean13), isNull);
+      expect(adminBarcodeError('123', PartnerBarcodeFormat.ean13), isNotNull);
+      expect(adminLinkError('http://x.pt'), isNotNull);
+      expect(adminLinkError('https://x.pt'), isNull);
+      expect(adminLinkError(''), isNull);
+    });
+
+    test('resumo do que está preenchido', () {
+      expect(adminPartnerFilledLabel(_partner()), 'Código');
+      expect(adminPartnerHasCodes(_partner()), isTrue);
+      expect(
+        adminPartnerFilledLabel(
+          AdminPartner.fromJson({'id': 'x', 'name': 'Só nome'}),
+        ),
+        'Só o nome, por agora',
+      );
     });
 
     test('só Portugal (continente e ilhas)', () {
@@ -280,7 +371,7 @@ void main() {
       expect(adminInPortugal(40.42, -3.70), isFalse);
     });
 
-    testWidgets('editor: grava a gasolineira que já existe', (tester) async {
+    testWidgets('editor: grava o parceiro que já existe', (tester) async {
       _desktop(tester);
       final repo = _FakeRepo();
       await tester.pumpWidget(
@@ -300,35 +391,92 @@ void main() {
       await tester.pumpAndSettle();
       expect(repo.saved.single.id, 'p1');
       expect(repo.saved.single.status, AdminPartnerStatus.prospect);
+      expect(repo.saved.single.discountCode, 'PJ10');
+      expect(repo.saved.single.lat, 41.55);
     });
 
-    testWidgets('editor: nova só grava com nome e sítio', (tester) async {
+    testWidgets('editor: novo grava só com o nome, sem localização', (
+      tester,
+    ) async {
       _desktop(tester);
+      final repo = _FakeRepo();
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [adminRepositoryProvider.overrideWithValue(_FakeRepo())],
+          overrides: [adminRepositoryProvider.overrideWithValue(repo)],
           child: const MaterialApp(
             home: Scaffold(body: AdminPartnerEditor(showTiles: false)),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Nome'),
-        'Posto Novo',
-      );
-      await tester.pump();
       final save = find.widgetWithText(FilledButton, 'Gravar');
       expect(tester.widget<FilledButton>(save).onPressed, isNull);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome'),
+        'Loja Verde',
+      );
+      await tester.pump();
+      expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+
+      // Um EAN-13 errado trava o Gravar até ser corrigido.
+      await tester.tap(find.text('EAN-13'));
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Código de barras (opcional)'),
+        '123',
+      );
+      await tester.pump();
+      expect(find.textContaining('13 dígitos'), findsOneWidget);
+      expect(tester.widget<FilledButton>(save).onPressed, isNull);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Código de barras (opcional)'),
+        '4006381333931',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Mostrar na tab Parceiros'));
+      await tester.pump();
       expect(
-        find.textContaining('Toca no mapa no sítio do posto'),
+        find.text('Só aparece quando o estado for "Parceiro".'),
         findsOneWidget,
       );
+      await tester.tap(find.text('Parceiro'));
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final d = repo.saved.single;
+      expect(d.id, isNull);
+      expect(d.name, 'Loja Verde');
+      expect(d.lat, isNull);
+      expect(d.visibleInApp, isTrue);
+      expect(d.status, AdminPartnerStatus.active);
+      expect(d.toData()['barcode_value'], '4006381333931');
     });
 
-    testWidgets('página: aprovar um cartão e ver as gasolineiras', (
+    testWidgets('editor: "Ver como na app" só mostra o preenchido', (
       tester,
     ) async {
+      _desktop(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [adminRepositoryProvider.overrideWithValue(_FakeRepo())],
+          child: MaterialApp(
+            home: Scaffold(
+              body: AdminPartnerEditor(partner: _partner(), showTiles: false),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ver como na app'));
+      await tester.pumpAndSettle();
+      expect(find.text('Código de desconto'), findsOneWidget);
+      expect(find.text('PJ10'), findsNWidgets(2)); // campo e app
+      expect(find.text('Onde fica'), findsOneWidget);
+      expect(find.text('QR da promoção'), findsNothing);
+      expect(find.text('Código de barras'), findsNothing);
+      expect(find.text('Condições'), findsNothing);
+    });
+
+    testWidgets('página: ver os parceiros e aprovar um cartão', (tester) async {
       _desktop(tester);
       final repo = _FakeRepo();
       await tester.pumpWidget(
@@ -338,6 +486,13 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.text('Posto Avenida'), findsOneWidget);
+      expect(find.textContaining('2 jardineiros cobrem'), findsOneWidget);
+      expect(find.text('Na app'), findsOneWidget);
+      expect(find.text('Códigos só Pro+'), findsOneWidget);
+
+      await tester.tap(find.text('Cartões frota'));
+      await tester.pumpAndSettle();
       expect(find.text('Rui Jardins'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Aprovar'));
       await tester.pumpAndSettle();
@@ -345,11 +500,6 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Aprovar').last);
       await tester.pumpAndSettle();
       expect(repo.approved, ['c1']);
-
-      await tester.tap(find.text('Gasolineiras'));
-      await tester.pumpAndSettle();
-      expect(find.text('Posto Avenida'), findsOneWidget);
-      expect(find.textContaining('2 jardineiros cobrem'), findsOneWidget);
       await tester.pump(const Duration(seconds: 5));
     });
   });
@@ -378,7 +528,7 @@ void main() {
         adminZoneDetails(z),
         '4 pedidos em 90 dias, 1 sem resposta, 2 concluídos · 1.ª proposta '
         'em ${adminHoursLabel(3.5)} (mediana) · 2 jardineiros cobrem · '
-        '1 com base aqui · 1 gasolineira',
+        '1 com base aqui · 1 parceiro',
       );
     });
 
@@ -412,7 +562,7 @@ void main() {
       expect(adminZoneChipLabel(zones[2]), 'Ponta · ninguém cobre');
     });
 
-    testWidgets('camadas novas: zonas, lista a reforçar e gasolineira', (
+    testWidgets('camadas novas: zonas, lista a reforçar e parceiro', (
       tester,
     ) async {
       _desktop(tester);
@@ -421,13 +571,16 @@ void main() {
         _zone('ok', area: 'Porto', jobs: 5, covering: 8, lat: 41.1),
       ];
       AdminMapZone? zone;
-      AdminPartnerLocation? partner;
+      AdminPartner? partner;
       Widget view({AdminMapZone? selectedZone}) => MaterialApp(
         home: Scaffold(
           body: AdminMapView(
             points: const [],
             zones: zones,
-            partners: [_partner()],
+            partners: [
+              _partner(),
+              _partner(id: 'p2', located: false),
+            ],
             layers: const {
               AdminMapLayer.unanswered,
               AdminMapLayer.density,
@@ -453,7 +606,7 @@ void main() {
         find.textContaining('1 zona com pedidos sem resposta'),
         findsOneWidget,
       );
-      expect(find.textContaining('1 gasolineira'), findsOneWidget);
+      expect(find.textContaining('1 parceiro'), findsOneWidget);
 
       await tester.tap(find.text('8'));
       expect(zone?.cell, 'ok');
@@ -476,10 +629,7 @@ void main() {
       adminHistoryActionLabel('fleet_card_revoked'),
       'Cartão frota retirado',
     );
-    expect(
-      adminHistoryActionLabel('partner_created'),
-      'Gasolineira adicionada',
-    );
+    expect(adminHistoryActionLabel('partner_created'), 'Parceiro adicionado');
     expect(NotificationType.fleetCardReviewed, 'fleet_card_reviewed');
     expect(AdminMapLayer.density.isZone, isTrue);
     expect(AdminMapLayer.partners.isZone, isFalse);

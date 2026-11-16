@@ -91,7 +91,7 @@ class _OverviewContent extends StatelessWidget {
         AdminAlertRow(
           icon: Icons.local_gas_station_outlined,
           message: '${o.alertFleetCardsPending} cartões frota por aprovar',
-          onTap: () => context.go('/admin/parceiros'),
+          onTap: () => context.go('/admin/parceiros?tab=frota'),
         ),
       if (o.alertPlansEnding7d > 0)
         AdminAlertRow(

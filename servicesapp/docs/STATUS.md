@@ -13,7 +13,7 @@
 - Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
   2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
   (painel de suporte, fase B), a `0080` (fase C), a `0081` (funil, CSV e avisos) e a
-  `0082` (cartões frota, gasolineiras e zonas) estão **por aplicar**, por esta
+  `0082` (cartões frota, parceiros e zonas) estão **por aplicar**, por esta
   ordem. Próxima: `0083`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
@@ -125,10 +125,20 @@
   Cima".
 - Parceiros e zonas (0082, **por aplicar**): página "Parceiros" com os cartões frota
   (aprovar, recusar com motivo, retirar; o jardineiro recebe aviso e lê a mensagem no
-  ecrã do cartão) e as gasolineiras parceiras ou em conversa (morada pesquisada ou
-  ponto no mapa, com quantos jardineiros cobrem e quantos pedidos há a 10 km). No Mapa,
-  camadas "Zonas sem resposta", "Densidade de jardineiros" e "Gasolineiras", e a lista
-  "Zonas a reforçar". Aprovar não exige Pro+ (o painel avisa).
+  ecrã do cartão) e os parceiros (gasolineiras, lojas, máquinas, serviços; em conversa,
+  parceiro ou terminado). Cada parceiro tem foto, frase do banner, descrição, código de
+  desconto, código de barras (Code 128 ou EAN-13), QR, link, condições, validade,
+  "Mostrar na app", "Códigos só para o Pro+" e, se quiser, localização (com quantos
+  jardineiros cobrem e quantos pedidos há a 10 km). "Ver como na app" mostra o ecrã
+  antes de gravar. No Mapa, camadas "Zonas sem resposta", "Densidade de jardineiros" e
+  "Parceiros", e a lista "Zonas a reforçar". Aprovar não exige Pro+ (o painel avisa).
+- Tab "Parceiros" do jardineiro (0082, **por aplicar**): quinto botão no menu de baixo
+  e entrada no Perfil, só quando há parceiros visíveis. Lista com um banner por
+  parceiro; o ecrã de cada um só mostra o que está preenchido no painel. Quem não é
+  Pro+ vê os parceiros só-Pro+ com o aviso "Disponível no Pro+" e sem códigos (a BD
+  não os envia). A 0082 traz um "Parceiro de exemplo" (notas "MOCK") para ver o
+  ecrã: **apagar no painel antes do lançamento**. Sem a 0082 aplicada a tab não
+  aparece.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,
@@ -178,8 +188,8 @@
 - A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
   está nos detalhes do cliente, do jardineiro e do ajudante.
 - Painel `/admin`: a Política de Privacidade ainda não diz que o admin vê moradas e
-  posições, suspende contas e envia avisos. Gasolineiras só se adicionam uma a uma (sem
-  importar uma lista) e os jardineiros ainda não as veem na app.
+  posições, suspende contas e envia avisos. Parceiros só se adicionam um a um (sem
+  importar uma lista). A tab Parceiros não tem pesquisa nem filtro por zona.
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.

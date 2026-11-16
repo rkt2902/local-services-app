@@ -232,9 +232,9 @@ final adminFleetCardsProvider = FutureProvider.autoDispose
       return ref.read(adminRepositoryProvider).fetchFleetCards(status: status);
     });
 
-/// Gasolineiras parceiras, com jardineiros e pedidos perto.
+/// Parceiros (todos os estados), com jardineiros e pedidos perto.
 final adminPartnersProvider =
-    FutureProvider.autoDispose<List<AdminPartnerLocation>>(
+    FutureProvider.autoDispose<List<AdminPartner>>(
       (ref) => ref.read(adminRepositoryProvider).fetchPartners(),
     );
 

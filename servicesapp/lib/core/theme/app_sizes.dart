@@ -149,4 +149,14 @@ abstract final class AppSizes {
   static const double adminZoneLabel = 24.0;
   static const double adminPartnerMapHeight = 220.0;
   static const double adminEditorMaxWidth = 560.0;
+  static const double adminPartnerPhoto = 120.0;
+
+  // Parceiros na app do jardineiro (0082).
+  static const double partnerBannerHeight = 120.0;
+  static const double partnerDetailBannerHeight = 176.0;
+  static const double partnerBannerIcon = 44.0;
+  static const double partnerBarcodeHeight = 88.0;
+  static const double partnerBarcodeMaxWidth = 320.0;
+  static const double partnerQr = 184.0;
+  static const double partnerMapHeight = 150.0;
 }

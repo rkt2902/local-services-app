@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -709,27 +711,61 @@ class AdminRepository {
     },
   );
 
-  Future<List<AdminPartnerLocation>> fetchPartners() async {
-    final data = await _client.rpc('admin_list_partner_locations');
+  Future<List<AdminPartner>> fetchPartners() async {
+    final data = await _client.rpc('admin_list_partners');
     return (data as List)
-        .map(
-          (e) =>
-              AdminPartnerLocation.fromJson((e as Map).cast<String, dynamic>()),
-        )
+        .map((e) => AdminPartner.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 
   /// Cria ou altera; devolve o id.
   Future<String> savePartner(AdminPartnerDraft draft) async {
     final data = await _client.rpc(
-      'admin_save_partner_location',
-      params: draft.toParams(),
+      'admin_save_partner',
+      params: {'p_id': draft.id, 'p_data': draft.toData()},
     );
     return data as String;
   }
 
-  Future<void> deletePartner(String id) =>
-      _client.rpc('admin_delete_partner_location', params: {'p_id': id});
+  /// Apaga o parceiro e depois a foto (se havia).
+  Future<void> deletePartner(String id) async {
+    final image = await _client.rpc(
+      'admin_delete_partner',
+      params: {'p_id': id},
+    );
+    if (image is String && image.isNotEmpty) {
+      await removePartnerImage(image);
+    }
+  }
+
+  /// Envia a foto para `partner-images` e devolve o caminho.
+  Future<String> uploadPartnerImage({
+    required String folder,
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    final extension = switch (contentType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
+    };
+    final path = '$folder/${DateTime.now().millisecondsSinceEpoch}.$extension';
+    await _client.storage
+        .from('partner-images')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+    return path;
+  }
+
+  /// Apaga uma foto antiga. Falhar aqui só deixa um ficheiro órfão.
+  Future<void> removePartnerImage(String path) async {
+    try {
+      await _client.storage.from('partner-images').remove([path]);
+    } catch (_) {}
+  }
 
   Future<List<AdminMapZone>> fetchMapZones({
     int days = adminZoneDays,

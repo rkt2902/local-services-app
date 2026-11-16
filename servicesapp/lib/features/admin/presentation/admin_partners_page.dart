@@ -24,19 +24,19 @@ import 'widgets/admin_stat_widgets.dart';
 
 /// Separadores da página Parceiros.
 enum AdminPartnersTab {
-  fleet('Cartões frota'),
-  stations('Gasolineiras');
+  partners('Parceiros'),
+  fleet('Cartões frota');
 
   const AdminPartnersTab(this.label);
   final String label;
 }
 
-/// Parceiros (`/admin/parceiros`, 0082): cartões frota para aprovar,
-/// recusar ou retirar, e as gasolineiras parceiras (ou em conversa) com o
-/// que há perto de cada uma. `?tab=gasolineiras` abre o segundo.
+/// Parceiros (`/admin/parceiros`, 0082): os parceiros (gasolineiras,
+/// lojas, etc.) com tudo o que aparece na app e o que há perto de cada um,
+/// e os cartões frota para aprovar, recusar ou retirar (`?tab=frota`).
 class AdminPartnersPage extends ConsumerStatefulWidget {
   const AdminPartnersPage({
-    this.initialTab = AdminPartnersTab.fleet,
+    this.initialTab = AdminPartnersTab.partners,
     super.key,
   });
 
@@ -48,6 +48,14 @@ class AdminPartnersPage extends ConsumerStatefulWidget {
 
 class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
   late AdminPartnersTab _tab = widget.initialTab;
+
+  @override
+  void didUpdateWidget(AdminPartnersPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // O alerta da Visão geral abre `?tab=frota` com a página já aberta.
+    if (oldWidget.initialTab != widget.initialTab) _tab = widget.initialTab;
+  }
+
   String? _fleetStatus = 'pending';
 
   // ── Cartões frota ──
@@ -90,28 +98,29 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
     ref.invalidate(adminFleetCardsProvider);
   }
 
-  // ── Gasolineiras ──
+  // ── Parceiros ──
 
-  Future<void> _edit([AdminPartnerLocation? partner]) async {
+  Future<void> _edit([AdminPartner? partner]) async {
     final toast = AppToast.of(context);
     final saved = await showAdminPartnerEditor(context, partner: partner);
     if (saved != true || !mounted) return;
     toast.show(
-      partner == null ? 'Gasolineira adicionada.' : 'Alterações gravadas.',
+      partner == null ? 'Parceiro adicionado.' : 'Alterações gravadas.',
     );
     ref.invalidate(adminPartnersProvider);
     ref.invalidate(adminMapZonesProvider);
   }
 
-  Future<void> _delete(AdminPartnerLocation partner) async {
+  Future<void> _delete(AdminPartner partner) async {
     final toast = AppToast.of(context);
     final ok = await AppConfirmDialog.show(
       context,
       icon: Icons.delete_outline_rounded,
       title: 'Apagar ${partner.name}?',
       message:
-          'Sai da lista e do mapa. Fica no Registo que foi apagada. Se a '
-          'parceria acabou, podes antes mudar o estado para "Terminada".',
+          'Sai da app, da lista e do mapa, e a foto é apagada. Fica no '
+          'Registo. Se a parceria acabou, podes antes mudar o estado para '
+          '"Terminado".',
       confirmLabel: 'Apagar',
       destructive: true,
     );
@@ -119,7 +128,7 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
     try {
       await ref.read(adminRepositoryProvider).deletePartner(partner.id);
       if (!mounted) return;
-      toast.show('Gasolineira apagada.');
+      toast.show('Parceiro apagado.');
       ref.invalidate(adminPartnersProvider);
       ref.invalidate(adminMapZonesProvider);
     } catch (e) {
@@ -144,9 +153,10 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          'Cartões frota dos jardineiros Pro+ e as gasolineiras parceiras. '
-          'No Mapa, a camada "Gasolineiras" mostra-as ao lado das zonas sem '
-          'resposta e da densidade de jardineiros.',
+          'Os parceiros que os jardineiros veem na tab Parceiros da app, e '
+          'os cartões frota do Pro+. No Mapa, a camada "Parceiros" mostra '
+          'os que têm localização ao lado das zonas sem resposta e da '
+          'densidade de jardineiros.',
           style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -166,8 +176,8 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
         AppFadeThroughSwitcher(
           switchKey: _tab,
           child: switch (_tab) {
+            AdminPartnersTab.partners => _partners(context),
             AdminPartnersTab.fleet => _fleet(context),
-            AdminPartnersTab.stations => _stations(context),
           },
         ),
       ],
@@ -232,7 +242,7 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
     );
   }
 
-  Widget _stations(BuildContext context) {
+  Widget _partners(BuildContext context) {
     final partnersAsync = ref.watch(adminPartnersProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -241,8 +251,8 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
           alignment: Alignment.centerLeft,
           child: FilledButton.icon(
             onPressed: () => _edit(),
-            icon: const Icon(Icons.add_location_alt_outlined),
-            label: const Text('Adicionar gasolineira'),
+            icon: const Icon(Icons.add_business_outlined),
+            label: const Text('Adicionar parceiro'),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -254,11 +264,12 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
           ),
           data: (partners) => partners.isEmpty
               ? const AppEmptyState(
-                  icon: Icons.local_gas_station_outlined,
-                  title: 'Ainda sem gasolineiras',
+                  icon: Icons.storefront_outlined,
+                  title: 'Ainda sem parceiros',
                   message:
-                      'Adiciona as parceiras e as que estão em conversa para '
-                      'as ver no mapa ao lado da procura e dos jardineiros.',
+                      'Adiciona os parceiros e os que estão em conversa. Os '
+                      'que marcares "Mostrar na app" aparecem aos '
+                      'jardineiros; com localização, aparecem no mapa.',
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -580,7 +591,8 @@ class _SubmitDialogState extends State<_SubmitDialog> {
   );
 }
 
-/// Uma gasolineira: estado, morada e o que há perto.
+/// Um parceiro: estado, se aparece na app, o que tem preenchido e o que
+/// há perto.
 class AdminPartnerTile extends StatelessWidget {
   const AdminPartnerTile({
     required this.partner,
@@ -589,7 +601,7 @@ class AdminPartnerTile extends StatelessWidget {
     super.key,
   });
 
-  final AdminPartnerLocation partner;
+  final AdminPartner partner;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -601,7 +613,9 @@ class AdminPartnerTile extends StatelessWidget {
       color: AppColors.textSecondary,
     );
     final uncovered =
-        p.status != AdminPartnerStatus.ended && p.workersCovering == 0;
+        p.hasLocation &&
+        p.status != AdminPartnerStatus.ended &&
+        p.workersCovering == 0;
     return AdminPanelCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,6 +639,24 @@ class AdminPartnerTile extends StatelessWidget {
                       statusColor: p.status.tone,
                       dense: true,
                     ),
+                    if (p.shownInApp())
+                      const AppStatusBadge(
+                        label: 'Na app',
+                        statusColor: AppStatusColor.success,
+                        dense: true,
+                      )
+                    else if (p.visibleInApp)
+                      const AppStatusBadge(
+                        label: 'Não aparece na app',
+                        statusColor: AppStatusColor.waiting,
+                        dense: true,
+                      ),
+                    if (p.proPlusOnly && adminPartnerHasCodes(p))
+                      const AppStatusBadge(
+                        label: 'Códigos só Pro+',
+                        statusColor: AppStatusColor.neutral,
+                        dense: true,
+                      ),
                   ],
                 ),
               ),
@@ -647,9 +679,16 @@ class AdminPartnerTile extends StatelessWidget {
             ],
           ),
           Text(
-            [?p.brand, ?p.address, ?p.locality].join(' · '),
+            [p.kind.label, ?p.brand, ?p.address, ?p.locality].join(' · '),
             style: secondary,
           ),
+          if (p.headline != null)
+            Text(
+              p.headline!,
+              style: textTheme.bodyMedium?.copyWith(color: AppColors.primary),
+            ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(adminPartnerFilledLabel(p), style: secondary),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             adminPartnerReachLabel(p),

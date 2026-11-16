@@ -239,9 +239,9 @@ String adminHistoryActionLabel(String action) => switch (action) {
   'fleet_card_approved' => 'Cartão frota aprovado',
   'fleet_card_rejected' => 'Cartão frota recusado',
   'fleet_card_revoked' => 'Cartão frota retirado',
-  'partner_created' => 'Gasolineira adicionada',
-  'partner_updated' => 'Gasolineira alterada',
-  'partner_deleted' => 'Gasolineira apagada',
+  'partner_created' => 'Parceiro adicionado',
+  'partner_updated' => 'Parceiro alterado',
+  'partner_deleted' => 'Parceiro apagado',
   _ => action,
 };
 

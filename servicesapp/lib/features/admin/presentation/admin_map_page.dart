@@ -30,8 +30,8 @@ import 'widgets/admin_stat_widgets.dart';
 /// Abrir o mapa fica no Registo (como as outras consultas).
 ///
 /// Desde a 0082: zonas sem resposta, densidade de jardineiros (quadrados
-/// de 10 km, pedidos de 90 dias) e gasolineiras parceiras. As zonas e as
-/// gasolineiras só se pedem quando a camada está ligada.
+/// de 10 km, pedidos de 90 dias) e parceiros (os que têm localização). As
+/// zonas e os parceiros só se pedem quando a camada está ligada.
 class AdminMapPage extends ConsumerStatefulWidget {
   const AdminMapPage({super.key});
 
@@ -47,7 +47,7 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
   };
   AdminMapPoint? _selected;
   AdminMapZone? _selectedZone;
-  AdminPartnerLocation? _selectedPartner;
+  AdminPartner? _selectedPartner;
   final _map = MapController();
 
   void _toggle(AdminMapLayer layer) {
@@ -67,7 +67,7 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
   void _select({
     AdminMapPoint? point,
     AdminMapZone? zone,
-    AdminPartnerLocation? partner,
+    AdminPartner? partner,
   }) => setState(() {
     _selected = point;
     _selectedZone = zone;
@@ -117,7 +117,7 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
         extrasNote: extrasError != null
             ? friendlyError(extrasError)
             : extrasLoading
-            ? 'A carregar zonas e gasolineiras…'
+            ? 'A carregar zonas e parceiros…'
             : null,
         layers: _layers,
         selected: _selected,
@@ -130,7 +130,7 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
         onFocusZone: _focusZone,
         onSelectPartner: (p) => _select(partner: p),
         onOpen: _open,
-        onOpenPartners: () => context.go('/admin/parceiros?tab=gasolineiras'),
+        onOpenPartners: () => context.go('/admin/parceiros'),
         onRefresh: () {
           ref.invalidate(adminMapPointsProvider);
           ref.invalidate(adminMapZonesProvider);
@@ -167,15 +167,15 @@ class AdminMapView extends StatelessWidget {
 
   final List<AdminMapPoint> points;
   final List<AdminMapZone> zones;
-  final List<AdminPartnerLocation> partners;
+  final List<AdminPartner> partners;
 
-  /// "A carregar…" ou o erro das zonas e gasolineiras (o resto do mapa
+  /// "A carregar…" ou o erro das zonas e dos parceiros (o resto do mapa
   /// funciona na mesma).
   final String? extrasNote;
   final Set<AdminMapLayer> layers;
   final AdminMapPoint? selected;
   final AdminMapZone? selectedZone;
-  final AdminPartnerLocation? selectedPartner;
+  final AdminPartner? selectedPartner;
   final MapController? mapController;
   final ValueChanged<AdminMapLayer> onToggle;
   final ValueChanged<AdminMapPoint?> onSelect;
@@ -183,7 +183,7 @@ class AdminMapView extends StatelessWidget {
 
   /// Escolher uma zona da lista "Zonas a reforçar" (centra o mapa).
   final ValueChanged<AdminMapZone>? onFocusZone;
-  final ValueChanged<AdminPartnerLocation>? onSelectPartner;
+  final ValueChanged<AdminPartner>? onSelectPartner;
   final ValueChanged<AdminMapPoint> onOpen;
   final VoidCallback? onOpenPartners;
   final VoidCallback onRefresh;
@@ -210,8 +210,11 @@ class AdminMapView extends StatelessWidget {
           z,
     ];
     final visiblePartners = layers.contains(AdminMapLayer.partners)
-        ? partners
-        : const <AdminPartnerLocation>[];
+        ? [
+            for (final p in partners)
+              if (p.hasLocation) p,
+          ]
+        : const <AdminPartner>[];
     final toReinforce = showZones
         ? adminZonesToReinforce(zones)
         : const <AdminMapZone>[];
@@ -220,12 +223,12 @@ class AdminMapView extends StatelessWidget {
       if (showZones && zones.isNotEmpty) adminZonesSummary(zones),
       if (visiblePartners.isNotEmpty)
         '${visiblePartners.length} '
-            '${visiblePartners.length == 1 ? 'gasolineira' : 'gasolineiras'}',
+            '${visiblePartners.length == 1 ? 'parceiro' : 'parceiros'}',
       ?extrasNote,
     ].join('\n');
     final fitPoints = [
       for (final p in visible) LatLng(p.lat, p.lng),
-      for (final p in visiblePartners) LatLng(p.lat, p.lng),
+      for (final p in visiblePartners) LatLng(p.lat!, p.lng!),
     ];
 
     return Padding(
@@ -366,18 +369,19 @@ class AdminMapView extends StatelessWidget {
                       markers: [
                         for (final p in visiblePartners)
                           Marker(
-                            point: LatLng(p.lat, p.lng),
+                            point: LatLng(p.lat!, p.lng!),
                             width: AppSizes.minTapTarget,
                             height: AppSizes.minTapTarget,
                             child: Semantics(
                               button: true,
-                              label: 'Gasolineira ${p.name}',
+                              label: 'Parceiro ${p.name}',
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () => onSelectPartner?.call(p),
                                 child: Center(
                                   child: AdminPartnerMarker(
                                     status: p.status,
+                                    kind: p.kind,
                                     selected: selectedPartner?.id == p.id,
                                   ),
                                 ),
@@ -433,7 +437,7 @@ class AdminMapView extends StatelessWidget {
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: AdminMapZoneCard(zone: z, onClose: () => onSelect(null)),
               ),
-              (_, _, final AdminPartnerLocation p) => Padding(
+              (_, _, final AdminPartner p) => Padding(
                 key: ValueKey('partner-${p.id}'),
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: AdminMapPartnerCard(
@@ -730,7 +734,7 @@ String adminZoneDetails(AdminMapZone z) {
     },
     if (z.workersBased > 0) '${z.workersBased} com base aqui',
     if (z.partners > 0)
-      '${z.partners} ${z.partners == 1 ? 'gasolineira' : 'gasolineiras'}',
+      '${z.partners} ${z.partners == 1 ? 'parceiro' : 'parceiros'}',
   ].join(' · ');
 }
 
@@ -793,7 +797,7 @@ class AdminMapPartnerCard extends StatelessWidget {
     super.key,
   });
 
-  final AdminPartnerLocation partner;
+  final AdminPartner partner;
   final VoidCallback? onOpen;
   final VoidCallback onClose;
 
@@ -841,7 +845,7 @@ class AdminMapPartnerCard extends StatelessWidget {
             ),
           ),
           if (onOpen != null)
-            TextButton(onPressed: onOpen, child: const Text('Gasolineiras')),
+            TextButton(onPressed: onOpen, child: const Text('Parceiros')),
           IconButton(
             tooltip: 'Fechar',
             onPressed: onClose,

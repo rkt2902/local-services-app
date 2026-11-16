@@ -270,7 +270,10 @@ select audit.eq('T-PZ-48 nenhuma RPC nova recebe ids de pessoas',
 \set QUIET on
 \ir ../../migrations/0082_admin_partners_zones.sql
 \set QUIET off
-select audit.eq('T-PZ-70 correr outra vez não perde gasolineiras nem decisões',
+select audit.eq('T-PZ-67 fotos dos parceiros: até 5 MB, só JPEG, PNG ou WebP',
+  $q$select file_size_limit || ':' || array_to_string(allowed_mime_types, ',') from storage.buckets where id = 'partner-images'$q$,
+  '5242880:image/jpeg,image/png,image/webp');
+select audit.eq('T-PZ-70 correr outra vez não perde parceiros nem decisões',
   format($q$select (select count(*) from partners) || ':' || (select review_message is not null from worker_fleet_cards where id = %L)$q$, :'fb'),
   '5:true');
 

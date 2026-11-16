@@ -1,7 +1,11 @@
-/// Cartões frota, gasolineiras parceiras e zonas do mapa (migration 0082).
+/// Cartões frota, parceiros e zonas do mapa (migration 0082).
 library;
 
 import '../../../core/theme/app_status_color.dart';
+import '../../partners/data/partner_model.dart';
+
+export '../../partners/data/partner_model.dart'
+    show PartnerBarcodeFormat, PartnerKind;
 
 int _int(Object? v) => (v as num?)?.toInt() ?? 0;
 
@@ -126,12 +130,12 @@ enum AdminFleetRejectReason {
   final String? message;
 }
 
-// ── Gasolineiras parceiras ─────────────────────────────────────────
+// ── Parceiros ──────────────────────────────────────────────────────
 
 enum AdminPartnerStatus {
   prospect('prospect', 'Em conversa', AppStatusColor.waiting),
-  active('active', 'Parceira', AppStatusColor.info),
-  ended('ended', 'Terminada', AppStatusColor.neutral);
+  active('active', 'Parceiro', AppStatusColor.info),
+  ended('ended', 'Terminado', AppStatusColor.neutral);
 
   const AdminPartnerStatus(this.value, this.label, this.tone);
 
@@ -145,19 +149,34 @@ enum AdminPartnerStatus {
   );
 }
 
-/// Uma linha de `admin_list_partner_locations`, com o que há perto
-/// (10 km; pedidos dos últimos 90 dias).
-class AdminPartnerLocation {
-  const AdminPartnerLocation({
+/// Uma linha de `admin_list_partners`: tudo o que o painel edita, mais o
+/// que há perto (10 km; pedidos dos últimos 90 dias) quando tem
+/// localização.
+class AdminPartner {
+  const AdminPartner({
     required this.id,
     required this.name,
     required this.status,
-    required this.lat,
-    required this.lng,
-    this.kind = 'fuel_station',
+    this.kind = PartnerKind.fuelStation,
     this.brand,
+    this.headline,
+    this.description,
+    this.imagePath,
+    this.discountCode,
+    this.barcodeValue,
+    this.barcodeFormat = PartnerBarcodeFormat.code128,
+    this.qrValue,
+    this.linkUrl,
+    this.linkLabel,
+    this.terms,
+    this.validUntil,
+    this.visibleInApp = false,
+    this.proPlusOnly = true,
+    this.sortOrder = 100,
     this.address,
     this.locality,
+    this.lat,
+    this.lng,
     this.notes,
     this.createdAt,
     this.workersCovering = 0,
@@ -167,18 +186,36 @@ class AdminPartnerLocation {
   });
 
   final String id;
-  final String kind;
+  final PartnerKind kind;
   final String name;
   final String? brand;
   final AdminPartnerStatus status;
+  final String? headline;
+  final String? description;
+  final String? imagePath;
+  final String? discountCode;
+  final String? barcodeValue;
+  final PartnerBarcodeFormat barcodeFormat;
+  final String? qrValue;
+  final String? linkUrl;
+  final String? linkLabel;
+  final String? terms;
+  final DateTime? validUntil;
+
+  /// Aparece na tab "Parceiros" da app (se também estiver ativo).
+  final bool visibleInApp;
+
+  /// Códigos (desconto, barras, QR) só para quem tem Pro+.
+  final bool proPlusOnly;
+  final int sortOrder;
   final String? address;
   final String? locality;
-  final double lat;
-  final double lng;
+  final double? lat;
+  final double? lng;
   final String? notes;
   final DateTime? createdAt;
 
-  /// Jardineiros cujo raio chega à gasolineira.
+  /// Jardineiros cujo raio chega ao parceiro.
   final int workersCovering;
 
   /// Jardineiros com base a 10 km ou menos.
@@ -186,28 +223,62 @@ class AdminPartnerLocation {
   final int jobsNearby;
   final int jobsUnanswered;
 
-  factory AdminPartnerLocation.fromJson(Map<String, dynamic> json) =>
-      AdminPartnerLocation(
-        id: json['id'] as String,
-        kind: _text(json['kind']) ?? 'fuel_station',
-        name: _text(json['name']) ?? 'Gasolineira',
-        brand: _text(json['brand']),
-        status: AdminPartnerStatus.fromValue(json['status'] as String?),
-        address: _text(json['address']),
-        locality: _text(json['locality']),
-        lat: (json['lat'] as num).toDouble(),
-        lng: (json['lng'] as num).toDouble(),
-        notes: _text(json['notes']),
-        createdAt: _date(json['created_at']),
-        workersCovering: _int(json['workers_covering']),
-        workersNearby: _int(json['workers_nearby']),
-        jobsNearby: _int(json['jobs_nearby']),
-        jobsUnanswered: _int(json['jobs_unanswered']),
-      );
+  bool get hasLocation => lat != null && lng != null;
+
+  /// Os jardineiros veem-no agora? (ativo, visível e dentro da validade).
+  bool shownInApp({DateTime? today}) {
+    if (!visibleInApp || status != AdminPartnerStatus.active) return false;
+    final until = validUntil;
+    if (until == null) return true;
+    final now = today ?? DateTime.now();
+    return !DateTime(
+      until.year,
+      until.month,
+      until.day,
+    ).isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  factory AdminPartner.fromJson(Map<String, dynamic> json) => AdminPartner(
+    id: json['id'] as String,
+    kind: PartnerKind.fromValue(json['kind'] as String?),
+    name: _text(json['name']) ?? 'Parceiro',
+    brand: _text(json['brand']),
+    status: AdminPartnerStatus.fromValue(json['status'] as String?),
+    headline: _text(json['headline']),
+    description: _text(json['description']),
+    imagePath: _text(json['image_path']),
+    discountCode: _text(json['discount_code']),
+    barcodeValue: _text(json['barcode_value']),
+    barcodeFormat: PartnerBarcodeFormat.fromValue(
+      json['barcode_format'] as String?,
+    ),
+    qrValue: _text(json['qr_value']),
+    linkUrl: _text(json['link_url']),
+    linkLabel: _text(json['link_label']),
+    terms: _text(json['terms']),
+    validUntil: json['valid_until'] is String
+        ? DateTime.tryParse(json['valid_until'] as String)
+        : null,
+    visibleInApp: json['visible_in_app'] == true,
+    proPlusOnly: json['pro_plus_only'] != false,
+    sortOrder: (json['sort_order'] as num?)?.toInt() ?? 100,
+    address: _text(json['address']),
+    locality: _text(json['locality']),
+    lat: _double(json['lat']),
+    lng: _double(json['lng']),
+    notes: _text(json['notes']),
+    createdAt: _date(json['created_at']),
+    workersCovering: _int(json['workers_covering']),
+    workersNearby: _int(json['workers_nearby']),
+    jobsNearby: _int(json['jobs_nearby']),
+    jobsUnanswered: _int(json['jobs_unanswered']),
+  );
 }
 
-/// "2 jardineiros cobrem · 5 pedidos a 10 km (1 sem resposta)".
-String adminPartnerReachLabel(AdminPartnerLocation p) {
+/// "2 jardineiros cobrem · 5 pedidos a 10 km (1 sem resposta)". Sem
+/// localização não há números.
+String adminPartnerReachLabel(AdminPartner p) {
+  if (!p.hasLocation) return 'Sem localização no mapa';
   final workers = switch (p.workersCovering) {
     0 => 'Nenhum jardineiro cobre',
     1 => '1 jardineiro cobre',
@@ -221,58 +292,231 @@ String adminPartnerReachLabel(AdminPartnerLocation p) {
   ].join(' · ');
 }
 
-/// O que se grava com `admin_save_partner_location`.
+/// Tem algum código (desconto, barras ou QR)?
+bool adminPartnerHasCodes(AdminPartner p) =>
+    p.discountCode != null || p.barcodeValue != null || p.qrValue != null;
+
+/// O que está preenchido para a app: "Foto · Código · QR · Link". Ajuda a
+/// ver de relance o que o jardineiro vai ter no ecrã do parceiro.
+String adminPartnerFilledLabel(AdminPartner p) {
+  final parts = [
+    if (p.imagePath != null) 'Foto',
+    if (p.description != null) 'Descrição',
+    if (p.discountCode != null) 'Código',
+    if (p.barcodeValue != null) 'Código de barras',
+    if (p.qrValue != null) 'QR',
+    if (p.linkUrl != null) 'Link',
+    if (p.terms != null) 'Condições',
+    if (p.validUntil != null)
+      'Até ${p.validUntil!.day}/${p.validUntil!.month}/${p.validUntil!.year}',
+  ];
+  return parts.isEmpty ? 'Só o nome, por agora' : parts.join(' · ');
+}
+
+/// EAN-13: 13 dígitos e o último é o dígito de controlo (igual à BD).
+bool adminIsValidEan13(String code) {
+  if (!RegExp(r'^\d{13}$').hasMatch(code)) return false;
+  var sum = 0;
+  for (var i = 0; i < 12; i++) {
+    final d = code.codeUnitAt(i) - 48;
+    sum += i.isEven ? d : d * 3;
+  }
+  return (10 - sum % 10) % 10 == code.codeUnitAt(12) - 48;
+}
+
+/// Code 128: letras sem acentos, números e símbolos simples, até 80.
+bool adminIsValidCode128(String code) =>
+    code.length <= 80 && RegExp(r'^[ -~]+$').hasMatch(code);
+
+/// Erro do código de barras para o formulário, `null` se está bem.
+String? adminBarcodeError(String value, PartnerBarcodeFormat format) {
+  final v = value.trim();
+  if (v.isEmpty) return null;
+  return switch (format) {
+    PartnerBarcodeFormat.ean13 when !adminIsValidEan13(v) =>
+      '13 dígitos, e o último tem de bater certo.',
+    PartnerBarcodeFormat.code128 when !adminIsValidCode128(v) =>
+      'Só letras sem acentos, números e símbolos simples.',
+    _ => null,
+  };
+}
+
+/// Erro do link para o formulário, `null` se está bem ou vazio.
+String? adminLinkError(String value) {
+  final v = value.trim();
+  if (v.isEmpty) return null;
+  return RegExp(r'^https://\S+$').hasMatch(v)
+      ? null
+      : 'Tem de começar por https://';
+}
+
+/// O que se grava com `admin_save_partner` (`p_data`). Texto em branco
+/// fica `null` na BD e a app não mostra essa parte.
 class AdminPartnerDraft {
   const AdminPartnerDraft({
     this.id,
     required this.name,
     required this.status,
-    required this.lat,
-    required this.lng,
+    this.kind = PartnerKind.fuelStation,
+    this.lat,
+    this.lng,
     this.brand = '',
+    this.headline = '',
+    this.description = '',
+    this.imagePath,
+    this.discountCode = '',
+    this.barcodeValue = '',
+    this.barcodeFormat = PartnerBarcodeFormat.code128,
+    this.qrValue = '',
+    this.linkUrl = '',
+    this.linkLabel = '',
+    this.terms = '',
+    this.validUntil,
+    this.visibleInApp = false,
+    this.proPlusOnly = true,
+    this.sortOrder = 100,
     this.address = '',
     this.locality = '',
     this.notes = '',
-    this.kind = 'fuel_station',
   });
 
-  factory AdminPartnerDraft.from(AdminPartnerLocation p) => AdminPartnerDraft(
+  factory AdminPartnerDraft.from(AdminPartner p) => AdminPartnerDraft(
     id: p.id,
     name: p.name,
     status: p.status,
+    kind: p.kind,
     lat: p.lat,
     lng: p.lng,
     brand: p.brand ?? '',
+    headline: p.headline ?? '',
+    description: p.description ?? '',
+    imagePath: p.imagePath,
+    discountCode: p.discountCode ?? '',
+    barcodeValue: p.barcodeValue ?? '',
+    barcodeFormat: p.barcodeFormat,
+    qrValue: p.qrValue ?? '',
+    linkUrl: p.linkUrl ?? '',
+    linkLabel: p.linkLabel ?? '',
+    terms: p.terms ?? '',
+    validUntil: p.validUntil,
+    visibleInApp: p.visibleInApp,
+    proPlusOnly: p.proPlusOnly,
+    sortOrder: p.sortOrder,
     address: p.address ?? '',
     locality: p.locality ?? '',
     notes: p.notes ?? '',
-    kind: p.kind,
   );
 
   final String? id;
   final String name;
   final AdminPartnerStatus status;
-  final double lat;
-  final double lng;
+  final PartnerKind kind;
+  final double? lat;
+  final double? lng;
   final String brand;
+  final String headline;
+  final String description;
+  final String? imagePath;
+  final String discountCode;
+  final String barcodeValue;
+  final PartnerBarcodeFormat barcodeFormat;
+  final String qrValue;
+  final String linkUrl;
+  final String linkLabel;
+  final String terms;
+  final DateTime? validUntil;
+  final bool visibleInApp;
+  final bool proPlusOnly;
+  final int sortOrder;
   final String address;
   final String locality;
   final String notes;
-  final String kind;
 
-  Map<String, dynamic> toParams() {
+  AdminPartnerDraft withImage(String? path) => AdminPartnerDraft(
+    id: id,
+    name: name,
+    status: status,
+    kind: kind,
+    lat: lat,
+    lng: lng,
+    brand: brand,
+    headline: headline,
+    description: description,
+    imagePath: path,
+    discountCode: discountCode,
+    barcodeValue: barcodeValue,
+    barcodeFormat: barcodeFormat,
+    qrValue: qrValue,
+    linkUrl: linkUrl,
+    linkLabel: linkLabel,
+    terms: terms,
+    validUntil: validUntil,
+    visibleInApp: visibleInApp,
+    proPlusOnly: proPlusOnly,
+    sortOrder: sortOrder,
+    address: address,
+    locality: locality,
+    notes: notes,
+  );
+
+  /// Como um jardineiro Pro+ o veria na app (pré-visualização do editor).
+  Partner toPreview() {
     String? blank(String v) => v.trim().isEmpty ? null : v.trim();
+    return Partner(
+      id: id ?? 'preview',
+      kind: kind,
+      name: name.trim(),
+      brand: blank(brand),
+      headline: blank(headline),
+      description: blank(description),
+      imagePath: imagePath,
+      discountCode: blank(discountCode),
+      barcodeValue: blank(barcodeValue),
+      barcodeFormat: barcodeFormat,
+      qrValue: blank(qrValue),
+      linkUrl: blank(linkUrl),
+      linkLabel: blank(linkLabel),
+      terms: blank(terms),
+      validUntil: validUntil,
+      address: blank(address),
+      locality: blank(locality),
+      lat: lat,
+      lng: lng,
+    );
+  }
+
+  /// `p_data` de `admin_save_partner`, pelos nomes das colunas.
+  Map<String, dynamic> toData() {
+    String? blank(String v) => v.trim().isEmpty ? null : v.trim();
+    final until = validUntil;
     return {
-      'p_id': id,
-      'p_name': name.trim(),
-      'p_brand': blank(brand),
-      'p_kind': kind,
-      'p_status': status.value,
-      'p_address': blank(address),
-      'p_locality': blank(locality),
-      'p_lat': lat,
-      'p_lng': lng,
-      'p_notes': blank(notes),
+      'name': name.trim(),
+      'kind': kind.value,
+      'status': status.value,
+      'brand': blank(brand),
+      'headline': blank(headline),
+      'description': blank(description),
+      'image_path': imagePath,
+      'discount_code': blank(discountCode),
+      'barcode_value': blank(barcodeValue),
+      'barcode_format': barcodeFormat.value,
+      'qr_value': blank(qrValue),
+      'link_url': blank(linkUrl),
+      'link_label': blank(linkLabel),
+      'terms': blank(terms),
+      'valid_until': until == null
+          ? null
+          : '${until.year.toString().padLeft(4, '0')}-'
+                '${until.month.toString().padLeft(2, '0')}-'
+                '${until.day.toString().padLeft(2, '0')}',
+      'visible_in_app': visibleInApp,
+      'pro_plus_only': proPlusOnly,
+      'sort_order': sortOrder,
+      'address': blank(address),
+      'locality': blank(locality),
+      'lat': lat,
+      'lng': lng,
+      'notes': blank(notes),
     };
   }
 }
@@ -325,7 +569,7 @@ class AdminMapZone {
   /// Parte dos pedidos sem resposta (0 a 1).
   double get unansweredRate => jobs <= 0 ? 0 : jobsUnanswered / jobs;
 
-  /// Conta para "Densidade": há procura (pedidos) ou uma gasolineira.
+  /// Conta para "Densidade": há procura (pedidos) ou um parceiro.
   bool get hasDemand => jobs > 0 || partners > 0;
 
   factory AdminMapZone.fromJson(Map<String, dynamic> json) => AdminMapZone(

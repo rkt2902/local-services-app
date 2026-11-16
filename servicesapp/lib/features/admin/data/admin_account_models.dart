@@ -170,10 +170,10 @@ enum AdminMapLayer {
   doneJobs('Concluídos (30 dias)'),
   workers('Jardineiros'),
   radius('Raio de cada jardineiro'),
-  // 0082: zonas (quadrados de 10 km, 90 dias) e gasolineiras.
+  // 0082: zonas (quadrados de 10 km, 90 dias) e parceiros.
   unanswered('Zonas sem resposta'),
   density('Densidade de jardineiros'),
-  partners('Gasolineiras');
+  partners('Parceiros');
 
   bool get isZone => this == unanswered || this == density;
 
