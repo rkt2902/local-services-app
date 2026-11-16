@@ -439,6 +439,9 @@ void main() {
             adminJobDetailProvider
                 .overrideWith((ref, _) async => AdminJobDetail.fromJson(_jobJson())),
             serviceTypesProvider.overrideWith((ref) async => []),
+            // Fundo da ficha (0079): casos e notas internas.
+            adminCasesForTargetProvider.overrideWith((ref, _) async => []),
+            adminNotesProvider.overrideWith((ref, _) async => []),
           ],
           child: MaterialApp.router(routerConfig: router),
         ));

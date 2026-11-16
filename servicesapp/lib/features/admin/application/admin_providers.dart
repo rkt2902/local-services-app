@@ -4,6 +4,7 @@ import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/admin_models.dart';
 import '../data/admin_repository.dart';
+import '../data/admin_resolve_models.dart';
 import '../data/admin_support_models.dart';
 
 final adminRepositoryProvider = Provider<AdminRepository>(
@@ -113,4 +114,83 @@ final adminClientsProvider = FutureProvider.autoDispose
 final adminClientDetailProvider = FutureProvider.autoDispose
     .family<AdminClientDetail, String>((ref, clientId) {
       return ref.read(adminRepositoryProvider).fetchClient(clientId);
+    });
+
+// ── Suporte, fase B ───────────────────────────────────────────────
+
+const adminCasesPageSize = 30;
+
+class AdminCasesFilterNotifier extends Notifier<AdminCasesFilter> {
+  @override
+  AdminCasesFilter build() => const AdminCasesFilter();
+
+  void update(AdminCasesFilter filter) => state = filter;
+}
+
+final adminCasesFilterProvider =
+    NotifierProvider<AdminCasesFilterNotifier, AdminCasesFilter>(
+      AdminCasesFilterNotifier.new,
+    );
+
+final adminCasesProvider = FutureProvider.autoDispose
+    .family<List<AdminCaseRow>, AdminCasesFilter>((ref, filter) {
+      return ref
+          .read(adminRepositoryProvider)
+          .fetchCases(filter, limit: adminCasesPageSize);
+    });
+
+/// Casos ligados a uma pessoa ou a um pedido (fundo das fichas).
+final adminCasesForTargetProvider = FutureProvider.autoDispose
+    .family<List<AdminCaseRow>, String>((ref, targetId) {
+      return ref
+          .read(adminRepositoryProvider)
+          .fetchCases(
+            const AdminCasesFilter(status: 'all'),
+            targetId: targetId,
+            limit: 20,
+          );
+    });
+
+final adminCaseDetailProvider = FutureProvider.autoDispose
+    .family<AdminCaseDetail, String>((ref, caseId) {
+      return ref.read(adminRepositoryProvider).fetchCase(caseId);
+    });
+
+const adminReportsPageSize = 30;
+
+/// (estado: `null` = por tratar, `'all'` = todos; página).
+typedef AdminReportsQuery = ({String? status, int page});
+
+final adminReportsProvider = FutureProvider.autoDispose
+    .family<List<AdminReportRow>, AdminReportsQuery>((ref, query) {
+      return ref
+          .read(adminRepositoryProvider)
+          .fetchReports(
+            status: query.status,
+            limit: adminReportsPageSize,
+            offset: query.page * adminReportsPageSize,
+          );
+    });
+
+const adminRatingsPageSize = 30;
+
+final adminRatingsProvider = FutureProvider.autoDispose
+    .family<List<AdminModerationRating>, AdminRatingsQuery>((ref, query) {
+      return ref
+          .read(adminRepositoryProvider)
+          .fetchRatings(query, limit: adminRatingsPageSize);
+    });
+
+final adminNotesProvider = FutureProvider.autoDispose
+    .family<List<AdminNote>, String>((ref, targetId) {
+      return ref.read(adminRepositoryProvider).fetchNotes(targetId);
+    });
+
+const adminActionsPageSize = 50;
+
+final adminActionsProvider = FutureProvider.autoDispose
+    .family<List<AdminActionRow>, AdminActionsQuery>((ref, query) {
+      return ref
+          .read(adminRepositoryProvider)
+          .fetchActions(query, limit: adminActionsPageSize);
     });

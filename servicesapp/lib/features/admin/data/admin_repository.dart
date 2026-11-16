@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/enums.dart';
 import 'admin_models.dart';
+import 'admin_resolve_models.dart';
 import 'admin_support_models.dart';
 
 /// Inscrição nova de uma app autenticadora: o [uri] vai para o QR.
@@ -190,6 +191,7 @@ class AdminRepository {
       final created = row['created_at'];
       return AdminJobPhoto(
         kind: (row['kind'] as String?) ?? 'request',
+        storagePath: row['storage_path'] as String,
         url: bucket.getPublicUrl(row['storage_path'] as String),
         takenBy: (row['taken_by'] as String?) ?? '',
         createdAt: created is String ? DateTime.tryParse(created) : null,
@@ -244,5 +246,246 @@ class AdminRepository {
       params: {'p_target_id': jobId, 'p_kind': 'address', 'p_reason': reason},
     );
     return AdminRevealedAddress.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  // ── Suporte, fase B (migration 0079) ───────────────────────────
+  // Cada ação pede motivo da lista e nota, fica em admin_actions e avisa
+  // as pessoas (tudo dentro da RPC).
+
+  Future<List<AdminCaseRow>> fetchCases(
+    AdminCasesFilter filter, {
+    String? targetId,
+    required int limit,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_cases',
+      params: {
+        'p_status': filter.status,
+        'p_kind': filter.kind?.value,
+        'p_target_id': targetId,
+        'p_limit': limit,
+        'p_offset': filter.page * limit,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminCaseRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<AdminCaseDetail> fetchCase(String caseId) async {
+    final data = await _client.rpc(
+      'admin_get_case',
+      params: {'p_case_id': caseId},
+    );
+    return AdminCaseDetail.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  /// Devolve o id do caso novo.
+  Future<String> createCase({
+    required AdminCaseKind kind,
+    required String summary,
+    String? personId,
+    String? jobId,
+    String? reportId,
+    String? contactEmail,
+  }) async {
+    final data = await _client.rpc(
+      'admin_case_create',
+      params: {
+        'p_kind': kind.value,
+        'p_summary': summary.trim(),
+        'p_person_id': personId,
+        'p_job_id': jobId,
+        'p_report_id': reportId,
+        'p_contact_email': (contactEmail ?? '').trim().isEmpty
+            ? null
+            : contactEmail!.trim(),
+      },
+    );
+    return data as String;
+  }
+
+  Future<void> updateCase(
+    String caseId, {
+    AdminCaseStatus? status,
+    String? decision,
+  }) => _client.rpc(
+    'admin_case_update',
+    params: {
+      'p_case_id': caseId,
+      'p_status': status?.value,
+      'p_decision': decision,
+    },
+  );
+
+  Future<void> addCaseNote(
+    String caseId, {
+    required String body,
+    required bool isReply,
+  }) => _client.rpc(
+    'admin_case_add_note',
+    params: {
+      'p_case_id': caseId,
+      'p_body': body.trim(),
+      'p_kind': isReply ? 'reply' : 'internal',
+    },
+  );
+
+  /// `status` `null` = novos e em análise; `'all'` = todos.
+  Future<List<AdminReportRow>> fetchReports({
+    String? status,
+    required int limit,
+    required int offset,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_reports',
+      params: {'p_status': status, 'p_limit': limit, 'p_offset': offset},
+    );
+    return (data as List)
+        .map((e) => AdminReportRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<void> setReportStatus(
+    String reportId, {
+    required String status,
+    String? note,
+  }) => _client.rpc(
+    'admin_set_report_status',
+    params: {'p_report_id': reportId, 'p_status': status, 'p_note': note},
+  );
+
+  Future<void> cancelJob(
+    String jobId, {
+    required AdminActionReason reason,
+    required String note,
+    String? publicMessage,
+  }) => _client.rpc(
+    'admin_cancel_job',
+    params: {
+      'p_job_id': jobId,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+      'p_public_message': (publicMessage ?? '').trim().isEmpty
+          ? null
+          : publicMessage!.trim(),
+    },
+  );
+
+  Future<void> reopenJob(
+    String jobId, {
+    required AdminActionReason reason,
+    required String note,
+  }) => _client.rpc(
+    'admin_reopen_job',
+    params: {'p_job_id': jobId, 'p_reason': reason.value, 'p_note': note.trim()},
+  );
+
+  /// `completed` ou `awaiting_confirmation` (anular a confirmação).
+  Future<void> setJobStatus(
+    String jobId, {
+    required String status,
+    required AdminActionReason reason,
+    required String note,
+  }) => _client.rpc(
+    'admin_set_job_status',
+    params: {
+      'p_job_id': jobId,
+      'p_status': status,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+    },
+  );
+
+  Future<List<AdminModerationRating>> fetchRatings(
+    AdminRatingsQuery query, {
+    required int limit,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_ratings',
+      params: {
+        'p_stars': query.stars,
+        'p_hidden': query.hidden,
+        'p_with_comment': query.onlyWithComment ? true : null,
+        'p_limit': limit,
+        'p_offset': query.page * limit,
+      },
+    );
+    return (data as List)
+        .map(
+          (e) => AdminModerationRating.fromJson(
+            (e as Map).cast<String, dynamic>(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> hideRating(
+    String ratingId, {
+    required AdminActionReason reason,
+    required String note,
+  }) => _client.rpc(
+    'admin_hide_rating',
+    params: {
+      'p_rating_id': ratingId,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+    },
+  );
+
+  Future<void> restoreRating(String ratingId, {required String note}) =>
+      _client.rpc(
+        'admin_restore_rating',
+        params: {'p_rating_id': ratingId, 'p_note': note.trim()},
+      );
+
+  Future<void> hidePhoto(
+    String jobId, {
+    required String storagePath,
+    required AdminActionReason reason,
+    required String note,
+  }) => _client.rpc(
+    'admin_hide_photo',
+    params: {
+      'p_job_id': jobId,
+      'p_storage_path': storagePath,
+      'p_reason': reason.value,
+      'p_note': note.trim(),
+    },
+  );
+
+  Future<List<AdminNote>> fetchNotes(String targetId) async {
+    final data = await _client.rpc(
+      'admin_list_notes',
+      params: {'p_target_id': targetId},
+    );
+    return (data as List)
+        .map((e) => AdminNote.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  Future<void> addNote(String targetId, String body) => _client.rpc(
+    'admin_add_note',
+    params: {'p_target_id': targetId, 'p_body': body.trim()},
+  );
+
+  Future<List<AdminActionRow>> fetchActions(
+    AdminActionsQuery query, {
+    String? targetId,
+    required int limit,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_actions',
+      params: {
+        'p_action': query.action,
+        'p_target_id': targetId,
+        'p_include_reads': query.includeReads,
+        'p_limit': limit,
+        'p_offset': query.page * limit,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminActionRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 }

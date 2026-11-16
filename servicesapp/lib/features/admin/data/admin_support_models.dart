@@ -485,6 +485,7 @@ class AdminReportItem {
 
 class AdminRatingItem {
   const AdminRatingItem({
+    this.id,
     required this.jobId,
     required this.personName,
     required this.stars,
@@ -492,6 +493,8 @@ class AdminRatingItem {
     required this.createdAt,
   });
 
+  /// Id da avaliação (para ocultar). Só vem na ficha do pedido.
+  final String? id;
   final String? jobId;
 
   /// Quem avaliou (na ficha do pedido e em "recebidas") ou quem foi
@@ -503,6 +506,7 @@ class AdminRatingItem {
 
   factory AdminRatingItem.fromJson(Map<String, dynamic> json) =>
       AdminRatingItem(
+        id: json['id'] as String?,
         jobId: json['job_id'] as String?,
         personName: _str(json['rater_name']) ?? _str(json['ratee_name']),
         stars: _int(json['stars']),
@@ -644,6 +648,7 @@ class AdminJobPhoto {
   const AdminJobPhoto({
     required this.kind,
     required this.url,
+    this.storagePath = '',
     required this.takenBy,
     required this.createdAt,
   });
@@ -651,6 +656,9 @@ class AdminJobPhoto {
   /// 'request' (pedido), 'before', 'after' ou 'completion'.
   final String kind;
   final String url;
+
+  /// Caminho no Storage, para ocultar a foto (`admin_hide_photo`).
+  final String storagePath;
   final String takenBy;
   final DateTime? createdAt;
 }

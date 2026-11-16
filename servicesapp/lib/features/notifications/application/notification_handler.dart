@@ -140,6 +140,8 @@ class NotificationHandler {
 
       // ── Job lifecycle ─────────────────────────────────────────────────────
       case NotificationType.jobCancelled:
+      // 0079: avisos do suporte sobre um pedido abrem o mesmo ecrã.
+      case NotificationType.supportNotice:
         // Sent to the party that did NOT cancel. relatedId = job_id.
         // Client: go directly. Worker: resolve proposalId first (proposal may
         // retain status='accepted' on a cancelled job_request).

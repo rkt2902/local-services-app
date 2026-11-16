@@ -91,4 +91,8 @@ abstract class NotificationType {
   /// que a app não usa: abre um pedido novo (cliente) ou "Pedidos
   /// disponíveis" (jardineiro).
   static const seasonalTip = 'seasonal_tip';
+
+  /// 0079: aviso do suporte (avaliação ou foto ocultada, trabalho posto
+  /// outra vez à espera de confirmação). relatedId = id do pedido.
+  static const supportNotice = 'support_notice';
 }

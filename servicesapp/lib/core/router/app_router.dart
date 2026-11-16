@@ -58,7 +58,11 @@ import '../../features/agenda/presentation/agenda_entry_detail_screen.dart';
 import '../../features/agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../features/admin/presentation/admin_gate_screen.dart';
 import '../../features/admin/presentation/admin_clients_page.dart';
+import '../../features/admin/presentation/admin_cases_page.dart';
 import '../../features/admin/presentation/admin_jobs_page.dart';
+import '../../features/admin/presentation/admin_log_page.dart';
+import '../../features/admin/presentation/admin_ratings_page.dart';
+import '../../features/admin/presentation/admin_reports_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/admin/presentation/widgets/admin_overview_tab.dart';
 import '../../features/admin/presentation/widgets/admin_workers_tab.dart';
@@ -190,7 +194,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Painel de administração: fora dos papéis. Um ShellRoute próprio
       // (barra lateral + pesquisa global, sem bottom nav), por trás do
       // AdminGateScreen, que trata do login e do segundo fator. Os dados
-      // só saem das RPCs admin_* (0060, 0078). A lista e a ficha de cada
+      // só saem das RPCs admin_* (0060, 0078, 0079). A lista e a ficha de cada
       // secção partilham a mesma página (mesma key) para a lista não
       // perder o estado ao abrir outra ficha.
       ShellRoute(
@@ -203,6 +207,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-overview'),
               child: AdminOverviewTab(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/suporte',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-cases'),
+              child: AdminCasesPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/suporte/:caseId',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-cases'),
+              child: AdminCasesPage(
+                selectedCaseId: state.pathParameters['caseId'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/denuncias',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-reports'),
+              child: AdminReportsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/avaliacoes',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-ratings'),
+              child: AdminRatingsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/registo',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-log'),
+              child: AdminLogPage(),
             ),
           ),
           GoRoute(

@@ -8,6 +8,10 @@ abstract class CancelReason {
   /// dias da data sem ser marcado como concluído. Nunca escolhido na UI.
   static const expired = 'expired';
 
+  /// Posto pelo painel de suporte (migration 0079, `admin_cancel_job`).
+  /// `cancelled_by` fica vazio. Nunca escolhido na UI da app.
+  static const support = 'support';
+
   static String label(String code) {
     switch (code) {
       case personalIssue:
@@ -20,6 +24,8 @@ abstract class CancelReason {
         return 'Outra razão';
       case expired:
         return 'Expirou sem ser concluído';
+      case support:
+        return 'Cancelado pelo suporte';
       default:
         return code;
     }

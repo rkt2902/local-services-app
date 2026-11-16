@@ -128,6 +128,10 @@ import '../data/notification_types.dart';
           icon: Icons.undo_rounded,
           tone: AppStatusColor.neutral,
         ),
+      NotificationType.supportNotice => (
+          icon: Icons.support_agent_rounded,
+          tone: AppStatusColor.info,
+        ),
       _ => (icon: Icons.notifications_none_rounded, tone: AppStatusColor.info),
     };
 

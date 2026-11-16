@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
+import '../data/admin_resolve_models.dart';
 import '../data/admin_support_models.dart';
 
 /// "83%" (arredondado) ou "—" sem base.
@@ -159,6 +160,19 @@ String adminJobEventLabel(String type, Map<String, dynamic> data) {
     'help_pending_approval' => 'Pedido de ajuda à espera da cliente',
     'admin_view_job_photos' => 'Admin viu as fotos',
     'admin_reveal_address' => 'Admin viu a morada',
+    'admin_cancel_job' =>
+      'Cancelado pelo suporte (${AdminActionReason.labelOf(data['reason'] as String?)})',
+    'admin_reopen_job' => 'Reaberto pelo suporte',
+    'admin_set_job_status' =>
+      data['to'] == 'completed'
+          ? 'Marcado como concluído pelo suporte'
+          : 'Confirmação anulada pelo suporte',
+    'admin_hide_photo' => 'Foto ocultada pelo suporte',
+    'admin_hide_rating' => 'Avaliação ocultada pelo suporte',
+    'admin_restore_rating' => 'Avaliação reposta pelo suporte',
+    'admin_add_note' => 'Nota interna',
+    'admin_case_create' => 'Caso de suporte aberto',
+    'admin_report_status' => 'Reporte tratado pelo suporte',
     _ => type.startsWith('admin_') ? 'Admin: ${type.substring(6)}' : type,
   };
 }
@@ -192,6 +206,67 @@ String adminHistoryActionLabel(String action) => switch (action) {
   'reveal_phone' => 'Telefone revelado',
   'reveal_address' => 'Morada revelada',
   'set_worker_plan' => 'Plano alterado',
-  'view_worker' => 'Ficha aberta',
+  'view_worker' || 'view_client' || 'view_job' => 'Ficha aberta',
+  'view_job_photos' => 'Fotos vistas',
+  'view_case' => 'Caso aberto',
+  'search' => 'Pesquisa',
+  'case_create' => 'Caso criado',
+  'case_update' => 'Caso atualizado',
+  'case_note' => 'Nota no caso',
+  'report_status' => 'Reporte tratado',
+  'cancel_job' => 'Pedido cancelado pelo suporte',
+  'reopen_job' => 'Pedido reaberto pelo suporte',
+  'set_job_status' => 'Estado do pedido corrigido',
+  'hide_rating' => 'Avaliação ocultada',
+  'restore_rating' => 'Avaliação reposta',
+  'hide_photo' => 'Foto ocultada',
+  'add_note' => 'Nota interna',
   _ => action,
 };
+
+/// Ações que só leem (o Registo pode escondê-las).
+bool adminIsReadAction(String action) =>
+    action.startsWith('view_') ||
+    action == 'search' ||
+    action == 'reveal_phone' ||
+    action == 'reveal_address';
+
+/// Tom do semáforo de um prazo.
+AppStatusColor adminDeadlineStatusColor(AdminDeadlineTone tone) =>
+    switch (tone) {
+      AdminDeadlineTone.green => AppStatusColor.success,
+      AdminDeadlineTone.amber => AppStatusColor.waiting,
+      AdminDeadlineTone.red => AppStatusColor.cancelled,
+      AdminDeadlineTone.done => AppStatusColor.neutral,
+    };
+
+/// "Prazo: faltam 5 h" / "Atrasado há 2 dias" / "Fechado".
+String adminDeadlineLabel(DateTime? due, {bool closed = false, DateTime? now}) {
+  if (closed) return 'Fechado';
+  if (due == null) return 'Sem prazo';
+  final diff = due.difference(now ?? DateTime.now());
+  final abs = diff.abs();
+  final text = abs.inHours < 1
+      ? '${abs.inMinutes} min'
+      : abs.inHours < 48
+      ? '${abs.inHours} h'
+      : '${abs.inDays} dias';
+  return diff.isNegative ? 'Atrasado há $text' : 'Prazo: faltam $text';
+}
+
+/// Estado de um reporte.
+(String, AppStatusColor) adminReportStatus(String status) => switch (status) {
+  'new' => ('Novo', AppStatusColor.waiting),
+  'in_review' => ('Em análise', AppStatusColor.info),
+  'resolved' => ('Resolvido', AppStatusColor.success),
+  'dismissed' => ('Dispensado', AppStatusColor.neutral),
+  _ => (status, AppStatusColor.neutral),
+};
+
+/// Estado de um caso.
+AppStatusColor adminCaseStatusColor(AdminCaseStatus status) =>
+    switch (status) {
+      AdminCaseStatus.open => AppStatusColor.info,
+      AdminCaseStatus.waitingUser => AppStatusColor.waiting,
+      AdminCaseStatus.resolved => AppStatusColor.success,
+    };

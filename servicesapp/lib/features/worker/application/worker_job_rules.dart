@@ -246,7 +246,9 @@ InactiveJobMessage inactiveJobMessage({
     if (!cancelledByMe) 'Não precisas de fazer nada.',
   ];
   return (
-    title: cancelledByMe
+    title: cancelReason == CancelReason.support
+        ? 'O suporte cancelou este trabalho'
+        : cancelledByMe
         ? 'Cancelaste este trabalho'
         : 'O cliente cancelou este trabalho',
     body: parts.join(' '),

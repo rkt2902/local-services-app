@@ -19,6 +19,7 @@ import '../application/admin_labels.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_support_models.dart';
 import 'admin_jobs_page.dart';
+import 'widgets/admin_action_dialogs.dart';
 import 'widgets/admin_panel_widgets.dart';
 import 'widgets/admin_stat_widgets.dart';
 
@@ -290,6 +291,10 @@ class AdminClientDetailPanel extends ConsumerWidget {
             personId: client.clientId,
             maskedPhone: client.hasPhone ? client.phoneMasked : null,
           ),
+          footer: AdminRecordFooter(
+            targetId: client.clientId,
+            personId: client.clientId,
+          ),
         ),
       ),
     );
@@ -304,6 +309,7 @@ class AdminClientDetailView extends StatelessWidget {
     required this.onOpenJob,
     required this.phone,
     this.onClose,
+    this.footer,
     super.key,
   });
 
@@ -311,6 +317,9 @@ class AdminClientDetailView extends StatelessWidget {
   final ValueChanged<String> onOpenJob;
   final Widget phone;
   final VoidCallback? onClose;
+
+  /// Casos de suporte e notas internas (fora nos testes).
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -500,6 +509,7 @@ class AdminClientDetailView extends StatelessWidget {
             ],
           ),
         ),
+      ?footer,
     ];
 
     return ListView(
