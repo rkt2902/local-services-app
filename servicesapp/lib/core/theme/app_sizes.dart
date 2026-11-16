@@ -142,4 +142,11 @@ abstract final class AppSizes {
   static const double adminMapMinHeight = 420.0;
   static const double adminMapDot = 14.0;
   static const double adminMapDotBorder = 2.0;
+
+  // Painel de admin, parceiros e zonas (0082).
+  static const double adminPartnerMarker = 26.0;
+  static const double adminPartnerMarkerIcon = 16.0;
+  static const double adminZoneLabel = 24.0;
+  static const double adminPartnerMapHeight = 220.0;
+  static const double adminEditorMaxWidth = 560.0;
 }

@@ -21,6 +21,11 @@ enum AdminSection {
   workers('Jardineiros', Icons.groups_outlined, '/admin/workers'),
   ratings('Avaliações', Icons.star_outline_rounded, '/admin/avaliacoes'),
   map('Mapa', Icons.map_outlined, '/admin/mapa'),
+  partners(
+    'Parceiros',
+    Icons.local_gas_station_outlined,
+    '/admin/parceiros',
+  ),
   funnel('Funil e dados', Icons.filter_alt_outlined, '/admin/funil'),
   notices('Avisos', Icons.campaign_outlined, '/admin/avisos'),
   log('Registo', Icons.history_rounded, '/admin/registo');

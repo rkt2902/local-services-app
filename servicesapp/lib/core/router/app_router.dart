@@ -65,6 +65,7 @@ import '../../features/admin/presentation/admin_log_page.dart';
 import '../../features/admin/presentation/admin_funnel_page.dart';
 import '../../features/admin/presentation/admin_map_page.dart';
 import '../../features/admin/presentation/admin_notices_page.dart';
+import '../../features/admin/presentation/admin_partners_page.dart';
 import '../../features/admin/presentation/admin_ratings_page.dart';
 import '../../features/admin/presentation/admin_reports_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
@@ -253,6 +254,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-map'),
               child: AdminMapPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/parceiros',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-partners'),
+              child: AdminPartnersPage(
+                initialTab: state.uri.queryParameters['tab'] == 'gasolineiras'
+                    ? AdminPartnersTab.stations
+                    : AdminPartnersTab.fleet,
+              ),
             ),
           ),
           GoRoute(

@@ -169,7 +169,13 @@ enum AdminMapLayer {
   activeJobs('Em curso'),
   doneJobs('Concluídos (30 dias)'),
   workers('Jardineiros'),
-  radius('Raio de cada jardineiro');
+  radius('Raio de cada jardineiro'),
+  // 0082: zonas (quadrados de 10 km, 90 dias) e gasolineiras.
+  unanswered('Zonas sem resposta'),
+  density('Densidade de jardineiros'),
+  partners('Gasolineiras');
+
+  bool get isZone => this == unanswered || this == density;
 
   const AdminMapLayer(this.label);
   final String label;

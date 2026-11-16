@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../auth/application/session_provider.dart';
 import '../../client/application/client_create_job_wizard_provider.dart';
+import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/application/helper_job_state.dart';
 import '../../help_requests/data/help_request_model.dart';
@@ -322,6 +323,12 @@ class NotificationHandler {
         } else {
           context.push('/worker/help-requests/$helpRequestId/apply');
         }
+
+      case NotificationType.fleetCardReviewed:
+        // 0082: decisão do painel sobre o cartão frota. Navegar primeiro e
+        // só depois pedir o estado novo (regra T4).
+        context.push('/worker/fleet-card');
+        ref.invalidate(myFleetCardProvider);
 
       case NotificationType.helpRequestPendingApproval:
       case NotificationType.helpRequestAutoApproved:

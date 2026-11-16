@@ -19,13 +19,19 @@ import '../../../core/widgets/app_status_badge.dart';
 import '../application/admin_labels.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_account_models.dart';
+import '../data/admin_partner_models.dart';
 import 'widgets/admin_panel_widgets.dart';
+import 'widgets/admin_partner_marker.dart';
 import 'widgets/admin_stat_widgets.dart';
 
 /// Mapa (`/admin/mapa`, fase C): pedidos ativos e concluídos há pouco, e
 /// jardineiros com o raio onde recebem pedidos. As camadas ligam-se e
 /// desligam-se; tocar num ponto mostra o resumo e o atalho para a ficha.
 /// Abrir o mapa fica no Registo (como as outras consultas).
+///
+/// Desde a 0082: zonas sem resposta, densidade de jardineiros (quadrados
+/// de 10 km, pedidos de 90 dias) e gasolineiras parceiras. As zonas e as
+/// gasolineiras só se pedem quando a camada está ligada.
 class AdminMapPage extends ConsumerStatefulWidget {
   const AdminMapPage({super.key});
 
@@ -40,6 +46,9 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
     AdminMapLayer.workers,
   };
   AdminMapPoint? _selected;
+  AdminMapZone? _selectedZone;
+  AdminPartnerLocation? _selectedPartner;
+  final _map = MapController();
 
   void _toggle(AdminMapLayer layer) {
     setState(() {
@@ -50,7 +59,28 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
           adminVisibleMapPoints([selected], _layers).isEmpty) {
         _selected = null;
       }
+      if (!_layers.any((l) => l.isZone)) _selectedZone = null;
+      if (!_layers.contains(AdminMapLayer.partners)) _selectedPartner = null;
     });
+  }
+
+  void _select({
+    AdminMapPoint? point,
+    AdminMapZone? zone,
+    AdminPartnerLocation? partner,
+  }) => setState(() {
+    _selected = point;
+    _selectedZone = zone;
+    _selectedPartner = partner;
+  });
+
+  void _focusZone(AdminMapZone zone) {
+    _select(zone: zone);
+    try {
+      _map.move(LatLng(zone.centerLat, zone.centerLng), 11);
+    } catch (_) {
+      // Mapa ainda por desenhar.
+    }
   }
 
   void _open(AdminMapPoint point) => context.go(
@@ -60,6 +90,14 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
   @override
   Widget build(BuildContext context) {
     final pointsAsync = ref.watch(adminMapPointsProvider);
+    final showZones = _layers.any((l) => l.isZone);
+    final zonesAsync = showZones ? ref.watch(adminMapZonesProvider) : null;
+    final partnersAsync = _layers.contains(AdminMapLayer.partners)
+        ? ref.watch(adminPartnersProvider)
+        : null;
+    final extrasLoading =
+        (zonesAsync?.isLoading ?? false) || (partnersAsync?.isLoading ?? false);
+    final extrasError = zonesAsync?.error ?? partnersAsync?.error;
     return pointsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(AppSpacing.lg),
@@ -74,12 +112,30 @@ class _AdminMapPageState extends ConsumerState<AdminMapPage> {
       ),
       data: (points) => AdminMapView(
         points: points,
+        zones: zonesAsync?.asData?.value ?? const [],
+        partners: partnersAsync?.asData?.value ?? const [],
+        extrasNote: extrasError != null
+            ? friendlyError(extrasError)
+            : extrasLoading
+            ? 'A carregar zonas e gasolineiras…'
+            : null,
         layers: _layers,
         selected: _selected,
+        selectedZone: _selectedZone,
+        selectedPartner: _selectedPartner,
+        mapController: _map,
         onToggle: _toggle,
-        onSelect: (p) => setState(() => _selected = p),
+        onSelect: (p) => _select(point: p),
+        onSelectZone: (z) => _select(zone: z),
+        onFocusZone: _focusZone,
+        onSelectPartner: (p) => _select(partner: p),
         onOpen: _open,
-        onRefresh: () => ref.invalidate(adminMapPointsProvider),
+        onOpenPartners: () => context.go('/admin/parceiros?tab=gasolineiras'),
+        onRefresh: () {
+          ref.invalidate(adminMapPointsProvider);
+          ref.invalidate(adminMapZonesProvider);
+          ref.invalidate(adminPartnersProvider);
+        },
       ),
     );
   }
@@ -95,16 +151,41 @@ class AdminMapView extends StatelessWidget {
     required this.onSelect,
     required this.onOpen,
     required this.onRefresh,
+    this.zones = const [],
+    this.partners = const [],
+    this.extrasNote,
+    this.selectedZone,
+    this.selectedPartner,
+    this.mapController,
+    this.onSelectZone,
+    this.onFocusZone,
+    this.onSelectPartner,
+    this.onOpenPartners,
     this.showTiles = true,
     super.key,
   });
 
   final List<AdminMapPoint> points;
+  final List<AdminMapZone> zones;
+  final List<AdminPartnerLocation> partners;
+
+  /// "A carregar…" ou o erro das zonas e gasolineiras (o resto do mapa
+  /// funciona na mesma).
+  final String? extrasNote;
   final Set<AdminMapLayer> layers;
   final AdminMapPoint? selected;
+  final AdminMapZone? selectedZone;
+  final AdminPartnerLocation? selectedPartner;
+  final MapController? mapController;
   final ValueChanged<AdminMapLayer> onToggle;
   final ValueChanged<AdminMapPoint?> onSelect;
+  final ValueChanged<AdminMapZone>? onSelectZone;
+
+  /// Escolher uma zona da lista "Zonas a reforçar" (centra o mapa).
+  final ValueChanged<AdminMapZone>? onFocusZone;
+  final ValueChanged<AdminPartnerLocation>? onSelectPartner;
   final ValueChanged<AdminMapPoint> onOpen;
+  final VoidCallback? onOpenPartners;
   final VoidCallback onRefresh;
   final bool showTiles;
 
@@ -119,7 +200,33 @@ class AdminMapView extends StatelessWidget {
     final showRadius =
         layers.contains(AdminMapLayer.radius) &&
         layers.contains(AdminMapLayer.workers);
-    final summary = adminMapSummary(points);
+    final showUnanswered = layers.contains(AdminMapLayer.unanswered);
+    final showDensity = layers.contains(AdminMapLayer.density);
+    final showZones = showUnanswered || showDensity;
+    final visibleZones = [
+      for (final z in zones)
+        if ((showUnanswered && z.jobsUnanswered > 0) ||
+            (showDensity && z.hasDemand))
+          z,
+    ];
+    final visiblePartners = layers.contains(AdminMapLayer.partners)
+        ? partners
+        : const <AdminPartnerLocation>[];
+    final toReinforce = showZones
+        ? adminZonesToReinforce(zones)
+        : const <AdminMapZone>[];
+    final summary = [
+      adminMapSummary(points),
+      if (showZones && zones.isNotEmpty) adminZonesSummary(zones),
+      if (visiblePartners.isNotEmpty)
+        '${visiblePartners.length} '
+            '${visiblePartners.length == 1 ? 'gasolineira' : 'gasolineiras'}',
+      ?extrasNote,
+    ].join('\n');
+    final fitPoints = [
+      for (final p in visible) LatLng(p.lat, p.lng),
+      for (final p in visiblePartners) LatLng(p.lat, p.lng),
+    ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -187,14 +294,13 @@ class AdminMapView extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.card),
                 child: FlutterMap(
+                  mapController: mapController,
                   options: MapOptions(
                     initialCenter: _portugal,
                     initialZoom: 6.5,
-                    initialCameraFit: visible.length > 1
+                    initialCameraFit: fitPoints.length > 1
                         ? CameraFit.coordinates(
-                            coordinates: [
-                              for (final p in visible) LatLng(p.lat, p.lng),
-                            ],
+                            coordinates: fitPoints,
                             padding: const EdgeInsets.all(AppSpacing.xl),
                             maxZoom: 12,
                           )
@@ -207,6 +313,18 @@ class AdminMapView extends StatelessWidget {
                         urlTemplate:
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'pt.projardim.app',
+                      ),
+                    if (visibleZones.isNotEmpty)
+                      PolygonLayer(
+                        polygons: [
+                          for (final z in visibleZones)
+                            adminZonePolygon(
+                              z,
+                              unanswered: showUnanswered,
+                              density: showDensity,
+                              selected: selectedZone?.cell == z.cell,
+                            ),
+                        ],
                       ),
                     if (showRadius)
                       CircleLayer(
@@ -227,8 +345,45 @@ class AdminMapView extends StatelessWidget {
                               ),
                         ],
                       ),
+                    if (visibleZones.isNotEmpty)
+                      MarkerLayer(
+                        markers: [
+                          for (final z in visibleZones)
+                            Marker(
+                              point: LatLng(z.centerLat, z.centerLng),
+                              width: AppSizes.minTapTarget,
+                              height: AppSizes.minTapTarget,
+                              child: _ZoneLabel(
+                                zone: z,
+                                unanswered: showUnanswered,
+                                selected: selectedZone?.cell == z.cell,
+                                onTap: () => onSelectZone?.call(z),
+                              ),
+                            ),
+                        ],
+                      ),
                     MarkerLayer(
                       markers: [
+                        for (final p in visiblePartners)
+                          Marker(
+                            point: LatLng(p.lat, p.lng),
+                            width: AppSizes.minTapTarget,
+                            height: AppSizes.minTapTarget,
+                            child: Semantics(
+                              button: true,
+                              label: 'Gasolineira ${p.name}',
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => onSelectPartner?.call(p),
+                                child: Center(
+                                  child: AdminPartnerMarker(
+                                    status: p.status,
+                                    selected: selectedPartner?.id == p.id,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         for (final p in [...workers, ...jobs])
                           Marker(
                             point: LatLng(p.lat, p.lng),
@@ -263,17 +418,40 @@ class AdminMapView extends StatelessWidget {
           ),
           AnimatedSwitcher(
             duration: AppMotionDuration.screen,
-            child: selected == null
-                ? const SizedBox.shrink()
-                : Padding(
-                    key: ValueKey(selected!.id),
-                    padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: AdminMapPointCard(
-                      point: selected!,
-                      onOpen: () => onOpen(selected!),
-                      onClose: () => onSelect(null),
-                    ),
-                  ),
+            child: switch ((selected, selectedZone, selectedPartner)) {
+              (final AdminMapPoint p, _, _) => Padding(
+                key: ValueKey(p.id),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: AdminMapPointCard(
+                  point: p,
+                  onOpen: () => onOpen(p),
+                  onClose: () => onSelect(null),
+                ),
+              ),
+              (_, final AdminMapZone z, _) => Padding(
+                key: ValueKey('zone-${z.cell}'),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: AdminMapZoneCard(zone: z, onClose: () => onSelect(null)),
+              ),
+              (_, _, final AdminPartnerLocation p) => Padding(
+                key: ValueKey('partner-${p.id}'),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: AdminMapPartnerCard(
+                  partner: p,
+                  onOpen: onOpenPartners,
+                  onClose: () => onSelect(null),
+                ),
+              ),
+              _ when toReinforce.isNotEmpty => Padding(
+                key: const ValueKey('reinforce'),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: AdminZonesToReinforce(
+                  zones: toReinforce,
+                  onTap: (z) => (onFocusZone ?? onSelectZone)?.call(z),
+                ),
+              ),
+              _ => const SizedBox.shrink(),
+            },
           ),
         ],
       ),
@@ -450,3 +628,285 @@ String adminPlanLabel(String? plan) => switch (plan) {
   'pro_plus' => 'Pro+',
   _ => 'Grátis',
 };
+
+/// Quadrado de uma zona. Sem resposta: vermelho mais forte quanto maior a
+/// parte dos pedidos sem resposta. Densidade: vermelho (ninguém cobre),
+/// âmbar (1 ou 2), verde (3 ou mais).
+Polygon adminZonePolygon(
+  AdminMapZone z, {
+  required bool unanswered,
+  required bool density,
+  bool selected = false,
+}) {
+  final useUnanswered = unanswered && z.jobsUnanswered > 0;
+  final color = useUnanswered
+      ? AppStatusColor.cancelled.foreground
+      : adminZoneCoverageTone(z).foreground;
+  final alpha = useUnanswered ? 0.15 + 0.35 * z.unansweredRate : 0.18;
+  return Polygon(
+    points: [
+      LatLng(z.latMin, z.lngMin),
+      LatLng(z.latMin, z.lngMax),
+      LatLng(z.latMax, z.lngMax),
+      LatLng(z.latMax, z.lngMin),
+    ],
+    color: color.withValues(alpha: alpha),
+    borderColor: selected
+        ? AppColors.textPrimary
+        : color.withValues(alpha: 0.6),
+    borderStrokeWidth: selected ? 2 : 1,
+  );
+}
+
+/// Número no meio do quadrado: pedidos sem resposta (camada "Sem
+/// resposta") ou jardineiros que cobrem (camada "Densidade").
+class _ZoneLabel extends StatelessWidget {
+  const _ZoneLabel({
+    required this.zone,
+    required this.unanswered,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AdminMapZone zone;
+  final bool unanswered;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = zone;
+    final showUnanswered = unanswered && z.jobsUnanswered > 0;
+    final tone = showUnanswered
+        ? AppStatusColor.cancelled
+        : adminZoneCoverageTone(z);
+    final value = showUnanswered ? z.jobsUnanswered : z.workersCovering;
+    return Semantics(
+      button: true,
+      label: showUnanswered
+          ? 'Zona ${z.area ?? ''}: $value pedidos sem resposta'
+          : 'Zona ${z.area ?? ''}: $value jardineiros cobrem',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Center(
+          child: Container(
+            width: AppSizes.adminZoneLabel,
+            height: AppSizes.adminZoneLabel,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tone.background,
+              borderRadius: BorderRadius.circular(AppRadius.input),
+              border: Border.all(
+                color: selected ? AppColors.textPrimary : tone.foreground,
+                width: AppSizes.adminMapDotBorder,
+              ),
+            ),
+            child: Text(
+              '$value',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: tone.foreground),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Angra · 3 pedidos, 2 sem resposta · 1 jardineiro cobre".
+String adminZoneDetails(AdminMapZone z) {
+  final hours = z.medianHoursFirstProposal;
+  return [
+    '${z.jobs} ${z.jobs == 1 ? 'pedido' : 'pedidos'} em $adminZoneDays dias'
+        '${z.jobsUnanswered > 0 ? ', ${z.jobsUnanswered} sem resposta' : ''}'
+        '${z.jobsCompleted > 0 ? ', ${z.jobsCompleted} concluídos' : ''}',
+    if (hours != null) '1.ª proposta em ${adminHoursLabel(hours)} (mediana)',
+    switch (z.workersCovering) {
+      0 => 'nenhum jardineiro cobre',
+      1 => '1 jardineiro cobre',
+      final n => '$n jardineiros cobrem',
+    },
+    if (z.workersBased > 0) '${z.workersBased} com base aqui',
+    if (z.partners > 0)
+      '${z.partners} ${z.partners == 1 ? 'gasolineira' : 'gasolineiras'}',
+  ].join(' · ');
+}
+
+class AdminMapZoneCard extends StatelessWidget {
+  const AdminMapZoneCard({
+    required this.zone,
+    required this.onClose,
+    super.key,
+  });
+
+  final AdminMapZone zone;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final z = zone;
+    return AdminPanelCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Zona · ${z.area ?? 'sem nome'} ($adminZoneCellKm km)',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  adminZoneDetails(z),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Fechar',
+            onPressed: onClose,
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AdminMapPartnerCard extends StatelessWidget {
+  const AdminMapPartnerCard({
+    required this.partner,
+    required this.onClose,
+    this.onOpen,
+    super.key,
+  });
+
+  final AdminPartnerLocation partner;
+  final VoidCallback? onOpen;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final p = partner;
+    return AdminPanelCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      p.name,
+                      style: textTheme.titleSmall?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    AppStatusBadge(
+                      label: p.status.label,
+                      statusColor: p.status.tone,
+                      dense: true,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  [
+                    ?p.brand,
+                    ?p.locality,
+                    adminPartnerReachLabel(p),
+                  ].join(' · '),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onOpen != null)
+            TextButton(onPressed: onOpen, child: const Text('Gasolineiras')),
+          IconButton(
+            tooltip: 'Fechar',
+            onPressed: onClose,
+            icon: const Icon(
+              Icons.close_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// As zonas onde mais falta resposta, para tocar e ir lá no mapa.
+class AdminZonesToReinforce extends StatelessWidget {
+  const AdminZonesToReinforce({
+    required this.zones,
+    required this.onTap,
+    super.key,
+  });
+
+  final List<AdminMapZone> zones;
+  final ValueChanged<AdminMapZone> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return AdminPanelCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Zonas a reforçar',
+            style: textTheme.titleSmall?.copyWith(color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final z in zones)
+                ActionChip(
+                  avatar: Icon(
+                    Icons.place_outlined,
+                    size: AppSizes.inlineIcon,
+                    color: z.jobsUnanswered > 0
+                        ? AppStatusColor.cancelled.foreground
+                        : adminZoneCoverageTone(z).foreground,
+                  ),
+                  label: Text(adminZoneChipLabel(z)),
+                  onPressed: () => onTap(z),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Angra · 2 sem resposta" ou "Ponta · ninguém cobre" ou "Braga · 1 a cobrir".
+String adminZoneChipLabel(AdminMapZone z) {
+  final name = z.area ?? 'Zona sem nome';
+  if (z.jobsUnanswered > 0) return '$name · ${z.jobsUnanswered} sem resposta';
+  if (z.workersCovering == 0) return '$name · ninguém cobre';
+  return '$name · ${z.workersCovering} a cobrir';
+}

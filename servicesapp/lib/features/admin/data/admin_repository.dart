@@ -5,6 +5,7 @@ import '../../../core/constants/enums.dart';
 import 'admin_account_models.dart';
 import 'admin_growth_models.dart';
 import 'admin_models.dart';
+import 'admin_partner_models.dart';
 import 'admin_resolve_models.dart';
 import 'admin_support_models.dart';
 
@@ -666,6 +667,80 @@ class AdminRepository {
     );
     return (data as List)
         .map((e) => AdminNoticeRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  // ── Parceiros e zonas (0082) ──────────────────────────────────────
+
+  /// [status] `null` = todos. Ver a lista fica no Registo.
+  Future<List<AdminFleetCardRow>> fetchFleetCards({
+    String? status = 'pending',
+    int page = 0,
+  }) async {
+    final data = await _client.rpc(
+      'admin_list_fleet_cards',
+      params: {'p_status': status, 'p_limit': 50, 'p_offset': page * 50},
+    );
+    return (data as List)
+        .map(
+          (e) => AdminFleetCardRow.fromJson((e as Map).cast<String, dynamic>()),
+        )
+        .toList();
+  }
+
+  Future<void> approveFleetCard(String cardId) => _client.rpc(
+    'admin_review_fleet_card',
+    params: {'p_card_id': cardId, 'p_decision': 'active'},
+  );
+
+  /// Recusar (por aprovar) ou retirar (ativo). Sem [message], o
+  /// jardineiro lê a mensagem do motivo.
+  Future<void> rejectFleetCard(
+    String cardId, {
+    required AdminFleetRejectReason reason,
+    String? message,
+  }) => _client.rpc(
+    'admin_review_fleet_card',
+    params: {
+      'p_card_id': cardId,
+      'p_decision': 'rejected',
+      'p_reason': reason.value,
+      'p_message': _orNull(message),
+    },
+  );
+
+  Future<List<AdminPartnerLocation>> fetchPartners() async {
+    final data = await _client.rpc('admin_list_partner_locations');
+    return (data as List)
+        .map(
+          (e) =>
+              AdminPartnerLocation.fromJson((e as Map).cast<String, dynamic>()),
+        )
+        .toList();
+  }
+
+  /// Cria ou altera; devolve o id.
+  Future<String> savePartner(AdminPartnerDraft draft) async {
+    final data = await _client.rpc(
+      'admin_save_partner_location',
+      params: draft.toParams(),
+    );
+    return data as String;
+  }
+
+  Future<void> deletePartner(String id) =>
+      _client.rpc('admin_delete_partner_location', params: {'p_id': id});
+
+  Future<List<AdminMapZone>> fetchMapZones({
+    int days = adminZoneDays,
+    int cellKm = adminZoneCellKm,
+  }) async {
+    final data = await _client.rpc(
+      'admin_map_zones',
+      params: {'p_days': days, 'p_cell_km': cellKm},
+    );
+    return (data as List)
+        .map((e) => AdminMapZone.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
 }

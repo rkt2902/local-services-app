@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -45,6 +46,12 @@ const adminLogActionFilters = [
   'resend_code',
   'export_csv',
   'send_notice',
+  'fleet_card_approved',
+  'fleet_card_rejected',
+  'fleet_card_revoked',
+  'partner_created',
+  'partner_updated',
+  'partner_deleted',
   'set_worker_plan',
   'reveal_phone',
   'reveal_address',
@@ -83,9 +90,11 @@ class _AdminLogPageState extends ConsumerState<AdminLogPage> {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
+          // A lista de ações é longa: escolhe-se num menu, não em filtros.
           Wrap(
-            spacing: AppSpacing.xs,
+            spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               AppFilterChip(
                 label: 'Mostrar consultas',
@@ -97,22 +106,34 @@ class _AdminLogPageState extends ConsumerState<AdminLogPage> {
                   page: 0,
                 )),
               ),
-              AppFilterChip(
-                label: 'Todas as ações',
-                selected: q.action == null,
-                onPressed: () =>
-                    set((includeReads: q.includeReads, action: null, page: 0)),
-              ),
-              for (final action in adminLogActionFilters)
-                AppFilterChip(
-                  label: adminHistoryActionLabel(action),
-                  selected: q.action == action,
-                  onPressed: () => set((
-                    includeReads: q.includeReads || adminIsReadAction(action),
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppSizes.dialogMaxWidth,
+                ),
+                child: DropdownButtonFormField<String?>(
+                  initialValue: q.action,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Ação'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('Todas as ações'),
+                    ),
+                    for (final action in adminLogActionFilters)
+                      DropdownMenuItem(
+                        value: action,
+                        child: Text(adminHistoryActionLabel(action)),
+                      ),
+                  ],
+                  onChanged: (action) => set((
+                    includeReads:
+                        q.includeReads ||
+                        (action != null && adminIsReadAction(action)),
                     action: action,
                     page: 0,
                   )),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),

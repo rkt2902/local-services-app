@@ -99,4 +99,8 @@ abstract class NotificationType {
   /// 0081: aviso da ProJardim a um grupo (painel > Avisos). relatedId = id
   /// do envio, que a app não usa: tocar não navega.
   static const adminNotice = 'admin_notice';
+
+  /// 0082: o painel aprovou, recusou ou retirou o cartão frota. relatedId =
+  /// id do cartão; tocar abre o ecrã do cartão frota.
+  static const fleetCardReviewed = 'fleet_card_reviewed';
 }

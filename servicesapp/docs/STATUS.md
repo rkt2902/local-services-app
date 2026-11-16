@@ -12,8 +12,9 @@
 
 - Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
   2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
-  (painel de suporte, fase B), a `0080` (fase C) e a `0081` (funil, CSV e avisos)
-  estão **por aplicar**, por esta ordem. Próxima: `0082`.
+  (painel de suporte, fase B), a `0080` (fase C), a `0081` (funil, CSV e avisos) e a
+  `0082` (cartões frota, gasolineiras e zonas) estão **por aplicar**, por esta
+  ordem. Próxima: `0083`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).
@@ -122,6 +123,12 @@
   enviar e histórico com quantos leram. Tocar no aviso na app não abre nada. A
   localidade é texto livre (procura parcial), por isso "Braga" apanha "Braga de
   Cima".
+- Parceiros e zonas (0082, **por aplicar**): página "Parceiros" com os cartões frota
+  (aprovar, recusar com motivo, retirar; o jardineiro recebe aviso e lê a mensagem no
+  ecrã do cartão) e as gasolineiras parceiras ou em conversa (morada pesquisada ou
+  ponto no mapa, com quantos jardineiros cobrem e quantos pedidos há a 10 km). No Mapa,
+  camadas "Zonas sem resposta", "Densidade de jardineiros" e "Gasolineiras", e a lista
+  "Zonas a reforçar". Aprovar não exige Pro+ (o painel avisa).
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,
@@ -170,9 +177,9 @@
   J4/C5, linha "Serviço · data" nas notificações.
 - A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
   está nos detalhes do cliente, do jardineiro e do ajudante.
-- Painel `/admin`: restos pequenos. Aprovar e recusar o cartão frota no painel (hoje é
-  por SQL) e camadas "zonas sem resposta" e densidade no mapa. A Política de Privacidade
-  ainda não diz que o admin vê moradas e posições, suspende contas e envia avisos.
+- Painel `/admin`: a Política de Privacidade ainda não diz que o admin vê moradas e
+  posições, suspende contas e envia avisos. Gasolineiras só se adicionam uma a uma (sem
+  importar uma lista) e os jardineiros ainda não as veem na app.
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.

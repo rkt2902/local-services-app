@@ -5,6 +5,7 @@ import '../../auth/application/auth_providers.dart';
 import '../data/admin_account_models.dart';
 import '../data/admin_growth_models.dart';
 import '../data/admin_models.dart';
+import '../data/admin_partner_models.dart';
 import '../data/admin_repository.dart';
 import '../data/admin_resolve_models.dart';
 import '../data/admin_support_models.dart';
@@ -221,4 +222,23 @@ final adminFunnelProvider = FutureProvider.autoDispose
 /// Histórico dos avisos enviados (primeira página).
 final adminNoticesProvider = FutureProvider.autoDispose<List<AdminNoticeRow>>(
   (ref) => ref.read(adminRepositoryProvider).fetchNotices(),
+);
+
+// ── Parceiros e zonas (0082) ──────────────────────────────────────
+
+/// Cartões frota por estado (`null` = todos). Fica no Registo.
+final adminFleetCardsProvider = FutureProvider.autoDispose
+    .family<List<AdminFleetCardRow>, String?>((ref, status) {
+      return ref.read(adminRepositoryProvider).fetchFleetCards(status: status);
+    });
+
+/// Gasolineiras parceiras, com jardineiros e pedidos perto.
+final adminPartnersProvider =
+    FutureProvider.autoDispose<List<AdminPartnerLocation>>(
+      (ref) => ref.read(adminRepositoryProvider).fetchPartners(),
+    );
+
+/// Zonas do mapa (quadrados de 10 km, 90 dias).
+final adminMapZonesProvider = FutureProvider.autoDispose<List<AdminMapZone>>(
+  (ref) => ref.read(adminRepositoryProvider).fetchMapZones(),
 );

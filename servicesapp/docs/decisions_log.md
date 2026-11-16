@@ -3,6 +3,23 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-16 — Cartões frota no painel, gasolineiras e zonas no mapa (0082)
+
+- Cartão frota decide-se no painel (aprovar, recusar, retirar). Só conta o pedido mais
+  recente de cada jardineiro, como na app. Recusar pede um motivo de lista própria
+  (dados ilegíveis, plano, gasolineira não aceitou, outro) e a mensagem ao jardineiro
+  fica no cartão (`review_message`); a nota interna não existe aqui porque não há nada
+  de terceiros a explicar. Aprovar um plano sem Pro+ é possível (o painel avisa), para
+  testes e acordos à parte.
+- Gasolineiras numa tabela só do painel, com estado "em conversa", "parceira" e
+  "terminada", para planear antes de fechar parcerias. Ainda não aparecem na app.
+- Zonas em quadrados de 10 km calculados na BD (sem PostGIS): mais simples de ler do
+  que um mapa de calor e dá números por zona. "Sem resposta" = `no_response` ou aberto
+  há 24 h sem propostas. Densidade = quantos jardineiros têm o raio a chegar ao centro
+  do quadrado, mostrada só onde há procura ou gasolineira.
+- As camadas novas só pedem dados quando se ligam, para o mapa abrir tão depressa como
+  antes.
+
 ## 2026-11-16 — Painel de admin, fase 3: funil, CSV e avisos (0081)
 
 - O funil conta por coortes: pessoas que se registaram (ou pedidos criados) no

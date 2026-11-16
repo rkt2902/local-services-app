@@ -265,6 +265,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/admin/mapa` | `AdminMapPage` (pedidos e jardineiros com raio, camadas que se ligam e desligam, 0080) | shell do painel | idem |
 | `/admin/funil` | `AdminFunnelPage` (funil de clientes, pedidos e jardineiros por período; exportar pedidos, clientes ou jardineiros em CSV, 0081) | shell do painel | idem |
 | `/admin/avisos` | `AdminNoticesPage` (aviso de serviço a um grupo de jardineiros ou clientes, com contagem antes de enviar, e histórico, 0081) | shell do painel | idem |
+| `/admin/parceiros` | `AdminPartnersPage` (cartões frota para aprovar, recusar ou retirar; gasolineiras parceiras com o que há perto; `?tab=gasolineiras` abre o segundo separador, 0082) | shell do painel | idem |
 | `/forgot-password/reset` | `PasswordResetScreen` | fora | shared-axis |
 | `/verify-email` | `VerifyEmailScreen` (código de confirmação) | fora | shared-axis |
 | `/client/job/:id/edit` | `ClientEditJobScreen` (editar pedido aberto, RPC `update_job_request`, 0049) | fora | shared-axis |
@@ -404,7 +405,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `help_acceptances` | candidaturas de ajudantes | `agreed_rate`, `brought_equipment`, `message` (0034 — ver secção 16) |
 | `ratings` | avaliações | `UNIQUE(job_id, rater_id, ratee_id)`, `CHECK(rater_id <> ratee_id)` |
 | `job_reports` | reports pós-trabalho | moderação no painel (0079: `status` new/in_review/resolved/dismissed, `resolved_at`, `case_id`; a app só cria com `new`), sem RLS de leitura cruzada |
-| `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated` |
+| `worker_fleet_cards` (0037) | cartão frota fictício | `status` pending/active/rejected, sem policy UPDATE para `authenticated`. Desde a 0082: `reviewed_at` e `review_message` (o que o jardineiro lê quando é recusado), escritos só por `admin_review_fleet_card`; a policy de INSERT recusa-os |
 | `admin_users` (0060) | quem é administrador | `user_id` (FK `auth.users`); só se escreve por SQL Editor; RLS sem policies |
 | `admin_actions` (0060) | registo das mudanças **e das consultas** feitas no painel (desde a 0078: `search`, `view_job`, `view_client`, `view_worker`, `view_job_photos`, `reveal_phone`, `reveal_address`) | `admin_id`, `action`, `target_id`, `details` jsonb; RLS sem policies |
 | `support_cases` (0079) | casos de suporte | `number` curto, `kind` (help/report/abuse/appeal/complaint/gdpr/delete_account), `status` (open/waiting_user/resolved), `person_id`, `job_id`, `contact_email`, `summary`, `decision`, `ack_due_at` (1 dia útil), `due_at` (prazo do tipo, `support_case_due`, dias úteis sem feriados), `first_reply_at`; RLS sem policies |
@@ -412,6 +413,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_notes` (0079) | notas internas em qualquer ficha | `target_id` (pedido ou pessoa), `body`; RLS sem policies |
 | `account_status` (0080) | suspensão e encerramento marcado de uma conta | `profile_id`, `suspended_at`, `suspended_reason`, `suspended_message`, `closing_at`, `closing_reason`, `closing_message`. Fora de `profiles` de propósito: quem tem um trabalho confirmado lê o perfil da outra pessoa e não deve ver o motivo. RLS sem policies; a própria pessoa lê o seu com `get_my_account_status` (sem o motivo interno) |
 | `admin_notices` (0081) | avisos enviados pelo painel a um grupo | `title`, `body`, `audience` (jsonb: `role`, `tiers`, `service_type_id`, `area`), `recipients`, `created_by`; cada destinatário recebe uma linha em `notifications` (`type = 'admin_notice'`, `related_id` = id do aviso); RLS sem policies |
+| `partner_locations` (0082) | gasolineiras parceiras ou em conversa (só o painel) | `kind` (fuel_station/other), `name`, `brand`, `status` (prospect/active/ended), `address`, `locality`, `lat`, `lng`, `notes`; RLS sem policies |
 | `profile_photos_hidden` (0080) | arquivo das fotos de perfil e do portefólio retiradas pelo suporte | `profile_id`, `kind` (avatar/portfolio), `url`, motivo e nota; o ficheiro fica no Storage; RLS sem policies |
 | `ratings_hidden` / `job_photos_hidden` (0079) | arquivo do que o suporte ocultou | a linha sai de `ratings` (ou o caminho sai de `job_photos`/`before_photo_paths`/`after_photo_paths`/`completion_photo_path`) e fica aqui com `hidden_reason`, `hidden_note`, `hidden_by`; nenhuma vista ou RPC da app mudou; trigger `trg_block_rating_while_hidden` impede avaliar outra vez o mesmo trabalho; RLS sem policies |
 | `job_events` (0078) | linha do tempo de cada pedido | `job_id`, `event_type`, `actor_id`, `actor_kind` (client/worker/helper/admin/system/user), `data` jsonb; preenchida por triggers em `job_requests`, `job_proposals`, `job_work_days`, `job_reports`, `ratings`, `help_requests` (sem `auth.uid()` = sistema, ex.: crons); pedidos antigos com eventos tirados dos carimbos (`data.backfill`); RLS sem policies |
@@ -442,7 +444,7 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 - `ratings`: leitura pública (`USING(true)`); escrita só com participação verificada
   inline na própria policy.
 - `job_reports`: cada um só vê os seus; INSERT exige ser cliente ou worker aceite do job.
-- `worker_fleet_cards`: owner-only SELECT/INSERT; mudança de `status` só via service role.
+- `worker_fleet_cards`: owner-only SELECT/INSERT; mudança de `status` só pelo painel (`admin_review_fleet_card`, 0082) ou service role.
 
 ### RPCs (`SECURITY DEFINER`, `SET search_path`, identidade sempre por `auth.uid()` — nunca um `p_worker_id`/`p_client_id` vindo do cliente desde 0032)
 
@@ -550,6 +552,10 @@ provavelmente renomeado manualmente no Studio — ver secção 16).
 | `admin_export_rows` (0081) | `p_kind` (jobs/clients/workers), `p_days` | `jsonb` `{columns, rows}`, até 10 000 linhas, sem telefone, email nem morada; registado como `export_csv` com o tipo e o número de linhas. A app escreve o CSV (`adminCsv`: `;`, BOM, CRLF) | `exportRows` |
 | `admin_notice_audience` / `admin_send_notice` (0081) | `p_role, p_tiers?, p_service_type_id?, p_area?` / mais `p_title` (3 a 80), `p_body` (10 a 500), `p_expected` | `integer` (quantas pessoas). Plano e serviço só para jardineiros; localidade: `worker_profiles.location_name` (jardineiros) ou algum pedido nessa `location_area` (clientes). Enviar recusa se a contagem mudou desde `p_expected`, se ninguém recebe ou se o mesmo título foi enviado nas últimas 24h; registado como `send_notice` | `noticeAudience` / `sendNotice` |
 | `admin_list_notices` (0081) | `p_limit, p_offset` | histórico com `read_count` (notificações lidas), email do admin e `total_count` | `fetchNotices` |
+| `admin_list_fleet_cards` (0082) | `p_status` (pending; NULL = todos), `p_limit, p_offset` | pedidos de cartão com nome, plano, se está suspenso, dados lidos do cartão, `attempts` e `is_latest` (só o mais recente de cada jardineiro conta); registado como `view_fleet_cards` | `fetchFleetCards` |
+| `admin_review_fleet_card` (0082) | `p_card_id, p_decision` (active/rejected), `p_reason?` (unreadable, not_eligible, partner_refused, other), `p_message?` | aprovar (pending), recusar (pending) ou retirar (active), só o cartão mais recente; recusar pede motivo, "other" pede mensagem; aviso `fleet_card_reviewed`; registado como `fleet_card_approved`/`_rejected`/`_revoked`. Não recusa planos sem Pro+ (a app avisa) | `approveFleetCard` / `rejectFleetCard` |
+| `admin_list_partner_locations` / `admin_save_partner_location` / `admin_delete_partner_location` (0082) | — / `p_id?` (NULL cria), nome, marca, tipo, estado, morada, localidade, `p_lat`, `p_lng` (só Portugal, com ilhas), notas / `p_id` | lista com `workers_covering` (raio chega lá), `workers_nearby` (base a 10 km), `jobs_nearby` e `jobs_unanswered` (10 km, 90 dias); gravar e apagar ficam no Registo (`partner_*`) | `fetchPartners` / `savePartner` / `deletePartner` |
+| `admin_map_zones` (0082) | `p_days` (90), `p_cell_km` (10; 5 a 50) | quadrados com pedidos do período, base de jardineiros ou gasolineira não terminada: `area` (localidade mais comum), `jobs`, `jobs_unanswered` (`no_response` ou aberto há 24 h sem propostas), `jobs_completed`, mediana de horas até à 1.ª proposta, `workers_based`, `workers_covering` (raio chega ao centro), `partners`. Contas eliminadas, suspensas e de admin não contam | `fetchMapZones` |
 | `admin_set_worker_plan` (0060) | `p_worker_id, p_tier, p_starts_at?, p_ends_at?, p_verified_at?, p_notes?` | `void` (+ linha em `admin_actions`) | `AdminRepository.setWorkerPlan` |
 
 As RPCs `admin_*` (menos `admin_whoami`) chamam `assert_verified_admin()`: `auth.uid()` em `admin_users` **e** `auth.jwt()->>'aal' = 'aal2'` (segundo fator TOTP do Supabase Auth). Recebem o id do jardineiro **alvo**; a identidade de quem chama continua a ser só `auth.uid()`. Desde a 0078, `admin_list_workers` e `admin_get_worker` devolvem o telefone mascarado (`admin_mask_phone`); o número inteiro só sai de `admin_reveal_contact`. Nenhuma `admin_*` lê a Agenda (`worker_calendar_entries`).
@@ -559,6 +565,8 @@ Desde a 0079, cada ação que muda alguma coisa pede um motivo da lista fixa (`a
 Desde a 0080 (fase C), a ficha do cliente e do jardineiro tem o cartão "Conta" (`AdminAccountCard`, dentro de `AdminRecordFooter(showAccount: true)`). Conta suspensa não age: o trigger `trg_block_suspended_writes` (em `job_requests`, `job_proposals`, `help_requests`, `help_acceptances`, `ratings`, `job_photos`, `job_work_days`) recusa escritas quando `auth.uid()` está suspenso, incluindo as feitas dentro de RPCs; os crons e o admin passam. `account_delete_core` liga `projardim.allow_suspended` só na sua transação, para quem está suspenso poder eliminar a conta. `worker_can_use_public_card` e `job_candidate_workers` deixam de fora contas suspensas, e o trigger recusa pedidos diretos a um jardineiro suspenso. A exceção à regra "nenhuma `admin_*` lê a Agenda" é só `admin_export_user_data` (a pedido da própria pessoa).
 
 Desde a 0081 (fase 3), "Funil e dados" mostra até onde chegam clientes, pedidos e jardineiros do período e exporta listas em CSV (pela folha de partilha, ou para o clipboard), e "Avisos" envia avisos de serviço a um grupo. Os avisos são só de serviço (mudanças, manutenção): promoções vão nas dicas da época, que cada pessoa pode desligar. O admin conta primeiro os destinatários e a BD só envia se o número for o mesmo.
+
+Desde a 0082, "Parceiros" aprova, recusa e retira cartões frota (antes era um UPDATE no SQL Editor) e guarda as gasolineiras parceiras e em conversa. O Mapa ganhou três camadas, todas desligadas ao abrir e só pedidas à BD quando se ligam: "Zonas sem resposta" (quadrados de 10 km a vermelho, mais forte quanto maior a parte dos pedidos sem resposta), "Densidade de jardineiros" (quadrados com procura ou gasolineira, vermelho sem ninguém a cobrir, âmbar com 1 ou 2, verde com 3 ou mais) e "Gasolineiras". Com uma camada de zonas ligada, o mapa mostra as "Zonas a reforçar" (mais pedidos sem resposta, depois procura sem cobertura). O aviso de cartões por aprovar na Visão geral abre a página. O filtro de ações do Registo passou a menu.
 
 **Nota sobre `get_help_requests_in_radius`:** passou por 3 shapes (baseline → 0034 → 0039),
 sempre via `DROP FUNCTION` + `CREATE` explícito porque o `RETURNS TABLE` muda de forma
@@ -605,7 +613,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079`, a `0080` e a `0081` estão criadas e por aplicar (por esta ordem). Próxima migration: `0082`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079`, a `0080`, a `0081` e a `0082` estão criadas e por aplicar (por esta ordem). Próxima migration: `0083`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 
@@ -687,6 +695,7 @@ INSERT em `notifications`). Dois consumidores independentes do mesmo stream
 | `job_reopened` | `cancel_job`, `admin_reopen_job` (0079, o mesmo pedido) | `/worker/job/:id` ou `/client/job/:id` pelo papel | go |
 | `support_notice` (0079) | `admin_hide_rating`, `admin_hide_photo`, `admin_set_job_status`; desde a 0080 também suspensão, reativação, aviso e cancelamento de encerramento e foto de perfil retirada (estes sem `related_id`: tocar não navega) | como `job_cancelled` (`/client/job/:id` ou `/worker/my-job/:id`) | go |
 | `admin_notice` (0081) | `admin_send_notice` (aviso a um grupo; push pelo trigger de sempre) | nenhum (tocar não navega) | — |
+| `fleet_card_reviewed` (0082) | `admin_review_fleet_card` | `/worker/fleet-card` (e volta a ler o cartão) | push |
 | `job_started` (0052) | `start_job` | `/client/job/:id` | go |
 | `job_marked_done` | `mark_job_done` | `/client/job/:id` | go |
 | `job_completed` | `confirm_job_completion`/cron | `/client/job/:id` ou `/worker/my-job/:id` | go |

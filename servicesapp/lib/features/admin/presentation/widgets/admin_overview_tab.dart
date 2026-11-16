@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/error_utils.dart';
@@ -71,7 +72,7 @@ class _OverviewContent extends StatelessWidget {
 
   final AdminOverview overview;
 
-  List<Widget> _alerts() {
+  List<Widget> _alerts(BuildContext context) {
     final o = overview;
     return [
       if (o.alertOpenWithoutProposals > 0)
@@ -90,6 +91,7 @@ class _OverviewContent extends StatelessWidget {
         AdminAlertRow(
           icon: Icons.local_gas_station_outlined,
           message: '${o.alertFleetCardsPending} cartões frota por aprovar',
+          onTap: () => context.go('/admin/parceiros'),
         ),
       if (o.alertPlansEnding7d > 0)
         AdminAlertRow(
@@ -103,7 +105,7 @@ class _OverviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = overview;
-    final alerts = _alerts();
+    final alerts = _alerts(context);
     final cards = <Widget>[
       if (alerts.isNotEmpty)
         Column(
