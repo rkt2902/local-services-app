@@ -6,13 +6,14 @@
 -- Pode correr-se mais do que uma vez sem erro.
 --
 -- O que faz:
---   1. profiles: suspended_at, suspended_reason, suspended_message,
---      closing_at, closing_reason, closing_message. Quem usa a app não
---      mexe nelas (trigger de colunas protegidas).
+--   1. Tabela account_status (suspensão e encerramento marcado), só do
+--      servidor. Fora de profiles de propósito: quem tem um trabalho
+--      confirmado lê o perfil da outra pessoa e não deve ver motivos.
 --   2. Conta suspensa não age: trigger em pedidos, propostas, ajudas,
 --      avaliações e fotos recusa escritas feitas por ela; ninguém lhe
 --      faz pedidos diretos; não recebe pedidos novos da zona nem mostra
---      o cartão público. A app lê suspended_at e mostra "Conta suspensa".
+--      o cartão público. A app pergunta get_my_account_status() e mostra
+--      "Conta suspensa".
 --   3. admin_suspend_user / admin_reactivate_user. Ao suspender: pedidos
 --      abertos da pessoa fecham (motivo account_suspended), propostas
 --      pendentes dela são retiradas, reservas de pedido direto libertadas,
@@ -35,59 +36,40 @@
 -- ══════════════════════════════════════════════════════════════
 
 
--- ── 1. Colunas ──────────────────────────────────────────────────
+-- ── 1. Estado da conta ──────────────────────────────────────────
 
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspended_at      timestamptz;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspended_reason  text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS suspended_message text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS closing_at        timestamptz;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS closing_reason    text;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS closing_message   text;
-CREATE INDEX IF NOT EXISTS profiles_closing_idx ON public.profiles (closing_at)
+CREATE TABLE IF NOT EXISTS public.account_status (
+  profile_id        uuid        PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  suspended_at      timestamptz,
+  suspended_reason  text,
+  suspended_message text,
+  closing_at        timestamptz,
+  closing_reason    text,
+  closing_message   text,
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS account_status_closing_idx ON public.account_status (closing_at)
   WHERE closing_at IS NOT NULL AND suspended_at IS NULL;
+ALTER TABLE public.account_status ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.account_status FROM anon, authenticated;
 
--- Igual à 0070, mais as colunas de suspensão e encerramento.
-CREATE OR REPLACE FUNCTION public.prevent_profile_protected_columns()
-RETURNS trigger
-LANGUAGE plpgsql
+-- A própria pessoa: está suspensa? encerramento marcado? (ecrã "Conta
+-- suspensa" e aviso na app). Sem motivo interno, só a mensagem.
+CREATE OR REPLACE FUNCTION public.get_my_account_status()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $function$
-BEGIN
-  -- Só bloqueia pedidos diretos da app; funções do servidor
-  -- (erase_account_data, por exemplo) correm como dono e passam.
-  IF current_user IN ('authenticated', 'anon')
-     AND (NEW.id                IS DISTINCT FROM OLD.id
-       OR NEW.created_at        IS DISTINCT FROM OLD.created_at
-       OR NEW.deleted_at        IS DISTINCT FROM OLD.deleted_at
-       OR NEW.suspended_at      IS DISTINCT FROM OLD.suspended_at
-       OR NEW.suspended_reason  IS DISTINCT FROM OLD.suspended_reason
-       OR NEW.suspended_message IS DISTINCT FROM OLD.suspended_message
-       OR NEW.closing_at        IS DISTINCT FROM OLD.closing_at
-       OR NEW.closing_reason    IS DISTINCT FROM OLD.closing_reason
-       OR NEW.closing_message   IS DISTINCT FROM OLD.closing_message)
-  THEN
-    RAISE EXCEPTION 'Estes dados do perfil não se podem alterar.';
-  END IF;
-  RETURN NEW;
-END;
+  SELECT COALESCE((
+    SELECT jsonb_build_object(
+      'suspended_at', s.suspended_at, 'suspended_message', s.suspended_message,
+      'closing_at', s.closing_at, 'closing_message', s.closing_message)
+    FROM account_status s WHERE s.profile_id = auth.uid()), '{}'::jsonb);
 $function$;
-
--- Perfil criado pela app nasce sem suspensão nem encerramento.
-CREATE OR REPLACE FUNCTION public.profiles_clear_account_flags()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $function$
-BEGIN
-  IF current_user IN ('authenticated', 'anon') THEN
-    NEW.suspended_at := NULL; NEW.suspended_reason := NULL; NEW.suspended_message := NULL;
-    NEW.closing_at := NULL;   NEW.closing_reason := NULL;   NEW.closing_message := NULL;
-  END IF;
-  RETURN NEW;
-END;
-$function$;
-DROP TRIGGER IF EXISTS trg_profiles_clear_account_flags ON public.profiles;
-CREATE TRIGGER trg_profiles_clear_account_flags
-  BEFORE INSERT ON public.profiles
-  FOR EACH ROW EXECUTE FUNCTION public.profiles_clear_account_flags();
+REVOKE EXECUTE ON FUNCTION public.get_my_account_status() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_account_status() TO authenticated, service_role;
 
 
 -- ── 2. Conta suspensa não age ───────────────────────────────────
@@ -99,7 +81,7 @@ STABLE
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
-  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = p_uid AND suspended_at IS NOT NULL);
+  SELECT EXISTS (SELECT 1 FROM account_status WHERE profile_id = p_uid AND suspended_at IS NOT NULL);
 $function$;
 REVOKE EXECUTE ON FUNCTION public.is_account_suspended(uuid) FROM PUBLIC, anon, authenticated;
 
@@ -152,7 +134,7 @@ BEGIN
 END $$;
 
 -- Cartão público e pedidos novos da zona: sem contas suspensas.
--- (Iguais à 0074 e à 0070, mais p.suspended_at IS NULL.)
+-- (Iguais à 0074 e à 0070, mais "não suspenso".)
 CREATE OR REPLACE FUNCTION public.worker_can_use_public_card(p_worker_id uuid)
  RETURNS boolean
  LANGUAGE sql
@@ -165,7 +147,8 @@ AS $function$
     JOIN   profiles p ON p.id = wp.profile_id
     WHERE  wp.profile_id = p_worker_id
       AND  p.deleted_at IS NULL
-      AND  p.suspended_at IS NULL
+      AND  NOT EXISTS (SELECT 1 FROM account_status s
+                       WHERE s.profile_id = p.id AND s.suspended_at IS NOT NULL)
   );
 $function$;
 
@@ -182,8 +165,9 @@ AS $function$
   FROM   worker_profiles wp
   JOIN   profiles p ON p.id = wp.profile_id
                    AND p.deleted_at IS NULL
-                   AND p.suspended_at IS NULL
-  WHERE  wp.profile_id <> p_job.client_id
+  WHERE  NOT EXISTS (SELECT 1 FROM account_status s
+                     WHERE s.profile_id = wp.profile_id AND s.suspended_at IS NOT NULL)
+    AND  wp.profile_id <> p_job.client_id
     AND  NOT (wp.profile_id = ANY(COALESCE(p_job.excluded_worker_ids, '{}'::uuid[])))
     AND  (
            EXISTS (SELECT 1 FROM worker_service_types wst
@@ -249,12 +233,15 @@ DECLARE
   r       record;
   v_open  integer;
 BEGIN
-  UPDATE profiles
-  SET suspended_at      = now(),
-      suspended_reason  = p_reason,
-      suspended_message = p_message,
-      updated_at        = now()
-  WHERE id = p_uid AND suspended_at IS NULL AND deleted_at IS NULL;
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = p_uid AND deleted_at IS NULL) THEN
+    RETURN 0;
+  END IF;
+  INSERT INTO account_status (profile_id, suspended_at, suspended_reason, suspended_message)
+  VALUES (p_uid, now(), p_reason, p_message)
+  ON CONFLICT (profile_id) DO UPDATE
+    SET suspended_at = now(), suspended_reason = p_reason,
+        suspended_message = p_message, updated_at = now()
+    WHERE account_status.suspended_at IS NULL;
   IF NOT FOUND THEN
     RETURN 0;
   END IF;
@@ -357,7 +344,7 @@ BEGIN
   IF NOT FOUND OR v_profile.deleted_at IS NOT NULL THEN
     RAISE EXCEPTION 'Conta não encontrada ou eliminada.';
   END IF;
-  IF v_profile.suspended_at IS NOT NULL THEN
+  IF public.is_account_suspended(p_target_id) THEN
     RAISE EXCEPTION 'Esta conta já está suspensa.';
   END IF;
 
@@ -380,32 +367,32 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 DECLARE
-  v_profile profiles;
+  v_status account_status;
 BEGIN
   PERFORM public.assert_verified_admin();
   IF length(btrim(COALESCE(p_note, ''))) < 5 THEN
     RAISE EXCEPTION 'Escreve uma nota com o motivo (5 carateres ou mais).';
   END IF;
-  SELECT * INTO v_profile FROM profiles WHERE id = p_target_id FOR UPDATE;
-  IF NOT FOUND OR v_profile.suspended_at IS NULL THEN
+  SELECT * INTO v_status FROM account_status WHERE profile_id = p_target_id FOR UPDATE;
+  IF NOT FOUND OR v_status.suspended_at IS NULL THEN
     RAISE EXCEPTION 'Esta conta não está suspensa.';
   END IF;
 
-  UPDATE profiles
+  UPDATE account_status
   SET suspended_at = NULL, suspended_reason = NULL, suspended_message = NULL,
       -- Um encerramento já cumprido não volta a disparar.
-      closing_at = CASE WHEN closing_at <= now() THEN NULL ELSE closing_at END,
-      closing_reason = CASE WHEN closing_at <= now() THEN NULL ELSE closing_reason END,
+      closing_at      = CASE WHEN closing_at <= now() THEN NULL ELSE closing_at END,
+      closing_reason  = CASE WHEN closing_at <= now() THEN NULL ELSE closing_reason END,
       closing_message = CASE WHEN closing_at <= now() THEN NULL ELSE closing_message END,
       updated_at = now()
-  WHERE id = p_target_id;
+  WHERE profile_id = p_target_id;
 
   INSERT INTO notifications (user_id, type, title, body)
   VALUES (p_target_id, 'support_notice', 'Conta reativada',
           'A tua conta ProJardim voltou a estar ativa.');
 
   PERFORM public.admin_log('reactivate_user', p_target_id, jsonb_build_object(
-    'note', btrim(p_note), 'suspended_reason', v_profile.suspended_reason));
+    'note', btrim(p_note), 'suspended_reason', v_status.suspended_reason));
 END;
 $function$;
 REVOKE EXECUTE ON FUNCTION public.admin_reactivate_user(uuid, text) FROM PUBLIC, anon;
@@ -440,16 +427,17 @@ BEGIN
   IF NOT FOUND OR v_profile.deleted_at IS NOT NULL THEN
     RAISE EXCEPTION 'Conta não encontrada ou eliminada.';
   END IF;
-  IF v_profile.suspended_at IS NOT NULL THEN
+  IF public.is_account_suspended(p_target_id) THEN
     RAISE EXCEPTION 'Esta conta já está suspensa.';
   END IF;
-  IF v_profile.closing_at IS NOT NULL THEN
+  IF EXISTS (SELECT 1 FROM account_status WHERE profile_id = p_target_id AND closing_at IS NOT NULL) THEN
     RAISE EXCEPTION 'Já há um encerramento marcado para esta conta.';
   END IF;
 
-  UPDATE profiles
-  SET closing_at = v_at, closing_reason = p_reason, closing_message = v_msg, updated_at = now()
-  WHERE id = p_target_id;
+  INSERT INTO account_status (profile_id, closing_at, closing_reason, closing_message)
+  VALUES (p_target_id, v_at, p_reason, v_msg)
+  ON CONFLICT (profile_id) DO UPDATE
+    SET closing_at = v_at, closing_reason = p_reason, closing_message = v_msg, updated_at = now();
 
   INSERT INTO notifications (user_id, type, title, body)
   VALUES (p_target_id, 'support_notice', 'Aviso de encerramento da conta',
@@ -478,9 +466,9 @@ BEGIN
   IF length(btrim(COALESCE(p_note, ''))) < 5 THEN
     RAISE EXCEPTION 'Escreve uma nota com o motivo (5 carateres ou mais).';
   END IF;
-  UPDATE profiles
+  UPDATE account_status
   SET closing_at = NULL, closing_reason = NULL, closing_message = NULL, updated_at = now()
-  WHERE id = p_target_id AND closing_at IS NOT NULL AND suspended_at IS NULL;
+  WHERE profile_id = p_target_id AND closing_at IS NOT NULL AND suspended_at IS NULL;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Esta conta não tem encerramento marcado.';
   END IF;
@@ -509,9 +497,10 @@ BEGIN
   IF auth.uid() IS NOT NULL THEN
     RAISE EXCEPTION 'Esta função é apenas para execução via cron.';
   END IF;
-  FOR r IN SELECT id, closing_reason, closing_message FROM profiles
-           WHERE closing_at <= now() AND suspended_at IS NULL AND deleted_at IS NULL
-           FOR UPDATE SKIP LOCKED
+  FOR r IN SELECT s.profile_id AS id, s.closing_reason, s.closing_message
+           FROM account_status s JOIN profiles p ON p.id = s.profile_id
+           WHERE s.closing_at <= now() AND s.suspended_at IS NULL AND p.deleted_at IS NULL
+           FOR UPDATE OF s SKIP LOCKED
   LOOP
     PERFORM public.account_suspend_core(
       r.id, COALESCE(r.closing_reason, 'other'),
@@ -848,6 +837,8 @@ BEGIN
     'about', 'Dados guardados pela ProJardim sobre esta conta. Datas em UTC.',
     'account', COALESCE(v_auth, '{}'::jsonb),
     'profile', (SELECT to_jsonb(p) - 'id' FROM profiles p WHERE p.id = p_target_id),
+    'account_status', (SELECT to_jsonb(s) - 'profile_id' FROM account_status s
+                       WHERE s.profile_id = p_target_id),
     'worker_profile', (SELECT to_jsonb(w) - 'profile_id' FROM worker_profiles w
                        WHERE w.profile_id = p_target_id),
     'worker_services', COALESCE((SELECT jsonb_agg(st.name ORDER BY st.name)
@@ -1022,6 +1013,7 @@ SET search_path TO 'public'
 AS $function$
 DECLARE
   v_p    profiles;
+  v_s    account_status;
   v_auth record;
   v_out  jsonb;
 BEGIN
@@ -1030,13 +1022,14 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Conta não encontrada.';
   END IF;
+  SELECT * INTO v_s FROM account_status WHERE profile_id = p_target_id;
 
   v_out := jsonb_build_object(
     'id', v_p.id, 'role', v_p.role, 'deleted_at', v_p.deleted_at,
-    'suspended_at', v_p.suspended_at, 'suspended_reason', v_p.suspended_reason,
-    'suspended_message', v_p.suspended_message,
-    'closing_at', v_p.closing_at, 'closing_reason', v_p.closing_reason,
-    'closing_message', v_p.closing_message,
+    'suspended_at', v_s.suspended_at, 'suspended_reason', v_s.suspended_reason,
+    'suspended_message', v_s.suspended_message,
+    'closing_at', v_s.closing_at, 'closing_reason', v_s.closing_reason,
+    'closing_message', v_s.closing_message,
     'avatar_url', v_p.avatar_url,
     'portfolio', COALESCE((SELECT to_jsonb(photos) FROM worker_profiles
                            WHERE profile_id = p_target_id), '[]'::jsonb),
@@ -1132,11 +1125,12 @@ BEGIN
   UNION ALL
   SELECT 'worker'::text, wp.profile_id, wp.base_lat::double precision, wp.base_lng::double precision,
          LEAST(GREATEST(wp.radius_km, 1), 50), COALESCE(p.full_name, 'Jardineiro'),
-         CASE WHEN p.suspended_at IS NOT NULL THEN 'suspended' ELSE 'active' END,
+         CASE WHEN s.suspended_at IS NOT NULL THEN 'suspended' ELSE 'active' END,
          NULL::text, COALESCE(pl.tier, 'free'), p.created_at
   FROM worker_profiles wp
   JOIN profiles p ON p.id = wp.profile_id AND p.deleted_at IS NULL
   LEFT JOIN worker_plans pl ON pl.worker_id = wp.profile_id
+  LEFT JOIN account_status s ON s.profile_id = wp.profile_id
   WHERE NOT (wp.base_lat = 0 AND wp.base_lng = 0);
 END;
 $function$;

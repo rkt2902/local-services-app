@@ -77,10 +77,12 @@ select count(*) as acts0 from admin_actions \gset
 -- ── Colunas novas só o servidor muda ──
 set role authenticated;
 select t_as(:'C5');
-select audit.err('T-ACC-01 a pessoa não mexe na própria suspensão',
-  format($q$update profiles set suspended_at = now() where id = %L$q$, :'C5'), 'não se podem alterar');
-select audit.err('T-ACC-02 a pessoa não marca o próprio encerramento',
-  format($q$update profiles set closing_at = now() where id = %L$q$, :'C5'), 'não se podem alterar');
+select audit.err('T-ACC-01 a pessoa não lê nem mexe no estado da conta',
+  $q$select count(*) from account_status$q$, 'permission denied');
+select audit.err('T-ACC-02 a pessoa não se marca como ativa',
+  format($q$insert into account_status(profile_id) values (%L)$q$, :'C5'), 'permission denied');
+select audit.eq('T-ACC-03 sem estado, a app recebe objeto vazio',
+  $q$select get_my_account_status()::text$q$, '{}');
 reset role;
 
 -- ── Recusas: sem sessão, utilizador normal, admin sem aal2 ──
@@ -110,7 +112,8 @@ select audit.err('T-ACC-12 admin sem segundo fator: ' || name, sql, 'Sem acesso'
 reset role;
 select audit.eq('T-ACC-13 recusas não mudam nada',
   format($q$select (select count(*) from admin_actions) || ':' ||
-     (select count(*) from profiles where id in (%L, %L, %L) and suspended_at is null and closing_at is null and deleted_at is null)
+     (select count(*) from profiles p where id in (%L, %L, %L) and deleted_at is null
+        and not exists (select 1 from account_status s where s.profile_id = p.id))
      || ':' || (select avatar_url from profiles where id = %L)$q$, :'W5', :'W6', :'C6', :'C5'),
   :'acts0' || ':3:https://x/avatars/c5.jpg');
 
@@ -138,7 +141,7 @@ select audit.eq('T-ACC-23 suspender devolve os trabalhos aceites por decidir',
   format($q$select admin_suspend_user(%L, 'terms_violation', 'Três queixas de faltas.', 'Faltaste a três trabalhos marcados.')::text$q$, :'W5'), '1');
 reset role;
 select audit.eq('T-ACC-24 fica suspenso com motivo e mensagem',
-  format($q$select suspended_reason || ':' || suspended_message from profiles where id = %L and suspended_at is not null$q$, :'W5'),
+  format($q$select suspended_reason || ':' || suspended_message from account_status where profile_id = %L and suspended_at is not null$q$, :'W5'),
   'terms_violation:Faltaste a três trabalhos marcados.');
 select audit.eq('T-ACC-25 propostas pendentes dele retiradas e contadores certos',
   format($q$select string_agg(jp.status || '/' || jr.proposal_count, ',' order by jr.description)
@@ -196,8 +199,8 @@ select t_as(:'C5');
 select audit.err('T-ACC-44 cliente suspensa não cria pedidos',
   format($q$insert into job_requests(client_id, service_type_id, address_text, location_lat, location_lng, description, status, date_mode)
      values (%L, %L, 'x', 38.72, -9.14, 'x', 'open', 'flexible')$q$, :'C5', :'st'), 'suspensa');
-select audit.eq('T-ACC-45 a app lê o próprio estado',
-  format($q$select (suspended_at is not null)::text from profiles where id = %L$q$, :'C5'), 'true');
+select audit.eq('T-ACC-45 a app lê o próprio estado, sem o motivo interno',
+  $q$select (s ? 'suspended_at')::text || ':' || (s ? 'suspended_reason') from get_my_account_status() s$q$, 'true:false');
 reset role;
 
 -- ── Reativar ──
@@ -210,7 +213,7 @@ reset role;
 select audit.eq('T-ACC-53 volta ao normal e é avisado',
   format($q$select (suspended_at is null and suspended_reason is null)::text || ':' || worker_can_use_public_card(%L)
      || ':' || (select count(*) from notifications where user_id = %L and title = 'Conta reativada')
-     from profiles where id = %L$q$, :'W5', :'W5', :'W5'), 'true:true:1');
+     from account_status where profile_id = %L$q$, :'W5', :'W5', :'W5'), 'true:true:1');
 set role authenticated;
 select t_as(:'W5');
 select audit.ok('T-ACC-54 reativado volta a propor',
@@ -226,10 +229,10 @@ select audit.err('T-ACC-61 não se marca duas vezes',
   format($q$select admin_schedule_closure(%L, 'other', 'nota de teste')$q$, :'W6'), 'Já há um encerramento');
 reset role;
 select audit.eq('T-ACC-62 aviso com a data e a mensagem; a conta continua ativa',
-  format($q$select (suspended_at is null)::text || ':' ||
+  format($q$select (not is_account_suspended(%L))::text || ':' ||
      (select count(*) from notifications where user_id = %L and title = 'Aviso de encerramento da conta'
-        and body like '%%' || to_char(now() + interval '30 days', 'DD/MM/YYYY') || '. O perfil tem dados falsos.%%')
-     from profiles where id = %L$q$, :'W6', :'W6'), 'true:1');
+        and body like '%%' || to_char(now() + interval '30 days', 'DD/MM/YYYY') || '. O perfil tem dados falsos.%%')$q$,
+     :'W6', :'W6'), 'true:1');
 set role authenticated;
 select t_aal2(:'AD');
 select audit.ok('T-ACC-63 cancelar o encerramento', format($q$select admin_cancel_closure(%L, 'Corrigiu o perfil.')$q$, :'W6'));
@@ -238,19 +241,19 @@ select audit.ok('T-ACC-65 marcar outra vez', format($q$select admin_schedule_clo
 reset role;
 select t_as('');
 select audit.eq('T-ACC-66 o cron não faz nada antes da data', $q$select process_account_closures()::text$q$, '0');
-update profiles set closing_at = now() - interval '1 minute' where id = :'W6';
+update account_status set closing_at = now() - interval '1 minute' where profile_id = :'W6';
 select audit.eq('T-ACC-67 na data, o cron suspende', $q$select process_account_closures()::text$q$, '1');
 select audit.eq('T-ACC-68 suspensa com o motivo do aviso e registo de sistema',
   format($q$select suspended_reason || ':' ||
      (select count(*) from admin_actions where action = 'closure_done' and target_id = %L and admin_id is null)
-     from profiles where id = %L$q$, :'W6', :'W6'), 'terms_violation:1');
+     from account_status where profile_id = %L$q$, :'W6', :'W6'), 'terms_violation:1');
 select audit.eq('T-ACC-69 o cron corre outra vez sem repetir', $q$select process_account_closures()::text$q$, '0');
 set role authenticated;
 select t_aal2(:'AD');
 select audit.ok('T-ACC-70 reativar depois do encerramento', format($q$select admin_reactivate_user(%L, 'Acordo por email.')$q$, :'W6'));
 reset role;
 select audit.eq('T-ACC-71 o encerramento já cumprido não volta a disparar',
-  format($q$select (closing_at is null and suspended_at is null)::text from profiles where id = %L$q$, :'W6'), 'true');
+  format($q$select (closing_at is null and suspended_at is null)::text from account_status where profile_id = %L$q$, :'W6'), 'true');
 select audit.eq('T-ACC-72 o cron diário está marcado',
   $q$select count(*)::text from cron.job where jobname = 'account-closures' and command = 'SELECT process_account_closures()'$q$, '1');
 
