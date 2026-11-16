@@ -14,6 +14,7 @@ Resultados e explicação em `docs/systematic-debugging-audit/` (03, 04 e 07).
 - `40_help_slot_race.sh` (13/11): última vaga de ajudante disputada por dois candidatos (RACE-06) e aceitar enquanto se mudam as vagas (RACE-07). Corre depois do `10_flows.sql`.
 - `50_admin_support.sql` (13/11, 0078): painel de suporte. Volta a correr a 0078 para provar o preenchimento dos pedidos antigos, eventos novos (cliente, sistema), e cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (51 asserções). Corre depois do `10_flows.sql`.
 - `60_admin_resolve.sql` (16/11, 0079): painel de suporte, fase B. Casos com prazos em dias úteis, reportes, cancelar/reabrir/corrigir estado pelo suporte, ocultar e repor avaliações e fotos, notas internas e registo. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator; cada ação com motivo, nota, registo e aviso (132 asserções). Corre depois do `10_flows.sql`.
+- `70_admin_accounts.sql` (16/11, 0080): painel de suporte, fase C. Suspender e reativar (pedidos abertos fecham, propostas saem, trabalhos aceites ficam), conta suspensa não age mas pode eliminar-se, encerramento com aviso de 30 dias e cron, exportar dados, eliminar a pedido com a lista de ficheiros, fotos de perfil e portefólio, reenviar código, mapa. Cada RPC nova recusada sem sessão, a utilizador normal e a admin sem segundo fator (108 asserções). Corre depois do `10_flows.sql`. O `T-SUP-42` do 50 passa a abrir exceção para `admin_export_user_data` (a Agenda vai na exportação).
 - `run.sh`: monta a BD `pj_audit` e corre o `10_flows.sql`.
 
 ## Como correr
@@ -33,6 +34,7 @@ bash 20_concurrency.sh
 bash 40_help_slot_race.sh
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 50_admin_support.sql  # depois de um run.sh keep novo
 psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 60_admin_resolve.sql  # idem
+psql -h /var/tmp -p 5433 -U postgres -d pj_audit -f 70_admin_accounts.sql  # idem
 ```
 
 No `10_flows.sql` e no `20_concurrency.sh`, cada asserção descreve o comportamento **certo**. Com a 0074 passam todas (162/162 e RACE-01 a RACE-04); qualquer `FAIL` é uma regressão.
