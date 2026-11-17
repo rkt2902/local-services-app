@@ -2,7 +2,7 @@
 -- 0079 — Painel de admin para suporte, fase B (Resolver)
 -- ══════════════════════════════════════════════════════════════
 --
--- NÃO APLICADA. Aplicar à mão no SQL Editor do Supabase, depois da 0078.
+-- APLICADA na BD viva (17/11/2026, Henrique).
 -- Pode correr-se mais do que uma vez sem erro.
 --
 -- O que faz:
