@@ -1,6 +1,6 @@
 # ProJardim: Política de Privacidade
 
-**Última atualização:** 13 de novembro de 2026
+**Última atualização:** 17 de novembro de 2026
 
 Esta Política explica que dados pessoais a ProJardim recolhe, para que os usa, com quem os partilha, durante quanto tempo os guarda e que direitos tens sobre eles. Aplica-se à aplicação ProJardim (Android, iOS e versão web) e a qualquer página associada.
 
@@ -85,9 +85,11 @@ Se quem visitou criar uma conta de Cliente no mesmo dispositivo nos 7 dias segui
 
 Se um Jardineiro aderir ao plano Pro ou Pro+, guardamos o plano, as datas de início e de fim, a data em que confirmámos a identidade e notas internas sobre o acordo. O contrato e o pagamento do plano são feitos fora da app; os dados de faturação são tratados nesse âmbito e guardados pelo prazo que a lei fiscal exige.
 
+Nos **Parceiros** (descontos para Jardineiros), registamos quando abres um parceiro, copias o código de desconto ou abres o link ou o mapa, para sabermos que parceiros são úteis e prestarmos contas a cada parceiro em números totais. Os parceiros nunca recebem o teu nome nem os teus contactos. Para te mostrar os mais próximos, a app usa a distância à tua base de trabalho, já guardada no teu perfil.
+
 ### 3.10 Pedidos de suporte e administração
 
-Quando nos escreves, guardamos a tua mensagem e a nossa resposta. Para te ajudar, a equipa da ProJardim pode consultar os dados da tua conta, dos teus pedidos e dos teus trabalhos (incluindo fotografias) num painel de administração com acesso restrito, protegido por palavra-passe e por um segundo fator de autenticação. Cada ação feita nesse painel fica registada, com quem a fez e quando.
+Quando nos escreves, guardamos a tua mensagem e a nossa resposta. Para te ajudar, a equipa da ProJardim pode consultar os dados da tua conta, dos teus pedidos e dos teus trabalhos (incluindo fotografias) num painel de administração com acesso restrito, protegido por palavra-passe e por um segundo fator de autenticação. Cada ação feita nesse painel fica registada, com quem a fez e quando. Se uma conta for suspensa ou encerrada (ver os Termos, secção 12), guardamos o estado, o motivo e as datas, e mostramos-te o motivo quando entras.
 
 ### 3.11 O que NÃO recolhemos
 
