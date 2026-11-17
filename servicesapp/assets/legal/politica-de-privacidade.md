@@ -89,7 +89,7 @@ Nos **Parceiros** (descontos para Jardineiros), registamos quando abres um parce
 
 ### 3.10 Pedidos de suporte e administração
 
-Quando nos escreves, guardamos a tua mensagem e a nossa resposta. Para te ajudar, a equipa da ProJardim pode consultar os dados da tua conta, dos teus pedidos e dos teus trabalhos (incluindo fotografias) num painel de administração com acesso restrito, protegido por palavra-passe e por um segundo fator de autenticação. Cada ação feita nesse painel fica registada, com quem a fez e quando. Se uma conta for suspensa ou encerrada (ver os Termos, secção 12), guardamos o estado, o motivo e as datas, e mostramos-te o motivo quando entras.
+Quando nos escreves, guardamos a tua mensagem e a nossa resposta. Para te ajudar, a equipa da ProJardim pode consultar os dados da tua conta, dos teus pedidos e dos teus trabalhos (incluindo fotografias) num painel de administração com acesso restrito, protegido por palavra-passe e por um segundo fator de autenticação. Cada ação feita nesse painel fica registada, com quem a fez e quando. Se uma conta for suspensa ou encerrada (ver os Termos, secção 12), guardamos o estado, as datas, o motivo interno e a mensagem que te mostramos quando entras na app.
 
 ### 3.11 O que NÃO recolhemos
 
