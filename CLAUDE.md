@@ -44,8 +44,8 @@ relevantes para a tarefa em concreto, não todos de cada vez:
 - **Motion obrigatório em ecrãs novos** — ver `servicesapp/docs/motion_spec.md` e os
   widgets em `core/widgets/app_motion.dart`.
 - **Ecrãs de sub-fluxo ficam fora dos `ShellRoute`**, com `SafeArea` própria — só os
-  8 ecrãs de topo (4 em `ClientShell`, 4 em `WorkerShell`, mais "Parceiros" no
-  `WorkerShell` quando há parceiros) mostram a bottom nav.
+  8 ecrãs de topo (4 em `ClientShell`, 4 em `WorkerShell`) mostram a bottom nav.
+  A bottom nav tem sempre 4 destinos; "Parceiros" abre pelo "+" e pelo Perfil.
 - **`doc.txt`** (raiz do workspace) é referência para adaptar, nunca para copiar
   literalmente, e não se apaga.
 - **Serviços e categorias vêm sempre de `serviceTypesProvider`**, nunca hardcoded —

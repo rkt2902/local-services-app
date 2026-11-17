@@ -31,7 +31,8 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
 
-    // Quinto botão "Parceiros" só quando há parceiros para mostrar (0082).
+    // "Parceiros" no "+" só quando há parceiros para mostrar (0082). Vigiado
+    // aqui para a folha já abrir com a entrada certa.
     final showPartners = ref.watch(hasPartnersProvider);
     // Plano novo (ex.: passou a Pro+): os códigos dos parceiros mudam.
     ref.listen(myWorkerPlanProvider.select((plan) => plan.asData?.value.tier), (
@@ -42,7 +43,7 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
         ref.invalidate(partnersProvider);
       }
     });
-    final routes = workerShellRoutes(showPartners: showPartners);
+    const routes = workerShellRoutes;
     final selectedIndex = workerShellIndex(location, routes);
     // Vigiado aqui (não só lido ao tocar no "+") para já estar carregado
     // quando a folha abre.
@@ -53,8 +54,11 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
       selectedIndex: selectedIndex,
       centralActionActive: _quickActionsOpen,
       onItemSelected: (index) => context.go(routes[index]),
-      onCentralActionPressed: () =>
-          _showQuickActionsSheet(context, fleetActive: fleetActive),
+      onCentralActionPressed: () => _showQuickActionsSheet(
+        context,
+        fleetActive: fleetActive,
+        showPartners: showPartners,
+      ),
       items: [
         const AppBottomNavigationItem(
           label: 'Início',
@@ -71,12 +75,6 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
           icon: Icons.event_note_outlined,
           selectedIcon: Icons.event_note_rounded,
         ),
-        if (showPartners)
-          const AppBottomNavigationItem(
-            label: 'Parceiros',
-            icon: Icons.storefront_outlined,
-            selectedIcon: Icons.storefront_rounded,
-          ),
         const AppBottomNavigationItem(
           label: 'Perfil',
           icon: Icons.person_outline_rounded,
@@ -89,10 +87,11 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
 
   /// Botão central: atalhos (design U2). A folha fecha antes de navegar,
   /// para a navegação nunca acontecer por baixo da modal. O Cartão frota só
-  /// aparece com o cartão ativo.
+  /// aparece com o cartão ativo e os Parceiros só quando há parceiros.
   Future<void> _showQuickActionsSheet(
     BuildContext context, {
     required bool fleetActive,
+    required bool showPartners,
   }) async {
     setState(() => _quickActionsOpen = true);
     await showModalBottomSheet<void>(
@@ -105,6 +104,7 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
       ),
       builder: (sheetContext) => WorkerQuickActionsSheet(
         showFleetCard: fleetActive,
+        showPartners: showPartners,
         onFindWork: () {
           Navigator.pop(sheetContext);
           context.go('/worker/available-jobs');
@@ -124,6 +124,10 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
         onOpenFleetCard: () {
           Navigator.pop(sheetContext);
           context.push('/worker/fleet-card');
+        },
+        onOpenPartners: () {
+          Navigator.pop(sheetContext);
+          context.push('/worker/partners');
         },
       ),
     );
@@ -152,13 +156,12 @@ class _WorkerShellState extends ConsumerState<WorkerShell> {
   }
 }
 
-/// Rotas dos botões do menu do jardineiro, pela ordem. "Parceiros" fica
-/// antes do Perfil e só existe quando há parceiros.
-List<String> workerShellRoutes({required bool showPartners}) => [
+/// Rotas dos botões do menu do jardineiro, pela ordem. Os Parceiros não
+/// têm botão: abrem pelo "+" e pelo Perfil, fora do shell.
+const workerShellRoutes = [
   '/worker/home',
   '/worker/available-jobs',
   '/worker/jobs',
-  if (showPartners) '/worker/partners',
   '/worker/profile',
 ];
 

@@ -3,6 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-17 — Parceiros saem da barra de baixo
+
+- **Decisão:** "Parceiros" deixa de ser o quinto botão da barra do jardineiro. Passa a
+  ser uma entrada no "+" (depois do Cartão frota) e continua no Perfil, ambas só
+  quando há parceiros. `/worker/partners` sai do `ShellRoute` e ganha botão de voltar.
+  A barra volta a aceitar só 4 destinos.
+- **Motivo:** o Henrique achou que o quinto botão ficava mal na barra.
+
 ## 2026-11-16 — Login Google feito pela app (sem supabase.co à vista)
 
 - **Decisão:** o login Google passa a ser feito pela própria app (folha nativa no

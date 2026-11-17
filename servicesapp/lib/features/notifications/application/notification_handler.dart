@@ -336,7 +336,7 @@ class NotificationHandler {
         // lista outra vez (regra T4); o ecrã espera pela lista nova.
         final partnerId = notification.relatedId;
         if (partnerId == null) {
-          context.go('/worker/partners');
+          context.push('/worker/partners');
         } else {
           context.push('/worker/partners/$partnerId');
         }

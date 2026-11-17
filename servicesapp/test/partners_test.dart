@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
-import 'package:servicesapp/core/widgets/app_bottom_navigation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:servicesapp/features/notifications/application/notification_presentation.dart';
 import 'package:servicesapp/features/notifications/data/notification_types.dart';
@@ -12,6 +11,7 @@ import 'package:servicesapp/features/partners/data/partner_repository.dart';
 import 'package:servicesapp/features/partners/presentation/partner_detail_screen.dart';
 import 'package:servicesapp/features/partners/presentation/partners_screen.dart';
 import 'package:servicesapp/features/partners/presentation/widgets/partner_detail_view.dart';
+import 'package:servicesapp/features/worker/presentation/widgets/worker_quick_actions_sheet.dart';
 import 'package:servicesapp/features/worker/presentation/worker_shell.dart';
 
 // Parceiros na app do jardineiro (0082): o ecrã de cada parceiro só mostra
@@ -335,79 +335,42 @@ void main() {
   });
 
   group('menu do jardineiro', () {
-    test('"Parceiros" só existe com parceiros, antes do Perfil', () {
-      final without = workerShellRoutes(showPartners: false);
-      final withPartners = workerShellRoutes(showPartners: true);
-      expect(without, hasLength(4));
-      expect(withPartners, hasLength(5));
-      expect(withPartners[3], '/worker/partners');
-      expect(withPartners.last, '/worker/profile');
-      expect(workerShellIndex('/worker/partners', withPartners), 3);
-      expect(workerShellIndex('/worker/profile', withPartners), 4);
-      expect(workerShellIndex('/worker/profile', without), 3);
-      expect(workerShellIndex('/worker/jobs', withPartners), 2);
-      expect(workerShellIndex('/worker/job/1', withPartners), 0);
-      // Sem o botão (parceiros desapareceram): volta ao Início.
-      expect(workerShellIndex('/worker/partners', without), 0);
+    test('Parceiros não têm botão na barra', () {
+      expect(workerShellRoutes, hasLength(4));
+      expect(workerShellRoutes, isNot(contains('/worker/partners')));
+      expect(workerShellIndex('/worker/profile', workerShellRoutes), 3);
+      expect(workerShellIndex('/worker/partners', workerShellRoutes), 0);
     });
 
-    testWidgets('cinco botões cabem num telemóvel pequeno', (tester) async {
-      tester.view.physicalSize = const Size(320, 640);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      int? selected;
-      var central = false;
+    Future<List<String>> pumpSheet(
+      WidgetTester tester, {
+      required bool showPartners,
+    }) async {
+      final opened = <String>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            bottomNavigationBar: AppBottomNavigation(
-              selectedIndex: 3,
-              onItemSelected: (i) => selected = i,
-              onCentralActionPressed: () => central = true,
-              items: const [
-                AppBottomNavigationItem(
-                  label: 'Início',
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home_rounded,
-                ),
-                AppBottomNavigationItem(
-                  label: 'Pedidos',
-                  icon: Icons.work_outline_rounded,
-                  selectedIcon: Icons.work_rounded,
-                ),
-                AppBottomNavigationItem(
-                  label: 'Trabalhos',
-                  icon: Icons.event_note_outlined,
-                  selectedIcon: Icons.event_note_rounded,
-                ),
-                AppBottomNavigationItem(
-                  label: 'Parceiros',
-                  icon: Icons.storefront_outlined,
-                  selectedIcon: Icons.storefront_rounded,
-                ),
-                AppBottomNavigationItem(
-                  label: 'Perfil',
-                  icon: Icons.person_outline_rounded,
-                  selectedIcon: Icons.person_rounded,
-                ),
-              ],
+            body: WorkerQuickActionsSheet(
+              showPartners: showPartners,
+              onFindWork: () => opened.add('find'),
+              onOpenHelpRequests: () => opened.add('help'),
+              onOpenFleetCard: () => opened.add('fleet'),
+              onOpenPartners: () => opened.add('partners'),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.text('Parceiros'), findsOneWidget);
-      await tester.tap(find.text('Perfil'));
-      expect(selected, 4);
-      await tester.tap(find.text('Pedidos'));
-      expect(selected, 1);
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      expect(central, isTrue);
-      // O "+" fica entre o segundo e o terceiro botão.
-      final plus = tester.getCenter(find.byIcon(Icons.add_rounded)).dx;
-      expect(plus, greaterThan(tester.getCenter(find.text('Pedidos')).dx));
-      expect(plus, lessThan(tester.getCenter(find.text('Trabalhos')).dx));
+      return opened;
+    }
+
+    testWidgets('"+" mostra Parceiros só quando há parceiros', (tester) async {
+      await pumpSheet(tester, showPartners: false);
+      expect(find.text('Parceiros'), findsNothing);
+
+      final opened = await pumpSheet(tester, showPartners: true);
+      await tester.tap(find.text('Parceiros'));
+      expect(opened, ['partners']);
     });
   });
 }

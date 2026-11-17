@@ -132,8 +132,8 @@
   jardineiros cobrem e quantos pedidos há a 10 km). "Ver como na app" mostra o ecrã
   antes de gravar. No Mapa, camadas "Zonas sem resposta", "Densidade de jardineiros" e
   "Parceiros", e a lista "Zonas a reforçar". Aprovar não exige Pro+ (o painel avisa).
-- Tab "Parceiros" do jardineiro (0082, **por aplicar**): quinto botão no menu de baixo
-  e entrada no Perfil, só quando há parceiros visíveis. Lista com um banner por
+- "Parceiros" do jardineiro (0082, **por aplicar**): entrada no "+" da barra e no
+  Perfil, só quando há parceiros visíveis (desde 17/11 sem botão próprio na barra). Lista com um banner por
   parceiro; o ecrã de cada um só mostra o que está preenchido no painel. Quem não é
   Pro+ vê os parceiros só-Pro+ com o aviso "Disponível no Pro+" e sem códigos (a BD
   não os envia). A 0082 traz um "Parceiro de exemplo" (notas "MOCK") para ver o
