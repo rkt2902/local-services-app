@@ -25,3 +25,6 @@
 **/GoogleService-Info.plist
 *firebase-adminsdk*.json
 *service-account*.json
+
+# Configuração do build de release (--dart-define-from-file)
+servicesapp/release.json
