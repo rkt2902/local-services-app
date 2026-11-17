@@ -1,10 +1,10 @@
 # supabase/migrations
 
-## Estado a 2026-11-12
+## Estado a 2026-11-13
 
-**Todas as migrations deste diretório estão aplicadas na BD viva** (projeto
+**As migrations até à `0077` estão aplicadas na BD viva** (projeto
 `twpflvcoyeiysnychkom`), confirmado pelo Henrique a 2026-11-13. Isto inclui as
-`0067` a `0076`. A `0050` nunca foi usada (o
+`0067` a `0077`. A `0078` está **por aplicar**. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
 Aplicadas até à `0077` (Henrique, 2026-11-13). A `0078` foi corrida a 2026-11-16; a

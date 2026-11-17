@@ -7,6 +7,9 @@ import 'direct_request_models.dart';
 import 'job_model.dart';
 import '../../../core/config/storage_urls.dart';
 
+/// Pedidos do histórico do cliente carregados de cada vez.
+const clientJobsHistoryPageSize = 20;
+
 class JobRepository {
   const JobRepository(this._client);
 
@@ -147,13 +150,52 @@ class JobRepository {
     return (data as List).map((e) => JobRequest.fromJson(e)).toList();
   }
 
-  Future<List<JobRequest>> fetchClientJobs(String clientId) async {
+  /// Estados que já acabaram (tab Histórico).
+  static const historyStatuses = ['completed', 'no_response', 'cancelled'];
+
+  /// Pedidos do cliente: todos os ativos e os [historyLimit] + 1 mais
+  /// recentes do histórico (AUD-25). O pedido a mais só serve para saber se
+  /// há mais para carregar; quem mostra a lista corta-o
+  /// (`clientHistoryPage`).
+  Future<List<JobRequest>> fetchClientJobs(
+    String clientId, {
+    int historyLimit = clientJobsHistoryPageSize,
+  }) async {
+    final results = await Future.wait([
+      _client
+          .from('job_requests')
+          .select()
+          .eq('client_id', clientId)
+          .not('status', 'in', '(${historyStatuses.join(',')})')
+          .order('created_at', ascending: false),
+      _client
+          .from('job_requests')
+          .select()
+          .eq('client_id', clientId)
+          .inFilter('status', historyStatuses)
+          .order('created_at', ascending: false)
+          .limit(historyLimit + 1),
+    ]);
+    final jobs = [
+      for (final list in results)
+        for (final e in list as List) JobRequest.fromJson(e),
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return jobs;
+  }
+
+  /// Contagem por estado de todos os pedidos do cliente (só a coluna
+  /// `status`), para os números da conta sem carregar o histórico todo.
+  Future<Map<String, int>> fetchClientJobStatusCounts(String clientId) async {
     final data = await _client
         .from('job_requests')
-        .select()
-        .eq('client_id', clientId)
-        .order('created_at', ascending: false);
-    return (data as List).map((e) => JobRequest.fromJson(e)).toList();
+        .select('status')
+        .eq('client_id', clientId);
+    final counts = <String, int>{};
+    for (final row in data as List) {
+      final status = row['status'] as String;
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
   }
 
   Future<String?> cancelJob({

@@ -1,5 +1,5 @@
 -- 0077_help_request_slots_filled.sql
--- NOVA, NÃO APLICADA. Aplicar no SQL Editor depois da 0076.
+-- APLICADA na BD viva (13/11/2026, confirmado pelo Henrique).
 --
 -- Testes Android de 13/11, F11: o Descobrir do ajudante mostrava "2 vagas"
 -- com uma já preenchida, porque `get_help_requests_in_radius` só devolvia
