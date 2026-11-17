@@ -13,6 +13,7 @@ class FleetCard {
     this.holderName,
     required this.status,
     required this.createdAt,
+    this.reviewMessage,
   });
 
   final String id;
@@ -23,6 +24,9 @@ class FleetCard {
   final FleetCardStatus status;
   final DateTime createdAt;
 
+  /// 0082: o que o suporte escreveu ao recusar ou retirar o cartão.
+  final String? reviewMessage;
+
   factory FleetCard.fromJson(Map<String, dynamic> json) => FleetCard(
         id: json['id'] as String,
         workerId: json['worker_id'] as String,
@@ -31,5 +35,6 @@ class FleetCard {
         holderName: json['holder_name'] as String?,
         status: FleetCardStatus.fromValue(json['status'] as String?),
         createdAt: DateTime.parse(json['created_at'] as String),
+        reviewMessage: json['review_message'] as String?,
       );
 }

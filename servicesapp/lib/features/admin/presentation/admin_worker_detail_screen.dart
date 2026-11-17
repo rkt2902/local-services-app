@@ -15,6 +15,7 @@ import '../../../core/widgets/user_avatar_with_name.dart';
 import '../application/admin_labels.dart';
 import '../application/admin_providers.dart';
 import '../data/admin_models.dart';
+import 'widgets/admin_action_dialogs.dart';
 import 'widgets/admin_panel_widgets.dart';
 import 'widgets/admin_plan_sheet.dart';
 import 'widgets/admin_stat_widgets.dart';
@@ -69,6 +70,11 @@ class AdminWorkerDetailPanel extends ConsumerWidget {
           worker: worker,
           onClose: onClose,
           onEditPlan: () => _editPlan(context, ref, worker),
+          footer: AdminRecordFooter(
+            targetId: workerId,
+            personId: workerId,
+            showAccount: true,
+          ),
         ),
       ),
     );
@@ -80,11 +86,15 @@ class _WorkerDetailContent extends StatelessWidget {
     required this.worker,
     required this.onEditPlan,
     this.onClose,
+    this.footer,
   });
 
   final AdminWorkerDetail worker;
   final VoidCallback onEditPlan;
   final VoidCallback? onClose;
+
+  /// Casos de suporte e notas internas.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -195,6 +205,7 @@ class _WorkerDetailContent extends StatelessWidget {
       ),
       _Card(child: _MonthlyBars(months: w.monthlyJobs)),
       _PlanCard(worker: w, onEditPlan: onEditPlan),
+      ?footer,
     ];
 
     return ListView(
@@ -207,7 +218,7 @@ class _WorkerDetailContent extends StatelessWidget {
       children: [
         for (final (i, section) in sections.indexed) ...[
           if (i > 0) const SizedBox(height: AppSpacing.md),
-          AppStaggeredEntrance(index: i, child: section),
+          AppStaggeredEntrance(index: i < 6 ? i : 6, child: section),
         ],
       ],
     );

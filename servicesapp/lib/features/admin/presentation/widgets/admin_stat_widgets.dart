@@ -100,15 +100,23 @@ class _AdminStatTile extends StatelessWidget {
 
 /// Linha de alerta (fundo no tom `waiting`).
 class AdminAlertRow extends StatelessWidget {
-  const AdminAlertRow({required this.icon, required this.message, super.key});
+  const AdminAlertRow({
+    required this.icon,
+    required this.message,
+    this.onTap,
+    super.key,
+  });
 
   final IconData icon;
   final String message;
 
+  /// Com valor, a linha abre o sítio onde se resolve (com seta).
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final tone = AppStatusColor.waiting;
-    return Container(
+    final row = Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
@@ -129,7 +137,18 @@ class AdminAlertRow extends StatelessWidget {
                   ?.copyWith(color: tone.foreground),
             ),
           ),
+          if (onTap != null)
+            Icon(Icons.chevron_right_rounded, color: tone.foreground),
         ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.input),
+        child: row,
       ),
     );
   }

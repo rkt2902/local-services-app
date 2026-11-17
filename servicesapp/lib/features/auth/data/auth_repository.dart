@@ -6,6 +6,7 @@ import '../../../core/constants/enums.dart';
 import '../../../core/constants/password_policy.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/app_log.dart';
+import 'account_status.dart';
 
 /// Tags internas em [AuthException.code] usadas pelos 3 métodos de
 /// recuperação de senha abaixo — não são códigos do Supabase, servem só
@@ -191,6 +192,24 @@ class AuthRepository {
         .maybeSingle();
     if (data == null) return null;
     return UserRole.fromString(data['role'] as String);
+  }
+
+  /// Suspensão e encerramento marcado da própria conta (0080). Antes de a
+  /// 0080 estar aplicada a função não existe: conta como ativa, para a app
+  /// nunca ficar presa por causa disso.
+  Future<MyAccountStatus> fetchMyAccountStatus() async {
+    try {
+      final data = await _client.rpc('get_my_account_status');
+      if (data is Map) {
+        return MyAccountStatus.fromJson(data.cast<String, dynamic>());
+      }
+      return MyAccountStatus.active;
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202' || e.code == '42883') {
+        return MyAccountStatus.active;
+      }
+      rethrow;
+    }
   }
 
   Future<void> signIn({

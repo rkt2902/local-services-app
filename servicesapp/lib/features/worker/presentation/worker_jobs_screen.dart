@@ -197,7 +197,9 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
         detail = 'expirou sem ser concluído';
       } else if (e.jobStatus == 'cancelled' &&
           (mine || e.status == 'pending')) {
-        detail = e.cancelledByMe
+        detail = e.cancelReason == CancelReason.support
+            ? 'cancelado pelo suporte'
+            : e.cancelledByMe
             ? 'cancelaste'
             : e.cancelledByClient
             ? 'cancelado pelo cliente'

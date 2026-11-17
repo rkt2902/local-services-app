@@ -517,7 +517,7 @@ select audit.err('T-STOR-03 avatar com nome de outra pessoa é recusado',
   format($q$insert into storage.objects(bucket_id, name, owner) values('avatars', %L, %L)$q$, :'C2' || '.jpg', :'C1'));
 reset role;
 select audit.eq('T-STOR-04 [INFO] buckets públicos (leitura sem sessão por URL)',
-  $q$select string_agg(id || '=' || public::text, ',' order by id) from storage.buckets$q$, 'avatars=true,job-photos=true');
+  $q$select string_agg(id || '=' || public::text, ',' order by id) from storage.buckets$q$, 'avatars=true,job-photos=true,partner-images=true');
 
 -------------------------------------------------------------------------------
 -- FLOW-110: crons

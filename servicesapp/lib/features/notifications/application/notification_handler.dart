@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/enums.dart';
 import '../../auth/application/session_provider.dart';
 import '../../client/application/client_create_job_wizard_provider.dart';
+import '../../fleet_card/application/fleet_card_providers.dart';
 import '../../help_requests/application/help_request_providers.dart';
 import '../../help_requests/application/helper_job_state.dart';
 import '../../help_requests/data/help_request_model.dart';
+import '../../partners/application/partner_providers.dart';
 import '../../proposals/application/proposal_providers.dart';
 import '../data/notification_model.dart';
 import '../data/notification_types.dart';
@@ -140,6 +142,8 @@ class NotificationHandler {
 
       // ── Job lifecycle ─────────────────────────────────────────────────────
       case NotificationType.jobCancelled:
+      // 0079: avisos do suporte sobre um pedido abrem o mesmo ecrã.
+      case NotificationType.supportNotice:
         // Sent to the party that did NOT cancel. relatedId = job_id.
         // Client: go directly. Worker: resolve proposalId first (proposal may
         // retain status='accepted' on a cancelled job_request).
@@ -320,6 +324,23 @@ class NotificationHandler {
         } else {
           context.push('/worker/help-requests/$helpRequestId/apply');
         }
+
+      case NotificationType.fleetCardReviewed:
+        // 0082: decisão do painel sobre o cartão frota. Navegar primeiro e
+        // só depois pedir o estado novo (regra T4).
+        context.push('/worker/fleet-card');
+        ref.invalidate(myFleetCardProvider);
+
+      case NotificationType.partnerNew:
+        // 0082: aviso de parceiro. Navegar primeiro e só depois ler a
+        // lista outra vez (regra T4); o ecrã espera pela lista nova.
+        final partnerId = notification.relatedId;
+        if (partnerId == null) {
+          context.go('/worker/partners');
+        } else {
+          context.push('/worker/partners/$partnerId');
+        }
+        ref.invalidate(partnersProvider);
 
       case NotificationType.helpRequestPendingApproval:
       case NotificationType.helpRequestAutoApproved:

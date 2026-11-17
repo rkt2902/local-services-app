@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/error_utils.dart';
@@ -9,6 +10,7 @@ import '../../../../core/widgets/app_motion.dart';
 import '../../application/admin_labels.dart';
 import '../../application/admin_providers.dart';
 import '../../data/admin_models.dart';
+import '../../data/admin_partner_models.dart';
 import 'admin_stat_widgets.dart';
 
 /// Períodos da visão geral: (rótulo, dias). `null` = desde sempre.
@@ -31,8 +33,15 @@ class _AdminOverviewTabState extends ConsumerState<AdminOverviewTab> {
   @override
   Widget build(BuildContext context) {
     final overviewAsync = ref.watch(adminOverviewProvider(_days));
+    // Alerta à parte: se falhar, a Visão geral abre na mesma, sem ele.
+    final partnerAlerts =
+        ref.watch(adminPartnerAlertsProvider).asData?.value ??
+        AdminPartnerAlerts.none;
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(adminOverviewProvider(_days).future),
+      onRefresh: () {
+        ref.invalidate(adminPartnerAlertsProvider);
+        return ref.refresh(adminOverviewProvider(_days).future);
+      },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.xl),
@@ -57,7 +66,10 @@ class _AdminOverviewTabState extends ConsumerState<AdminOverviewTab> {
             ),
             data: (overview) => AppFadeThroughSwitcher(
               switchKey: _days ?? 0,
-              child: _OverviewContent(overview: overview),
+              child: _OverviewContent(
+                overview: overview,
+                partnerAlerts: partnerAlerts,
+              ),
             ),
           ),
         ],
@@ -67,11 +79,15 @@ class _AdminOverviewTabState extends ConsumerState<AdminOverviewTab> {
 }
 
 class _OverviewContent extends StatelessWidget {
-  const _OverviewContent({required this.overview});
+  const _OverviewContent({
+    required this.overview,
+    this.partnerAlerts = AdminPartnerAlerts.none,
+  });
 
   final AdminOverview overview;
+  final AdminPartnerAlerts partnerAlerts;
 
-  List<Widget> _alerts() {
+  List<Widget> _alerts(BuildContext context) {
     final o = overview;
     return [
       if (o.alertOpenWithoutProposals > 0)
@@ -90,6 +106,13 @@ class _OverviewContent extends StatelessWidget {
         AdminAlertRow(
           icon: Icons.local_gas_station_outlined,
           message: '${o.alertFleetCardsPending} cartões frota por aprovar',
+          onTap: () => context.go('/admin/parceiros?tab=frota'),
+        ),
+      for (final message in adminPartnerAlertMessages(partnerAlerts))
+        AdminAlertRow(
+          icon: Icons.storefront_outlined,
+          message: message,
+          onTap: () => context.go('/admin/parceiros'),
         ),
       if (o.alertPlansEnding7d > 0)
         AdminAlertRow(
@@ -103,7 +126,7 @@ class _OverviewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = overview;
-    final alerts = _alerts();
+    final alerts = _alerts(context);
     final cards = <Widget>[
       if (alerts.isNotEmpty)
         Column(

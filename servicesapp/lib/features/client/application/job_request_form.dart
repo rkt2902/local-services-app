@@ -1,4 +1,5 @@
 import '../../../core/constants/enums.dart';
+import '../../jobs/data/cancel_reasons.dart';
 import '../../jobs/data/job_model.dart';
 import 'client_create_job_wizard_provider.dart';
 
@@ -43,6 +44,8 @@ bool canRepublishJob(JobRequest job) {
   if (job.status == JobStatus.noResponse) return true;
   if (job.status != JobStatus.cancelled) return false;
   if (job.acceptedProposalId != null) return false;
+  // 0079: cancelado pelo suporte não se publica de novo pela app.
+  if (job.cancelReason == CancelReason.support) return false;
   return job.cancelledBy == null || job.cancelledBy == job.clientId;
 }
 

@@ -80,6 +80,7 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onAboutPressed,
     required this.onSignOutPressed,
     required this.onDeleteAccountPressed,
+    this.onPartnersPressed,
     super.key,
   });
 
@@ -102,6 +103,9 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onAboutPressed;
   final VoidCallback onSignOutPressed;
   final VoidCallback onDeleteAccountPressed;
+
+  /// "Parceiros" no menu; `null` (sem parceiros) esconde a entrada.
+  final VoidCallback? onPartnersPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +225,12 @@ class WorkerAccountScreen extends StatelessWidget {
                             icon: Icons.local_gas_station_outlined,
                             trailingLabel: data.fleetCardStatusLabel,
                           ),
+                          if (onPartnersPressed != null)
+                            const AppAccountMenuItem(
+                              id: 'partners',
+                              label: 'Parceiros',
+                              icon: Icons.storefront_outlined,
+                            ),
                         ],
                         onItemPressed: (id) {
                           switch (id) {
@@ -236,6 +246,8 @@ class WorkerAccountScreen extends StatelessWidget {
                               onPlanPressed();
                             case 'fleet_card':
                               onFleetCardPressed();
+                            case 'partners':
+                              onPartnersPressed?.call();
                           }
                         },
                       ),
