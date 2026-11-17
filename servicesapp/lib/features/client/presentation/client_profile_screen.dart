@@ -83,6 +83,7 @@ class ClientProfileScreen extends ConsumerWidget {
     }
 
     final jobs = jobsAsync.asData?.value ?? [];
+    final counts = ref.watch(clientJobStatusCountsProvider).asData?.value;
 
     final ratingSummary = ratingSummaryAsync?.asData?.value;
     final ratingCount = ratingSummary?.ratingCount ?? 0;
@@ -108,9 +109,11 @@ class ClientProfileScreen extends ConsumerWidget {
         subtitle: memberSince == null
             ? 'Cliente'
             : 'Cliente desde ${memberSince.year}',
-        totalJobs: jobs.length,
+        // Contagens de todos os pedidos; a lista só traz parte do
+        // histórico (AUD-25). Enquanto contam, vale a lista carregada.
+        totalJobs: counts?.values.fold<int>(0, (a, b) => a + b) ?? jobs.length,
         activeJobs: jobs.where((j) => activeStatuses.contains(j.status)).length,
-        completedJobs:
+        completedJobs: counts?[JobStatus.completed] ??
             jobs.where((j) => j.status == JobStatus.completed).length,
         ratingLabel: ratingLabel,
         reviewsLabel: reviewsLabel,

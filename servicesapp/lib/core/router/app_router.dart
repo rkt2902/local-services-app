@@ -62,6 +62,8 @@ import '../../features/admin/presentation/admin_jobs_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/admin/presentation/widgets/admin_overview_tab.dart';
 import '../../features/admin/presentation/widgets/admin_workers_tab.dart';
+import '../../features/legal/domain/legal_document.dart';
+import '../../features/legal/presentation/legal_document_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
@@ -257,6 +259,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Rota pública — cartão digital partilhável do worker. Sem guard de
       // autenticação/role (ver publicPathPrefixes no redirect abaixo).
+      // Termos e Política (públicas, fora dos shells, também sem sessão).
+      // Na web, projardim.pt/termos e /privacidade servem primeiro as
+      // páginas estáticas de web/ (geradas do mesmo texto).
+      for (final legal in LegalDocumentKind.values)
+        GoRoute(
+          path: legal.route,
+          pageBuilder: (context, state) => buildSharedAxisPage(
+            context,
+            state,
+            LegalDocumentScreen(kind: legal),
+          ),
+        ),
       GoRoute(
         path: '/w/:workerId',
         builder: (_, state) {

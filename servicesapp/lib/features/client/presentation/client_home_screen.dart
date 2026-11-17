@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/enums.dart';
 import '../../../core/theme/app_status_color.dart';
 import '../../../core/utils/app_status_presenters.dart';
 import '../../../core/utils/date_labels.dart';
@@ -19,6 +20,8 @@ import '../../jobs/application/job_providers.dart';
 import '../../jobs/data/job_model.dart';
 import '../../jobs/application/direct_request_labels.dart';
 import '../../jobs/data/direct_request_models.dart';
+import '../../help_requests/application/help_request_providers.dart';
+import '../../help_requests/data/help_request_model.dart';
 import 'repeat_hire_launcher.dart';
 import 'widgets/client_home_view.dart' as view;
 import 'widgets/your_gardeners_section.dart';
@@ -68,11 +71,22 @@ class ClientHomeScreen extends ConsumerWidget {
               .map((t) => t.name)
               .firstOrNull ??
           'Desconhecido';
+      // Pedidos de ajudantes por aprovar: só nos trabalhos marcados (poucos),
+      // com a mesma lista que o detalhe do pedido usa.
+      bool helpersAwait(JobRequest job) =>
+          job.status == JobStatus.confirmed &&
+          (ref.watch(helpRequestsForJobProvider(job.id)).asData?.value ??
+                  const <HelpRequest>[])
+              .any((hr) => hr.status == HelpRequestStatus.pendingApproval);
+      ClientJobAttention? attentionOf(JobRequest job) => clientJobAttention(
+            job,
+            pendingHelperApproval: helpersAwait(job),
+          );
       // "Precisa de ti" (A11): o que espera pelo cliente sai da lista de
       // pedidos em curso e fica numa linha própria por cima.
       attention = [
         for (final job in allActive)
-          if (clientJobAttention(job) case final kind?)
+          if (attentionOf(job) case final kind?)
             view.ClientHomeAttentionViewData(
               jobId: job.id,
               title: clientJobAttentionTitle(kind, job),
@@ -82,7 +96,7 @@ class ClientHomeScreen extends ConsumerWidget {
             ),
       ];
       final activeRaw =
-          allActive.where((j) => clientJobAttention(j) == null).toList();
+          allActive.where((j) => attentionOf(j) == null).toList();
       activeTotal = activeRaw.length;
       activeJobs = [
         for (final job in activeRaw.take(_homeMaxJobs))
@@ -211,11 +225,13 @@ String _metadataLabel(JobRequest job) {
 IconData _attentionIcon(ClientJobAttention kind) => switch (kind) {
       ClientJobAttention.seeProposals => Icons.request_quote_outlined,
       ClientJobAttention.answerReschedule => Icons.edit_calendar_outlined,
+      ClientJobAttention.approveHelpers => Icons.group_add_outlined,
       ClientJobAttention.confirmDone => Icons.task_alt_rounded,
     };
 
 AppStatusColor _attentionTone(ClientJobAttention kind) => switch (kind) {
       ClientJobAttention.seeProposals => AppStatusColor.info,
       ClientJobAttention.answerReschedule => AppStatusColor.waiting,
+      ClientJobAttention.approveHelpers => AppStatusColor.waiting,
       ClientJobAttention.confirmDone => AppStatusColor.info,
     };
