@@ -22,9 +22,9 @@ void main() {
     test('outras recusas do servidor passam como estão', () {
       // Antes qualquer P0001 virava "Já enviou uma proposta".
       const messages = [
-        'Chegaste aos 5 trabalhos deste mês do plano Grátis.',
+        'Chegou aos 5 trabalhos deste mês do plano Grátis.',
         'Este pedido já não está disponível.',
-        'O dia proposto já passou. Escolhe hoje ou um dia a seguir.',
+        'O dia proposto já passou. Escolha hoje ou um dia a seguir.',
       ];
       for (final m in messages) {
         expect(

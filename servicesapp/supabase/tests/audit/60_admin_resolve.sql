@@ -264,7 +264,7 @@ select audit.eq('T-RES-83 a média do jardineiro deixa de contar com ela',
 select audit.eq('T-RES-84 quem avaliou é avisado',
   format($q$select count(*)::text from notifications where user_id=%L and type='support_notice' and title='Avaliação ocultada'$q$, :'C2'), '1');
 select audit.err('T-RES-85 não se volta a avaliar o mesmo trabalho',
-  format($q$insert into ratings(job_id, rater_id, ratee_id, stars) values (%L, %L, %L, 5)$q$, :'jconf2', :'C2', :'W1'), 'Já avaliaste');
+  format($q$insert into ratings(job_id, rater_id, ratee_id, stars) values (%L, %L, %L, 5)$q$, :'jconf2', :'C2', :'W1'), 'Já avaliou');
 set role authenticated;
 select t_aal2(:'AD');
 select audit.eq('T-RES-86 aparece nas ocultas',
@@ -317,6 +317,8 @@ select audit.eq('T-RES-113 nenhuma RPC nova recebe o id de quem chama',
 -- ── Correr a migration outra vez ──
 \set QUIET on
 \ir ../../migrations/0079_admin_support_resolve.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select audit.eq('T-RES-120 correr outra vez não perde casos nem arquivo',
   $q$select (select count(*) from support_cases) || ':' || (select count(*) from job_photos_hidden)$q$, '2:1');

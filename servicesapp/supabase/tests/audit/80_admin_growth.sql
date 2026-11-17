@@ -129,7 +129,7 @@ select audit.eq('T-GRO-32 só quem faz o serviço',
   format($q$select admin_notice_audience('worker', null, %L, 'Braguinha')::text$q$, :'st'), '1');
 select audit.eq('T-GRO-33 clientes com pedidos em Braguinha',
   $q$select admin_notice_audience('client', null, null, 'Braguinha')::text$q$, '1');
-select audit.err('T-GRO-34 papel inválido', $q$select admin_notice_audience('admin')$q$, 'jardineiros ou clientes');
+select audit.err('T-GRO-34 papel inválido', $q$select admin_notice_audience('admin')$q$, 'profissionais ou clientes');
 select audit.err('T-GRO-35 plano inválido', $q$select admin_notice_audience('worker', array['ouro'])$q$, 'Plano inválido');
 select audit.err('T-GRO-36 título curto',
   $q$select admin_send_notice('Oi', 'Texto do aviso de teste.', 'worker', null, null, 'Braguinha', 2)$q$, 'título');
@@ -175,6 +175,8 @@ select audit.eq('T-GRO-52 nenhuma RPC recebe o id de quem chama',
 -- A 0081 outra vez tira a versão da 0082 do admin_send_notice: volta-se a
 -- correr a 0082, pela ordem certa.
 \ir ../../migrations/0082_admin_partners_zones.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select audit.eq('T-GRO-60 correr outra vez não perde o histórico',
   $q$select count(*)::text from admin_notices$q$, '1');

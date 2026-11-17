@@ -86,7 +86,7 @@ set role authenticated;
 select t_as(:'C2');
 select audit.err('F-W2 pedido com morada em branco é recusado',
   format($q$insert into job_requests(client_id,service_type_id,address_text,location_lat,location_lng,description,status,date_mode)
-     values(%L,%L,'  ',38.72,-9.14,'pedido sem morada nenhuma','open','flexible')$q$, :'C2', :'st'), 'Indica a morada');
+     values(%L,%L,'  ',38.72,-9.14,'pedido sem morada nenhuma','open','flexible')$q$, :'C2', :'st'), 'Indique a morada');
 reset role;
 
 \echo ===== REGRESSÃO DOS BUGS CORRIGIDOS =====
