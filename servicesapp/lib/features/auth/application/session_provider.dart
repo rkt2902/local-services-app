@@ -17,12 +17,19 @@ class SessionStatus {
   /// manda para `/session-error`, com "Tentar novamente".
   final bool profileLoadFailed;
 
+  /// Conta suspensa pelo suporte (0080): o router manda sempre para
+  /// `/account-suspended`. A mensagem é a que o suporte escreveu.
+  final bool suspended;
+  final String? suspendedMessage;
+
   const SessionStatus({
     this.isLoading = false,
     required this.isAuthenticated,
     required this.role,
     required this.workerProfileComplete,
     this.profileLoadFailed = false,
+    this.suspended = false,
+    this.suspendedMessage,
   });
 
   static const profileError = SessionStatus(
@@ -72,17 +79,22 @@ class SessionNotifier extends AsyncNotifier<SessionStatus> {
 
   Future<SessionStatus> _fetchProfile(String userId) async {
     try {
-      final role =
-          await ref.read(authRepositoryProvider).fetchUserRole(userId);
+      final authRepository = ref.read(authRepositoryProvider);
+      final role = await authRepository.fetchUserRole(userId);
       bool workerComplete = false;
       if (role == UserRole.worker) {
         workerComplete =
             await ref.read(workerRepositoryProvider).hasProfile(userId);
       }
+      // 0080: suspensa pelo suporte? (antes da 0080 conta sempre como não)
+      final account =
+          role == null ? null : await authRepository.fetchMyAccountStatus();
       final status = SessionStatus(
         isAuthenticated: true,
         role: role,
         workerProfileComplete: workerComplete,
+        suspended: account?.isSuspended ?? false,
+        suspendedMessage: account?.suspendedMessage,
       );
       if (role != null) {
         _lastResolvedUserId = userId;

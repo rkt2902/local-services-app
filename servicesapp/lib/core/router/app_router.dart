@@ -12,6 +12,7 @@ import '../../features/auth/presentation/choose_role_screen.dart';
 import '../../features/auth/presentation/request_password_reset_screen.dart';
 import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/verify_email_screen.dart';
+import '../../features/auth/presentation/account_suspended_screen.dart';
 import '../../features/auth/presentation/session_error_screen.dart';
 import '../../features/client/presentation/client_shell.dart';
 import '../../features/client/presentation/client_home_screen.dart';
@@ -41,6 +42,8 @@ import '../../features/worker/presentation/worker_public_profile_screen.dart';
 import '../../features/worker/presentation/worker_jobs_screen.dart';
 import '../../features/worker/presentation/worker_my_job_detail_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_screen.dart';
+import '../../features/partners/presentation/partner_detail_screen.dart';
+import '../../features/partners/presentation/partners_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_scan_screen.dart';
 import '../../features/fleet_card/presentation/fleet_card_confirm_data_screen.dart';
 import '../../features/help_requests/presentation/worker_help_requests_lobby_screen.dart';
@@ -58,7 +61,15 @@ import '../../features/agenda/presentation/agenda_entry_detail_screen.dart';
 import '../../features/agenda/presentation/agenda_entry_editor_screen.dart';
 import '../../features/admin/presentation/admin_gate_screen.dart';
 import '../../features/admin/presentation/admin_clients_page.dart';
+import '../../features/admin/presentation/admin_cases_page.dart';
 import '../../features/admin/presentation/admin_jobs_page.dart';
+import '../../features/admin/presentation/admin_log_page.dart';
+import '../../features/admin/presentation/admin_funnel_page.dart';
+import '../../features/admin/presentation/admin_map_page.dart';
+import '../../features/admin/presentation/admin_notices_page.dart';
+import '../../features/admin/presentation/admin_partners_page.dart';
+import '../../features/admin/presentation/admin_ratings_page.dart';
+import '../../features/admin/presentation/admin_reports_page.dart';
 import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/admin/presentation/widgets/admin_overview_tab.dart';
 import '../../features/admin/presentation/widgets/admin_workers_tab.dart';
@@ -116,6 +127,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: sessionErrorRoute,
         builder: (_, _) => const SessionErrorScreen(),
+      ),
+      // Conta suspensa pelo suporte (0080): ver resolveRedirect.
+      GoRoute(
+        path: accountSuspendedRoute,
+        builder: (_, _) => const AccountSuspendedScreen(),
       ),
       // Fluxo de recuperação de senha — 2 rotas só (Part 3): esta e
       // /forgot-password/reset. Os passos 2-4 (verificar código, nova
@@ -192,7 +208,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Painel de administração: fora dos papéis. Um ShellRoute próprio
       // (barra lateral + pesquisa global, sem bottom nav), por trás do
       // AdminGateScreen, que trata do login e do segundo fator. Os dados
-      // só saem das RPCs admin_* (0060, 0078). A lista e a ficha de cada
+      // só saem das RPCs admin_* (0060, 0078, 0079). A lista e a ficha de cada
       // secção partilham a mesma página (mesma key) para a lista não
       // perder o estado ao abrir outra ficha.
       ShellRoute(
@@ -205,6 +221,77 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-overview'),
               child: AdminOverviewTab(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/suporte',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-cases'),
+              child: AdminCasesPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/suporte/:caseId',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-cases'),
+              child: AdminCasesPage(
+                selectedCaseId: state.pathParameters['caseId'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/denuncias',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-reports'),
+              child: AdminReportsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/avaliacoes',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-ratings'),
+              child: AdminRatingsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/mapa',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-map'),
+              child: AdminMapPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/parceiros',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-partners'),
+              child: AdminPartnersPage(
+                initialTab: state.uri.queryParameters['tab'] == 'frota'
+                    ? AdminPartnersTab.fleet
+                    : AdminPartnersTab.partners,
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/funil',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-funnel'),
+              child: AdminFunnelPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/avisos',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: const ValueKey('admin-notices'),
+              child: AdminNoticesPage(
+                partnerId: state.uri.queryParameters['parceiro'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/registo',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-log'),
+              child: AdminLogPage(),
             ),
           ),
           GoRoute(
@@ -589,6 +676,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             buildSharedAxisPage(context, state, const WorkerEarningsScreen()),
       ),
+      // Parceiros (0082): o ecrã de cada um fica fora do shell.
+      GoRoute(
+        path: '/worker/partners/:id',
+        pageBuilder: (context, state) => buildSharedAxisPage(
+          context,
+          state,
+          PartnerDetailScreen(partnerId: state.pathParameters['id']!),
+        ),
+      ),
       GoRoute(
         path: '/worker/fleet-card',
         pageBuilder: (context, state) =>
@@ -655,6 +751,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/profile',
             builder: (_, _) => const WorkerProfileScreen(),
+          ),
+          // Só tem botão no menu quando há parceiros (0082).
+          GoRoute(
+            path: '/worker/partners',
+            builder: (_, _) => const PartnersScreen(),
           ),
           GoRoute(
             path: '/worker/jobs',

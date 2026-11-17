@@ -10,8 +10,11 @@
 
 ## Resumo
 
-- **Todas as migrations do repo estão aplicadas na BD viva**, da `0001` à `0076`
-  (confirmado pelo Henrique a 2026-11-13; a `0050` não existe). Próxima: `0077`.
+- Migrations aplicadas na BD viva da `0001` à `0077` (confirmado pelo Henrique a
+  2026-11-13; a `0050` não existe). A `0078` foi corrida a 2026-11-16. A `0079`
+  (painel de suporte, fase B), a `0080` (fase C), a `0081` (funil, CSV e avisos) e a
+  `0082` (cartões frota, parceiros e zonas) estão **por aplicar**, por esta
+  ordem. Próxima: `0083`.
 - Auditoria pré-lançamento de 2026-11-13 em `docs/audits/2026-11-13/` (decisão e plano
   de correção). Push, email, Google, moradas e mapa a funcionar em produção (palavra do
   Henrique a 13/11).
@@ -93,7 +96,55 @@
   curto), Pedidos com filtros e ficha do pedido (linha do tempo, fotos, propostas,
   equipa, avisos com token de push, morada com clique registado), Clientes com ficha.
   Telefones mascarados até "Mostrar contacto". Consultas registadas em `admin_actions`.
-  Fases B (casos, denúncias, ações) e C (contas, mapa) em `docs/admin_portal_spec.md`.
+- Suporte, fase B (0079, **por aplicar**): Caixa de suporte com casos e prazos em
+  dias úteis (verde, âmbar, vermelho; confirmação de receção em 1 dia útil), notas e
+  respostas coladas, decisão para fechar. Denúncias e reportes (abrir caso ou
+  dispensar). Na ficha do pedido: cancelar, reabrir expirado, marcar concluído ou
+  anular a confirmação, ocultar fotos e avaliações. Avaliações com ocultar e repor.
+  Registo de tudo. Notas internas e casos no fundo de cada ficha. Cada ação pede
+  motivo e nota, fica no registo e avisa as pessoas. Feriados não contam nos prazos
+  (ficam mais curtos, nunca mais longos).
+- Suporte, fase C (0080, **por aplicar**): cartão "Conta" na ficha do cliente e do
+  jardineiro com suspender, reativar, aviso de encerramento com 30 dias (o cron
+  suspende na data), reenviar código, exportar os dados em JSON, eliminar a pedido
+  (o mesmo que a app; os ficheiros no Storage ficam numa lista para apagar à mão) e
+  retirar a foto de perfil ou do portefólio. Mapa com pedidos e jardineiros com raio.
+  Na app, conta suspensa só vê o ecrã "Conta suspensa" (contactar suporte, sair,
+  eliminar conta) e a BD recusa pedidos, propostas e ajudas dela. Trabalhos já
+  aceites de quem é suspenso não mudam sozinhos: o suporte decide cada um na ficha do
+  pedido. O painel não envia o email com os motivos (P2B): vai do Gmail de suporte.
+  A app ainda não usa fotos de portefólio (`worker_profiles.photos`); na prática só
+  a foto de perfil se retira.
+- Fase 3 do painel (0081, **por aplicar**): "Funil e dados" com três funis
+  (clientes, pedidos, jardineiros) por 7, 30, 90 dias ou desde sempre, e exportar
+  pedidos, clientes ou jardineiros em CSV para o Excel (sem telefones, emails nem
+  moradas). "Avisos" envia um aviso de serviço a jardineiros (por plano, serviço,
+  localidade) ou clientes (por localidade), na app e por push, com contagem antes de
+  enviar e histórico com quantos leram. Tocar no aviso na app não abre nada. A
+  localidade é texto livre (procura parcial), por isso "Braga" apanha "Braga de
+  Cima".
+- Parceiros e zonas (0082, **por aplicar**): página "Parceiros" com os cartões frota
+  (aprovar, recusar com motivo, retirar; o jardineiro recebe aviso e lê a mensagem no
+  ecrã do cartão) e os parceiros (gasolineiras, lojas, máquinas, serviços; em conversa,
+  parceiro ou terminado). Cada parceiro tem foto, frase do banner, descrição, código de
+  desconto, código de barras (Code 128 ou EAN-13), QR, link, condições, validade,
+  "Mostrar na app", "Códigos só para o Pro+" e, se quiser, localização (com quantos
+  jardineiros cobrem e quantos pedidos há a 10 km). "Ver como na app" mostra o ecrã
+  antes de gravar. No Mapa, camadas "Zonas sem resposta", "Densidade de jardineiros" e
+  "Parceiros", e a lista "Zonas a reforçar". Aprovar não exige Pro+ (o painel avisa).
+- Tab "Parceiros" do jardineiro (0082, **por aplicar**): quinto botão no menu de baixo
+  e entrada no Perfil, só quando há parceiros visíveis. Lista com um banner por
+  parceiro; o ecrã de cada um só mostra o que está preenchido no painel. Quem não é
+  Pro+ vê os parceiros só-Pro+ com o aviso "Disponível no Pro+" e sem códigos (a BD
+  não os envia). A 0082 traz um "Parceiro de exemplo" (notas "MOCK") para ver o
+  ecrã: **apagar no painel antes do lançamento**. Sem a 0082 aplicada a tab não
+  aparece. A lista vem do mais perto para o mais longe da base (com "a 3 km"), sem
+  passar à frente da ordem do painel. A app conta quem abriu, copiou o código, abriu o
+  link ou o mapa, e o painel mostra esses números em cada parceiro (últimos 30 dias e
+  desde o início). "Avisar os jardineiros" num parceiro abre os Avisos com o texto
+  sugerido; o aviso abre o parceiro na app. A Visão geral avisa dos parceiros que
+  acabam nos próximos 7 dias e dos que passaram a validade. Quem passa a Pro+ vê os
+  códigos quando a app volta ao primeiro plano ou o plano é lido outra vez.
 - Plano Grátis com limite de 5 trabalhos aceites por mês (a BD recusa propostas novas
   depois disso). Contrato e pagamento fora da app; a app não mostra preços.
 - **O que cada plano dá (decidido a 2026-10-28):** Grátis tem 5 trabalhos por mês,
@@ -138,9 +189,9 @@
   J4/C5, linha "Serviço · data" nas notificações.
 - A12: o stepper Pedido · Proposta · Equipa · No dia · Feito (`JobFlowStepper`) já
   está nos detalhes do cliente, do jardineiro e do ajudante.
-- Painel `/admin` de suporte: fases B (caixa de suporte, casos, denúncias, ações sobre
-  pedidos, ocultar avaliações e fotos, ecrã Registo) e C (suspender, encerrar, exportar,
-  mapa). A fase A está no PR do painel de suporte.
+- Painel `/admin`: a Política de Privacidade ainda não diz que o admin vê moradas e
+  posições, suspende contas e envia avisos. Parceiros só se adicionam um a um (sem
+  importar uma lista). A tab Parceiros não tem pesquisa nem filtro por zona.
 - "Ver o local primeiro" (visita paga antes do orçamento): fase 2.
 - Cartão frota é uma demo para o pitch: dados fictícios, ativação manual por SQL, sem
   parceiro.

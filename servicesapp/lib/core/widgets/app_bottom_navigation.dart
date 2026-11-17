@@ -24,6 +24,9 @@ class AppBottomNavigationItem {
 }
 
 /// Bottom navigation partilhada com quatro destinos e uma ação central.
+/// O jardineiro pode ter um quinto (Parceiros, só quando há parceiros):
+/// fica 2 à esquerda do "+" e 3 à direita, todos com a mesma largura, e o
+/// "+" acompanha o espaço entre eles.
 ///
 /// A ação central é independente dos destinos e não altera automaticamente
 /// o índice selecionado.
@@ -40,8 +43,8 @@ class AppBottomNavigation extends StatelessWidget {
     this.centralActionTooltip = 'Nova ação',
     this.centralActionActive = false,
   }) : assert(
-         items.length == 4,
-         'AppBottomNavigation requer exatamente quatro destinos.',
+         items.length == 4 || items.length == 5,
+         'AppBottomNavigation requer quatro ou cinco destinos.',
        );
 
   final List<AppBottomNavigationItem> items;
@@ -55,6 +58,9 @@ class AppBottomNavigation extends StatelessWidget {
   /// A folha da ação central está aberta: o botão passa a "✕" escuro
   /// (A10, M4), no mesmo sítio e tamanho.
   final bool centralActionActive;
+
+  static const double _centralGap = 66;
+  static const double _centralButtonSize = 54;
 
   @override
   Widget build(BuildContext context) {
@@ -93,49 +99,44 @@ class AppBottomNavigation extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: _AppBottomNavigationDestination(
-                          item: items[0],
-                          selected: selectedIndex == 0,
-                          onPressed: () => onItemSelected(0),
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i == 2) const SizedBox(width: _centralGap),
+                        Expanded(
+                          child: _AppBottomNavigationDestination(
+                            item: items[i],
+                            selected: selectedIndex == i,
+                            compact: items.length > 4,
+                            onPressed: () => onItemSelected(i),
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: _AppBottomNavigationDestination(
-                          item: items[1],
-                          selected: selectedIndex == 1,
-                          onPressed: () => onItemSelected(1),
-                        ),
-                      ),
-                      const SizedBox(width: 66),
-                      Expanded(
-                        child: _AppBottomNavigationDestination(
-                          item: items[2],
-                          selected: selectedIndex == 2,
-                          onPressed: () => onItemSelected(2),
-                        ),
-                      ),
-                      Expanded(
-                        child: _AppBottomNavigationDestination(
-                          item: items[3],
-                          selected: selectedIndex == 3,
-                          onPressed: () => onItemSelected(3),
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
               ),
-              Positioned(
-                top: 0,
-                child: Tooltip(
-                  message: centralActionTooltip,
-                  child: _CentralActionButton(
-                    icon: centralActionIcon,
-                    active: centralActionActive,
-                    onPressed: onCentralActionPressed,
-                  ),
-                ),
+              // Com 4 destinos fica ao centro; com 5, por cima do espaço
+              // depois dos dois primeiros.
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final slot =
+                      (constraints.maxWidth - _centralGap) / items.length;
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 2 * slot + (_centralGap - _centralButtonSize) / 2,
+                    ),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Tooltip(
+                        message: centralActionTooltip,
+                        child: _CentralActionButton(
+                          icon: centralActionIcon,
+                          active: centralActionActive,
+                          onPressed: onCentralActionPressed,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -184,8 +185,8 @@ class _CentralActionButtonState extends State<_CentralActionButton> {
         duration: AppMotionDuration.instant,
         curve: AppMotionCurve.standard,
         child: SizedBox(
-          width: 54,
-          height: 54,
+          width: AppBottomNavigation._centralButtonSize,
+          height: AppBottomNavigation._centralButtonSize,
           child: FilledButton(
             onPressed: widget.onPressed,
             style: ButtonStyle(
@@ -238,11 +239,15 @@ class _AppBottomNavigationDestination extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onPressed,
+    this.compact = false,
   });
 
   final AppBottomNavigationItem item;
   final bool selected;
   final VoidCallback onPressed;
+
+  /// Cinco destinos: o texto encolhe para caber em vez de cortar.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -310,11 +315,16 @@ class _AppBottomNavigationDestination extends StatelessWidget {
                   color: contentColor,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: compact
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(item.label, maxLines: 1),
+                      )
+                    : Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
               ),
             ],
           ),

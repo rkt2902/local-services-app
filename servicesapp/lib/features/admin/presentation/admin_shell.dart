@@ -11,13 +11,24 @@ import '../application/admin_providers.dart';
 import 'widgets/admin_global_search.dart';
 import 'widgets/admin_panel_widgets.dart';
 
-/// Entradas da barra lateral (fase A). Caixa de suporte, Denúncias,
-/// Avaliações, Mapa e Registo chegam nas fases B e C.
+/// Entradas da barra lateral (suporte A, B e C; fase 3).
 enum AdminSection {
   overview('Visão geral', Icons.insights_rounded, '/admin'),
+  support('Caixa de suporte', Icons.support_agent_rounded, '/admin/suporte'),
+  reports('Denúncias e reportes', Icons.flag_outlined, '/admin/denuncias'),
   jobs('Pedidos', Icons.assignment_outlined, '/admin/pedidos'),
   clients('Clientes', Icons.person_outline_rounded, '/admin/clientes'),
-  workers('Jardineiros', Icons.groups_outlined, '/admin/workers');
+  workers('Jardineiros', Icons.groups_outlined, '/admin/workers'),
+  ratings('Avaliações', Icons.star_outline_rounded, '/admin/avaliacoes'),
+  map('Mapa', Icons.map_outlined, '/admin/mapa'),
+  partners(
+    'Parceiros',
+    Icons.storefront_outlined,
+    '/admin/parceiros',
+  ),
+  funnel('Funil e dados', Icons.filter_alt_outlined, '/admin/funil'),
+  notices('Avisos', Icons.campaign_outlined, '/admin/avisos'),
+  log('Registo', Icons.history_rounded, '/admin/registo');
 
   const AdminSection(this.label, this.icon, this.route);
 
@@ -27,7 +38,8 @@ enum AdminSection {
 
   /// Secção ativa para um endereço do painel.
   static AdminSection fromLocation(String location) {
-    for (final section in [jobs, clients, workers]) {
+    for (final section in values) {
+      if (section == overview) continue;
       if (location == section.route ||
           location.startsWith('${section.route}/')) {
         return section;

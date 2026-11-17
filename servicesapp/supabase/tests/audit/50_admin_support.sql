@@ -125,8 +125,9 @@ select audit.eq('T-SUP-40 consultas e revelações ficam em admin_actions, com o
   'reveal_address,reveal_phone,search,view_client,view_job,view_job_photos,view_worker');
 select audit.eq('T-SUP-41 o motivo de revelar fica registado',
   $q$select details->>'reason' from admin_actions where action='reveal_phone'$q$, 'confirmar identidade');
-select audit.eq('T-SUP-42 nenhuma consulta lê a Agenda do jardineiro',
-  $q$select count(*)::text from pg_proc where proname like 'admin\_%' and prosrc ilike '%worker_calendar%'$q$, '0');
+-- 0080: a exportação RGPD (a pedido da própria pessoa) é a única exceção.
+select audit.eq('T-SUP-42 nenhuma consulta lê a Agenda do jardineiro (exceto exportar dados)',
+  $q$select count(*)::text from pg_proc where proname like 'admin\_%' and proname <> 'admin_export_user_data' and prosrc ilike '%worker_calendar%'$q$, '0');
 
 select format('%s | %s | %s', case when ok then 'PASS' else 'FAIL' end, id, coalesce(detail, ''))
 from audit.results where id like 'T-SUP-%' order by seq;

@@ -7,7 +7,10 @@
 `0067` a `0077`. A `0078` está **por aplicar**. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-**Próxima migration nova: `0079`.** Antes de numerar, confirmar com
+Aplicadas até à `0077` (Henrique, 2026-11-13). A `0078` foi corrida a 2026-11-16; a
+`0079`, a `0080`, a `0081` e a `0082` estão criadas e **por aplicar**, por esta ordem (ver a tabela).
+
+**Próxima migration nova: `0083`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -49,10 +52,14 @@ Editor do Supabase e confirma.
 | `0067_plan_badges_and_earnings.sql` | Selo do plano no cartão público e nas propostas, painel de ganhos (`get_my_earnings`, só Pro) | aplicada (2026-11-12) |
 | `0068`–`0073` | Ver PR #41 a #47 (planos, trabalhos por dias, lembretes, "a combinar" expira) | aplicadas (2026-11-12) |
 | `0074_audit_fixes.sql` | Correções da auditoria de 12/11 (BUG-001 a BUG-009, BUG-012): bloqueios em retirar proposta e fotos, pesquisa pela base gravada, campos de execução limpos no INSERT, data no passado, limites de raio, horas, dias e textos, avaliações só com sessão, aviso de avaliação repetida | aplicada (2026-11-12) |
-| `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | aplicada (13/11) |
-| `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | aplicada (13/11) |
-| `0077_help_request_slots_filled.sql` | Testes Android de 13/11 (F11): `get_help_requests_in_radius` devolve `slots_filled` para o Descobrir mostrar as vagas que faltam | aplicada (13/11) |
-| `0078_admin_support_tracking.sql` | Painel de suporte, fase A: `job_events` com triggers e eventos dos pedidos antigos, `admin_search`, `admin_list_jobs`, `admin_get_job`, `admin_get_job_photos`, `admin_list_clients`, `admin_get_client`, `admin_reveal_contact`; telefone mascarado em `admin_list_workers`/`admin_get_worker` | **por aplicar** (depois da 0077) |
+| `0075_web_test_fixes.sql` | Testes web de 12/11: pedido sem morada recusado no INSERT (W-2), admin sem contas eliminadas nos novos (W-7) | aplicada (2026-11-13) |
+| `0076_launch_hardening.sql` | Auditoria pré-lançamento de 13/11: formato do telefone na BD (NOT VALID), índices em chaves estrangeiras, sem `TRUNCATE` para `anon`/`authenticated` | aplicada (2026-11-13) |
+| `0077_help_request_slots_filled.sql` | Testes Android de 13/11 (F11): `get_help_requests_in_radius` devolve `slots_filled` para o Descobrir mostrar as vagas que faltam | aplicada (2026-11-13) |
+| `0078_admin_support_tracking.sql` | Painel de suporte, fase A: `job_events` com triggers e eventos dos pedidos antigos, `admin_search`, `admin_list_jobs`, `admin_get_job`, `admin_get_job_photos`, `admin_list_clients`, `admin_get_client`, `admin_reveal_contact`; telefone mascarado em `admin_list_workers`/`admin_get_worker` | corrida no SQL Editor a 2026-11-16 (com "Run and enable RLS") |
+| `0079_admin_support_resolve.sql` | Painel de suporte, fase B: `support_cases`, `support_case_notes`, `admin_notes`, estado nos `job_reports`, arquivo `ratings_hidden`/`job_photos_hidden`, RPCs de casos, reportes, cancelar/reabrir/corrigir estado, ocultar e repor, notas e registo; aviso às propostas pendentes diz quando foi o suporte | **por aplicar** (depois da 0078) |
+| `0080_admin_accounts.sql` | Painel de suporte, fase C: `account_status` (suspensão e encerramento, só do servidor) e `get_my_account_status` para a app; trigger que impede contas suspensas de agir; suspender, reativar, aviso de encerramento com 30 dias e cron `account-closures`; `account_delete_core` partilhado por `delete_my_account` e `admin_erase_user`; exportar dados; retirar foto de perfil/portefólio (`profile_photos_hidden`); reenviar código; pontos do mapa | **por aplicar** (depois da 0079) |
+| `0081_admin_growth.sql` | Painel, fase 3: `admin_funnel` (funil por período), `admin_export_rows` (linhas para CSV sem contactos nem moradas), `admin_notices` e `admin_notice_audience`/`admin_send_notice`/`admin_list_notices` (aviso de serviço a um grupo, tipo `admin_notice` com push, só envia se a contagem não mudou) | **por aplicar** (depois da 0080) |
+| `0082_admin_partners_zones.sql` | Painel: cartões frota (`admin_list_fleet_cards`, `admin_review_fleet_card`, colunas `reviewed_at`/`review_message`, aviso `fleet_card_reviewed`), parceiros (`partners` com foto, códigos, QR, link, validade, visível na app e só Pro+; `admin_list_partners`, `admin_save_partner`, `admin_delete_partner`; `get_partners` para a app com a distância à base; uso na app em `partner_events` (`log_partner_event`) com os números no painel; `admin_partner_alerts`; avisos de parceiro com `admin_send_notice(..., p_partner_id)` e tipo `partner_new`; bucket `partner-images`; um parceiro de exemplo) e `admin_map_zones` (quadrados com pedidos sem resposta, cobertura e parceiros). Alterada a 16/11 antes de aplicada; se a versão anterior tiver sido corrida, renomeia `partner_locations` e apaga as funções antigas | **por aplicar** (depois da 0081) |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

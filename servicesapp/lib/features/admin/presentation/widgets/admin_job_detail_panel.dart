@@ -15,10 +15,13 @@ import '../../../../core/widgets/app_motion.dart';
 import '../../../../core/widgets/app_status_badge.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/photo_viewer_screen.dart';
+import '../../../jobs/data/cancel_reasons.dart';
 import '../../application/admin_labels.dart';
 import '../../application/admin_providers.dart';
 import '../../data/admin_support_models.dart';
 import '../admin_jobs_page.dart';
+import 'admin_action_dialogs.dart';
+import 'admin_job_actions.dart';
 import 'admin_panel_widgets.dart';
 import 'admin_stat_widgets.dart';
 
@@ -66,6 +69,12 @@ class AdminJobDetailPanel extends ConsumerWidget {
         onClose: onClose,
         onOpenPerson: (route) => context.go(route),
         onRefresh: () => ref.refresh(adminJobDetailProvider(jobId).future),
+        actions: AdminJobActionsCard(job: job),
+        footer: AdminRecordFooter(
+          targetId: job.jobId,
+          jobId: job.jobId,
+          personId: job.client?.id,
+        ),
       ),
     );
   }
@@ -81,10 +90,17 @@ class AdminJobDetailView extends StatefulWidget {
     this.initialTab = AdminJobTab.timeline,
     this.photosTab,
     this.addressTab,
+    this.actions,
+    this.footer,
     super.key,
   });
 
   final AdminJobDetail job;
+
+  /// Ações do suporte (cancelar, reabrir, corrigir estado, avaliações) e
+  /// fundo da ficha (casos e notas internas). Vazios nos testes.
+  final Widget? actions;
+  final Widget? footer;
   final ValueChanged<String> onOpenPerson;
   final Future<void> Function() onRefresh;
   final VoidCallback? onClose;
@@ -119,6 +135,10 @@ class _AdminJobDetailViewState extends State<AdminJobDetailView> {
             onClose: widget.onClose,
             onOpenPerson: widget.onOpenPerson,
           ),
+          if (widget.actions != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            widget.actions!,
+          ],
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.xs,
@@ -154,6 +174,10 @@ class _AdminJobDetailViewState extends State<AdminJobDetailView> {
               AdminJobTab.address => widget.addressTab ?? _AddressTab(job: job),
             },
           ),
+          if (widget.footer != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            widget.footer!,
+          ],
         ],
       ),
     );
@@ -267,7 +291,10 @@ class _Header extends StatelessWidget {
           if (job.cancelReason != null)
             AdminInfoRow(
               label: 'Motivo do cancelamento',
-              value: [job.cancelReason!, ?job.cancelReasonDetail].join(' · '),
+              value: [
+                CancelReason.label(job.cancelReason!),
+                ?job.cancelReasonDetail,
+              ].join(' · '),
             ),
           for (final (label, at) in deadlines)
             AdminInfoRow(
@@ -486,6 +513,36 @@ class _PhotosTab extends ConsumerWidget {
     'completion': 'Ao concluir',
   };
 
+  Future<void> _hide(
+    BuildContext context,
+    WidgetRef ref,
+    AdminJobPhoto photo,
+  ) async {
+    final done = await showAdminActionDialog(
+      context,
+      icon: Icons.visibility_off_outlined,
+      title: 'Ocultar foto',
+      consequence:
+          'A foto deixa de aparecer na app (o ficheiro fica guardado). '
+          '${photo.takenBy == 'client' ? 'O cliente' : 'O jardineiro'} '
+          'recebe um aviso com como contestar.',
+      confirmLabel: 'Ocultar',
+      destructive: true,
+      onSubmit: (input) => ref
+          .read(adminRepositoryProvider)
+          .hidePhoto(
+            jobId,
+            storagePath: photo.storagePath,
+            reason: input.reason!,
+            note: input.note,
+          ),
+    );
+    if (!done || !context.mounted) return;
+    AppToast.of(context).show('Foto ocultada.');
+    ref.invalidate(adminJobPhotosProvider(jobId));
+    ref.invalidate(adminJobDetailProvider(jobId));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
@@ -571,6 +628,15 @@ class _PhotosTab extends ConsumerWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (photo.storagePath.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: () => _hide(context, ref, photo),
+                            icon: const Icon(
+                              Icons.visibility_off_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Ocultar'),
+                          ),
                       ],
                     ),
                   ),

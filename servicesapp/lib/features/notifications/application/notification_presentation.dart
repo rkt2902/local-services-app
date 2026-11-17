@@ -85,6 +85,18 @@ import '../data/notification_types.dart';
           icon: Icons.eco_outlined,
           tone: AppStatusColor.info,
         ),
+      NotificationType.adminNotice => (
+          icon: Icons.campaign_outlined,
+          tone: AppStatusColor.info,
+        ),
+      NotificationType.fleetCardReviewed => (
+          icon: Icons.local_gas_station_outlined,
+          tone: AppStatusColor.info,
+        ),
+      NotificationType.partnerNew => (
+          icon: Icons.storefront_outlined,
+          tone: AppStatusColor.info,
+        ),
       NotificationType.directJobRequest => (
           icon: Icons.assignment_ind_outlined,
           tone: AppStatusColor.info,
@@ -128,6 +140,10 @@ import '../data/notification_types.dart';
           icon: Icons.undo_rounded,
           tone: AppStatusColor.neutral,
         ),
+      NotificationType.supportNotice => (
+          icon: Icons.support_agent_rounded,
+          tone: AppStatusColor.info,
+        ),
       _ => (icon: Icons.notifications_none_rounded, tone: AppStatusColor.info),
     };
 
@@ -139,7 +155,10 @@ bool isJobNotification(String type) =>
     type != NotificationType.newHelpRequestInRadius &&
     type != NotificationType.helpRequestReopened &&
     type != NotificationType.jobOpportunityReminder &&
-    type != NotificationType.seasonalTip;
+    type != NotificationType.seasonalTip &&
+    type != NotificationType.adminNotice &&
+    type != NotificationType.fleetCardReviewed &&
+    type != NotificationType.partnerNew;
 
 /// A migration 0049 acrescenta " (Serviço, DD/MM)" ao fim do corpo; o design
 /// põe-no no título. A app muda-o de sítio, para as antigas e as novas.

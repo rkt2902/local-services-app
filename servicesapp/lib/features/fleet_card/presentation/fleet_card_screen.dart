@@ -41,7 +41,9 @@ class FleetCardScreen extends ConsumerWidget {
             if (card == null) return const _NoCardView();
             return switch (card.status) {
               FleetCardStatus.pending => const _PendingCardView(),
-              FleetCardStatus.rejected => const _RejectedCardView(),
+              FleetCardStatus.rejected => _RejectedCardView(
+                message: card.reviewMessage,
+              ),
               FleetCardStatus.active => _ActiveCardView(card: card),
               // Inatingível na prática: `card` não-nulo nunca produz
               // `notRequested` (só existe para null — ver
@@ -231,7 +233,10 @@ class _PendingCardView extends StatelessWidget {
 // ─── Rejeitado ───────────────────────────────────────────────────────────
 
 class _RejectedCardView extends StatelessWidget {
-  const _RejectedCardView();
+  const _RejectedCardView({this.message});
+
+  /// 0082: mensagem do suporte; sem ela, o texto de sempre.
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -282,8 +287,10 @@ class _RejectedCardView extends StatelessWidget {
                 AppStaggeredEntrance(
                   index: 3,
                   child: Text(
-                    'Confirma que a foto está legível e que os dados '
-                    'correspondem a um cartão frota válido, e tenta outra vez.',
+                    message ??
+                        'Confirma que a foto está legível e que os dados '
+                            'correspondem a um cartão frota válido, e tenta '
+                            'outra vez.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                   ),

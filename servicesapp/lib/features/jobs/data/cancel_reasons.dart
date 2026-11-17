@@ -8,6 +8,14 @@ abstract class CancelReason {
   /// dias da data sem ser marcado como concluído. Nunca escolhido na UI.
   static const expired = 'expired';
 
+  /// Posto pelo painel de suporte (migration 0079, `admin_cancel_job`).
+  /// `cancelled_by` fica vazio. Nunca escolhido na UI da app.
+  static const support = 'support';
+
+  /// Pedido aberto fechado porque o suporte suspendeu a conta (0080). Pode
+  /// publicar-se de novo depois de a conta voltar a estar ativa.
+  static const accountSuspended = 'account_suspended';
+
   static String label(String code) {
     switch (code) {
       case personalIssue:
@@ -20,6 +28,10 @@ abstract class CancelReason {
         return 'Outra razão';
       case expired:
         return 'Expirou sem ser concluído';
+      case support:
+        return 'Cancelado pelo suporte';
+      case accountSuspended:
+        return 'Fechado ao suspender a conta';
       default:
         return code;
     }

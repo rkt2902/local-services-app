@@ -18,6 +18,7 @@ import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/delete_account_flow.dart';
 import '../../auth/presentation/sign_out_flow.dart';
 import '../../fleet_card/application/fleet_card_providers.dart';
+import '../../partners/application/partner_providers.dart';
 import '../../ratings/application/rating_providers.dart';
 import '../application/worker_plan_features.dart';
 import '../application/worker_plan_labels.dart';
@@ -174,6 +175,9 @@ class WorkerProfileScreen extends ConsumerWidget {
       onSignOutPressed: () => confirmAndSignOut(context, ref),
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAppAboutDialog(context),
+      onPartnersPressed: ref.watch(hasPartnersProvider)
+          ? () => context.go('/worker/partners')
+          : null,
     );
   }
 }
