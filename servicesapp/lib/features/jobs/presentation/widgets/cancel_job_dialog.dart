@@ -59,7 +59,7 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
     return AppConfirmDialog(
       icon: Icons.event_busy_outlined,
       title: 'Cancelar pedido',
-      message: 'Indica a razão do cancelamento.',
+      message: 'Indique a razão do cancelamento.',
       destructive: true,
       confirmLabel: 'Cancelar pedido',
       onCancel: () => Navigator.pop(context),
@@ -92,7 +92,7 @@ class _CancelJobDialogState extends State<CancelJobDialog> {
             const SizedBox(height: AppSpacing.xs),
             AppTextField(
               controller: _detailController,
-              label: 'Descreve a razão (opcional)',
+              label: 'Descreva a razão (opcional)',
               maxLength: 200,
               minLines: 2,
               maxLines: 3,

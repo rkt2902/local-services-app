@@ -28,7 +28,7 @@ class UserAvatarWithName extends StatelessWidget {
   /// ainda não está acessível (RLS antes de um relacionamento aceite, ou
   /// perfil sem `full_name`) — não que "esta pessoa não tem nome". Os
   /// ecrãs que mostram cliente/jardineiro devem passar "Cliente"/
-  /// "Jardineiro" em vez de deixar o padrão "—", que parece um erro em vez
+  /// "Profissional" em vez de deixar o padrão "—", que parece um erro em vez
   /// de um género conhecido.
   final String? fallbackLabel;
 

@@ -130,7 +130,7 @@ ClientJobFlowBanner? clientJobFlowBanner({
   required String workerName,
 }) {
   if (job.status != JobStatus.confirmed) return null;
-  final who = firstNameOr(workerName, 'O jardineiro');
+  final who = firstNameOr(workerName, 'O profissional');
 
   final startedAt = job.startedAt;
   if (startedAt != null) {

@@ -203,7 +203,7 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
         setState(() {
           _accepting = false;
           _error = result.message ??
-              'Não foi possível aceitar a proposta. Tenta novamente.';
+              'Não foi possível aceitar a proposta. Tente novamente.';
         });
     }
   }
@@ -235,7 +235,7 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
     if (!mounted) return;
     setState(() {
       _rejecting = false;
-      if (!ok) _error = 'Não foi possível recusar a proposta. Tenta novamente.';
+      if (!ok) _error = 'Não foi possível recusar a proposta. Tente novamente.';
     });
     if (ok) widget.onRejected?.call();
   }
@@ -253,7 +253,7 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
         child: AppEmptyState(
           icon: Icons.block_rounded,
           title: 'Esta proposta já não está disponível',
-          message: 'O jardineiro pode tê-la retirado. Escolhe outra da lista.',
+          message: 'O profissional pode tê-la retirado. Escolha outra da lista.',
           actionLabel: 'Ver propostas',
           onAction: widget.onBackToList,
           tone: AppStatusColor.neutral,
@@ -279,7 +279,7 @@ class _ClientProposalDetailViewState extends State<ClientProposalDetailView> {
         child: AppEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Não foi possível carregar a proposta',
-          message: 'Verifica a ligação e tenta outra vez.',
+          message: 'Verifique a ligação e tente outra vez.',
           actionLabel: 'Tentar novamente',
           onAction: widget.onRetry,
           tone: AppStatusColor.cancelled,
@@ -470,8 +470,8 @@ class _DetailBody extends StatelessWidget {
                   icon: Icons.timer_off_outlined,
                   tone: AppStatusColor.neutral,
                   title: data.expiredTitle ?? 'Este orçamento expirou',
-                  message: 'Já não dá para aceitar. Escolhe outra proposta '
-                      'ou espera por novas.',
+                  message: 'Já não dá para aceitar. Escolha outra proposta '
+                      'ou aguarde por novas.',
                 ),
               ] else if (data.expiringSoonLabel != null) ...[
                 const SizedBox(height: AppSpacing.sm),
@@ -615,7 +615,7 @@ class _IncludesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            labels.isEmpty ? 'NOTA DO JARDINEIRO' : 'INCLUI',
+            labels.isEmpty ? 'NOTA DO PROFISSIONAL' : 'INCLUI',
             style: textTheme.labelSmall?.copyWith(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w700,

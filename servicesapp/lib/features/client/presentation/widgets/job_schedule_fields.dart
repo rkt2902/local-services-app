@@ -33,7 +33,7 @@ class JobScheduleFields extends StatelessWidget {
     required this.date,
     required this.onPickDate,
     required this.availabilityController,
-    this.title = 'Quando precisas do serviço?',
+    this.title = 'Quando precisa do serviço?',
     this.missingDateHint,
   });
 
@@ -96,7 +96,7 @@ class JobScheduleFields extends StatelessWidget {
                 ],
               ),
             DateMode.flexible => Text(
-                'Combinas a data com o jardineiro.',
+                'Combina a data com o profissional.',
                 key: const ValueKey('schedule_flexible'),
                 style: textTheme.labelMedium
                     ?.copyWith(color: AppColors.textSecondary),
@@ -273,7 +273,7 @@ class AvailabilityTextField extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Diz por palavras tuas quando dá jeito',
+                  'Indique por palavras suas quando lhe convém',
                   style: textTheme.labelMedium
                       ?.copyWith(color: AppColors.textSecondary),
                 ),

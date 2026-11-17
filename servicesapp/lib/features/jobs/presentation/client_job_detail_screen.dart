@@ -76,8 +76,8 @@ class _ClientJobDetailScreenState
   /// (que só tem id/job_id/reporter_id/description/created_at). Ao
   /// selecionar, pré-preenche o texto livre existente; não muda o schema.
   static const _commonProblems = [
-    (id: 'no_show', label: 'Não apareceu', prefill: 'O jardineiro responsável não apareceu. '),
-    (id: 'late', label: 'Atraso', prefill: 'O jardineiro responsável chegou com atraso. '),
+    (id: 'no_show', label: 'Não apareceu', prefill: 'O profissional responsável não apareceu. '),
+    (id: 'late', label: 'Atraso', prefill: 'O profissional responsável chegou com atraso. '),
     (id: 'incomplete', label: 'Incompleto', prefill: 'O trabalho ficou incompleto. '),
   ];
 
@@ -91,7 +91,7 @@ class _ClientJobDetailScreenState
         context,
         icon: Icons.event_busy_outlined,
         title: 'Cancelar pedido?',
-        message: 'O pedido deixa de aparecer aos jardineiros. Não dá para '
+        message: 'O pedido deixa de aparecer aos profissionais. Não dá para '
             'desfazer.',
         confirmLabel: 'Cancelar pedido',
         destructive: true,
@@ -153,13 +153,13 @@ class _ClientJobDetailScreenState
     }
     if (!mounted) return null;
     AppToast.of(context)
-        .show('O pedido já está visível para todos os jardineiros.');
+        .show('O pedido já está visível para todos os profissionais.');
     ref.invalidate(jobByIdProvider(widget.jobId));
     ref.invalidate(clientJobsProvider);
     return null;
   }
 
-  /// "Mostrar a jardineiros mais longe" (0062). Sem navegação: aviso e
+  /// "Mostrar a profissionais mais longe" (0062). Sem navegação: aviso e
   /// depois recarrega o pedido; em erro a mensagem fica no cartão.
   Future<String?> _widenSearch() async {
     final int extraKm;
@@ -220,7 +220,7 @@ class _ClientJobDetailScreenState
         display: display,
         titleLabel: texts.title,
         descriptionLabel: texts.description,
-        workerInitial: initialOf(name.isEmpty ? 'Jardineiro' : name),
+        workerInitial: initialOf(name.isEmpty ? 'Profissional' : name),
         workerAvatarUrl: info['avatar_url'],
         releaseActionLabel: switch (display) {
           DirectRequestWaitingDisplay.waiting => 'Mostrar já a todos',
@@ -240,7 +240,7 @@ class _ClientJobDetailScreenState
     List<ServiceType> serviceTypes,
   ) {
     if (info == null || !showRepeatHire(info)) return null;
-    final name = firstNameOr(info.workerName, 'o jardineiro');
+    final name = firstNameOr(info.workerName, 'o profissional');
     final service = serviceTypes
             .where((s) => s.id == info.serviceTypeId)
             .map((s) => s.name)
@@ -255,10 +255,10 @@ class _ClientJobDetailScreenState
       previousJobLabel:
           [service, date].where((p) => p.isNotEmpty).join(', '),
       descriptionLabel: info.canRequest
-          ? 'Pede de novo e o pedido vai primeiro para $name. Se não '
+          ? 'Peça de novo e o pedido vai primeiro para $name. Se não '
               'puder, fica visível para todos.'
-          : 'Este jardineiro já não aceita pedidos. Podes criar um pedido '
-              'novo para todos os jardineiros.',
+          : 'Este profissional já não aceita pedidos. Pode criar um pedido '
+              'novo para todos os profissionais.',
     );
   }
 
@@ -282,8 +282,8 @@ class _ClientJobDetailScreenState
       context,
       icon: Icons.task_alt_rounded,
       title: 'Confirmar conclusão?',
-      message: 'Confirmas que o trabalho ficou feito como combinado. '
-          'Depois podes avaliar o jardineiro.',
+      message: 'Ao confirmar, declara que o trabalho ficou feito como combinado. '
+          'Depois pode avaliar o profissional.',
       confirmLabel: 'Confirmar',
     );
     if (confirmed != true || !mounted) return false;
@@ -505,7 +505,7 @@ class _ClientJobDetailScreenState
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Descreve o que aconteceu. O teu relato fica registado '
+                    'Descreva o que aconteceu. O seu relato fica registado '
                     'para referência futura.',
                     style: textTheme.bodyMedium
                         ?.copyWith(color: AppColors.textSecondary),
@@ -518,7 +518,7 @@ class _ClientJobDetailScreenState
                     maxLines: 5,
                     textInputAction: TextInputAction.newline,
                     validator: (v) => (v == null || v.trim().length < 10)
-                        ? 'Descreve o problema (mínimo 10 caracteres).'
+                        ? 'Descreva o problema (mínimo 10 caracteres).'
                         : null,
                   ),
                   if (errorText != null) ...[
@@ -549,7 +549,7 @@ class _ClientJobDetailScreenState
       context,
       icon: Icons.task_alt_rounded,
       title: 'Confirmar conclusão?',
-      message: 'Queres confirmar a conclusão do trabalho mesmo assim?',
+      message: 'Pretende confirmar a conclusão do trabalho mesmo assim?',
       confirmLabel: 'Sim, confirmar',
       cancelLabel: 'Ainda não',
     );
@@ -600,7 +600,7 @@ class _ClientJobDetailScreenState
               UserAvatarWithName(
                 name: name,
                 avatarUrl: avatarUrl,
-                fallbackLabel: 'Jardineiro',
+                fallbackLabel: 'Profissional',
               ),
               if (job.confirmedDate != null) ...[
                 const SizedBox(height: AppSpacing.xs),
@@ -1242,8 +1242,8 @@ class _ClientJobDetailScreenState
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 _hasHelpers
-                    ? 'Partilha a tua experiência com o jardineiro responsável e os ajudantes.'
-                    : 'Partilha a tua experiência com o jardineiro.',
+                    ? 'Partilhe a sua experiência com o profissional responsável e os ajudantes.'
+                    : 'Partilhe a sua experiência com o profissional.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -1272,11 +1272,11 @@ class _ClientJobDetailScreenState
       context: context,
       title: 'Avaliar o trabalho',
       subtitle: _hasHelpers
-          ? 'A nota é partilhada com o jardineiro responsável e os ajudantes. O comentário aparece no perfil do jardineiro responsável.'
-          : 'A nota e o comentário aparecem no perfil do jardineiro.',
+          ? 'A nota é partilhada com o profissional responsável e os ajudantes. O comentário aparece no perfil do profissional responsável.'
+          : 'A nota e o comentário aparecem no perfil do profissional.',
       successMessage: _hasHelpers
-          ? 'Avaliação enviada! Cobre o jardineiro responsável e os ajudantes deste trabalho.'
-          : 'Avaliação enviada! Obrigado por avaliares o jardineiro.',
+          ? 'Avaliação enviada! Cobre o profissional responsável e os ajudantes deste trabalho.'
+          : 'Avaliação enviada! Obrigado por avaliar o profissional.',
       onSubmit: (stars, comment) async {
         await repo.submitClientRating(
               jobId: widget.jobId,

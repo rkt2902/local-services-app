@@ -43,7 +43,7 @@ class LandingScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.s10),
               Text(
-                'Serviços locais ao teu alcance.',
+                'Serviços locais ao seu alcance.',
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),

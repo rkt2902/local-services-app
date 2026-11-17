@@ -180,7 +180,7 @@ class _ClientCreateJobDescriptionScreenState
                   AppStaggeredEntrance(
                     index: 0,
                     child: Text(
-                      'Descreve o que precisas',
+                      'Descreva o que precisa',
                       style: textTheme.titleMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
@@ -223,7 +223,7 @@ class _ClientCreateJobDescriptionScreenState
                   AppStaggeredEntrance(
                     index: 2,
                     child: Text(
-                      'Adiciona até $_maximumPhotos fotos (opcional)',
+                      'Adicione até $_maximumPhotos fotos (opcional)',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textPrimary,
                       ),
@@ -412,7 +412,7 @@ class _PrivacyNotice extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Só jardineiros na tua zona poderão ver o teu pedido.',
+              'Só profissionais na sua zona poderão ver o seu pedido.',
               style: textTheme.labelMedium?.copyWith(
                 color: AppColors.primaryPressed,
               ),

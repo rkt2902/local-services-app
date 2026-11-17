@@ -142,7 +142,7 @@ void main() {
     await tester.tap(find.text('Adicionar'));
     await tester.pumpAndSettle();
     expect(added, 0);
-    expect(find.text('Já tens este destaque.'), findsOneWidget);
+    expect(find.text('Já tem este destaque.'), findsOneWidget);
   });
 
   testWidgets('fechar sem adicionar limpa o campo', (tester) async {

@@ -42,8 +42,8 @@ Future<void> showSupportContactSheet(BuildContext context) {
           if (sheetCtx.mounted) Navigator.pop(sheetCtx);
           return;
         }
-        toast.error('Não encontrámos uma app de email. Copia o endereço e '
-              'escreve-nos.');
+        toast.error('Não encontrámos uma app de email. Copie o endereço e '
+              'escreva-nos.');
       },
       onComplaintsBook: () async {
         var opened = false;
@@ -258,7 +258,7 @@ class AppSupportSheet extends StatelessWidget {
               index: 3,
               child: Text(
                 'Respondemos a reclamações em até 15 dias úteis e a pedidos '
-                'sobre os teus dados em até um mês.',
+                'sobre os seus dados em até um mês.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,

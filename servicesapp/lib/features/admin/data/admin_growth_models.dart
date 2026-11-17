@@ -87,7 +87,7 @@ String adminFunnelPercent(int count, int first) {
 enum AdminExportKind {
   jobs('jobs', 'Pedidos', 'pedidos'),
   clients('clients', 'Clientes', 'clientes'),
-  workers('workers', 'Jardineiros', 'jardineiros');
+  workers('workers', 'Profissionais', 'profissionais');
 
   const AdminExportKind(this.value, this.label, this.fileStem);
 
@@ -245,7 +245,7 @@ class AdminNoticeRow {
   );
 }
 
-/// "Jardineiros · Pro · Braga" a partir do `audience` gravado.
+/// "Profissionais · Pro · Braga" a partir do `audience` gravado.
 String adminNoticeAudienceLabel(
   Map<String, dynamic> audience, {
   String? serviceName,
@@ -256,7 +256,7 @@ String adminNoticeAudienceLabel(
       tierNames[t] ?? '$t',
   ];
   return [
-    audience['role'] == 'client' ? 'Clientes' : 'Jardineiros',
+    audience['role'] == 'client' ? 'Clientes' : 'Profissionais',
     if (tiers.isNotEmpty) tiers.join(', '),
     ?serviceName,
     if (audience['area'] is String) audience['area'] as String,

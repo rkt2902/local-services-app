@@ -726,7 +726,7 @@ class _EmptyWeek extends StatelessWidget {
     return AppEmptyState(
       icon: Icons.event_available_outlined,
       title: 'Semana livre',
-      message: 'Ainda não tens nada de $rangeLabel.',
+      message: 'Ainda não tem nada de $rangeLabel.',
       action: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

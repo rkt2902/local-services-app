@@ -205,7 +205,7 @@ void main() {
           'Admin viu a morada');
       expect(adminJobEventLabel('algo_novo', {}), 'algo_novo');
       expect(adminActorLabel(AdminActorKind.system, 'x'), 'Sistema');
-      expect(adminActorLabel(AdminActorKind.worker, 'Rui'), 'Jardineiro · Rui');
+      expect(adminActorLabel(AdminActorKind.worker, 'Rui'), 'Profissional · Rui');
     });
 
     test('preço e duração da proposta', () {
@@ -261,7 +261,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Zé Santos'), findsOneWidget);
       expect(find.text('Fechada ou retirada'), findsOneWidget);
-      await tester.tap(find.text('Abrir ficha do jardineiro').first);
+      await tester.tap(find.text('Abrir ficha do profissional').first);
       expect(opened, '/admin/workers/w1');
 
       await tester.tap(find.text('Avisos (1)'));

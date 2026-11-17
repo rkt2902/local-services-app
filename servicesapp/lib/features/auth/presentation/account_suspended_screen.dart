@@ -107,7 +107,7 @@ class AccountSuspendedView extends StatelessWidget {
                         index: 2,
                         child: Text(
                           supportMessage ??
-                              'O suporte da ProJardim suspendeu a tua conta.',
+                              'O suporte da ProJardim suspendeu a sua conta.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyLarge?.copyWith(
                             color: AppColors.textPrimary,
@@ -118,10 +118,10 @@ class AccountSuspendedView extends StatelessWidget {
                       AppStaggeredEntrance(
                         index: 3,
                         child: Text(
-                          'Enquanto estiver suspensa não podes pedir nem '
-                          'propor trabalhos. Se achas que é um engano, '
-                          'escreve para ${AppLinks.supportEmail} nos '
-                          'próximos 6 meses e explica o que aconteceu. '
+                          'Enquanto estiver suspensa não pode pedir nem '
+                          'propor trabalhos. Se considera que é um engano, '
+                          'escreva para ${AppLinks.supportEmail} nos '
+                          'próximos 6 meses e explique o que aconteceu. '
                           'Respondemos por email.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(

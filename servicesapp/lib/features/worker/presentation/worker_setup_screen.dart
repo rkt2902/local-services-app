@@ -181,7 +181,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       }
       if (permission == LocationPermission.deniedForever) {
         throw Exception(
-            'Permissão negada permanentemente. Ativa nas definições.');
+            'Permissão negada permanentemente. Ative nas definições.');
       }
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
@@ -217,7 +217,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
           await ref.read(authRepositoryProvider).fetchNameAndPhone(currentUser.id);
       if (profileData == null) {
         throw Exception(
-            'Perfil de utilizador não encontrado. Tenta fazer login novamente.');
+            'Perfil de utilizador não encontrado. Tente entrar novamente.');
       }
       String? avatarUrl;
       if (_avatar != null) {
@@ -835,9 +835,9 @@ String workerSetupPhotoHint({
   required bool fromSocialAccount,
 }) {
   if (fromSocialAccount) {
-    return 'Usámos a foto da tua conta. Podes trocá-la por outra tua, nítida.';
+    return 'Usámos a foto da sua conta. Pode trocá-la por outra sua, nítida.';
   }
-  if (hasPhoto) return 'Boa. Os clientes confiam mais quando veem quem vai.';
+  if (hasPhoto) return 'Muito bem. Os clientes confiam mais quando veem quem vai.';
   return 'Foto obrigatória: os clientes confiam mais quando veem quem vai.';
 }
 

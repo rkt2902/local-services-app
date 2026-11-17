@@ -26,7 +26,7 @@ import '../../../core/widgets/app_toast.dart';
 /// Mensagem quando a base de dados ainda não tem `update_job_request`
 /// (migration 0049 por aplicar).
 const _editUnavailableMessage =
-    'Ainda não é possível editar pedidos. Tenta mais tarde.';
+    'Ainda não é possível editar pedidos. Tente mais tarde.';
 
 /// "Editar pedido" (cliente), só enquanto o pedido está `open`.
 ///
@@ -183,8 +183,8 @@ class _EditJobFormState extends ConsumerState<_EditJobForm> {
     goBackOr(context, '/client/job/${job.id}');
     final notified = switch (job.proposalCount) {
       0 => '',
-      1 => ' Avisámos 1 jardineiro.',
-      final n => ' Avisámos $n jardineiros.',
+      1 => ' Avisámos 1 profissional.',
+      final n => ' Avisámos $n profissionais.',
     };
     toast.show('Pedido atualizado.$notified');
     container.invalidate(jobByIdProvider(job.id));
@@ -280,7 +280,7 @@ class _EditJobFormState extends ConsumerState<_EditJobForm> {
                           date: _date,
                           onPickDate: _pickDate,
                           availabilityController: _availabilityController,
-                          missingDateHint: 'Escolhe uma data a partir de hoje.',
+                          missingDateHint: 'Escolha uma data a partir de hoje.',
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -376,8 +376,8 @@ class _ProposalsNotice extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final color = AppStatusColor.info;
     final text = proposalCount == 1
-        ? 'O jardineiro que já propôs vai ser avisado das alterações.'
-        : 'Os $proposalCount jardineiros que já propuseram vão ser '
+        ? 'O profissional que já propôs vai ser avisado das alterações.'
+        : 'Os $proposalCount profissionais que já propuseram vão ser '
             'avisados das alterações.';
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -412,7 +412,7 @@ class _EditJobLocked extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = job.status == JobStatus.confirmed
-        ? 'Já escolheste um jardineiro. Para mudar a data, usa Remarcar.'
+        ? 'Já escolheu um profissional. Para mudar a data, use Remarcar.'
         : 'Só se editam pedidos à espera de propostas.';
     return _EditJobScaffold(
       child: Container(

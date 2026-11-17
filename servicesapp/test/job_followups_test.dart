@@ -78,7 +78,7 @@ void main() {
       final texts = noProposalsHelpTexts(_job(nudgedAt: _nudged))!;
       expect(texts.title, 'Ainda sem propostas');
       expect(texts.description, contains('até 10 km mais longe'));
-      expect(texts.widenActionLabel, 'Mostrar a jardineiros mais longe');
+      expect(texts.widenActionLabel, 'Mostrar a profissionais mais longe');
 
       final none = noProposalsHelpTexts(_job(nudgedAt: _nudged, extraKm: 0))!;
       expect(none.description, isNot(contains('km')));
@@ -92,7 +92,7 @@ void main() {
     test('aviso depois de alargar', () {
       expect(
         widenedSearchToast(20),
-        'Pedido mostrado a jardineiros até 20 km mais longe.',
+        'Pedido mostrado a profissionais até 20 km mais longe.',
       );
     });
 

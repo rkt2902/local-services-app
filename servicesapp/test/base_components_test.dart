@@ -58,7 +58,7 @@ void main() {
       _app(
         AppConfirmDialog(
           icon: Icons.delete_forever_outlined,
-          title: 'Tens a certeza?',
+          title: 'Tem a certeza?',
           message: 'Texto',
           confirmLabel: 'Eliminar conta',
           destructive: true,
@@ -82,7 +82,7 @@ void main() {
         AppEmptyState(
           icon: Icons.inbox_outlined,
           title: 'Ainda sem candidaturas',
-          message: 'Candidata-te a um pedido de ajuda.',
+          message: 'Candidate-se a um pedido de ajuda.',
           actionLabel: 'Descobrir pedidos',
           onAction: () => pressed = true,
         ),
@@ -119,7 +119,7 @@ void main() {
             label: 'À espera de proposta',
             color: AppStatusColor.waiting,
           ),
-          subtitle: 'Tens 2 propostas para ver.',
+          subtitle: 'Tem 2 propostas para ver.',
           needsAction: true,
           onPressed: () => pressed = true,
         ),

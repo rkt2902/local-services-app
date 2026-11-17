@@ -78,9 +78,9 @@ String? socialLinkError(String input, WorkerSocialLinkKind kind) {
   if (normalizeSocialLink(input, kind) != null) return null;
   return switch (kind) {
     WorkerSocialLinkKind.instagram =>
-      'Escreve o teu @ ou o link do Instagram.',
+      'Escreva o seu @ ou o link do Instagram.',
     WorkerSocialLinkKind.facebook =>
-      'Escreve o nome da página ou o link do Facebook.',
+      'Escreva o nome da página ou o link do Facebook.',
     _ => 'Link inválido. Ex.: www.ojeujardim.pt',
   };
 }

@@ -86,7 +86,7 @@ class _DirectRequestWaitingBannerState
     try {
       error = await widget.onReleaseToAll();
     } catch (_) {
-      error = 'Não foi possível mostrar o pedido a todos. Tenta novamente.';
+      error = 'Não foi possível mostrar o pedido a todos. Tente novamente.';
     }
     // Em sucesso o botão fica bloqueado até o pedido recarregado trocar a
     // faixa (ou a tirar).

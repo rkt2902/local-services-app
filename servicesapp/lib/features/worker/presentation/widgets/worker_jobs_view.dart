@@ -514,7 +514,7 @@ class _EmptyForTab extends StatelessWidget {
         tone: AppStatusColor.neutral,
         title: 'Sem propostas à espera',
         message:
-            'Quando enviares uma proposta ou te candidatares como ajudante, aparece aqui.',
+            'Quando enviar uma proposta ou se candidatar como ajudante, aparece aqui.',
         actionLabel: onFindJobsPressed == null ? null : 'Procurar trabalho',
         onAction: onFindJobsPressed,
       ),
@@ -522,7 +522,7 @@ class _EmptyForTab extends StatelessWidget {
         icon: Icons.event_available_outlined,
         title: 'Nada agendado',
         message:
-            'Quando um cliente aceitar a tua proposta, o trabalho aparece aqui.',
+            'Quando um cliente aceitar a sua proposta, o trabalho aparece aqui.',
         actionLabel: onFindJobsPressed == null
             ? null
             : 'Ver pedidos disponíveis',

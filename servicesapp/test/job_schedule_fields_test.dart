@@ -61,13 +61,13 @@ void main() {
       await pump(tester, mode: DateMode.availability);
       expect(find.byType(TextField), findsOneWidget);
       expect(
-          find.text('Diz por palavras tuas quando dá jeito'), findsOneWidget);
+          find.text('Indique por palavras suas quando lhe convém'), findsOneWidget);
       expect(find.text('Data'), findsNothing);
     });
 
     testWidgets('tocar num modo avisa o ecrã', (tester) async {
       final changes = await pump(tester, mode: DateMode.flexible);
-      expect(find.text('Combinas a data com o jardineiro.'), findsOneWidget);
+      expect(find.text('Combina a data com o profissional.'), findsOneWidget);
       await tester.tap(find.text('Disponibilidade'));
       await tester.tap(find.text('Data fixa'));
       expect(changes, [DateMode.availability, DateMode.fixed]);

@@ -4,18 +4,18 @@ import 'package:servicesapp/features/auth/presentation/choose_role_screen.dart';
 
 void main() {
   group('phoneUsageHint', () {
-    test('cliente: quem contacta é o jardineiro', () {
-      expect(phoneUsageHint(UserRole.client), contains('jardineiro'));
+    test('cliente: quem contacta é o profissional', () {
+      expect(phoneUsageHint(UserRole.client), contains('profissional'));
     });
 
-    test('jardineiro: quem contacta é o cliente', () {
+    test('profissional: quem contacta é o cliente', () {
       expect(phoneUsageHint(UserRole.worker), contains('cliente'));
     });
 
     test('sem papel escolhido: texto neutro sobre WhatsApp', () {
       final hint = phoneUsageHint(null);
       expect(hint, contains('WhatsApp'));
-      expect(hint, isNot(contains('jardineiro')));
+      expect(hint, isNot(contains('profissional')));
     });
   });
 }

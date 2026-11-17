@@ -18,15 +18,15 @@ Future<bool> confirmHelperWithdraw(
     icon: isPending ? Icons.undo_rounded : Icons.person_remove_outlined,
     title: isPending ? 'Retirar candidatura?' : 'Desistir desta ajuda?',
     message: isPending
-        ? 'A tua candidatura deixa de aparecer ao jardineiro responsável.'
-        : 'O jardineiro responsável vai ser avisado.',
+        ? 'A sua candidatura deixa de aparecer ao profissional responsável.'
+        : 'O profissional responsável vai ser avisado.',
     confirmLabel: isPending ? 'Retirar' : 'Desistir',
     destructive: true,
   );
   return confirmed == true;
 }
 
-/// Sheet "Avaliar o jardineiro responsável" (`submit_helper_rating`).
+/// Sheet "Avaliar o profissional responsável" (`submit_helper_rating`).
 /// Devolve `true` quando a avaliação foi enviada; invalida as avaliações
 /// do próprio pedido e a lista de avaliações dadas.
 Future<bool> showRatePrincipalSheet(
@@ -40,7 +40,7 @@ Future<bool> showRatePrincipalSheet(
   final repo = ref.read(ratingRepositoryProvider);
   final submitted = await showSubmitRatingSheet(
     context: context,
-    title: 'Avaliar o jardineiro responsável',
+    title: 'Avaliar o profissional responsável',
     subtitle: acceptance.principalName,
     successMessage: 'Avaliação enviada!',
     onSubmit: (stars, comment) async {

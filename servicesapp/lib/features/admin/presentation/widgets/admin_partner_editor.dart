@@ -338,7 +338,7 @@ class _AdminPartnerEditorState extends ConsumerState<AdminPartnerEditor> {
                   onTap: () {},
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                const _Label('Ao abrir (como um jardineiro Pro+ o vê)'),
+                const _Label('Ao abrir (como um profissional Pro+ o vê)'),
                 PartnerDetailView(
                   partner: partner,
                   bannerImage: _photoPreview,
@@ -437,7 +437,7 @@ class _AdminPartnerEditorState extends ConsumerState<AdminPartnerEditor> {
               ),
 
               // ── Na app ──
-              const _SectionTitle('Na app dos jardineiros'),
+              const _SectionTitle('Na app dos profissionais'),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _visibleInApp,
@@ -446,7 +446,7 @@ class _AdminPartnerEditorState extends ConsumerState<AdminPartnerEditor> {
                 subtitle: Text(
                   notShown
                       ? 'Só aparece quando o estado for "Parceiro".'
-                      : 'Aparece aos jardineiros quando o estado é '
+                      : 'Aparece aos profissionais quando o estado é '
                             '"Parceiro" e está dentro da validade.',
                   style: notShown ? errorStyle : hintStyle,
                 ),

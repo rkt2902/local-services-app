@@ -69,7 +69,7 @@ class AgendaIntroCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'A tua agenda',
+                  'A sua agenda',
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
@@ -99,7 +99,7 @@ class AgendaIntroCard extends StatelessWidget {
                 point(
                   Icons.edit_note_rounded,
                   AppColors.textSecondary,
-                  'Junta os clientes que tens fora da app',
+                  'Junte os clientes que tem fora da app',
                 ),
                 point(
                   Icons.warning_rounded,

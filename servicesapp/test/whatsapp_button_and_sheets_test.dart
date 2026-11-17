@@ -49,7 +49,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Avaliar o trabalho'), findsOneWidget);
-    expect(find.text('Toca nas estrelas para dar a nota'), findsOneWidget);
+    expect(find.text('Toque nas estrelas para dar a nota'), findsOneWidget);
 
     await tester.tap(find.text('Enviar avaliação'));
     await tester.pumpAndSettle();

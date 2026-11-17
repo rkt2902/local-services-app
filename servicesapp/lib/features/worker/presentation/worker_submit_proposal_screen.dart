@@ -210,7 +210,7 @@ class _WorkerSubmitProposalScreenState
       day: slot.date,
       ghost: AgendaDayPreviewGhost(
         date: slot.date,
-        label: 'A tua proposta',
+        label: 'A sua proposta',
         startMinutes: agendaSlot.startMinutes,
         durationMinutes: agendaSlot.durationMinutes,
         slotKind: AgendaEntryKind.proposal,
@@ -338,7 +338,7 @@ class _WorkerSubmitProposalScreenState
                 ref.watch(serviceTypesProvider).asData?.value ?? const [],
             now: DateTime.now(),
             continueLabel: 'Enviar mesmo assim',
-            confirmSummary: 'Se enviares e o cliente aceitar, ficas com dois '
+            confirmSummary: 'Se enviar e o cliente aceitar, fica com dois '
                 'trabalhos ao mesmo tempo.',
           );
 
@@ -355,7 +355,7 @@ class _WorkerSubmitProposalScreenState
       initialDate: initialDate == null ? null : _dateSelection(initialDate),
       initialPricingMode: _lastMode ?? ProposalPricingMode.hourly,
       pricingModeHint: _lastMode == ProposalPricingMode.fixedTotal
-          ? 'Escolhemos o valor total porque o usaste da última vez.'
+          ? 'Escolhemos o valor total porque o usou da última vez.'
           : null,
       suggestedHourlyPriceLabel: suggestedLabel,
       timeSlots: _timeSlots,

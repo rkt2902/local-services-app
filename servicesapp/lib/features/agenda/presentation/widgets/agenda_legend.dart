@@ -96,9 +96,9 @@ class AgendaLegendSheet extends StatelessWidget {
   final bool showTitle;
 
   static const _rows = [
-    (AgendaCardKind.app, 'Trabalho da app', 'És tu o responsável'),
-    (AgendaCardKind.helper, 'Ajudante', 'Ajudas outro jardineiro'),
-    (AgendaCardKind.external, 'Fora da app', 'Trabalho que tu adicionaste'),
+    (AgendaCardKind.app, 'Trabalho da app', 'É o responsável'),
+    (AgendaCardKind.helper, 'Ajudante', 'Ajudas outro profissional'),
+    (AgendaCardKind.external, 'Fora da app', 'Trabalho que adicionou'),
     (AgendaCardKind.proposal, 'Proposta enviada', 'À espera do cliente'),
     (AgendaCardKind.block, 'Indisponível', 'Férias, folga, consulta'),
   ];

@@ -381,7 +381,7 @@ class _ApplyAsHelperScreenState extends ConsumerState<ApplyAsHelperScreen> {
                         controller: _messageController,
                         label: 'Mensagem ao responsável (opcional)',
                         hintText:
-                            'Escreve uma mensagem curta para o responsável',
+                            'Escreva uma mensagem curta para o responsável',
                         minLines: 3,
                         maxLines: 4,
                       ),
@@ -605,7 +605,7 @@ class _EquipmentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    'Vais precisar de levar as tuas ferramentas para este trabalho.',
+                    'Vai precisar de levar as suas ferramentas para este trabalho.',
                     style: textTheme.bodySmall
                         ?.copyWith(color: AppStatusColor.waiting.foreground),
                   ),
@@ -618,7 +618,7 @@ class _EquipmentCard extends StatelessWidget {
     }
 
     final subtitle = fullRateLabel != null && reducedRateLabel != null
-        ? 'Se levares, o pagamento sobe para $fullRateLabel (em vez de $reducedRateLabel).'
+        ? 'Se levar, o pagamento sobe para $fullRateLabel (em vez de $reducedRateLabel).'
         : 'Levar equipamento próprio aumenta o pagamento por hora.';
 
     final disableAnimations =
@@ -785,7 +785,7 @@ class _InfoBox extends StatelessWidget {
             child: Text(
               'A candidatura aparece já em "Os meus trabalhos", nos Pendentes, '
               'até o responsável decidir. O valor mostrado é uma sugestão: '
-              'o responsável fixa a taxa final quando te aceitar.',
+              'o responsável fixa a taxa final quando o aceitar.',
               style: textTheme.labelMedium
                   ?.copyWith(color: AppStatusColor.info.foreground),
             ),

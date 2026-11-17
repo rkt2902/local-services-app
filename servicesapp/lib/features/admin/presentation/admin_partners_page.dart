@@ -69,10 +69,10 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
         icon: Icons.verified_outlined,
         title: 'Aprovar o cartão de ${card.workerName}?',
         message: card.planHasBenefit
-            ? 'O cartão fica ativo e o jardineiro é avisado.'
+            ? 'O cartão fica ativo e o profissional é avisado.'
             : 'Atenção: o plano é ${adminPlanLabel(card.plan)} e o cartão '
                   'frota é do Pro+. O cartão fica ativo na mesma e o '
-                  'jardineiro é avisado.',
+                  'profissional é avisado.',
         confirmLabel: 'Aprovar',
         onSubmit: () =>
             ref.read(adminRepositoryProvider).approveFleetCard(card.id),
@@ -154,10 +154,10 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          'Os parceiros que os jardineiros veem na tab Parceiros da app, e '
+          'Os parceiros que os profissionais veem na tab Parceiros da app, e '
           'os cartões frota do Pro+. No Mapa, a camada "Parceiros" mostra '
           'os que têm localização ao lado das zonas sem resposta e da '
-          'densidade de jardineiros.',
+          'densidade de profissionais.',
           style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -217,7 +217,7 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
                       ? 'Nenhum cartão por aprovar'
                       : 'Sem cartões',
                   message:
-                      'Os pedidos de cartão frota dos jardineiros '
+                      'Os pedidos de cartão frota dos profissionais '
                       'aparecem aqui.',
                 )
               : Column(
@@ -270,7 +270,7 @@ class _AdminPartnersPageState extends ConsumerState<AdminPartnersPage> {
                   message:
                       'Adiciona os parceiros e os que estão em conversa. Os '
                       'que marcares "Mostrar na app" aparecem aos '
-                      'jardineiros; com localização, aparecem no mapa.',
+                      'profissionais; com localização, aparecem no mapa.',
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -384,7 +384,7 @@ class AdminFleetCardTile extends StatelessWidget {
           if (c.reviewMessage != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Mensagem ao jardineiro: ${c.reviewMessage}',
+              'Mensagem ao profissional: ${c.reviewMessage}',
               style: secondary,
             ),
           ],
@@ -524,7 +524,7 @@ class _AdminFleetRejectDialogState extends State<AdminFleetRejectDialog> {
           const SizedBox(height: AppSpacing.sm),
           AppTextField(
             controller: _message,
-            label: 'Mensagem ao jardineiro',
+            label: 'Mensagem ao profissional',
             helperText: reason == null || reason.message == null
                 ? 'Obrigatória no motivo "Outro" (10 carateres ou mais).'
                 : 'Opcional. Sem texto vai: "${reason.message}"',
@@ -609,7 +609,7 @@ class AdminPartnerTile extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  /// "Avisar os jardineiros" (só para os que aparecem na app).
+  /// "Avisar os profissionais" (só para os que aparecem na app).
   final VoidCallback? onNotify;
 
   @override
@@ -733,7 +733,7 @@ class AdminPartnerTile extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onNotify,
                 icon: const Icon(Icons.campaign_outlined),
-                label: const Text('Avisar os jardineiros'),
+                label: const Text('Avisar os profissionais'),
               ),
             ),
           ],

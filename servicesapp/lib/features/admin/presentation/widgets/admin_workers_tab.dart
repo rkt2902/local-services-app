@@ -44,7 +44,7 @@ class AdminWorkersPage extends StatelessWidget {
             ),
       emptyDetail: const AppEmptyState(
         icon: Icons.yard_outlined,
-        title: 'Escolhe um jardineiro',
+        title: 'Escolhe um profissional',
         message: 'A ficha abre aqui, com os números de 6 meses e o plano.',
       ),
     );
@@ -144,8 +144,8 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
               if (rows.isEmpty) {
                 return const AppEmptyState(
                   icon: Icons.person_search_outlined,
-                  title: 'Nenhum jardineiro',
-                  message: 'Nenhum jardineiro corresponde a esta pesquisa.',
+                  title: 'Nenhum profissional',
+                  message: 'Nenhum profissional corresponde a esta pesquisa.',
                 );
               }
               final total = rows.first.totalCount;
@@ -154,7 +154,7 @@ class _AdminWorkersTabState extends ConsumerState<AdminWorkersTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '$total jardineiros',
+                    '$total profissionais',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),

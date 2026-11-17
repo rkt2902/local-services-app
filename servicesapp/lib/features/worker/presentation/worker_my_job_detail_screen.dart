@@ -219,7 +219,7 @@ class _WorkerMyJobDetailScreenState
       context,
       icon: Icons.undo_rounded,
       title: 'Retirar proposta?',
-      message: 'O pedido fica disponível para outros jardineiros.',
+      message: 'O pedido fica disponível para outros profissionais.',
       confirmLabel: 'Retirar',
       destructive: true,
     );
@@ -297,7 +297,7 @@ class _WorkerMyJobDetailScreenState
                   children: [
                     Expanded(
                       child: Text(
-                        'Quantos ajudantes precisas?',
+                        'Quantos ajudantes precisa?',
                         style: textTheme.bodyMedium?.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -404,7 +404,7 @@ class _WorkerMyJobDetailScreenState
           ? null
           : overdue
           ? 'Devia ter acabado a ${dm(lastDay)}'
-          : 'Acaba a ${dm(lastDay)}',
+          : 'Termina a ${dm(lastDay)}',
       overdue: overdue,
     );
   }

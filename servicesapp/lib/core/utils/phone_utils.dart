@@ -17,7 +17,7 @@ import '../widgets/app_toast.dart';
 /// ignorados.
 String? phoneValidator(
   String? value, {
-  String emptyMessage = 'Introduz o teu telefone.',
+  String emptyMessage = 'Introduza o seu telefone.',
 }) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return emptyMessage;

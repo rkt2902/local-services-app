@@ -110,7 +110,7 @@ extension HelpAcceptanceStatusPresentationExtension
 
       case HelpAcceptanceStatus.cancelled:
         return const AppStatusPresentation(
-          label: 'Desististe',
+          label: 'Desistiu',
           color: AppStatusColor.neutral,
         );
     }

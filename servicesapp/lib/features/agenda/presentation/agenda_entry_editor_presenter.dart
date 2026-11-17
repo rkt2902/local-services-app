@@ -105,7 +105,7 @@ List<AgendaChoiceViewData<AgendaDurationId>> _durations(AgendaEntryForm form) {
 
 String? _timeSummary(AgendaEntryForm form, DateTime now) {
   if (form.multiDay) {
-    if (form.spanDays == 0) return 'Escolhe o último dia.';
+    if (form.spanDays == 0) return 'Escolha o último dia.';
     final from = _dayLabel(form.date, now);
     final to = _dayLabel(form.lastDay, now).toLowerCase();
     final start = form.effectiveStart;
@@ -153,26 +153,26 @@ AgendaInlineWarningViewData? _workWarning(
   switch (c.reason) {
     case AgendaConflictReason.overlap:
       message = tentative
-          ? 'Já enviaste uma proposta para esta hora: $name$where, '
+          ? 'Já enviou uma proposta para esta hora: $name$where, '
                 '${_range(theirs!.$1, theirs.$2)}.'
           : 'Coincide com $name$where, ${_range(theirs!.$1, theirs.$2)}.';
     case AgendaConflictReason.wholeDay:
       if (other.kind == AgendaEntryKind.block) {
-        message = 'Estás indisponível neste dia ($name).';
+        message = 'Está indisponível neste dia ($name).';
       } else if (tentative) {
-        message = 'Já tens uma proposta neste dia: $name$where.';
+        message = 'Já tem uma proposta neste dia: $name$where.';
       } else if (theirsWholeDay || theirs == null) {
-        message = 'Já tens $name neste dia$where.';
+        message = 'Já tem $name neste dia$where.';
       } else {
         message =
-            'Já tens $name neste dia$where, ${_range(theirs.$1, theirs.$2)}.';
+            'Já tem $name neste dia$where, ${_range(theirs.$1, theirs.$2)}.';
       }
     case AgendaConflictReason.sameDayNoTime:
       message = tentative
-          ? 'Já tens uma proposta neste dia: $name$where.'
+          ? 'Já tem uma proposta neste dia: $name$where.'
           : theirs == null
-          ? 'Já tens $name neste dia, sem hora marcada.'
-          : 'Já tens $name neste dia, ${_range(theirs.$1, theirs.$2)}.';
+          ? 'Já tem $name neste dia, sem hora marcada.'
+          : 'Já tem $name neste dia, ${_range(theirs.$1, theirs.$2)}.';
     case AgendaConflictReason.shortGap:
       final gap = c.gapMinutes ?? 0;
       final mine = form.effectiveStart ?? 0;
@@ -217,7 +217,7 @@ AgendaInlineWarningViewData? _blockWarning(
   return AgendaInlineWarningViewData(
     tone: AgendaWarningTone.info,
     message:
-        'Já tens ${parts.join(' e ')} $where. Ficam na agenda; tu decides '
+        'Já tem ${parts.join(' e ')} $where. Ficam na agenda; cabe-lhe decidir '
         'o que mudar.',
   );
 }
@@ -304,8 +304,8 @@ AgendaEditorViewData buildAgendaEditor({
       endTimeLabel: formatMinutes(form.endMinutes),
       recurrence: recurrence,
       info:
-          'Só aparece na tua agenda. Os pedidos continuam a aparecer; se '
-          'propuseres para estes dias, avisamos-te.',
+          'Só aparece na sua agenda. Os pedidos continuam a aparecer; se '
+          'propuser para estes dias, avisamos.',
       warning: entries == null || form.isWork
           ? null
           : _blockWarning(form, entries, ignoreSourceId: ignoreSourceId),
@@ -342,15 +342,15 @@ AgendaConflictDialogData? agendaStrongConflict({
     final start = form.startMinutes;
     final end = (start + form.durationMinutes).clamp(0, 24 * 60);
     final overlap = (strong.overlapEnd ?? 0) - (strong.overlapStart ?? 0);
-    title = 'Já tens um trabalho a esta hora';
+    title = 'Já tem um trabalho a esta hora';
     summary =
         'O novo fica das ${formatMinutes(start)} às ${formatMinutes(end)}. '
         'Cruzam-se ${agendaDurationLabel(overlap)}.';
   } else {
     title = other.kind == AgendaEntryKind.block
-        ? 'Estás indisponível neste dia'
-        : 'Já tens um trabalho neste dia';
-    summary = 'Podes guardar na mesma; o dia fica marcado a âmbar na agenda.';
+        ? 'Está indisponível neste dia'
+        : 'Já tem um trabalho neste dia';
+    summary = 'Pode guardar na mesma; o dia fica marcado a âmbar na agenda.';
   }
   return AgendaConflictDialogData(
     title: title,

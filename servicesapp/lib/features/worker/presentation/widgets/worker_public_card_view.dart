@@ -114,7 +114,7 @@ class WorkerPublicCardView extends StatelessWidget {
           child: AppEmptyState(
             icon: Icons.cloud_off_outlined,
             title: 'Não foi possível abrir o cartão',
-            message: 'Verifica a ligação e tenta novamente.',
+            message: 'Verifique a ligação e tente novamente.',
             actionLabel: onRetry == null ? null : 'Tentar novamente',
             onAction: onRetry,
             tone: AppStatusColor.cancelled,
@@ -127,7 +127,7 @@ class WorkerPublicCardView extends StatelessWidget {
               child: AppEmptyState(
                 icon: Icons.person_off_outlined,
                 title: 'Este cartão já não está disponível',
-                message: 'Este jardineiro já não tem um cartão público ativo.',
+                message: 'Este profissional já não tem um cartão público ativo.',
                 actionLabel: onCreate == null ? null : 'Criar pedido para todos',
                 onAction: onCreate,
                 tone: AppStatusColor.neutral,
@@ -373,7 +373,7 @@ class _OwnerPreviewNotice extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Pré-visualização. É assim que os clientes veem o teu cartão.',
+              'Pré-visualização. É assim que os clientes veem o seu cartão.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textPrimary,
                   ),
@@ -465,7 +465,7 @@ class _PublicCardFooter extends StatelessWidget {
           TextButton(
             onPressed: onLogin,
             child: Text(
-              'Já tens conta? Entra',
+              'Já tem conta? Entrar',
               style: textTheme.labelMedium?.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,

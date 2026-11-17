@@ -363,7 +363,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     final chosen = await AppSheet.show<AgendaEntry>(
       context,
       builder: (sheetContext) => AppSheet(
-        title: 'Qual queres mudar?',
+        title: 'Qual pretende mudar?',
         onClose: () => Navigator.pop(sheetContext),
         child: _OverlapChoice(
           entries: openable,
@@ -381,7 +381,7 @@ class _WorkerAgendaTabState extends ConsumerState<WorkerAgendaTab> {
     final confirmed = await AppConfirmDialog.show(
       context,
       icon: Icons.event_available_outlined,
-      title: 'Já estás livre a $dayLabel?',
+      title: 'Já está livre a $dayLabel?',
       message: block.isMultiDay
           ? 'Tiramos a indisponibilidade só deste dia. Os outros dias ficam '
                 'como estão.'
@@ -660,7 +660,7 @@ class _OverlapChoice extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Abre o trabalho para combinar outra hora com o cliente.',
+          'Abra o trabalho para combinar outra hora com o cliente.',
           style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xs),

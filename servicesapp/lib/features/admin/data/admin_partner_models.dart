@@ -79,7 +79,7 @@ class AdminFleetCardRow {
       AdminFleetCardRow(
         id: json['id'] as String,
         workerId: json['worker_id'] as String,
-        workerName: _text(json['worker_name']) ?? 'Jardineiro',
+        workerName: _text(json['worker_name']) ?? 'Profissional',
         locationName: _text(json['location_name']),
         plan: _text(json['plan']) ?? 'free',
         workerSuspended: json['worker_suspended'] == true,
@@ -298,9 +298,9 @@ class AdminPartner {
 /// ninguém o abriu e não está na app (nada a dizer).
 String? adminPartnerUsageLabel(AdminPartner p) {
   if (p.workersOpenedTotal == 0) {
-    return p.shownInApp() ? 'Ainda nenhum jardineiro o abriu na app' : null;
+    return p.shownInApp() ? 'Ainda nenhum profissional o abriu na app' : null;
   }
-  String workers(int n) => n == 1 ? '1 jardineiro' : '$n jardineiros';
+  String workers(int n) => n == 1 ? '1 profissional' : '$n profissionais';
   final parts = [
     '${workers(p.workersOpened30d)} '
         '${p.workersOpened30d == 1 ? 'abriu' : 'abriram'}',
@@ -357,14 +357,14 @@ List<String> adminPartnerAlertMessages(AdminPartnerAlerts a) => [
   return (title.length > 80 ? '${title.substring(0, 79)}…' : title, body);
 }
 
-/// "2 jardineiros cobrem · 5 pedidos a 10 km (1 sem resposta)". Sem
+/// "2 profissionais cobrem · 5 pedidos a 10 km (1 sem resposta)". Sem
 /// localização não há números.
 String adminPartnerReachLabel(AdminPartner p) {
   if (!p.hasLocation) return 'Sem localização no mapa';
   final workers = switch (p.workersCovering) {
-    0 => 'Nenhum jardineiro cobre',
-    1 => '1 jardineiro cobre',
-    final n => '$n jardineiros cobrem',
+    0 => 'Nenhum profissional cobre',
+    1 => '1 profissional cobre',
+    final n => '$n profissionais cobrem',
   };
   final jobs = p.jobsNearby == 1 ? '1 pedido' : '${p.jobsNearby} pedidos';
   return [

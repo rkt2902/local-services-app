@@ -176,7 +176,7 @@ class _FleetCardConfirmDataScreenState
                               keyboardType: TextInputType.number,
                               textInputAction: TextInputAction.next,
                               validator: (v) => (v ?? '').trim().isEmpty
-                                  ? 'Introduz o número do código de barras.'
+                                  ? 'Introduza o número do código de barras.'
                                   : null,
                               supportingText:
                                   'É este o número que a bomba de combustível lê.',
@@ -300,7 +300,7 @@ class _DetectedDataInfo extends StatelessWidget {
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                   ),
                   TextSpan(
-                    text: 'Confirma se os dados estão corretos.',
+                    text: 'Confirme se os dados estão corretos.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -345,7 +345,7 @@ class _BarcodeUnreadWarning extends StatelessWidget {
                         ?.copyWith(color: AppStatusColor.waiting.foreground),
                   ),
                   TextSpan(
-                    text: 'Escreve-o à mão para continuar.',
+                    text: 'Escreva-o à mão para continuar.',
                     style: textTheme.bodyMedium?.copyWith(
                       color: AppStatusColor.waiting.foreground,
                       fontWeight: FontWeight.w700,

@@ -32,7 +32,7 @@ const adminNoticeBodyMax = 500;
 /// jardineiros ou clientes, na app e por push. Primeiro conta quem
 /// recebe; a BD só envia se o número ainda for o mesmo.
 ///
-/// Com [partnerId] (`?parceiro=`, botão "Avisar os jardineiros" de um
+/// Com [partnerId] (`?parceiro=`, botão "Avisar os profissionais" de um
 /// parceiro, 0082) o aviso é só para jardineiros e, ao tocar, abre o
 /// ecrã desse parceiro na app.
 class AdminNoticesPage extends ConsumerStatefulWidget {
@@ -245,7 +245,7 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
                   runSpacing: AppSpacing.xs,
                   children: [
                     for (final (role, label) in [
-                      ('worker', 'Jardineiros'),
+                      ('worker', 'Profissionais'),
                       // Avisos de parceiro são só para jardineiros.
                       if (partner == null) ('client', 'Clientes'),
                     ])
@@ -308,7 +308,7 @@ class _AdminNoticesPageState extends ConsumerState<AdminNoticesPage> {
                   controller: _area,
                   label: 'Localidade (opcional)',
                   helperText: a.isWorkers
-                      ? 'Procura na localidade do perfil do jardineiro.'
+                      ? 'Procura na localidade do perfil do profissional.'
                       : 'Clientes com algum pedido nesta localidade.',
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -592,7 +592,7 @@ class AdminNoticePartnerCard extends StatelessWidget {
                       ? 'Este parceiro não aparece na app (tem de estar '
                             '"Parceiro", com "Mostrar na app" e dentro da '
                             'validade). Muda isso antes de avisar.'
-                      : 'Só para jardineiros. Ao tocar no aviso, abre o '
+                      : 'Só para profissionais. Ao tocar no aviso, abre o '
                             'ecrã do parceiro na app.',
                   style: textTheme.bodySmall?.copyWith(
                     color: hidden

@@ -310,7 +310,7 @@ class JobRepository {
 
   // ── Pedido sem propostas (0062) ─────────────────────────────────────────
 
-  /// "Mostrar a jardineiros mais longe": +10 km além do raio de cada
+  /// "Mostrar a profissionais mais longe": +10 km além do raio de cada
   /// jardineiro (máximo 30). Só o dono do pedido; devolve o novo total.
   Future<int> widenJobSearch(String jobId) async {
     final data =
@@ -339,7 +339,7 @@ class JobRepository {
     return RepeatHireInfo.fromJson(data);
   }
 
-  /// "Os teus jardineiros" no Início do cliente.
+  /// "Os teus profissionais" no Início do cliente.
   Future<List<PreviousWorker>> fetchMyPreviousWorkers() async {
     final data = await _client.rpc('get_my_previous_workers');
     return (data as List)

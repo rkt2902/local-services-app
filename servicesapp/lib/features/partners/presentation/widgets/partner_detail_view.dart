@@ -168,7 +168,7 @@ class PartnerDetailView extends StatelessWidget {
       case PartnerSection.barcode:
         return _Card(
           title: 'Código de barras',
-          hint: 'Mostra no balcão para lerem.',
+          hint: 'Mostre no balcão para leitura.',
           child: Center(
             child: Container(
               constraints: const BoxConstraints(
@@ -194,7 +194,7 @@ class PartnerDetailView extends StatelessWidget {
       case PartnerSection.qr:
         return _Card(
           title: 'QR da promoção',
-          hint: 'Mostra no balcão para lerem.',
+          hint: 'Mostre no balcão para leitura.',
           child: Center(
             child: QrImageView(
               data: p.qrValue!,
@@ -334,7 +334,7 @@ class _LockedCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Com o Pro+ vês aqui o $list deste parceiro.',
+                  'Com o Pro+ vê aqui o $list deste parceiro.',
                   style: textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),

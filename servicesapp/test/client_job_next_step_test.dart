@@ -47,13 +47,13 @@ void main() {
 
   test('próximo passo de cada estado', () {
     expect(clientJobNextStepLabel(_job('a', JobStatus.open)),
-        'À espera de propostas dos jardineiros.');
+        'À espera de propostas dos profissionais.');
     expect(clientJobNextStepLabel(_job('a', JobStatus.open, proposals: 1)),
-        'Tens 1 proposta para ver.');
+        'Tem 1 proposta para ver.');
     expect(clientJobNextStepLabel(_job('a', JobStatus.open, proposals: 3)),
-        'Tens 3 propostas para ver.');
+        'Tem 3 propostas para ver.');
     expect(clientJobNextStepLabel(_job('a', JobStatus.awaitingConfirmation)),
-        contains('Confirma'));
+        contains('Confirme'));
   });
 
   test('nova data: depende de quem a propôs', () {
@@ -62,8 +62,8 @@ void main() {
     final fromClient = _job('a', JobStatus.confirmed,
         reschedule: RescheduleStatus.pending, rescheduleBy: 'client');
     expect(clientJobNeedsAction(fromWorker), isTrue);
-    expect(clientJobNextStepLabel(fromWorker), contains('Responde'));
+    expect(clientJobNextStepLabel(fromWorker), contains('Responda'));
     expect(clientJobNeedsAction(fromClient), isFalse);
-    expect(clientJobNextStepLabel(fromClient), contains('À espera do jardineiro'));
+    expect(clientJobNextStepLabel(fromClient), contains('À espera do profissional'));
   });
 }

@@ -105,7 +105,7 @@ class PartnersList extends StatelessWidget {
         if (i == 0) {
           return Text(
             'Descontos e vantagens de quem trabalha com o ProJardim. '
-            'Toca num parceiro para ver os detalhes.',
+            'Toque num parceiro para ver os detalhes.',
             style: textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),

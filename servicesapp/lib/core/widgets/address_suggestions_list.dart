@@ -9,8 +9,8 @@ import 'app_motion.dart';
 
 /// Quando a pesquisa não encontra a morada: o mapa resolve sempre.
 const addressNotFoundHint =
-    'Não encontrámos esta morada. Toca no mapa no sítio exato; a morada '
-    'podes escrevê-la à mão.';
+    'Não encontrámos esta morada. Toque no mapa no sítio exato; a morada '
+    'pode escrevê-la à mão.';
 
 /// Lista de sugestões por baixo de um campo de morada: a carregar, sem
 /// resultados (com [emptyHint]) ou as moradas encontradas. Só apresentação:

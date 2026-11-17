@@ -12,7 +12,7 @@ import '../application/job_request_form.dart';
 import 'widgets/direct_request_info_sheet.dart';
 
 /// "Pedir de novo" (design A5), igual a partir do detalhe de um trabalho
-/// concluído e de "Os teus jardineiros": na primeira vez explica como
+/// concluído e de "Os teus profissionais": na primeira vez explica como
 /// funciona, depois abre o wizard de criar pedido com os dados de
 /// [sourceJob] e o jardineiro guardado no rascunho.
 Future<void> startRepeatHire(
@@ -35,7 +35,7 @@ Future<void> startRepeatHire(
   }
   if (!context.mounted) return;
 
-  final name = firstNameOr(workerName, 'o jardineiro');
+  final name = firstNameOr(workerName, 'o profissional');
   if (!infoHidden) {
     final confirmed = await showDirectRequestInfoSheet(
       context: context,
@@ -43,9 +43,9 @@ Future<void> startRepeatHire(
         titleLabel: 'Como funciona',
         descriptionLabel:
             'O pedido vai primeiro para $name, com os dados do último '
-            'trabalho. Só escolhes a data. Durante 24 horas só $name vê o '
+            'trabalho. Só escolhe a data. Durante 24 horas só $name vê o '
             'pedido e pode enviar proposta. Se não puder ou não responder, '
-            'mostramos o pedido aos outros jardineiros da zona.',
+            'mostramos o pedido aos outros profissionais da zona.',
         confirmActionLabel: 'Continuar',
         hideAgainLabel: 'Não voltar a mostrar',
       ),
@@ -55,7 +55,7 @@ Future<void> startRepeatHire(
           await prefs.hideInfo(userId);
           return null;
         } catch (_) {
-          return 'Não foi possível guardar esta preferência. Tenta novamente.';
+          return 'Não foi possível guardar esta preferência. Tente novamente.';
         }
       },
     );

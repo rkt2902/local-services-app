@@ -674,10 +674,10 @@ class _WorkerSubmitProposalScreenState
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         _isFixed
-                            ? 'É o valor que o cliente paga, faças as horas '
-                                'que fizeres.'
+                            ? 'É o valor que o cliente paga, independentemente das horas '
+                                'que fizer.'
                             : estimatedTotalLabel ??
-                                'Escolhe a duração para veres o total '
+                                'Escolha a duração para ver o total '
                                     'aproximado.',
                         style: textTheme.labelMedium?.copyWith(
                           color: AppColors.textSecondary,
@@ -755,7 +755,7 @@ class _WorkerSubmitProposalScreenState
                           _selectedDuration == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
                         const _SelectionError(
-                          message: 'Seleciona uma duração.',
+                          message: 'Selecione uma duração.',
                         ),
                       ],
                       const SizedBox(height: AppSpacing.md),
@@ -784,7 +784,7 @@ class _WorkerSubmitProposalScreenState
                       ),
                       if (_showSelectionErrors && _selectedDate == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
-                        const _SelectionError(message: 'Seleciona uma data.'),
+                        const _SelectionError(message: 'Selecione uma data.'),
                       ],
                       const SizedBox(height: AppSpacing.xs),
                       _TimeSlotSelector(
@@ -799,7 +799,7 @@ class _WorkerSubmitProposalScreenState
                       if (_showSelectionErrors &&
                           _selectedTimeSlotId == null) ...[
                         const SizedBox(height: AppSpacing.xxs),
-                        const _SelectionError(message: 'Seleciona um período.'),
+                        const _SelectionError(message: 'Selecione um período.'),
                       ],
                       _AgendaNote(
                         note: _slotSelection == null ? null : widget.agendaNote,
@@ -860,7 +860,7 @@ class _WorkerSubmitProposalScreenState
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Descreve o que inclui a proposta '
+                          'Descreva o que inclui a proposta '
                           '(varia por serviço).',
                           style: textTheme.labelMedium?.copyWith(
                             color: AppColors.textSecondary,
@@ -883,7 +883,7 @@ class _WorkerSubmitProposalScreenState
                           icon: Icons.lock_outline_rounded,
                           tone: AppStatusColor.neutral,
                           message: 'Este pedido já não aceita propostas. O '
-                              'que escreveste não foi enviado.',
+                              'que escreveu não foi enviado.',
                         ),
                       ] else if (widget.submitError != null) ...[
                         const SizedBox(height: AppSpacing.md),
@@ -1130,8 +1130,8 @@ class _PriceField extends StatelessWidget {
 
         if (price == null || price <= 0) {
           return fixedTotal
-              ? 'Indica o valor total da proposta.'
-              : 'Introduz um preço válido.';
+              ? 'Indique o valor total da proposta.'
+              : 'Introduza um preço válido.';
         }
 
         return null;

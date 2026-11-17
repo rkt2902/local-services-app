@@ -74,7 +74,7 @@ class _NoProposalsHelpCardState extends State<NoProposalsHelpCard> {
     try {
       error = await widget.onWiden();
     } catch (_) {
-      error = 'Não foi possível mostrar o pedido mais longe. Tenta novamente.';
+      error = 'Não foi possível mostrar o pedido mais longe. Tente novamente.';
     }
     if (!mounted) return;
     setState(() {

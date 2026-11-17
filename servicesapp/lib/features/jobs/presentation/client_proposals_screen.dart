@@ -83,7 +83,7 @@ class ClientProposalsScreen extends ConsumerWidget {
     List<ProposalIncludeOption> includeOptions,
   ) {
     final name =
-        p.workerName?.isNotEmpty == true ? p.workerName! : 'Jardineiro';
+        p.workerName?.isNotEmpty == true ? p.workerName! : 'Profissional';
     final duration = proposalDurationLabel(p);
     return ClientProposalCardViewData(
       proposalId: p.id,

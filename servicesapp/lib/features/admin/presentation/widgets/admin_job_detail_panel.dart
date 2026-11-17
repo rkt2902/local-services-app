@@ -268,7 +268,7 @@ class _Header extends StatelessWidget {
             onOpen: onOpenPerson,
           ),
           _PersonRow(
-            label: 'Jardineiro',
+            label: 'Profissional',
             person: job.worker ?? job.directWorker,
             suffix: job.worker == null && job.directWorker != null
                 ? ' (pedido direto)'
@@ -524,7 +524,7 @@ class _PhotosTab extends ConsumerWidget {
       title: 'Ocultar foto',
       consequence:
           'A foto deixa de aparecer na app (o ficheiro fica guardado). '
-          '${photo.takenBy == 'client' ? 'O cliente' : 'O jardineiro'} '
+          '${photo.takenBy == 'client' ? 'O cliente' : 'O profissional'} '
           'recebe um aviso com como contestar.',
       confirmLabel: 'Ocultar',
       destructive: true,
@@ -558,7 +558,7 @@ class _PhotosTab extends ConsumerWidget {
           return const AppEmptyState(
             icon: Icons.photo_library_outlined,
             title: 'Sem fotos',
-            message: 'Nem o cliente nem o jardineiro juntaram fotos.',
+            message: 'Nem o cliente nem o profissional juntaram fotos.',
           );
         }
         final urls = photos.map((p) => p.url).toList();
@@ -617,7 +617,7 @@ class _PhotosTab extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           '${_kindLabels[photo.kind] ?? photo.kind} · '
-                          '${photo.takenBy == 'client' ? 'cliente' : 'jardineiro'}',
+                          '${photo.takenBy == 'client' ? 'cliente' : 'profissional'}',
                           style: textTheme.bodySmall?.copyWith(
                             color: AppColors.textPrimary,
                           ),
@@ -662,7 +662,7 @@ class _ProposalsTab extends StatelessWidget {
       return const AppEmptyState(
         icon: Icons.request_quote_outlined,
         title: 'Sem propostas',
-        message: 'Nenhum jardineiro enviou proposta para este pedido.',
+        message: 'Nenhum profissional enviou proposta para este pedido.',
       );
     }
     return Column(
@@ -679,7 +679,7 @@ class _ProposalsTab extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          p.workerName ?? 'Jardineiro sem nome',
+                          p.workerName ?? 'Profissional sem nome',
                           style: textTheme.titleSmall?.copyWith(
                             color: AppColors.textPrimary,
                           ),
@@ -738,7 +738,7 @@ class _ProposalsTab extends StatelessWidget {
                       child: TextButton(
                         onPressed: () =>
                             onOpenPerson('/admin/workers/${p.workerId}'),
-                        child: const Text('Abrir ficha do jardineiro'),
+                        child: const Text('Abrir ficha do profissional'),
                       ),
                     ),
                 ],
@@ -788,7 +788,7 @@ class _TeamTab extends StatelessWidget {
       return const AppEmptyState(
         icon: Icons.groups_outlined,
         title: 'Sem equipa',
-        message: 'O jardineiro não pediu ajudantes para este pedido.',
+        message: 'O profissional não pediu ajudantes para este pedido.',
       );
     }
     return Column(
@@ -959,7 +959,7 @@ class _NotificationsTab extends StatelessWidget {
                         '${n.userName ?? 'Sem nome'} '
                         '(${switch (n.userRole) {
                           'client' => 'cliente',
-                          'worker' => 'jardineiro',
+                          'worker' => 'profissional',
                           _ => 'outro',
                         }}) · ${adminDateTimeLabel(n.createdAt)}',
                         style: textTheme.bodySmall?.copyWith(
@@ -1102,7 +1102,7 @@ class AdminAddressView extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   if (a.workerLocationName != null)
                     AdminInfoRow(
-                      label: 'Base do jardineiro',
+                      label: 'Base do profissional',
                       value: a.workerLocationName!,
                     ),
                   if (a.distanceKm != null)
@@ -1112,7 +1112,7 @@ class AdminAddressView extends StatelessWidget {
                     ),
                   if (a.workerBaseLat != null && a.workerBaseLng != null)
                     AddressMapLink(
-                      address: 'Base do jardineiro no mapa',
+                      address: 'Base do profissional no mapa',
                       lat: a.workerBaseLat!,
                       lng: a.workerBaseLng!,
                     ),

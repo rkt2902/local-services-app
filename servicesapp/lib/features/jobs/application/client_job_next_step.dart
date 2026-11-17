@@ -49,7 +49,7 @@ bool clientJobNeedsAction(JobRequest job) =>
 /// confirmado sozinho (48h depois de o jardineiro o dar por concluído).
 String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
   if (job.status == JobStatus.awaitingConfirmation) {
-    const base = 'O jardineiro deu o trabalho por concluído.';
+    const base = 'O profissional deu o trabalho por concluído.';
     final doneAt = job.markedDoneAt;
     if (now != null && doneAt != null) {
       final left = doneAt
@@ -57,33 +57,33 @@ String clientJobNextStepLabel(JobRequest job, {DateTime? now}) {
           .difference(now);
       if (left.inMinutes > 0) {
         final hours = (left.inMinutes / 60).ceil();
-        return '$base Confirma em ${hours}h.';
+        return '$base Confirme em ${hours}h.';
       }
     }
-    return '$base Confirma.';
+    return '$base Confirme.';
   }
   if (_rescheduleAwaitsClient(job)) {
-    return 'O jardineiro propôs uma nova data. Responde.';
+    return 'O profissional propôs uma nova data. Responda.';
   }
   if (job.rescheduleStatus == RescheduleStatus.pending) {
-    return 'Propuseste uma nova data. À espera do jardineiro.';
+    return 'Propôs uma nova data. À espera do profissional.';
   }
   if (job.status == JobStatus.open) {
     final n = job.proposalCount;
     final directUntil = job.directUntil;
     if (n <= 0 && job.isDirectWaiting && directUntil != null) {
-      return 'Só o teu jardineiro vê o pedido até '
+      return 'Só o seu profissional vê o pedido até '
           '${directDeadlineLabel(directUntil)}.';
     }
     // Interruptor desligado (0059): o pedido parou e espera pelo cliente.
     if (n <= 0 && job.isDirectOnHold) {
-      return 'O pedido está parado. Decide se o mostras a outros jardineiros.';
+      return 'O pedido está parado. Decide se o mostras a outros profissionais.';
     }
-    if (n <= 0) return 'À espera de propostas dos jardineiros.';
-    return n == 1 ? 'Tens 1 proposta para ver.' : 'Tens $n propostas para ver.';
+    if (n <= 0) return 'À espera de propostas dos profissionais.';
+    return n == 1 ? 'Tem 1 proposta para ver.' : 'Tem $n propostas para ver.';
   }
-  if (job.isInProgress) return 'O jardineiro já começou o trabalho.';
-  return 'Trabalho marcado. Fala com o jardineiro por WhatsApp.';
+  if (job.isInProgress) return 'O profissional já começou o trabalho.';
+  return 'Trabalho marcado. Fale com o profissional por WhatsApp.';
 }
 
 
@@ -118,7 +118,7 @@ ClientJobAttention? clientJobAttention(
 /// Título curto da linha de "Precisa de ti" ("3 propostas para ver").
 String clientJobAttentionTitle(ClientJobAttention kind, JobRequest job) =>
     switch (kind) {
-      ClientJobAttention.confirmDone => 'Confirma o trabalho feito',
+      ClientJobAttention.confirmDone => 'Confirmar o trabalho feito',
       ClientJobAttention.answerReschedule => 'Nova data proposta',
       ClientJobAttention.approveHelpers => 'Aprovar ajudantes',
       ClientJobAttention.seeProposals => job.proposalCount == 1

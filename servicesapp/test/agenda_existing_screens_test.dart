@@ -30,7 +30,7 @@ void main() {
     );
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('A tua agenda'), findsOneWidget);
+    expect(find.text('A sua agenda'), findsOneWidget);
     expect(
       find.text('Os trabalhos da app aparecem aqui sozinhos'),
       findsOneWidget,
@@ -62,14 +62,14 @@ void main() {
     expect(find.text('O que significam as cores?'), findsNothing);
   });
 
-  testWidgets('nota "Estás livre" (verde) com "Ver o dia"', (tester) async {
+  testWidgets('nota "Está livre" (verde) com "Ver o dia"', (tester) async {
     var opened = false;
     await tester.pumpWidget(
       _app(
         AgendaInlineWarning(
           data: const AgendaInlineWarningViewData(
             tone: AgendaWarningTone.success,
-            message: 'Estás livre neste horário',
+            message: 'Está livre neste horário',
             actionLabel: 'Ver o dia',
           ),
           onAction: () => opened = true,
@@ -125,7 +125,7 @@ void main() {
                   check: (_, _) async => const AgendaSlotCheck(
                     note: AgendaInlineWarningViewData(
                       tone: AgendaWarningTone.success,
-                      message: 'Estás livre neste dia',
+                      message: 'Está livre neste dia',
                       actionLabel: 'Ver o dia',
                     ),
                   ),
@@ -141,6 +141,6 @@ void main() {
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
     expect(find.text('Era: quarta, 28 out · 09:00'), findsOneWidget);
-    expect(find.text('Estás livre neste dia'), findsNothing);
+    expect(find.text('Está livre neste dia'), findsNothing);
   });
 }

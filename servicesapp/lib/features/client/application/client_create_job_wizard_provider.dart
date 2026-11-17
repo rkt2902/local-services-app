@@ -79,7 +79,7 @@ class ClientCreateJobWizardState {
   /// até o cliente escolher "Ver todos os serviços" (fica `true`).
   final bool directShowAllServices;
 
-  /// Interruptor do passo 4 "Se não puder, mostrar a outros jardineiros".
+  /// Interruptor do passo 4 "Se não puder, mostrar a outros profissionais".
   /// `false`: depois de recusa ou fim do prazo o pedido fica parado até o
   /// cliente decidir.
   final bool directAutoRelease;

@@ -149,7 +149,7 @@ class _ClientEditProfileScreenState extends State<ClientEditProfileScreen> {
   }
 
   String? _fullNameValidator(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
+      (value == null || value.trim().isEmpty) ? 'Introduza o seu nome.' : null;
 
   String? _phoneValidator(String? value) => phoneValidator(value);
 
@@ -602,7 +602,7 @@ class _ProfileLoadError extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Verifica a ligação e tenta novamente.',
+                      'Verifique a ligação e tente novamente.',
                       textAlign: TextAlign.center,
                       style: textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
@@ -676,7 +676,7 @@ class _ProfileNotFound extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'A tua sessão pode já não ser válida. Entra novamente.',
+                'A sua sessão pode já não ser válida. Entre novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,

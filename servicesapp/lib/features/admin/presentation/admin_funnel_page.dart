@@ -157,7 +157,7 @@ class AdminFunnelView extends StatelessWidget {
             '1.ª proposta em ${adminHoursLabel(hours)} (mediana)',
         ].join(' · '),
       ),
-      AdminFunnelCard(title: 'Jardineiros', steps: f.workers),
+      AdminFunnelCard(title: 'Profissionais', steps: f.workers),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

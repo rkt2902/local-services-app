@@ -138,13 +138,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Pedir orçamento a Rui'), findsOneWidget);
-      expect(find.text('Já tens conta? Entra'), findsNothing);
+      expect(find.text('Já tem conta? Entrar'), findsNothing);
       expect(find.text('Partilhar cartão'), findsNothing);
       await tester.tap(find.text('Pedir orçamento a Rui'));
       expect(calls.started, ['rui']);
     });
 
-    testWidgets('sem sessão: pedir e "Já tens conta? Entra"', (tester) async {
+    testWidgets('sem sessão: pedir e "Já tem conta? Entrar"', (tester) async {
       final calls = _Calls();
       await tester.pumpWidget(_cardApp(
         AsyncValue.data(_data(mode: WorkerPublicCardViewerMode.signedOut)),
@@ -153,11 +153,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Pedir orçamento a Rui'), findsOneWidget);
-      await tester.tap(find.text('Já tens conta? Entra'));
+      await tester.tap(find.text('Já tem conta? Entrar'));
       expect(calls.logins, 1);
     });
 
-    testWidgets('outro jardineiro: sem barra de ações', (tester) async {
+    testWidgets('outro profissional: sem barra de ações', (tester) async {
       final calls = _Calls();
       await tester.pumpWidget(_cardApp(
         AsyncValue.data(_data(mode: WorkerPublicCardViewerMode.anotherWorker)),
@@ -201,7 +201,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Pedir orçamento a Rui'), findsNothing);
-      expect(find.text('Já tens conta? Entra'), findsNothing);
+      expect(find.text('Já tem conta? Entrar'), findsNothing);
       expect(find.text('Rui Costa'), findsOneWidget);
     });
 
@@ -244,7 +244,7 @@ void main() {
       expect(calls.generic, 1);
     });
 
-    testWidgets('cartão que não existe fica igual, sem botão para jardineiro',
+    testWidgets('cartão que não existe fica igual, sem botão para profissional',
         (tester) async {
       final calls = _Calls();
       await tester.pumpWidget(
@@ -301,7 +301,7 @@ void main() {
   });
 
   group('voltar ao pedido depois de entrar', () {
-    test('guarda e lê o jardineiro e a visita', () {
+    test('guarda e lê o profissional e a visita', () {
       final saved = DirectRequestAuthContext(
         workerId: 'rui',
         workerName: 'Rui Costa',
@@ -332,11 +332,11 @@ void main() {
     testWidgets('faixa do registo', (tester) async {
       await tester.pumpWidget(_app(const DirectRequestAuthBanner(
         workerName: 'Rui Costa',
-        descriptionLabel: 'Cria a conta e voltas logo ao pedido.',
+        descriptionLabel: 'Crie a conta e regresse ao pedido.',
       )));
 
-      expect(find.text('Vais pedir orçamento a Rui'), findsOneWidget);
-      expect(find.text('Cria a conta e voltas logo ao pedido.'), findsOneWidget);
+      expect(find.text('Vai pedir orçamento a Rui'), findsOneWidget);
+      expect(find.text('Crie a conta e regresse ao pedido.'), findsOneWidget);
     });
   });
 
@@ -380,7 +380,7 @@ void main() {
       expect(next.directShowAllServices, isTrue);
     });
 
-    test('"Criar pedido" normal tira o jardineiro', () {
+    test('"Criar pedido" normal tira o profissional', () {
       final draft = cardRequestWizardState(
         const ClientCreateJobWizardState(),
         workerId: 'rui',
@@ -399,7 +399,7 @@ void main() {
       expect(find.text('R'), findsOneWidget);
     });
 
-    testWidgets('jardineiro sem serviços: "Ver todos os serviços"',
+    testWidgets('profissional sem serviços: "Ver todos os serviços"',
         (tester) async {
       var all = 0;
       await tester.pumpWidget(_app(DirectRequestServicesEmpty(
@@ -446,7 +446,7 @@ void main() {
 
       await tester.pumpWidget(banner(false));
       await tester.pumpAndSettle();
-      expect(find.textContaining('fica parado e decides tu'), findsOneWidget);
+      expect(find.textContaining('parado até decidir o que fazer'), findsOneWidget);
     });
 
     testWidgets('A5 sem interruptor continua igual', (tester) async {
@@ -475,7 +475,7 @@ void main() {
       expect(texts.kind, DirectBannerKind.onHold);
       expect(texts.title, 'Rui não respondeu a tempo');
       expect(texts.description,
-          'O pedido está parado. Queres mostrá-lo a outros jardineiros?');
+          'O pedido está parado. Pretende mostrá-lo a outros profissionais?');
     });
 
     test('parado depois de recusar', () {
@@ -506,7 +506,7 @@ void main() {
           holdReason: 'expired',
           autoRelease: false,
         )),
-        'O pedido está parado. Decide se o mostras a outros jardineiros.',
+        'O pedido está parado. Decide se o mostras a outros profissionais.',
       );
     });
 
@@ -519,14 +519,14 @@ void main() {
           display: DirectRequestWaitingDisplay.onHold,
           titleLabel: 'Rui não respondeu a tempo',
           descriptionLabel:
-              'O pedido está parado. Queres mostrá-lo a outros jardineiros?',
+              'O pedido está parado. Pretende mostrá-lo a outros profissionais?',
           workerInitial: 'R',
           releaseActionLabel: 'Mostrar a todos',
           cancelActionLabel: 'Cancelar pedido',
         ),
         onReleaseToAll: () async {
           released++;
-          return 'Não foi possível mostrar o pedido a todos. Tenta novamente.';
+          return 'Não foi possível mostrar o pedido a todos. Tente novamente.';
         },
         onCancelRequest: () => cancelled++,
       )));
@@ -538,37 +538,37 @@ void main() {
       await tester.pumpAndSettle();
       expect(released, 1);
       expect(
-        find.text('Não foi possível mostrar o pedido a todos. Tenta novamente.'),
+        find.text('Não foi possível mostrar o pedido a todos. Tente novamente.'),
         findsOneWidget,
       );
     });
   });
 
-  group('lado do jardineiro', () {
+  group('lado do profissional', () {
     test('fora da área', () {
-      expect(outsideAreaLabel(12.4), 'Fora da tua área, a 12 km');
+      expect(outsideAreaLabel(12.4), 'Fora da sua área, a 12 km');
     });
 
     testWidgets('pedido pelo cartão fora da área e depois do prazo',
         (tester) async {
       await tester.pumpWidget(_app(const WorkerDirectRequestCard(
         data: WorkerDirectRequestViewData(
-          tagLabel: 'Pedido só para ti · prazo terminado',
-          titleLabel: 'Marta pediu-te orçamento pelo teu cartão',
-          explanationLabel: 'Se não responderes a tempo, Marta decide se '
-              'mostra o pedido a outros jardineiros.',
-          outsideAreaLabel: 'Fora da tua área, a 12 km',
+          tagLabel: 'Pedido só para si · prazo terminado',
+          titleLabel: 'Marta pediu-lhe orçamento pelo seu cartão',
+          explanationLabel: 'Se não responder a tempo, Marta decide se '
+              'mostra o pedido a outros profissionais.',
+          outsideAreaLabel: 'Fora da sua área, a 12 km',
           noticeLabel: 'Marta vai decidir se mostra o pedido a outros '
-              'jardineiros. Ainda podes enviar proposta.',
+              'profissionais. Ainda pode enviar proposta.',
           history: AsyncValue.data(null),
         ),
       )));
       await tester.pumpAndSettle();
 
-      expect(find.text('Marta pediu-te orçamento pelo teu cartão'),
+      expect(find.text('Marta pediu-lhe orçamento pelo seu cartão'),
           findsOneWidget);
-      expect(find.text('Fora da tua área, a 12 km'), findsOneWidget);
-      expect(find.text('Podes enviar proposta na mesma. Conta com a deslocação.'),
+      expect(find.text('Fora da sua área, a 12 km'), findsOneWidget);
+      expect(find.text('Pode enviar proposta na mesma. Tenha em conta a deslocação.'),
           findsOneWidget);
       expect(find.textContaining('Marta vai decidir'), findsOneWidget);
     });

@@ -102,7 +102,7 @@ class ClientJobConfirmedScreen extends ConsumerWidget {
         proposal != null ? acceptedProposalPriceLabel(proposal) : '—';
 
     return _ClientJobConfirmedView(
-      workerName: workerName.isEmpty ? 'Jardineiro' : workerName,
+      workerName: workerName.isEmpty ? 'Profissional' : workerName,
       workerAvatarUrl:
           (workerAvatarUrl != null && workerAvatarUrl.isNotEmpty)
               ? workerAvatarUrl

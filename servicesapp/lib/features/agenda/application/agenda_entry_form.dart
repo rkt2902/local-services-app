@@ -279,10 +279,10 @@ class AgendaEntryForm {
   /// Porque não dá para guardar, ou nulo. O texto aparece por cima do botão.
   String? get blocker {
     if (isWork && title.trim().isEmpty) {
-      return 'Escreve um título para poder guardar.';
+      return 'Escreva um título para poder guardar.';
     }
     if (!isWork && reason == null) {
-      return 'Escolhe o motivo para poder guardar.';
+      return 'Escolha o motivo para poder guardar.';
     }
     if (isWork && phone.trim().isNotEmpty && whatsAppNumber(phone) == null) {
       return invalidPhoneMessage;
