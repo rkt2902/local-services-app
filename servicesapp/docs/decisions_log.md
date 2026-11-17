@@ -3,113 +3,41 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-11-16 — Parceiros na app, geridos no painel (0082 alargada)
+## 2026-11-16 — Login Google feito pela app (sem supabase.co à vista)
 
-- A tabela das gasolineiras passou a `partners`, para qualquer tipo de parceiro, com
-  os campos que a app mostra. Tudo menos o nome é opcional e o ecrã do parceiro só
-  mostra as partes preenchidas (sem QR não há espaço para o QR, sem link não há
-  botão). Texto em branco grava NULL.
-- Tab "Parceiros" no jardineiro: quinto botão no menu de baixo e entrada no Perfil,
-  só quando há parceiros visíveis (decisão do Henrique, "B e perfil"). O "+" continua
-  ao centro (2 botões, "+", 3 botões).
-- Pro+ por parceiro (`pro_plus_only`, ligado por omissão): quem não é Pro+ vê o
-  parceiro mas não os códigos, que a BD nem envia. O de exemplo está aberto a todos.
-- Localização opcional: um parceiro só online não precisa de ponto no mapa.
-- A 0082 ainda não estava aplicada, por isso foi alterada em vez de criar a 0083. É
-  idempotente: se a versão anterior tiver sido corrida, renomeia `partner_locations`
-  e apaga as funções antigas.
-- Parceiro de exemplo na migration (id fixo, notas "MOCK"), para ver a tab antes de
-  haver parceiros reais. Apaga-se no painel.
-- Uso contado por jardineiros diferentes (não por toques): o mesmo gesto do mesmo
-  jardineiro conta uma vez por hora, para os números servirem de argumento com o
-  parceiro sem inflar. Não se conta mostrar o código de barras ou o QR no balcão (não
-  há como saber).
-- Proximidade: a ordem do painel manda; com a mesma ordem (por omissão, 100), o mais
-  perto da base vem primeiro.
-- Aviso de parceiro reaproveita os Avisos (0081) em vez de um envio à parte: mesma
-  contagem antes de enviar, mesmo histórico. Tem tipo próprio (`partner_new`) para a
-  app saber abrir o parceiro.
+- **Decisão:** o login Google passa a ser feito pela própria app (folha nativa no
+  Android, botão oficial da Google na web) e só o ID token vai para o Supabase
+  (`signInWithIdToken`). Fica atrás de `GOOGLE_WEB_CLIENT_ID`; sem ele, login antigo.
+- **Motivo:** o Henrique achou pouco atrativo a página da Google dizer "Continuar para
+  twpflvcoyeiysnychkom.supabase.co". O domínio próprio do Supabase (auth.projardim.pt)
+  exige o plano Pro e um add-on pago. Um proxy em projardim.pt não serve: a Google
+  exige o mesmo redirect_uri no pedido e na troca do código, que o Supabase faz direto.
+- Facebook e iOS ficam no login por browser por agora.
+## 2026-11-14 — Ajudantes por aprovar no Início do cliente; vagas extra sem nova aprovação
 
-## 2026-11-16 — Cartões frota no painel, gasolineiras e zonas no mapa (0082)
+- O pedido de ajudantes à espera da aprovação do cliente passa a aparecer em
+  "Precisa de ti" no Início ("Aprovar ajudantes"), não só nos Alertas.
+- Aumentar as vagas de um pedido de ajuda já aprovado (ex.: de 2 para 3) **não** pede
+  nova aprovação ao cliente. O cliente aprovou a equipa; mais um ajudante não muda o
+  preço combinado com o jardineiro e pedir de novo atrasava o trabalho. O cliente vê a
+  equipa atualizada no detalhe do pedido.
+- Decidido pelo Henrique ("faz o que achares melhor") depois da terceira ronda de testes
+  Android.
 
-- Cartão frota decide-se no painel (aprovar, recusar, retirar). Só conta o pedido mais
-  recente de cada jardineiro, como na app. Recusar pede um motivo de lista própria
-  (dados ilegíveis, plano, gasolineira não aceitou, outro) e a mensagem ao jardineiro
-  fica no cartão (`review_message`); a nota interna não existe aqui porque não há nada
-  de terceiros a explicar. Aprovar um plano sem Pro+ é possível (o painel avisa), para
-  testes e acordos à parte.
-- Gasolineiras numa tabela só do painel, com estado "em conversa", "parceira" e
-  "terminada", para planear antes de fechar parcerias. Ainda não aparecem na app.
-- Zonas em quadrados de 10 km calculados na BD (sem PostGIS): mais simples de ler do
-  que um mapa de calor e dá números por zona. "Sem resposta" = `no_response` ou aberto
-  há 24 h sem propostas. Densidade = quantos jardineiros têm o raio a chegar ao centro
-  do quadrado, mostrada só onde há procura ou gasolineira.
-- As camadas novas só pedem dados quando se ligam, para o mapa abrir tão depressa como
-  antes.
+## 2026-11-13 — Termos e Política dentro da app e no domínio
 
-## 2026-11-16 — Painel de admin, fase 3: funil, CSV e avisos (0081)
-
-- O funil conta por coortes: pessoas que se registaram (ou pedidos criados) no
-  período e até onde chegaram, não eventos do período. Contas eliminadas,
-  suspensas e de admin ficam de fora.
-- O CSV sai sem telefone, email nem morada (minimização: o ficheiro sai do painel
-  e anda por email ou Drive). O servidor devolve colunas e linhas e a app escreve o
-  CSV com `;` e BOM, para abrir bem no Excel em português. Cada exportação fica no
-  Registo com o número de linhas.
-- Avisos a grupos só para avisos de serviço; promoções continuam nas dicas da
-  época, que se podem desligar (RGPD e regras de marketing). O admin conta primeiro
-  e o envio só segue se a contagem for a mesma, para não mandar a um grupo maior do
-  que o que viu. O mesmo título não se repete em 24h (duplo clique, reenvio sem
-  querer).
-- Plano e serviço só filtram jardineiros; clientes filtram-se pela localidade dos
-  pedidos que fizeram (não há localidade no perfil do cliente).
-
-## 2026-11-16 — Painel de admin para suporte, fase C (0080)
-
-- Suspensão e encerramento ficam numa tabela à parte (`account_status`), não em
-  `profiles`: quem tem um trabalho confirmado lê o perfil da outra pessoa e veria o
-  motivo. A app pergunta `get_my_account_status`, que só devolve a mensagem escrita
-  para a pessoa.
-- "Pausar" os pedidos abertos ao suspender é cancelá-los com
-  `cancel_reason = 'account_suspended'` (a cliente pode publicar de novo depois de
-  reativada), sem estado novo na máquina de estados. Trabalhos já aceites ficam
-  como estão; o suporte decide um a um na ficha do pedido (cancelar, concluir).
-- A conta suspensa não age por um trigger em todas as tabelas onde se escreve
-  trabalho, ligado a `auth.uid()`, para apanhar também as RPCs. Eliminar a conta
-  continua possível (RGPD): `account_delete_core` abre a exceção só na sua transação.
-- Aviso de encerramento sempre com 30 dias (P2B, art. 4) e suspensão automática por
-  cron na data. O email com os motivos vai do Gmail de suporte, como na fase B.
-- Eliminar a pedido usa o mesmo código que a app (`delete_my_account` passou a
-  chamar `account_delete_core`). O SQL não apaga ficheiros no Storage: o painel
-  mostra a lista e fica no Registo.
-- Exportar inclui a Agenda do jardineiro (é dele e foi ele que a pediu); é a única
-  `admin_*` que lê a Agenda. Ficam de fora quem avaliou, a morada exata dos pedidos
-  onde o jardineiro trabalhou e as notas internas do suporte.
-- Reenviar o código: a RPC regista e devolve o email; o envio é o `auth.resend` da
-  própria app (sem chave de serviço no browser).
-
-## 2026-11-16 — Painel de admin para suporte, fase B (0079)
-
-- Ocultar não apaga e não usa colunas novas em `ratings`: a avaliação passa para
-  `ratings_hidden` (e a foto para `job_photos_hidden`). A spec falava em
-  `ratings.hidden_at`, mas isso obrigava a mudar 2 vistas e cerca de 11 funções que
-  leem `ratings` (médias, cartão público, "Pedir de novo"); com o arquivo nenhuma muda
-  e repor é mover de volta. Um trigger impede avaliar de novo o mesmo trabalho
-  enquanto a avaliação está oculta.
-- Prazos dos casos pela tabela do `docs/SUPORTE.md`, calculados na BD
-  (`support_case_due`, `add_business_days`) em hora de Lisboa. Os feriados não estão
-  na conta: o prazo fica um pouco mais curto, nunca mais longo. A confirmação de
-  receção conta até à primeira "Resposta enviada" registada no caso.
-- O painel não envia emails: a resposta vai do Gmail de suporte e cola-se no caso
-  como "Resposta enviada". Fica a prova do que se respondeu e quando.
-- Cancelar pelo suporte deixa `cancelled_by` vazio e `cancel_reason = 'support'`. A
-  app passa a dizer "O suporte cancelou este trabalho" e não deixa "Publicar de novo".
-  O aviso às propostas pendentes também diz que foi o suporte.
-- Reabrir só a partir de `no_response`, por 48 horas, e um pedido direto passa a ser
-  de todos. Anular a confirmação automática dá à cliente 7 dias novos (o relógio da
-  confirmação automática recomeça).
-- Motivos fixos (7) mais nota de 5 carateres ou mais em todas as ações; o que vai no
-  aviso ao utilizador é texto fixo, com mensagem própria opcional só no cancelamento.
+- **Decisão:** os textos legais passam a viver no repositório
+  (`assets/legal/*.md`). A app mostra-os num ecrã próprio (`/termos`,
+  `/privacidade`, públicos, fora dos shells) em vez de abrir o Google Doc no
+  browser. A web serve páginas estáticas nos mesmos caminhos, geradas por
+  `tool/build_legal_pages.py` (o CI verifica que estão atualizadas).
+- **Motivo:** o Henrique quer um ecrã bonito na app e um URL próprio na web; um só
+  texto evita a app, a web e o Google Doc ficarem diferentes; as páginas estáticas
+  abrem sem JavaScript (lojas, Meta, Google).
+- Textos revistos (RGPD, DSA, P2B, Livro de Reclamações, CNIACC); a ordenação das
+  propostas nos Termos estava errada ("por preço") e passou a descrever o código.
+- Histórico de pedidos do cliente paginado (20 de cada vez, AUD-25); os números da
+  conta vêm de uma contagem por estado.
 
 ## 2026-11-13 — Painel de admin para suporte, fase A (0078)
 

@@ -15,7 +15,7 @@ Legenda: [x] verificado e certo · [ ] por fazer · [?] NÃO VERIFICADO (depende
 - [x] `READ_MEDIA_IMAGES` removida (AUD-05, PR #53); testar a escolha de fotos (TR-13)
 - [x] Release recusa assinar sem `key.properties` (AUD-04, PR #53)
 - [ ] Gerar a upload key e `android/key.properties` (fora do git)
-- [ ] `flutter build appbundle --release` com **todos** os `--dart-define`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_PUBLIC_URL`, `SUPPORT_EMAIL` (e `TERMS_URL`/`PRIVACY_POLICY_URL` se mudarem)
+- [ ] `flutter build appbundle --release` com **todos** os `--dart-define`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_PUBLIC_URL`, `SUPPORT_EMAIL`, `GOOGLE_WEB_CLIENT_ID` (login Google nativo, SETUP 7.5) (e `TERMS_URL`/`PRIVACY_POLICY_URL` se mudarem)
 - [x] Push a funcionar, confirmado pelo dono a 13/11
 - [?] Bibliotecas nativas alinhadas a 16 KB (verificar no APK Analyzer do Android Studio, sobretudo o ML Kit)
 - [ ] Testes manuais P0 num Android físico com a build de release (`manual_test_plan.md`)

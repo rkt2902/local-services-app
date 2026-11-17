@@ -473,6 +473,40 @@ em Development quem não é tester recebe um erro. Quando a app estiver em Live:
 - [ ] Nas apps (e para testares como tester antes do Live), juntar
       `--dart-define=FACEBOOK_LOGIN_ENABLED=true` aos `args` do `.vscode/launch.json`.
 
+### 7.5 Google sem o endereço do Supabase (Android e web)
+
+Com o login da 7.2, a página da Google diz "Continuar para
+twpflvcoyeiysnychkom.supabase.co". Com estes passos a app faz o login Google ela
+própria e só passa o resultado ao Supabase: no Android aparece a folha nativa com as
+contas do telemóvel e "ProJardim"; na web aparece o botão oficial da Google e a
+janela diz projardim.pt. É grátis. Enquanto não houver `GOOGLE_WEB_CLIENT_ID`, a app
+continua no login antigo da 7.2, por isso dá para fazer isto quando quiseres.
+
+1. [ ] Google Cloud > Clients > o cliente **Web application** da 7.2 > Authorized
+       JavaScript origins: `https://projardim.pt`, `https://www.projardim.pt`, o
+       endereço do Netlify e, para testar no PC, `http://localhost:5000`. Guarda.
+       Copia o **Client ID** deste cliente (acaba em `.apps.googleusercontent.com`;
+       não é segredo).
+2. [ ] Clients > Create client > tipo **Android**, nome "ProJardim Android", package
+       `pt.projardim.app`, SHA-1 da **upload key** (`keytool -list -v -keystore
+       C:\keys\<ficheiro>.jks -alias <alias>`). Cria um segundo cliente Android igual
+       com o SHA-1 da chave de debug (`keytool -list -v -keystore
+       %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android`)
+       para testar com `flutter run`. Depois de ativar o Play App Signing, um terceiro
+       com o SHA-1 que a Play mostra em Configuração > Integridade da app. Não há nada a
+       copiar destes clientes: só têm de existir.
+3. [ ] Supabase > Authentication > Sign In / Providers > Google: o Client ID da web já
+       lá está, não muda nada. Deixa "Skip nonce check" desligado.
+4. [ ] GitHub > Settings > Secrets and variables > Actions > **Variables**:
+       `GOOGLE_WEB_CLIENT_ID` = o Client ID do passo 1. No `launch.json` e no comando
+       do build de release Android, juntar
+       `--dart-define=GOOGLE_WEB_CLIENT_ID=<Client ID>`.
+5. [ ] (Opcional, grátis, demora uns dias) Google Auth Platform > **Branding**: logótipo,
+       página inicial `https://projardim.pt`, Política `https://projardim.pt/privacidade`,
+       Termos `https://projardim.pt/termos`, domínio autorizado `projardim.pt`
+       (verificado no Google Search Console), e pedir a verificação da marca. Depois de
+       aprovada, a Google mostra o nome e o logótipo do ProJardim em vez do domínio.
+
 ### Testar
 
 - [ ] Web (site do Netlify): Continuar com Google, conta que nunca usaste na app. Vai
@@ -481,7 +515,10 @@ em Development quem não é tester recebe um erro. Quando a app estiver em Live:
       do papel e a foto da conta Google aparece no perfil.
 - [ ] Repetir com o Facebook (na web e no Android), com o botão ligado (7.4).
 - [ ] Android: Continuar com Google abre o browser e, depois de escolher a conta, volta
-      sozinho à app já com sessão.
+      sozinho à app já com sessão. Com a 7.5: abre a folha nativa do Android (sem
+      browser e sem supabase.co) e entra logo.
+- [ ] Web com a 7.5: o botão é o da Google ("Continuar com Google"); a janela diz
+      projardim.pt e entra sem sair da página.
 - [ ] Sair e voltar a entrar com o mesmo Google: vai direto para o início, sem pedir o
       papel outra vez.
 - [ ] Conta antiga criada por email e password: entrar com o Google do mesmo email. Deve

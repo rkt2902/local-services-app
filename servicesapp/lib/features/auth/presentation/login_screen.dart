@@ -259,6 +259,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             SocialSignInButtons(
                               enabled: !isLoading,
                               onPressed: _signInWithSocial,
+                              onGoogleIdToken: (idToken) => ref
+                                  .read(authControllerProvider.notifier)
+                                  .signInWithGoogleIdToken(idToken),
                             ),
                           ],
                         ),
