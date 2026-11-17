@@ -1,6 +1,9 @@
 import '../../features/auth/application/session_provider.dart';
 
 /// Rotas abertas sem sessão (além do cartão público `/w/...`).
+/// Textos legais: nunca mandam para o onboarding.
+const legalRoutes = {'/termos', '/privacidade'};
+
 const publicRoutes = {
   '/',
   '/login',
@@ -9,6 +12,9 @@ const publicRoutes = {
   '/forgot-password/request',
   passwordResetRoute,
   '/verify-email',
+  // Termos e Política: abrem com ou sem sessão (registo, login, web).
+  '/termos',
+  '/privacidade',
 };
 
 /// Caminho do deep link de volta do login Google/Facebook nas apps
@@ -102,6 +108,10 @@ String? resolveRedirect({
   // refresh de token a meio da sessão destrói a árvore de widgets atual
   // (por exemplo com o ImagePicker aberto) e perde dados sem aviso.
   if (session == null) return null;
+
+  // Termos e Política abrem sempre: sem sessão, a meio do registo
+  // (/choose-role) ou já com conta.
+  if (legalRoutes.contains(loc)) return null;
 
   final isAuthenticated = session.isAuthenticated;
   final role = session.role;
