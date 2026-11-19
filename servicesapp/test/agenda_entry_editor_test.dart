@@ -81,7 +81,7 @@ void main() {
       expect(data.title, 'Adicionar à agenda');
       expect(data.showTypeSelector, isTrue);
       expect(data.canSave, isFalse);
-      expect(data.saveHelper, 'Escreve um título para poder guardar.');
+      expect(data.saveHelper, 'Escreva um título para poder guardar.');
       expect(data.saveLabel, 'Guardar na agenda');
       expect(data.work.dateLabel, 'Hoje, quarta 28 out');
       expect(data.work.serviceLabel, isNull);
@@ -122,7 +122,7 @@ void main() {
         serviceTypes: _types,
         now: _now,
       )!;
-      expect(dialog.title, 'Já tens um trabalho a esta hora');
+      expect(dialog.title, 'Já tem um trabalho a esta hora');
       expect(dialog.entryStart, '09:00');
       expect(dialog.entryMeta, 'Cascais · Maria Santos');
       expect(
@@ -147,7 +147,7 @@ void main() {
       final data = _build(form);
       expect(
         data.work.warning!.message,
-        'Estás indisponível neste dia (Férias).',
+        'Está indisponível neste dia (Férias).',
       );
       final custom = data.work.durationChoices.last;
       expect(custom.label, '1 h 30');
@@ -186,7 +186,7 @@ void main() {
       expect(data.unavailable.reasons.first.selected, isTrue);
       expect(
         data.unavailable.warning!.message,
-        'Já tens 2 trabalhos neste dia. Ficam na agenda; tu decides o que '
+        'Já tem 2 trabalhos neste dia. Ficam na agenda; cabe-lhe decidir o que '
         'mudar.',
       );
     });
@@ -299,7 +299,7 @@ void main() {
 
       expect(find.text('Adicionar à agenda'), findsOneWidget);
       expect(
-        find.text('Escreve um título para poder guardar.'),
+        find.text('Escreva um título para poder guardar.'),
         findsOneWidget,
       );
       await tester.tap(find.text('Guardar na agenda'));

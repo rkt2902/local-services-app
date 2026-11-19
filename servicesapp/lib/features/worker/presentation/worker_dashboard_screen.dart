@@ -235,7 +235,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
             // Pedido direto (0057, 0059): o servidor manda-o primeiro.
             if ((job.isDirectWaiting || job.isDirectOnHold) &&
                 job.directWorkerId == myId)
-              'Pedido só para ti',
+              'Pedido só para si',
             ?job.locationArea,
             _distanceLabel(workerProfile, job),
             jobDeadlineLabel(
@@ -359,7 +359,7 @@ class WorkerDashboardScreen extends ConsumerWidget {
                     AppStaggeredEntrance(
                       index: 4,
                       child: _SectionHeader(
-                        title: 'Pedidos perto de ti',
+                        title: 'Pedidos perto de si',
                         actionLabel: 'Ver todos',
                         onActionPressed: () =>
                             context.go('/worker/available-jobs'),
@@ -577,7 +577,7 @@ String _distanceLabel(WorkerProfile? workerProfile, JobRequest job) {
 /// Só 2 cartões (Propostas / Marcados esta semana), cada um abre a sua aba
 /// em Trabalhos. Sem dados agregados de propostas enviadas nem de receita
 /// mensal (nenhum dos dois existe hoje no backend; ver
-/// docs/improvements.md, "Dashboard do jardineiro").
+/// docs/improvements.md, "Dashboard do profissional").
 class _DashboardMetrics extends StatelessWidget {
   const _DashboardMetrics({
     required this.pendingCount,
@@ -880,7 +880,7 @@ class _NearbyOpportunitiesSection extends StatelessWidget {
     if (opportunities.isEmpty) {
       return const _DashboardEmptyCard(
         icon: Icons.search_off_rounded,
-        message: 'Não existem oportunidades disponíveis perto de ti.',
+        message: 'Não existem oportunidades disponíveis perto de si.',
       );
     }
 

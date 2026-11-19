@@ -45,7 +45,7 @@ class AdminJobActionsCard extends ConsumerWidget {
   final AdminJobDetail job;
 
   String get _client => job.client?.fullName ?? 'o cliente';
-  String get _worker => job.worker?.fullName ?? 'o jardineiro';
+  String get _worker => job.worker?.fullName ?? 'o profissional';
 
   String _consequence(AdminJobAction action) => switch (action) {
     AdminJobAction.cancel =>
@@ -55,7 +55,7 @@ class AdminJobActionsCard extends ConsumerWidget {
           '${job.team.isEmpty ? '' : ', e os ajudantes'}.',
     AdminJobAction.reopen =>
       'O pedido volta a estar aberto a propostas durante 48 horas, visível '
-          'a todos os jardineiros da zona. Uma data fixa que já passou fica '
+          'a todos os profissionais da zona. Uma data fixa que já passou fica '
           'a combinar. Recebe aviso: $_client.',
     AdminJobAction.complete =>
       'O trabalho fica concluído, como se $_client tivesse confirmado. '

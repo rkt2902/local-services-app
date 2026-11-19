@@ -69,12 +69,12 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     // Com o interruptor do cliente desligado (0059) o pedido fica parado e
     // é o cliente que decide.
     final next = autoRelease
-        ? 'o pedido fica visível para outros jardineiros'
-        : '$name decide se mostra o pedido a outros jardineiros';
+        ? 'o pedido fica visível para outros profissionais'
+        : '$name decide se mostra o pedido a outros profissionais';
     final confirmed = await AppConfirmDialog.show(
       context,
       icon: Icons.event_busy_outlined,
-      title: 'Não podes desta vez?',
+      title: 'Não pode desta vez?',
       message: 'Avisamos $name e $next. Não dá para desfazer.',
       confirmLabel: 'Não posso',
     );
@@ -94,9 +94,9 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
     setState(() {
       _decliningDirect = false;
       _declinedMessage = autoRelease
-          ? 'Avisámos $name. O pedido fica visível para os outros jardineiros.'
+          ? 'Avisámos $name. O pedido fica visível para os outros profissionais.'
           : 'Avisámos $name. $name decide se mostra o pedido a outros '
-              'jardineiros.';
+              'profissionais.';
     });
     // Este ecrã não observa a lista: pode recarregar já.
     ref.invalidate(jobsInRadiusProvider);
@@ -252,30 +252,30 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       direct = view.WorkerDirectRequestViewData(
         // Depois de "Não posso" o pedido já não é só para mim: sem contagem.
         tagLabel: _declinedMessage != null
-            ? 'Pedido só para ti · recusado'
+            ? 'Pedido só para si · recusado'
             : job.isDirectOnHold
-            ? 'Pedido só para ti · prazo terminado'
+            ? 'Pedido só para si · prazo terminado'
             : directUntil == null
-                ? 'Pedido só para ti'
-                : 'Pedido só para ti · '
+                ? 'Pedido só para si'
+                : 'Pedido só para si · '
                     '${directTimeLeftLabel(directUntil, DateTime.now())}',
         titleLabel: fromCard
-            ? '$clientFirstName pediu-te orçamento pelo teu cartão'
+            ? '$clientFirstName pediu-lhe orçamento pelo seu cartão'
             : null,
         explanationLabel: _declinedMessage != null
-            ? 'Respondeste "Não posso desta vez".'
+            ? 'Respondeu "Não posso desta vez".'
             : !job.directAutoRelease
-            ? 'Se não responderes a tempo, $clientFirstName decide se '
-                'mostra o pedido a outros jardineiros.'
+            ? 'Se não responder a tempo, $clientFirstName decide se '
+                'mostra o pedido a outros profissionais.'
             : fromCard
-                ? 'Se não responderes a tempo, o pedido pode ser mostrado '
-                    'a outros jardineiros.'
-                : 'O cliente pediu-te este trabalho primeiro. Se não '
-                    'responderes a tempo, o pedido fica visível para todos.',
+                ? 'Se não responder a tempo, o pedido pode ser mostrado '
+                    'a outros profissionais.'
+                : 'O cliente pediu-lhe este trabalho primeiro. Se não '
+                    'responder a tempo, o pedido fica visível para todos.',
         outsideAreaLabel: outsideArea,
         noticeLabel: job.isDirectOnHold
             ? '$clientFirstName vai decidir se mostra o pedido a outros '
-                'jardineiros. Ainda podes enviar proposta.'
+                'profissionais. Ainda pode enviar proposta.'
             : null,
         history: history,
       );
@@ -287,7 +287,7 @@ class _WorkerJobDetailScreenState extends ConsumerState<WorkerJobDetailScreen> {
       direct = const view.WorkerDirectRequestViewData(
         tagLabel: 'Prazo terminado',
         explanationLabel:
-            'O pedido está aberto agora a todos. Ainda podes enviar proposta.',
+            'O pedido está aberto agora a todos. Ainda pode enviar proposta.',
         history: AsyncValue.data(null),
       );
     }

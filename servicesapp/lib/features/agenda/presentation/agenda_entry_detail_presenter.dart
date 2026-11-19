@@ -173,7 +173,7 @@ AgendaDetailOverlapViewData? _overlap(
   final isBlock = other.kind == AgendaEntryKind.block;
   return AgendaDetailOverlapViewData(
     title: isBlock
-        ? 'Estás indisponível neste dia.'
+        ? 'Está indisponível neste dia.'
         : 'Coincide com outro trabalho.',
     detail:
         '${parts.join(', ')}${fromApp ? ' (app)' : ''}'
@@ -237,7 +237,7 @@ AgendaDetailViewData buildAgendaEntryDetail({
           ? null
           : AgendaDetailValueNotesViewData(sectionTitle: 'Notas', notes: note),
       unavailableInfo:
-          'Só aparece na tua agenda: os pedidos novos continuam a chegar.',
+          'Só aparece na sua agenda: os pedidos novos continuam a chegar.',
       submitting: submitting,
     );
   }
@@ -475,7 +475,7 @@ AgendaDeleteConfirmData agendaCancelConfirm({
     title: 'Cancelar este trabalho?',
     message:
         '"${detail.title}", ${_which(entry, form, occurrence, scope, now)}, '
-        'fica na agenda riscado e podes repô-lo depois.'
+        'fica na agenda riscado e pode repô-lo depois.'
         '${name.isEmpty ? '' : ' $name não recebe nenhum aviso.'}',
   );
 }

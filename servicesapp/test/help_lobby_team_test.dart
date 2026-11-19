@@ -94,7 +94,7 @@ void main() {
     );
     expect(
       closeHelpRequestMessage(pendingCount: 0, acceptedCount: 0),
-      'O pedido deixa de aparecer aos outros jardineiros.',
+      'O pedido deixa de aparecer aos outros profissionais.',
     );
   });
 

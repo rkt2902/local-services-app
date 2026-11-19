@@ -128,7 +128,7 @@ class ClientProposalsView extends StatelessWidget {
               child: AppEmptyState(
                 icon: Icons.hourglass_empty_rounded,
                 title: 'Ainda sem propostas',
-                message: 'Avisamos-te quando chegar a primeira.',
+                message: 'Avisamos quando chegar a primeira.',
                 tone: AppStatusColor.waiting,
               ),
             )
@@ -143,7 +143,7 @@ class ClientProposalsView extends StatelessWidget {
         child: AppEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Não foi possível carregar as propostas',
-          message: 'Verifica a ligação e tenta outra vez.',
+          message: 'Verifique a ligação e tente outra vez.',
           actionLabel: 'Tentar novamente',
           onAction: onRetry,
           tone: AppStatusColor.cancelled,

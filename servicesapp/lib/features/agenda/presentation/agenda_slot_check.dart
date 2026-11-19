@@ -59,8 +59,8 @@ AgendaSlotCheck checkAgendaSlot({
       note: AgendaInlineWarningViewData(
         tone: AgendaWarningTone.success,
         message: slot.startMinutes == null
-            ? 'Estás livre neste dia'
-            : 'Estás livre neste horário',
+            ? 'Está livre neste dia'
+            : 'Está livre neste horário',
         actionLabel: viewDay,
       ),
     );
@@ -76,7 +76,7 @@ AgendaSlotCheck checkAgendaSlot({
   if (c.level == AgendaConflictLevel.strong) {
     final String message;
     if (other.kind == AgendaEntryKind.block) {
-      message = 'Estás indisponível neste dia: $name';
+      message = 'Está indisponível neste dia: $name';
     } else if (!timed) {
       message = 'Coincide com $name$where, que ocupa o dia todo';
     } else {
@@ -99,10 +99,10 @@ AgendaSlotCheck checkAgendaSlot({
       ),
       confirm: AgendaConflictDialogData(
         title: other.kind == AgendaEntryKind.block
-            ? 'Estás indisponível neste dia'
+            ? 'Está indisponível neste dia'
             : c.reason == AgendaConflictReason.overlap
-            ? 'Já tens um trabalho a esta hora'
-            : 'Já tens um trabalho neste dia',
+            ? 'Já tem um trabalho a esta hora'
+            : 'Já tem um trabalho neste dia',
         entryStart: card.startLabel,
         entryEnd: card.endLabel,
         entryTitle: card.title,
@@ -116,19 +116,19 @@ AgendaSlotCheck checkAgendaSlot({
   final String message;
   if (c.level == AgendaConflictLevel.tentative) {
     message = c.reason == AgendaConflictReason.overlap
-        ? 'Também propuseste $name nesta hora'
-        : 'Também propuseste $name neste dia';
+        ? 'Também propôs $name nesta hora'
+        : 'Também propôs $name neste dia';
   } else if (c.reason == AgendaConflictReason.shortGap && theirs != null) {
     final mine = slot.startMinutes ?? 0;
     message = mine >= theirs.$2
-        ? 'Fica apertado. Acabas $name$where às '
+        ? 'Fica apertado. Termina $name$where às '
               '${formatMinutes(theirs.$2.clamp(0, 24 * 60))}.'
-        : 'Fica apertado. Começas $name$where às '
+        : 'Fica apertado. Começa $name$where às '
               '${formatMinutes(theirs.$1)}.';
   } else {
     message = theirs == null
-        ? 'Já tens $name neste dia, sem hora marcada.'
-        : 'Já tens $name neste dia, ${_range(theirs.$1, theirs.$2)}.';
+        ? 'Já tem $name neste dia, sem hora marcada.'
+        : 'Já tem $name neste dia, ${_range(theirs.$1, theirs.$2)}.';
   }
   return AgendaSlotCheck(
     note: AgendaInlineWarningViewData(
@@ -153,7 +153,7 @@ AgendaSlotCheck checkAgendaSlot({
     return (
       AgendaAvailability.overlap,
       strong.other.kind == AgendaEntryKind.block
-          ? 'Estás indisponível neste dia'
+          ? 'Está indisponível neste dia'
           : 'Coincide com um trabalho',
     );
   }
@@ -167,9 +167,9 @@ AgendaSlotCheck checkAgendaSlot({
         DateTime(e.date.year, e.date.month, e.date.day) == day,
   );
   final n = busy.map((e) => e.sourceId).toSet().length;
-  if (n == 0) return (AgendaAvailability.free, 'Estás livre');
+  if (n == 0) return (AgendaAvailability.free, 'Está livre');
   return (
     AgendaAvailability.busyDay,
-    n == 1 ? 'Já tens 1 trabalho neste dia' : 'Já tens $n trabalhos neste dia',
+    n == 1 ? 'Já tem 1 trabalho neste dia' : 'Já tem $n trabalhos neste dia',
   );
 }

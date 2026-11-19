@@ -109,7 +109,7 @@ String adminTimeLabel(String? time) {
 String adminActorLabel(AdminActorKind kind, String? name) {
   final role = switch (kind) {
     AdminActorKind.client => 'Cliente',
-    AdminActorKind.worker => 'Jardineiro',
+    AdminActorKind.worker => 'Profissional',
     AdminActorKind.helper => 'Ajudante',
     AdminActorKind.admin => 'Admin',
     AdminActorKind.system => 'Sistema',
@@ -145,8 +145,8 @@ String adminJobEventLabel(String type, Map<String, dynamic> data) {
     'reschedule_accepted' => 'Remarcação aceite',
     'reschedule_rejected' => 'Remarcação recusada',
     'search_widened' => 'Mostrado mais longe (+${data['extra_km']} km)',
-    'direct_waiting' => 'Reserva de 24 horas ao jardineiro',
-    'direct_declined' => 'Jardineiro recusou o pedido direto',
+    'direct_waiting' => 'Reserva de 24 horas ao profissional',
+    'direct_declined' => 'Profissional recusou o pedido direto',
     'direct_expired' => 'Reserva de 24 horas acabou',
     'direct_released' => 'Pedido direto aberto a todos',
     'direct_on_hold' => 'Pedido direto à espera da cliente',

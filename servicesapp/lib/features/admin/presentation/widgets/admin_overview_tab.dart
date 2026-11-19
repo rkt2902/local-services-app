@@ -142,7 +142,7 @@ class _OverviewContent extends StatelessWidget {
         stats: [
           AdminStat(label: 'Clientes', value: '${o.clientsTotal}',
               caption: '+${o.clientsNew} no período'),
-          AdminStat(label: 'Jardineiros', value: '${o.workersTotal}',
+          AdminStat(label: 'Profissionais', value: '${o.workersTotal}',
               caption: '+${o.workersNew} no período'),
           AdminStat(label: 'Pro', value: '${o.workersPro}'),
           AdminStat(label: 'Pro+', value: '${o.workersProPlus}'),

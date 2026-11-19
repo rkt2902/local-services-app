@@ -20,7 +20,7 @@ com código e schema genéricos (`client`, `worker`, `job`, `service_type` — n
 - **Cliente**: cria um pedido (serviço, localização, data, descrição, fotos), recebe
   propostas de workers no raio, aceita uma, acompanha o ciclo de vida até à conclusão,
   avalia o worker.
-- **Worker** ("jardineiro" na UI): define raio de atuação e serviços, descobre pedidos
+- **Worker** ("profissional" na UI desde 2026-11-17, antes "jardineiro"): define raio de atuação e serviços, descobre pedidos
   no raio, propõe preço/data, pode pedir ajudantes para trabalhos maiores, marca como
   concluído, avalia o cliente e os ajudantes.
 

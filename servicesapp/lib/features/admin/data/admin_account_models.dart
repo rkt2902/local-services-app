@@ -168,11 +168,11 @@ enum AdminMapLayer {
   openJobs('Pedidos abertos'),
   activeJobs('Em curso'),
   doneJobs('Concluídos (30 dias)'),
-  workers('Jardineiros'),
-  radius('Raio de cada jardineiro'),
+  workers('Profissionais'),
+  radius('Raio de cada profissional'),
   // 0082: zonas (quadrados de 10 km, 90 dias) e parceiros.
   unanswered('Zonas sem resposta'),
-  density('Densidade de jardineiros'),
+  density('Densidade de profissionais'),
   partners('Parceiros');
 
   bool get isZone => this == unanswered || this == density;

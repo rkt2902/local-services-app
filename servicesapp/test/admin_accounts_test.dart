@@ -203,7 +203,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(
-        find.text('O suporte da ProJardim suspendeu a tua conta.'),
+        find.text('O suporte da ProJardim suspendeu a sua conta.'),
         findsOneWidget,
       );
       final check = tester.widget<TextButton>(
@@ -451,7 +451,7 @@ void main() {
       expect(
         adminMapSummary(points),
         '1 pedidos abertos · 1 em curso · 1 concluídos (30 dias) · '
-        '2 jardineiros (1 suspensos)',
+        '2 profissionais (1 suspensos)',
       );
     });
 

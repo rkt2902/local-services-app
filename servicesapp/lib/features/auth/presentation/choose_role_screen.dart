@@ -146,7 +146,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                     AppStaggeredEntrance(
                       index: 0,
                       child: Text(
-                        'Como queres usar a ProJardim?',
+                        'Como pretende usar a ProJardim?',
                         style: textTheme.displaySmall?.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -161,7 +161,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                       index: 2,
                       child: _RoleSelectionCard(
                         title: 'Preciso de jardinagem',
-                        description: 'Publica pedidos e recebe propostas',
+                        description: 'Publique pedidos e receba propostas',
                         icon: Icons.home_work_outlined,
                         selected: _selectedRole == UserRole.client,
                         onTap: busy
@@ -175,8 +175,8 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                     AppStaggeredEntrance(
                       index: 3,
                       child: _RoleSelectionCard(
-                        title: 'Sou jardineiro',
-                        description: 'Encontra trabalho perto de ti',
+                        title: 'Sou profissional',
+                        description: 'Encontre trabalho perto de si',
                         icon: Icons.yard_outlined,
                         selected: _selectedRole == UserRole.worker,
                         onTap: busy
@@ -224,7 +224,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    'Não és tu?',
+                    'Não é a sua conta?',
                     style: textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -265,7 +265,7 @@ class _RoleWarning extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
-            'Escolhe com cuidado: não é possível mudar depois.',
+            'Escolha com cuidado: não é possível mudar depois.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w700,
@@ -321,10 +321,10 @@ class RegistrationIdentity {
 @visibleForTesting
 String phoneUsageHint(UserRole? role) => switch (role) {
       UserRole.client =>
-        'Usamos o teu número para o jardineiro te contactar por WhatsApp.',
+        'Usamos o seu número para o profissional o contactar por WhatsApp.',
       UserRole.worker =>
-        'Usamos o teu número para o cliente te contactar por WhatsApp.',
-      null => 'Usamos o teu número só para o contacto por WhatsApp.',
+        'Usamos o seu número para o cliente o contactar por WhatsApp.',
+      null => 'Usamos o seu número só para o contacto por WhatsApp.',
     };
 
 class _ContactFields extends StatelessWidget {
@@ -349,7 +349,7 @@ class _ContactFields extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Os teus dados',
+            'Os seus dados',
             style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
@@ -361,7 +361,7 @@ class _ContactFields extends StatelessWidget {
             label: 'Nome',
             autofillHints: const [AutofillHints.name],
             validator: (v) =>
-                (v ?? '').trim().isEmpty ? 'Introduz o teu nome.' : null,
+                (v ?? '').trim().isEmpty ? 'Introduza o seu nome.' : null,
           ),
           const SizedBox(height: AppSpacing.sm),
           // O "+351" é só uma ajuda visual: quem escreve outro indicativo
@@ -375,7 +375,7 @@ class _ContactFields extends StatelessWidget {
             textInputAction: TextInputAction.done,
             autofillHints: const [AutofillHints.telephoneNumber],
             validator: (v) =>
-                phoneValidator(v, emptyMessage: 'Introduz o telemóvel.'),
+                phoneValidator(v, emptyMessage: 'Introduza o telemóvel.'),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(

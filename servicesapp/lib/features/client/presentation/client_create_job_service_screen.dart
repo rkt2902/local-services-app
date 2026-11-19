@@ -136,7 +136,7 @@ class _ClientCreateJobServiceScreenState
     final workerTypes = types.where((t) => offered.contains(t.id)).toList();
     if (workerTypes.isEmpty) {
       return DirectRequestServicesEmpty(
-        workerName: firstNameOr(wizard.directWorkerName, 'O jardineiro'),
+        workerName: firstNameOr(wizard.directWorkerName, 'O profissional'),
         onShowAllServices: () => ref
             .read(clientCreateJobWizardProvider.notifier)
             .showAllServices(),

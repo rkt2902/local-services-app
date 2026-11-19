@@ -126,15 +126,15 @@ abstract final class WorkerJobDayRules {
   static String overdueMessage(DateTime expectedEnd, {required bool started}) {
     final deadline = DateFormat('dd/MM').format(lastDayToComplete(expectedEnd));
     return started
-        ? 'O trabalho já devia ter acabado. Marca como concluído até '
+        ? 'O trabalho já devia ter acabado. Marque como concluído até '
               '$deadline, senão o pedido expira.'
-        : 'A data já passou e o trabalho não foi iniciado. Se o fizeste ou '
-              'ainda o vais fazer, inicia e marca como concluído até $deadline. '
+        : 'A data já passou e o trabalho não foi iniciado. Se já o fez ou '
+              'ainda o vai fazer, inicie e marque como concluído até $deadline. '
               'Depois disso o pedido expira.';
   }
 
   static const awaitingConfirmationMessage =
-      'À espera da confirmação do cliente. Já marcaste este trabalho como '
+      'À espera da confirmação do cliente. Já marcou este trabalho como '
       'concluído. Se o cliente não responder, fica confirmado '
       'automaticamente $autoConfirmHours horas depois.';
 }
@@ -148,7 +148,7 @@ String? jobUnavailableReason(JobStatus status, {String? cancelReason}) {
     case JobStatus.confirmed:
     case JobStatus.awaitingConfirmation:
     case JobStatus.completed:
-      return 'Outro jardineiro ficou com este pedido.';
+      return 'Outro profissional ficou com este pedido.';
     case JobStatus.cancelled:
       return cancelReason == CancelReason.expired
           ? 'O pedido expirou.'
@@ -190,7 +190,7 @@ String startJobHint({
   required DateTime now,
 }) {
   if (canStart || opensAt == null) {
-    return 'O cliente recebe um aviso quando começares.';
+    return 'O cliente recebe um aviso quando começar.';
   }
   final dayOnly = opensAt.hour == 0 && opensAt.minute == 0;
   final sameDay = _isSameDay(opensAt, now);
@@ -225,7 +225,7 @@ InactiveJobMessage inactiveJobMessage({
   if (noResponse) {
     return (
       title: 'Este pedido expirou',
-      body: 'Não precisas de fazer nada.',
+      body: 'Não precisa de fazer nada.',
       expired: true,
     );
   }
@@ -243,13 +243,13 @@ InactiveJobMessage inactiveJobMessage({
       'Cancelado a ${DateFormat('dd/MM').format(endedAt.toLocal())}.',
     if (cancelReason != null && cancelReason.isNotEmpty)
       'Motivo: ${CancelReason.label(cancelReason)}.',
-    if (!cancelledByMe) 'Não precisas de fazer nada.',
+    if (!cancelledByMe) 'Não precisa de fazer nada.',
   ];
   return (
     title: cancelReason == CancelReason.support
         ? 'O suporte cancelou este trabalho'
         : cancelledByMe
-        ? 'Cancelaste este trabalho'
+        ? 'Cancelou este trabalho'
         : 'O cliente cancelou este trabalho',
     body: parts.join(' '),
     expired: false,
@@ -393,8 +393,8 @@ bool helperGiveUpClosedByJobDay(
     !helperCanWithdraw(jobStatus, confirmedDate: confirmedDate, today: today);
 
 const helperGiveUpClosedMessage =
-    'No dia do trabalho já não podes desistir. Se tiveres um imprevisto, '
-    'fala com o jardineiro responsável pelo WhatsApp.';
+    'No dia do trabalho já não pode desistir. Se tiver um imprevisto, '
+    'fale com o profissional responsável pelo WhatsApp.';
 
 /// Etiqueta de histórico: as candidaturas rejeitadas em cascata pelo
 /// cancelamento do trabalho dizem "Trabalho cancelado", não "Não

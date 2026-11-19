@@ -51,7 +51,7 @@ class _RequestPasswordResetScreenState
 
   String? _validateEmail(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Introduz o email.';
+    if (text.isEmpty) return 'Introduza o email.';
     if (!text.contains('@')) return 'Email inválido.';
     return null;
   }
@@ -133,7 +133,7 @@ class _RequestPasswordResetScreenState
                       AppStaggeredEntrance(
                         index: 1,
                         child: Text(
-                          'Esqueceste-te da senha?',
+                          'Esqueceu-se da senha?',
                           textAlign: TextAlign.center,
                           style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                         ),
@@ -142,7 +142,7 @@ class _RequestPasswordResetScreenState
                       AppStaggeredEntrance(
                         index: 2,
                         child: Text(
-                          'Indica o email da tua conta. Se estiver registado, '
+                          'Indique o email da sua conta. Se estiver registado, '
                           'enviamos um código para confirmar.',
                           textAlign: TextAlign.center,
                           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),

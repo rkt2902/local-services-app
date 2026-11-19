@@ -38,7 +38,7 @@ Map<String, dynamic> _caseJson({
   'number': 12,
   'kind': 'report',
   'status': status,
-  'summary': 'Jardineiro não apareceu',
+  'summary': 'Profissional não apareceu',
   'person_id': 'c1',
   'person_name': 'Ana Silva',
   'person_role': 'client',

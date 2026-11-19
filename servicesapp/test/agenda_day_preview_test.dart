@@ -69,7 +69,7 @@ AgendaEntry _proposal(String id, int start, int end) => AgendaEntry(
 AgendaDayPreviewGhost _ghost(int start, int duration, {String? ignore}) =>
     AgendaDayPreviewGhost(
       date: _d(30),
-      label: 'A tua proposta',
+      label: 'A sua proposta',
       startMinutes: start,
       durationMinutes: duration,
       slotKind: AgendaEntryKind.proposal,
@@ -120,7 +120,7 @@ void main() {
       expect(_labels(data.items), [
         'free:Livre até às 09:00',
         'group:Choca das 10:00 às 11:00['
-            'ghost:A tua proposta, 09:00 a 11:00 !, '
+            'ghost:A sua proposta, 09:00 a 11:00 !, '
             'entry:Limpeza de canteiros]',
         'free:Livre das 12:00 às 15:00',
         'entry:Relva da D. Rosa',
@@ -142,7 +142,7 @@ void main() {
         'free:Livre até às 07:00',
         'entry:Relva da D. Rosa',
         'free:Livre das 08:00 às 09:00',
-        'ghost:A tua proposta, 09:00 a 11:00',
+        'ghost:A sua proposta, 09:00 a 11:00',
         'free:Livre das 11:00 às 12:00',
         'entry:Limpeza de canteiros',
         'free:Livre das 14:00 às 16:00',
@@ -154,10 +154,10 @@ void main() {
     test('V3: dia vazio, com livre antes e depois do fantasma', () {
       final data = _build(const [], ghost: _ghost(_h(9), 120));
       expect(data.assessment, AgendaPreviewAssessment.fits);
-      expect(data.assessmentLabel, 'Cabe. Não tens mais nada neste dia.');
+      expect(data.assessmentLabel, 'Cabe. Não tem mais nada neste dia.');
       expect(_labels(data.items), [
         'free:Livre até às 09:00',
-        'ghost:A tua proposta, 09:00 a 11:00',
+        'ghost:A sua proposta, 09:00 a 11:00',
         'free:Livre a partir das 11:00',
       ]);
       expect(data.empty?.title, 'Nada mais neste dia');
@@ -190,7 +190,7 @@ void main() {
       expect(data.assessment, AgendaPreviewAssessment.fits);
       expect(_labels(data.items), [
         'free:Livre até às 09:00',
-        'ghost:A tua proposta, 09:00 a 10:00',
+        'ghost:A sua proposta, 09:00 a 10:00',
         'free:Livre a partir das 10:00',
       ]);
     });
@@ -233,7 +233,7 @@ void main() {
       ], ghost: _ghost(_h(9), 120));
       expect(
         noTime.assessmentLabel,
-        'Já tens Limpeza de canteiros neste dia, sem hora marcada.',
+        'Já tem Limpeza de canteiros neste dia, sem hora marcada.',
       );
     });
 
@@ -255,7 +255,7 @@ void main() {
         'entry:Férias !',
         'section:Por hora',
         'free:Livre até às 09:00',
-        'ghost:A tua proposta, 09:00 a 11:00 !',
+        'ghost:A sua proposta, 09:00 a 11:00 !',
         'free:Livre a partir das 11:00',
       ]);
     });
@@ -264,7 +264,7 @@ void main() {
       final ghost = AgendaDayPreviewGhost(
         date: _d(30),
         lastDate: _d(1, 11),
-        label: 'O teu trabalho',
+        label: 'O seu trabalho',
         wholeDay: true,
       );
       final data = _build(
@@ -279,7 +279,7 @@ void main() {
       );
       expect(_labels(data.items).take(2), [
         'section:Sem hora marcada',
-        'ghost:O teu trabalho, dia todo !',
+        'ghost:O seu trabalho, dia todo !',
       ]);
       expect(_build(const [], day: _d(2, 11), ghost: ghost).hasGhost, isFalse);
     });
@@ -325,7 +325,7 @@ void main() {
         find.text('Choca 1 hora com Limpeza de canteiros (10:00 a 12:00).'),
         findsOneWidget,
       );
-      expect(find.text('A tua proposta, 09:00 a 11:00'), findsOneWidget);
+      expect(find.text('A sua proposta, 09:00 a 11:00'), findsOneWidget);
       expect(find.text('Choca das 10:00 às 11:00'), findsOneWidget);
       expect(find.text('Relva da D. Rosa'), findsOneWidget);
       expect(find.text('Guardar'), findsNothing);
@@ -340,12 +340,12 @@ void main() {
       await tester.tap(find.byTooltip('Dia anterior'));
       await tester.tap(find.byTooltip('Dia seguinte'));
       await tester.fling(
-        find.text('A tua proposta, 09:00 a 11:00'),
+        find.text('A sua proposta, 09:00 a 11:00'),
         const Offset(-300, 0),
         1000,
       );
       await tester.fling(
-        find.text('A tua proposta, 09:00 a 11:00'),
+        find.text('A sua proposta, 09:00 a 11:00'),
         const Offset(300, 0),
         1000,
       );
@@ -370,7 +370,7 @@ void main() {
 
       await tester.pumpWidget(sheet(d: data));
       await tester.pumpAndSettle();
-      expect(find.text('Cabe. Não tens mais nada neste dia.'), findsOneWidget);
+      expect(find.text('Cabe. Não tem mais nada neste dia.'), findsOneWidget);
       expect(find.text('Nada mais neste dia'), findsOneWidget);
       expect(find.text('Livre a partir das 11:00'), findsOneWidget);
 
@@ -426,16 +426,16 @@ void main() {
 
         await tester.tap(find.text('Ver o dia'));
         await tester.pumpAndSettle();
-        expect(find.text('A tua proposta, 09:00 a 11:00'), findsOneWidget);
+        expect(find.text('A sua proposta, 09:00 a 11:00'), findsOneWidget);
 
         await tester.tap(find.byTooltip('Dia anterior'));
         await tester.pumpAndSettle();
-        expect(find.text('A tua proposta, 09:00 a 11:00'), findsNothing);
+        expect(find.text('A sua proposta, 09:00 a 11:00'), findsNothing);
         expect(find.text('Livre a partir das 15:00'), findsOneWidget);
 
         await tester.tap(find.byTooltip('Dia seguinte'));
         await tester.pumpAndSettle();
-        expect(find.text('A tua proposta, 09:00 a 11:00'), findsOneWidget);
+        expect(find.text('A sua proposta, 09:00 a 11:00'), findsOneWidget);
 
         // Tocar fora fecha, como o botão.
         await tester.tapAt(const Offset(20, 20));

@@ -161,7 +161,7 @@ class _AppNotificationsViewState extends State<AppNotificationsView> {
         child: AppEmptyState(
           icon: Icons.cloud_off_outlined,
           title: 'Não foi possível carregar as notificações',
-          message: 'Verifica a ligação e tenta outra vez.',
+          message: 'Verifique a ligação e tente outra vez.',
           actionLabel: 'Tentar novamente',
           onAction: widget.onRetry,
           tone: AppStatusColor.cancelled,
@@ -435,8 +435,8 @@ class _NotificationsList extends StatelessWidget {
                 child: AppEmptyState(
                   icon: Icons.notifications_off_outlined,
                   title: 'Sem notificações',
-                  message: 'Quando houver novidades sobre os teus trabalhos, '
-                      'avisamos-te aqui.',
+                  message: 'Quando houver novidades sobre os seus trabalhos, '
+                      'avisamos aqui.',
                 ),
               ),
             ),

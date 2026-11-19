@@ -293,9 +293,9 @@ select t_aal2(:'AD');
 select audit.eq('T-PZ-86 alerta: 1 acaba em 7 dias, 1 na app já passou a validade',
   $q$select ending_soon || '/' || expired_visible from admin_partner_alerts()$q$, '1/1');
 
-select audit.err('T-PZ-87 aviso de parceiro só para jardineiros',
+select audit.err('T-PZ-87 aviso de parceiro só para profissionais',
   format($q$select admin_send_notice('Parceiro novo', 'Há um parceiro novo na app.', 'client', null, null, null, 1, %L)$q$, :'pf'),
-  'só para jardineiros');
+  'só para profissionais');
 select audit.err('T-PZ-88 aviso de um parceiro que não aparece na app',
   format($q$select admin_send_notice('Parceiro novo', 'Há um parceiro novo na app.', 'worker', null, null, null, 1, %L)$q$, :'pv'),
   'não aparece na app');
@@ -339,6 +339,8 @@ select audit.eq('T-PZ-48 nenhuma RPC nova recebe ids de pessoas',
 -- ── Correr a migration outra vez ──
 \set QUIET on
 \ir ../../migrations/0082_admin_partners_zones.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select audit.eq('T-PZ-67 fotos dos parceiros: até 5 MB, só JPEG, PNG ou WebP',
   $q$select file_size_limit || ':' || array_to_string(allowed_mime_types, ',') from storage.buckets where id = 'partner-images'$q$,

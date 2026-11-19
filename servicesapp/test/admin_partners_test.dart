@@ -156,7 +156,7 @@ void main() {
       expect(adminFleetStatus('rejected').$2, AppStatusColor.cancelled);
     });
 
-    test('a app do jardineiro lê a mensagem da recusa', () {
+    test('a app do profissional lê a mensagem da recusa', () {
       final card = FleetCard.fromJson({
         'id': 'c1',
         'worker_id': 'w1',
@@ -266,11 +266,11 @@ void main() {
       expect(p.status, AdminPartnerStatus.active);
       expect(
         adminPartnerReachLabel(p),
-        '2 jardineiros cobrem · 5 pedidos a 10 km em 90 dias (1 sem resposta)',
+        '2 profissionais cobrem · 5 pedidos a 10 km em 90 dias (1 sem resposta)',
       );
       expect(
         adminPartnerReachLabel(_partner(covering: 0)),
-        startsWith('Nenhum jardineiro cobre'),
+        startsWith('Nenhum profissional cobre'),
       );
     });
 
@@ -362,12 +362,12 @@ void main() {
     test('uso na app', () {
       expect(
         adminPartnerUsageLabel(_partner(opened: 4)),
-        'Últimos 30 dias: 4 jardineiros abriram · 1 copiou o código · '
-        '2 abriram o link (12 jardineiros desde o início)',
+        'Últimos 30 dias: 4 profissionais abriram · 1 copiou o código · '
+        '2 abriram o link (12 profissionais desde o início)',
       );
       expect(
         adminPartnerUsageLabel(_partner()),
-        'Ainda nenhum jardineiro o abriu na app',
+        'Ainda nenhum profissional o abriu na app',
       );
       expect(adminPartnerUsageLabel(_partner(visible: false)), isNull);
     });
@@ -523,12 +523,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Posto Avenida'), findsOneWidget);
-      expect(find.textContaining('2 jardineiros cobrem'), findsOneWidget);
+      expect(find.textContaining('2 profissionais cobrem'), findsOneWidget);
       expect(find.text('Na app'), findsOneWidget);
       expect(find.text('Códigos só Pro+'), findsOneWidget);
-      expect(find.text('Avisar os jardineiros'), findsOneWidget);
+      expect(find.text('Avisar os profissionais'), findsOneWidget);
       expect(
-        find.text('Ainda nenhum jardineiro o abriu na app'),
+        find.text('Ainda nenhum profissional o abriu na app'),
         findsOneWidget,
       );
 
@@ -568,7 +568,7 @@ void main() {
       expect(
         adminZoneDetails(z),
         '4 pedidos em 90 dias, 1 sem resposta, 2 concluídos · 1.ª proposta '
-        'em ${adminHoursLabel(3.5)} (mediana) · 2 jardineiros cobrem · '
+        'em ${adminHoursLabel(3.5)} (mediana) · 2 profissionais cobrem · '
         '1 com base aqui · 1 parceiro',
       );
     });
@@ -661,7 +661,7 @@ void main() {
     });
   });
 
-  test('secção, ações do registo e aviso ao jardineiro', () {
+  test('secção, ações do registo e aviso ao profissional', () {
     expect(
       AdminSection.fromLocation('/admin/parceiros'),
       AdminSection.partners,

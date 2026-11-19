@@ -334,7 +334,7 @@ void main() {
     });
   });
 
-  group('menu do jardineiro', () {
+  group('menu do profissional', () {
     test('"Parceiros" só existe com parceiros, antes do Perfil', () {
       final without = workerShellRoutes(showPartners: false);
       final withPartners = workerShellRoutes(showPartners: true);

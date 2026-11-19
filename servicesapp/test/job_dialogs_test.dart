@@ -73,7 +73,7 @@ void main() {
     await tester.tap(find.text('Enviar'));
     await tester.pump();
     expect(
-      find.text('Descreve o problema (mínimo 10 caracteres).'),
+      find.text('Descreva o problema (mínimo 10 caracteres).'),
       findsOneWidget,
     );
 

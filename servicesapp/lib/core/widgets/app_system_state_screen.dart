@@ -45,7 +45,7 @@ class AppSystemStateScreen extends StatelessWidget {
         iconForeground: AppStatusColor.neutral.foreground,
         title: 'Sem ligação à internet',
         message: message ??
-            'Verifica a tua ligação Wi-Fi ou dados móveis e tenta novamente.',
+            'Verifique a sua ligação Wi-Fi ou dados móveis e tente novamente.',
         primaryActionLabel: 'Tentar novamente',
         onPrimaryAction: onRetry,
         isPrimaryActionLoading: isRetrying,
@@ -68,7 +68,7 @@ class AppSystemStateScreen extends StatelessWidget {
         iconForeground: AppStatusColor.cancelled.foreground,
         title: 'Algo correu mal',
         message: message ??
-            'Não foi possível concluir a ação. Tenta novamente ou contacta o suporte.',
+            'Não foi possível concluir a ação. Tente novamente ou contacte o suporte.',
         primaryActionLabel: 'Tentar novamente',
         onPrimaryAction: onRetry,
         isPrimaryActionLoading: isRetrying,

@@ -18,7 +18,7 @@ enum AdminSection {
   reports('Denúncias e reportes', Icons.flag_outlined, '/admin/denuncias'),
   jobs('Pedidos', Icons.assignment_outlined, '/admin/pedidos'),
   clients('Clientes', Icons.person_outline_rounded, '/admin/clientes'),
-  workers('Jardineiros', Icons.groups_outlined, '/admin/workers'),
+  workers('Profissionais', Icons.groups_outlined, '/admin/workers'),
   ratings('Avaliações', Icons.star_outline_rounded, '/admin/avaliacoes'),
   map('Mapa', Icons.map_outlined, '/admin/mapa'),
   partners(

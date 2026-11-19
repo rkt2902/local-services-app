@@ -62,7 +62,7 @@ String helperClosedLabel(HelpAcceptanceStatus status, String jobStatus) {
   if (override != null) return override;
   return switch (status) {
     HelpAcceptanceStatus.rejected => 'Não selecionado',
-    HelpAcceptanceStatus.cancelled => 'Já não estás na equipa',
+    HelpAcceptanceStatus.cancelled => 'Já não está na equipa',
     _ => 'Terminado',
   };
 }
@@ -148,6 +148,6 @@ String helpActionErrorMessage(Object error) {
   return rpcErrorMessage(
     error,
     unavailableMessage:
-        'Esta opção ainda não está disponível. Tenta novamente mais tarde.',
+        'Esta opção ainda não está disponível. Tente novamente mais tarde.',
   );
 }

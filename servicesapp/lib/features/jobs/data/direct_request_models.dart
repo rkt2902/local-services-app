@@ -46,7 +46,7 @@ class RepeatHireInfo {
       );
 }
 
-/// `get_my_previous_workers`: uma linha de "Os teus jardineiros".
+/// `get_my_previous_workers`: uma linha de "Os teus profissionais".
 class PreviousWorker {
   const PreviousWorker({
     required this.workerId,

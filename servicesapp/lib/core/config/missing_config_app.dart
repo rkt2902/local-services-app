@@ -35,7 +35,7 @@ class MissingConfigApp extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Faltam ${SupabaseConfig.missingKeys.join(' e ')}. '
-                      'Volta a compilar com os --dart-define do '
+                      'Volte a compilar com os --dart-define do '
                       '.vscode/launch.json (ver docs/SETUP.md).',
                       style: textTheme.bodyMedium
                           ?.copyWith(color: AppColors.textSecondary),

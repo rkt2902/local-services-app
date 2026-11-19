@@ -23,7 +23,7 @@ class DirectRequestCreateHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final name = firstNameOr(workerName, 'o jardineiro');
+    final name = firstNameOr(workerName, 'o profissional');
 
     return Container(
       padding: const EdgeInsets.symmetric(

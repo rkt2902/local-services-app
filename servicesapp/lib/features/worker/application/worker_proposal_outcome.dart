@@ -98,7 +98,7 @@ WorkerProposalOutcomeMessage workerProposalOutcomeMessage({
   DateTime? endedAt,
   String? cancelReason,
 }) {
-  const nothingToDo = 'Não precisas de fazer nada.';
+  const nothingToDo = 'Não precisa de fazer nada.';
   return switch (outcome) {
     WorkerProposalOutcome.chosenOther => (
       title: 'O cliente escolheu outra proposta',
@@ -107,7 +107,7 @@ WorkerProposalOutcomeMessage workerProposalOutcomeMessage({
     ),
     WorkerProposalOutcome.declined => (
       title: 'O cliente recusou esta proposta',
-      body: 'O pedido continua aberto a outros jardineiros. $nothingToDo',
+      body: 'O pedido continua aberto a outros profissionais. $nothingToDo',
       icon: Icons.person_off_outlined,
     ),
     WorkerProposalOutcome.expired => (
@@ -127,8 +127,8 @@ WorkerProposalOutcomeMessage workerProposalOutcomeMessage({
       icon: Icons.event_busy_outlined,
     ),
     WorkerProposalOutcome.withdrawn => (
-      title: 'Retiraste esta proposta',
-      body: 'O pedido ficou para outros jardineiros.',
+      title: 'Retirou esta proposta',
+      body: 'O pedido ficou para outros profissionais.',
       icon: Icons.undo_rounded,
     ),
   };

@@ -258,7 +258,7 @@ void main() {
       )));
       await tester.pumpAndSettle();
       expect(find.text('Rui Costa'), findsOneWidget);
-      expect(find.text('Pede-me um orçamento'), findsOneWidget);
+      expect(find.text('Peça-me um orçamento'), findsOneWidget);
       expect(find.text('Partilhar cartão'), findsOneWidget);
       // O selo "Pro" aparece no botão do PDF (é preciso o Pro), não no nome.
       expect(find.text('Pro'), findsOneWidget);

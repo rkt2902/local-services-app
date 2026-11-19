@@ -240,7 +240,7 @@ class AgendaLoadError extends StatelessWidget {
       icon: Icons.cloud_off_outlined,
       tone: AppStatusColor.cancelled,
       title: 'Não foi possível carregar a agenda',
-      message: message ?? 'Verifica a rede e tenta outra vez.',
+      message: message ?? 'Verifique a rede e tente outra vez.',
       action: onRetry == null
           ? null
           : ConstrainedBox(

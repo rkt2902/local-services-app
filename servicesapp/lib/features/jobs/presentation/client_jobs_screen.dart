@@ -95,7 +95,7 @@ class ClientJobsScreen extends ConsumerWidget {
               'Desconhecido';
 
           // `workerName` fica em `''` (não `null`) quando há worker aceite
-          // mas o nome ainda não chegou — a view mostra "Jardineiro" em vez
+          // mas o nome ainda não chegou — a view mostra "Profissional" em vez
           // de esconder a linha (null = não há worker nenhum, string vazia =
           // há worker mas falta o nome).
           String? workerName;

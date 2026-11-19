@@ -200,7 +200,7 @@ void main() {
             ),
             AgendaAvailabilityChip(
               availability: AgendaAvailability.free,
-              label: 'Estás livre',
+              label: 'Está livre',
               onPressed: () => viewed++,
             ),
           ],
@@ -208,7 +208,7 @@ void main() {
       ),
     );
     await tester.tap(find.text('Ver o dia'));
-    await tester.tap(find.text('Estás livre'));
+    await tester.tap(find.text('Está livre'));
     expect(viewed, 2);
   });
 

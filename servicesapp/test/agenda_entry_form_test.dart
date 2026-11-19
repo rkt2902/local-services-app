@@ -31,7 +31,7 @@ void main() {
     test('trabalho: só o título é obrigatório', () {
       final form = AgendaEntryForm.create(_d(28));
       expect(form.canSave, isFalse);
-      expect(form.blocker, 'Escreve um título para poder guardar.');
+      expect(form.blocker, 'Escreva um título para poder guardar.');
       expect(form.copyWith(title: 'Relva da D. Rosa').canSave, isTrue);
     });
 
@@ -41,7 +41,7 @@ void main() {
         type: AgendaFormType.unavailable,
       );
       expect(form.allDay, isTrue);
-      expect(form.blocker, 'Escolhe o motivo para poder guardar.');
+      expect(form.blocker, 'Escolha o motivo para poder guardar.');
       final ok = form.copyWith(reason: AgendaBlockReason.vacation);
       expect(ok.canSave, isTrue);
       expect(

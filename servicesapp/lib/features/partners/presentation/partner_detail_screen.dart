@@ -78,7 +78,7 @@ class _PartnerDetailScreenState extends ConsumerState<PartnerDetailScreen> {
                           icon: Icons.storefront_outlined,
                           title: 'Parceiro indisponível',
                           message:
-                              'Este parceiro já não está na lista. Volta à '
+                              'Este parceiro já não está na lista. Volte à '
                               'tab Parceiros para ver os que há.',
                         ),
                       )

@@ -111,7 +111,7 @@ class ClientHomeScreen extends StatelessWidget {
 
   final ClientHomeViewData data;
 
-  /// "Os teus jardineiros" (design A5). Lista vazia: a secção não aparece.
+  /// "Os teus profissionais" (design A5). Lista vazia: a secção não aparece.
   final AsyncValue<List<YourGardenerCardViewData>> gardeners;
   final ValueChanged<YourGardenerCardViewData>? onRepeatHireGardener;
   final VoidCallback? onRetryGardeners;
@@ -316,7 +316,7 @@ class _AttentionSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Precisa de ti',
+          'Precisa da sua atenção',
           style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.s10),
@@ -461,7 +461,7 @@ class _EmptyJobsCard extends StatelessWidget {
         icon: Icons.yard_outlined,
         title: 'Ainda sem pedidos ativos',
         message:
-            'Cria um pedido e recebe propostas de jardineiros perto de ti.',
+            'Crie um pedido e receba propostas de profissionais perto de si.',
         actionLabel: 'Criar primeiro pedido',
         onAction: onPressed,
       ),

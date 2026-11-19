@@ -153,7 +153,7 @@ class WorkerDirectRequestCard extends StatelessWidget {
               tone: AppStatusColor.waiting,
               title: data.outsideAreaLabel!,
               description:
-                  'Podes enviar proposta na mesma. Conta com a deslocação.',
+                  'Pode enviar proposta na mesma. Tenha em conta a deslocação.',
             ),
           ],
           if (data.noticeLabel != null) ...[

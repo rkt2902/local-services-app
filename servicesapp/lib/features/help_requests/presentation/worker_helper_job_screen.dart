@@ -68,7 +68,7 @@ class _WorkerHelperJobScreenState extends ConsumerState<WorkerHelperJobScreen> {
       if (!mounted) return;
       // Regra T4 (sem navegação): SnackBar → invalidar. O ecrã fica aberto
       // e passa a mostrar o estado novo.
-      toast.show(isPending ? 'Candidatura retirada.' : 'Desististe desta ajuda.');
+      toast.show(isPending ? 'Candidatura retirada.' : 'Desistiu desta ajuda.');
       invalidateWorkerLists(ref, jobId: acceptance.jobId);
     } catch (e) {
       if (!mounted) return;
@@ -301,7 +301,7 @@ String _stageSubtitle(HelperJobStage stage, HelpAcceptanceSummary a) =>
     switch (stage) {
       HelperJobStage.pending =>
         'À espera da decisão de ${_principal(a)}.',
-      HelperJobStage.accepted => 'Estás na equipa. Combina os detalhes por WhatsApp.',
+      HelperJobStage.accepted => 'Está na equipa. Combine os detalhes por WhatsApp.',
       HelperJobStage.workDone =>
         'O responsável marcou o trabalho como feito. Falta o cliente confirmar.',
       HelperJobStage.completed => 'Trabalho concluído. Obrigado pela ajuda!',
@@ -324,7 +324,7 @@ String? _closedSubtitle(HelpAcceptanceSummary a) {
 
 String _principal(HelpAcceptanceSummary a) =>
     a.principalName.trim().isEmpty || a.principalName == '—'
-        ? 'o jardineiro responsável'
+        ? 'o profissional responsável'
         : a.principalName;
 
 /// "Sábado, 25/10 · 8:30" (sem hora: só o dia).
@@ -524,7 +524,7 @@ class _DetailsCard extends StatelessWidget {
     } else if (isPending) {
       address = acceptance.addressText.isNotEmpty
           ? acceptance.addressText
-          : 'A morada exata aparece quando fores aceite.';
+          : 'A morada exata aparece quando for aceite.';
     } else {
       address = null;
     }
@@ -555,7 +555,7 @@ class _DetailsCard extends StatelessWidget {
             icon: Icons.handyman_outlined,
             label: 'Equipamento',
             value: acceptance.broughtEquipment
-                ? 'Levas equipamento'
+                ? 'Leva equipamento'
                 : 'Sem equipamento',
           ),
           if (address != null) ...[
@@ -727,7 +727,7 @@ class _PrincipalCard extends ConsumerWidget {
           ] else if (!actions.showsContact) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'O contacto aparece quando fores aceite na equipa.',
+              'O contacto aparece quando for aceite na equipa.',
               style:
                   textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),

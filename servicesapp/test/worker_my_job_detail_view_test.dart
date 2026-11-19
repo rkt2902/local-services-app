@@ -167,7 +167,7 @@ void main() {
       );
       expect(
         startJobHint(canStart: true, opensAt: null, now: now),
-        'O cliente recebe um aviso quando começares.',
+        'O cliente recebe um aviso quando começar.',
       );
     });
   });
@@ -194,7 +194,7 @@ void main() {
     expect(find.text('2 candidatos por decidir'), findsOneWidget);
     expect(
       find.text(
-          'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.'),
+          'Só pode remarcar ou cancelar até ao dia anterior ao trabalho.'),
       findsOneWidget,
     );
     expect(find.text('Remarcar'), findsOneWidget);
@@ -212,7 +212,7 @@ void main() {
         jobStatus: JobStatus.cancelled,
         inactive: const WorkerInactiveJobViewData(
           title: 'O cliente cancelou este trabalho',
-          body: 'Cancelado a 20/10. Não precisas de fazer nada.',
+          body: 'Cancelado a 20/10. Não precisa de fazer nada.',
           expired: false,
           areaLabel: 'Oeiras',
         ),
@@ -238,7 +238,7 @@ void main() {
       jobStatus: JobStatus.noResponse,
       inactive: const WorkerInactiveJobViewData(
         title: 'Este pedido expirou',
-        body: 'Não precisas de fazer nada.',
+        body: 'Não precisa de fazer nada.',
         expired: true,
         areaLabel: 'Oeiras',
       ),
@@ -291,7 +291,7 @@ void main() {
     expect(find.text('Avaliar: Rui Costa'), findsOneWidget);
     expect(find.text('Ana Lopes'), findsOneWidget);
     expect(find.text('Ajudante · avaliação enviada'), findsOneWidget);
-    expect(find.text('Sofia avaliou-te com 5'), findsOneWidget);
+    expect(find.text('Sofia avaliou-o com 5'), findsOneWidget);
     expect(find.text('"Muito cuidadoso, recomendo."'), findsOneWidget);
     // Sem fotos guardadas não aparecem os quadrados de antes e depois.
     expect(find.text('Antes'), findsNothing);
@@ -425,7 +425,7 @@ void main() {
         flowStopped: true,
         closedProposal: const WorkerClosedProposalViewData(
           title: 'O cliente escolheu outra proposta',
-          body: 'Não precisas de fazer nada.',
+          body: 'Não precisa de fazer nada.',
           icon: Icons.person_off_outlined,
           dateLabel: '28/10/2026',
           areaLabel: 'Vila Verde',

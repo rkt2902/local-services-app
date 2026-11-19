@@ -117,7 +117,7 @@ void main() {
         WorkerJobsTab.scheduled,
         now,
       );
-      expect(t.meta, 'Feito a 18/10 · confirma automaticamente em 31h');
+      expect(t.meta, 'Feito a 18/10 · confirmado automaticamente em 31h');
     });
 
     test('histórico: concluído, cancelado, não selecionada e expirado', () {

@@ -20,7 +20,7 @@ void main() {
         markedDoneAt: done,
         myLatestReportAt: done.add(const Duration(hours: 1)),
       );
-      expect(text, startsWith('Recebemos o teu relato.'));
+      expect(text, startsWith('Recebemos o seu relato.'));
       expect(text, contains('7 dias'));
       expect(text, contains('(a 19/11)'));
     });

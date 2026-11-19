@@ -177,7 +177,7 @@ class _ClientRateWorkerScreenState
                       AppStaggeredEntrance(
                         index: 1,
                         child: Text(
-                          'Avaliar ${workerName.isEmpty ? 'o jardineiro' : workerName}',
+                          'Avaliar ${workerName.isEmpty ? 'o profissional' : workerName}',
                           textAlign: TextAlign.center,
                           style: textTheme.titleLarge?.copyWith(
                             color: AppColors.textPrimary,
@@ -186,7 +186,7 @@ class _ClientRateWorkerScreenState
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        'Como foi a tua experiência?',
+                        'Como foi a sua experiência?',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium?.copyWith(
                           color: AppColors.textSecondary,
@@ -279,7 +279,7 @@ class _AlreadyRated extends StatelessWidget {
               const Icon(Icons.check_circle_rounded, color: AppColors.primary),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Já avaliaste este trabalho.',
+                'Já avaliou este trabalho.',
                 textAlign: TextAlign.center,
                 style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),

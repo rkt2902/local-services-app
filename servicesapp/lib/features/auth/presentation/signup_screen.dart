@@ -123,7 +123,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           workerName: pendingCard.workerName,
                           workerAvatarUrl: pendingCard.workerAvatarUrl,
                           descriptionLabel:
-                              'Cria a conta e voltas logo ao pedido.',
+                              'Crie a conta e regresse ao pedido.',
                         ),
                         const SizedBox(height: AppSpacing.s14),
                       ],
@@ -132,7 +132,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         label: 'Nome completo',
                         autofillHints: const [AutofillHints.name],
                         validator: (v) => (v ?? '').trim().isEmpty
-                            ? 'Introduz o nome completo.'
+                            ? 'Introduza o nome completo.'
                             : null,
                       ),
                       const SizedBox(height: AppSpacing.s14),
@@ -143,7 +143,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         autofillHints: const [AutofillHints.email],
                         validator: (v) {
                           final text = v?.trim() ?? '';
-                          if (text.isEmpty) return 'Introduz o email.';
+                          if (text.isEmpty) return 'Introduza o email.';
                           if (!text.contains('@')) return 'Email inválido.';
                           return null;
                         },
@@ -157,7 +157,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         autofillHints: const [AutofillHints.telephoneNumber],
                         validator: (v) => phoneValidator(
                           v,
-                          emptyMessage: 'Introduz o telemóvel.',
+                          emptyMessage: 'Introduza o telemóvel.',
                         ),
                       ),
                       const SizedBox(height: AppSpacing.s14),

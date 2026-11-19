@@ -42,7 +42,7 @@ class _ReportProblemDialogState extends State<ReportProblemDialog> {
     return AppConfirmDialog(
       icon: Icons.report_problem_outlined,
       title: 'Reportar problema',
-      message: 'Conta-nos o que aconteceu. A nossa equipa vai analisar.',
+      message: 'Descreva-nos o que aconteceu. A nossa equipa vai analisar.',
       confirmLabel: 'Enviar',
       onCancel: () => Navigator.pop(context),
       onConfirm: _submit,
@@ -50,12 +50,12 @@ class _ReportProblemDialogState extends State<ReportProblemDialog> {
         key: _formKey,
         child: AppTextField(
           controller: _controller,
-          label: 'Descreve o que aconteceu',
+          label: 'Descreva o que aconteceu',
           minLines: 3,
           maxLines: 5,
           textInputAction: TextInputAction.newline,
           validator: (v) => (v == null || v.trim().length < _minLength)
-              ? 'Descreve o problema (mínimo $_minLength caracteres).'
+              ? 'Descreva o problema (mínimo $_minLength caracteres).'
               : null,
         ),
       ),

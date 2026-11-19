@@ -11,7 +11,7 @@ import 'package:servicesapp/features/worker/presentation/worker_setup_screen.dar
 // de morada e campos em falta no passo 2 do pedido.
 
 void main() {
-  group('"Já trabalhaste com..." (0063)', () {
+  group('"Já trabalhou com..." (0063)', () {
     test('valor fechado aparece como total, não como taxa', () {
       final ctx = DirectRequestContext.fromJson({
         'client_name': 'Marta Silva',
@@ -39,7 +39,7 @@ void main() {
     });
   });
 
-  group('registo do jardineiro', () {
+  group('registo do profissional', () {
     test('diz o que falta', () {
       expect(
         workerSetupMissingLabel(
@@ -70,7 +70,7 @@ void main() {
     test('a foto da conta Google conta', () {
       expect(
         workerSetupPhotoHint(hasPhoto: true, fromSocialAccount: true),
-        contains('foto da tua conta'),
+        contains('foto da sua conta'),
       );
       expect(
         workerSetupPhotoHint(hasPhoto: false, fromSocialAccount: false),

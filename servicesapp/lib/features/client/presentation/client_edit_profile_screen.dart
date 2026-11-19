@@ -113,7 +113,7 @@ class _ClientEditProfileScreenState
       await ref.read(notificationRepositoryProvider).setSeasonalTips(enabled);
       if (!mounted) return;
       toast.show(enabled
-          ? 'Vais receber as dicas da época.'
+          ? 'Vai receber as dicas da época.'
           : 'Deixas de receber as dicas da época.');
       ref.invalidate(seasonalTipsEnabledProvider);
     } catch (e) {

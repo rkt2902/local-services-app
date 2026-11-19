@@ -441,7 +441,7 @@ class _WorkForm extends StatelessWidget {
             ),
             const _InfoLine(
               icon: Icons.lock_outline_rounded,
-              label: 'Só para abrires o WhatsApp. Só tu vês estes dados.',
+              label: 'Só para abrir o WhatsApp. Estes dados só são visíveis para si.',
             ),
           ],
         ),
@@ -559,7 +559,7 @@ class _WorkForm extends StatelessWidget {
             ),
             const _InfoLine(
               icon: Icons.lock_outline_rounded,
-              label: 'Só tu vês este valor.',
+              label: 'Este valor só é visível para si.',
             ),
             AppTextField(
               controller: controllers.notes,

@@ -19,7 +19,7 @@ JobRequest _job(JobStatus status) => JobRequest(
     );
 
 void main() {
-  test('ajudantes por aprovar aparecem em "Precisa de ti"', () {
+  test('ajudantes por aprovar aparecem em "Precisa da sua atenção"', () {
     final job = _job(JobStatus.confirmed);
     expect(clientJobAttention(job), isNull);
     final kind = clientJobAttention(job, pendingHelperApproval: true);

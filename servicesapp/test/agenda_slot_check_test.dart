@@ -46,7 +46,7 @@ AgendaSlotCheck _check(int? start, List<AgendaEntry> entries) =>
       now: _now,
       continueLabel: 'Enviar mesmo assim',
       confirmSummary:
-          'Se enviares e o cliente aceitar, ficas com dois '
+          'Se enviar e o cliente aceitar, fica com dois '
           'trabalhos ao mesmo tempo.',
     );
 
@@ -55,7 +55,7 @@ void main() {
     test('livre: nota verde, sem confirmação', () {
       final c = _check(_h(9), const []);
       expect(c.note.tone, AgendaWarningTone.success);
-      expect(c.note.message, 'Estás livre neste horário');
+      expect(c.note.message, 'Está livre neste horário');
       expect(c.note.actionLabel, 'Ver o dia');
       expect(c.confirm, isNull);
     });
@@ -68,17 +68,17 @@ void main() {
         'Coincide com Poda, Sintra\n09:00 a 12:00 · já marcado',
       );
       expect(c.isStrong, isTrue);
-      expect(c.confirm!.title, 'Já tens um trabalho a esta hora');
+      expect(c.confirm!.title, 'Já tem um trabalho a esta hora');
       expect(c.confirm!.continueLabel, 'Enviar mesmo assim');
-      expect(c.confirm!.summary, startsWith('Se enviares'));
+      expect(c.confirm!.summary, startsWith('Se enviar'));
     });
 
     test('indisponível nesse dia conta como forte', () {
       final c = _check(_h(10), [
         _entry(id: 'b', kind: AgendaEntryKind.block, title: 'Férias'),
       ]);
-      expect(c.note.message, startsWith('Estás indisponível neste dia'));
-      expect(c.confirm!.title, 'Estás indisponível neste dia');
+      expect(c.note.message, startsWith('Está indisponível neste dia'));
+      expect(c.confirm!.title, 'Está indisponível neste dia');
     });
 
     test('pouco intervalo: "Fica apertado", sem confirmação', () {
@@ -94,13 +94,13 @@ void main() {
       expect(c.note.tone, AgendaWarningTone.info);
       expect(
         c.note.message,
-        'Fica apertado. Acabas Rega do Sr. Alves, Sintra às 13:45.',
+        'Fica apertado. Termina Rega do Sr. Alves, Sintra às 13:45.',
       );
       expect(c.confirm, isNull);
     });
 
     test(
-      'outra proposta à mesma hora: "Também propuseste", sem confirmação',
+      'outra proposta à mesma hora: "Também propôs", sem confirmação',
       () {
         final c = _check(_h(9), [
           _entry(
@@ -113,7 +113,7 @@ void main() {
           ),
         ]);
         expect(c.note.tone, AgendaWarningTone.info);
-        expect(c.note.message, 'Também propuseste Poda nesta hora');
+        expect(c.note.message, 'Também propôs Poda nesta hora');
         expect(c.confirm, isNull);
       },
     );
@@ -141,7 +141,7 @@ void main() {
         entries: const [],
       );
       expect(kind, AgendaAvailability.free);
-      expect(label, 'Estás livre');
+      expect(label, 'Está livre');
     });
 
     test('conta os trabalhos do dia, não as propostas', () {
@@ -160,7 +160,7 @@ void main() {
         ],
       );
       expect(kind, AgendaAvailability.busyDay);
-      expect(label, 'Já tens 2 trabalhos neste dia');
+      expect(label, 'Já tem 2 trabalhos neste dia');
     });
 
     test('dia indisponível: coincide', () {
@@ -169,7 +169,7 @@ void main() {
         entries: [_entry(id: 'b', kind: AgendaEntryKind.block)],
       );
       expect(kind, AgendaAvailability.overlap);
-      expect(label, 'Estás indisponível neste dia');
+      expect(label, 'Está indisponível neste dia');
     });
   });
 }

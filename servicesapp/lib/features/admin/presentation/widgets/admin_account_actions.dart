@@ -57,7 +57,7 @@ class AdminAccountCard extends ConsumerWidget {
           'Tem ${a.jobsInProgress} trabalho(s) aceite(s): ficam como estão; '
               'decide cada um na ficha do pedido.',
         if (a.role == 'worker')
-          'Jardineiro com plano pago: salvo infração grave, usa antes o '
+          'Profissional com plano pago: salvo infração grave, usa antes o '
               'aviso de 30 dias (P2B).',
       ].join(' '),
       confirmLabel: 'Suspender',

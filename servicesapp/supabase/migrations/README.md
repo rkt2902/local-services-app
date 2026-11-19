@@ -7,7 +7,10 @@
 corrida a 2026-11-16 e da `0079` à `0082` a 2026-11-17. A `0050` nunca foi usada (o
 número ficou reservado para uma thread que não chegou a criar a migration).
 
-**Próxima migration nova: `0083`.** Antes de numerar, confirmar com
+A `0083` (textos formais e "Profissional") está criada mas **não aplicada**: aplicar
+no SQL Editor depois da `0082`.
+
+**Próxima migration nova: `0084`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -57,6 +60,7 @@ Editor do Supabase e confirma.
 | `0080_admin_accounts.sql` | Painel de suporte, fase C: `account_status` (suspensão e encerramento, só do servidor) e `get_my_account_status` para a app; trigger que impede contas suspensas de agir; suspender, reativar, aviso de encerramento com 30 dias e cron `account-closures`; `account_delete_core` partilhado por `delete_my_account` e `admin_erase_user`; exportar dados; retirar foto de perfil/portefólio (`profile_photos_hidden`); reenviar código; pontos do mapa | aplicada (17/11) |
 | `0081_admin_growth.sql` | Painel, fase 3: `admin_funnel` (funil por período), `admin_export_rows` (linhas para CSV sem contactos nem moradas), `admin_notices` e `admin_notice_audience`/`admin_send_notice`/`admin_list_notices` (aviso de serviço a um grupo, tipo `admin_notice` com push, só envia se a contagem não mudou) | aplicada (17/11) |
 | `0082_admin_partners_zones.sql` | Painel: cartões frota (`admin_list_fleet_cards`, `admin_review_fleet_card`, colunas `reviewed_at`/`review_message`, aviso `fleet_card_reviewed`), parceiros (`partners` com foto, códigos, QR, link, validade, visível na app e só Pro+; `admin_list_partners`, `admin_save_partner`, `admin_delete_partner`; `get_partners` para a app com a distância à base; uso na app em `partner_events` (`log_partner_event`) com os números no painel; `admin_partner_alerts`; avisos de parceiro com `admin_send_notice(..., p_partner_id)` e tipo `partner_new`; bucket `partner-images`; um parceiro de exemplo) e `admin_map_zones` (quadrados com pedidos sem resposta, cobertura e parceiros). Alterada a 16/11 antes de aplicada; se a versão anterior tiver sido corrida, renomeia `partner_locations` e apaga as funções antigas | aplicada (17/11) |
+| `0083_formal_texts.sql` | Textos dos avisos, notificações e erros em tratamento formal ("O seu pedido", "Pode", "Veja") e "profissional" em vez de "jardineiro". Volta a criar 76 funções com a mesma assinatura e a lógica da última migration de cada uma, só com os textos mudados; o CSV do painel passa a ter a coluna `profissional`. Pode correr-se mais do que uma vez | **criada, não aplicada** |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

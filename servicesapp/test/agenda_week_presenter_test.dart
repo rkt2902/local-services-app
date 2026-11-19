@@ -215,7 +215,7 @@ void main() {
     expect(week.days[6].dots, [AgendaCardKind.block]);
     expect(week.sections[6].countLabel, 'indisponível');
     final folga = week.sections[6].items.single.entry!;
-    expect(folga.subtitle, 'Marcado por ti');
+    expect(folga.subtitle, 'Marcado por si');
     expect(folga.startLabel, isNull);
   });
 

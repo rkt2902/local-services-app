@@ -33,7 +33,7 @@ const recentlyDeletedEmailMessage =
 /// (ver decisions_log.md).
 String friendlyError(Object e) {
   if (isNetworkError(e)) {
-    return 'Sem ligação à internet. Verifica a tua conexão e tenta novamente.';
+    return 'Sem ligação à internet. Verifique a sua ligação e tente novamente.';
   }
 
   final msg = e.toString().toLowerCase();
@@ -51,7 +51,7 @@ String friendlyError(Object e) {
     return recentlyDeletedEmailMessage;
   }
   if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
-    return 'Confirma o teu email antes de entrar. Verifica a tua caixa de entrada.';
+    return 'Confirme o seu email antes de entrar. Verifique a sua caixa de entrada.';
   }
   if (msg.contains('weak_password') || msg.contains('password')) {
     return weakPasswordMessage;
@@ -60,13 +60,13 @@ String friendlyError(Object e) {
       msg.contains('rate_limit') ||
       msg.contains('over_request_rate_limit') ||
       msg.contains('over_email_send_rate_limit')) {
-    return 'Demasiadas tentativas. Espera alguns minutos e tenta novamente.';
+    return 'Demasiadas tentativas. Aguarde alguns minutos e tente novamente.';
   }
 
   // Limite anti-spam da policy de INSERT de job_requests (migration 0042):
   // é a única razão realista para a RLS recusar um pedido criado pela app.
   if (msg.contains('row-level security') && msg.contains('job_requests')) {
-    return 'Já criaste vários pedidos na última hora. Espera um pouco e tenta novamente.';
+    return 'Já criou vários pedidos na última hora. Aguarde um pouco e tente novamente.';
   }
   // Validações novas das RPCs (migration 0042): a mensagem já é para o
   // utilizador.
@@ -82,18 +82,18 @@ String friendlyError(Object e) {
   // anterior ao trabalho).
   if (msg.contains('antecedência')) {
     if (msg.contains('remarcar')) {
-      return 'Só podes remarcar até à véspera do trabalho.';
+      return 'Só pode remarcar até à véspera do trabalho.';
     }
     if (msg.contains('cancelamento')) {
-      return 'Só podes cancelar até à véspera do trabalho.';
+      return 'Só pode cancelar até à véspera do trabalho.';
     }
     return 'Esta ação só é possível até à véspera do trabalho.';
   }
   if (msg.contains('remarcação pendente')) {
     if (msg.contains('sem remarcação')) {
-      return 'Esta remarcação já foi respondida. Atualiza o pedido.';
+      return 'Esta remarcação já foi respondida. Atualize o pedido.';
     }
-    return 'Já existe uma remarcação pendente. Espera pela resposta.';
+    return 'Já existe uma remarcação pendente. Aguarde a resposta.';
   }
 
   // Genéricos
@@ -101,7 +101,7 @@ String friendlyError(Object e) {
     return 'Esta ação requer pelo menos 24h de antecedência.';
   }
   if (msg.contains('already') && msg.contains('proposal')) {
-    return 'Já enviaste uma proposta para este pedido.';
+    return 'Já enviou uma proposta para este pedido.';
   }
   if (msg.contains('duplicate') || msg.contains('unique constraint')) {
     return 'Este registo já existe.';
@@ -109,20 +109,20 @@ String friendlyError(Object e) {
   if (msg.contains('permission denied') ||
       msg.contains('row-level security') ||
       msg.contains('insufficient_privilege')) {
-    return 'Não tens permissão para esta ação.';
+    return 'Não tem permissão para esta ação.';
   }
   if (msg.contains('dia do trabalho')) {
-    return 'Só podes marcar como concluído a partir do dia do trabalho.';
+    return 'Só pode marcar como concluído a partir do dia do trabalho.';
   }
   if (msg.contains('foto de conclusão')) {
-    return 'Não foi possível guardar a foto. Tenta novamente ou conclui sem foto.';
+    return 'Não foi possível guardar a foto. Tente novamente ou conclua sem foto.';
   }
   if (msg.contains('não autorizado') ||
       msg.contains('não está a aguardar') ||
       msg.contains('not authorized') ||
       msg.contains('invalid state') ||
       msg.contains('estado inválido')) {
-    return 'Esta ação já não é válida. O estado do pedido pode ter mudado. Atualiza e tenta novamente.';
+    return 'Esta ação já não é válida. O estado do pedido pode ter mudado. Atualize e tente novamente.';
   }
 
   // RAISE EXCEPTION das RPCs (P0001): o texto é escrito para a pessoa, em
@@ -133,7 +133,7 @@ String friendlyError(Object e) {
     if (serverMessage.isNotEmpty) return serverMessage;
   }
 
-  return 'Ocorreu um erro inesperado. Tenta novamente.';
+  return 'Ocorreu um erro inesperado. Tente novamente.';
 }
 
 /// `true` quando a RPC chamada não existe na base de dados (o PostgREST

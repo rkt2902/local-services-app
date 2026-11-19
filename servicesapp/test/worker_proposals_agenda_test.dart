@@ -133,7 +133,7 @@ void main() {
       serviceTypes: _types,
       now: _now,
     )!;
-    expect(s.warning, 'Estás indisponível neste dia: Férias');
+    expect(s.warning, 'Está indisponível neste dia: Férias');
   });
 
   test('ordem: com aviso primeiro, depois a data mais próxima', () {

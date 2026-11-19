@@ -392,7 +392,7 @@ class _JobCard extends StatelessWidget {
                   nameStyle: textTheme.labelMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),
-                  fallbackLabel: 'Jardineiro',
+                  fallbackLabel: 'Profissional',
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
@@ -519,7 +519,7 @@ class _ActiveEmpty extends StatelessWidget {
     return AppEmptyState(
       icon: Icons.yard_outlined,
       title: 'Ainda sem pedidos ativos',
-      message: 'Cria um pedido e recebe propostas de jardineiros perto de ti.',
+      message: 'Crie um pedido e receba propostas de profissionais perto de si.',
       actionLabel: 'Criar pedido',
       onAction: onCreateJob,
     );
@@ -607,13 +607,13 @@ class _ClientJobsError extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Não foi possível carregar os teus pedidos.',
+                'Não foi possível carregar os seus pedidos.',
                 textAlign: TextAlign.center,
                 style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Verifica a ligação e tenta novamente.',
+                'Verifique a ligação e tente novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
               ),

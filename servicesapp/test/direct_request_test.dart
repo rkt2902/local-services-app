@@ -52,7 +52,7 @@ void main() {
   group('labels', () {
     test('primeiro nome e inicial', () {
       expect(firstNameOr('Rui Costa', 'x'), 'Rui');
-      expect(firstNameOr('  ', 'o jardineiro'), 'o jardineiro');
+      expect(firstNameOr('  ', 'o profissional'), 'o profissional');
       expect(initialOf('ana'), 'A');
       expect(initialOf(''), '');
     });
@@ -74,7 +74,7 @@ void main() {
       expect(showRepeatHire(info(1)), isFalse);
     });
 
-    test('tempo que falta na etiqueta do jardineiro', () {
+    test('tempo que falta na etiqueta do profissional', () {
       final now = DateTime(2026, 10, 22, 20);
       expect(directTimeLeftLabel(now.add(const Duration(hours: 18, minutes: 10)), now),
           'faltam 18 h');
@@ -138,7 +138,7 @@ void main() {
       expect(
         directBannerTexts(_job(direct: DirectRequestStatus.expired), workerName: '')!
             .title,
-        'O jardineiro não respondeu a tempo',
+        'O profissional não respondeu a tempo',
       );
     });
 
@@ -151,7 +151,7 @@ void main() {
       );
       expect(
         directHistoryLabel(ctx, serviceLabel: 'Corte de relva'),
-        'Já trabalhaste com Marta a 12/09/2026, Corte de relva, 12,00 €/h.',
+        'Já trabalhou com Marta a 12/09/2026, Corte de relva, 12,00 €/h.',
       );
       expect(
         directHistoryLabel(
@@ -163,7 +163,7 @@ void main() {
           ),
           serviceLabel: '',
         ),
-        'Já trabalhaste com este cliente.',
+        'Já trabalhou com este cliente.',
       );
     });
   });
@@ -205,7 +205,7 @@ void main() {
       expect(normal.isDirectWaiting, isFalse);
     });
 
-    test('rascunho de "Pedir de novo": mesmos dados, sem data, com o jardineiro', () {
+    test('rascunho de "Pedir de novo": mesmos dados, sem data, com o profissional', () {
       final draft = repeatHireWizardState(
         _job(
           status: JobStatus.completed,
@@ -245,18 +245,18 @@ void main() {
       expect(repeatHireFirstRoute(draft), '/client/create-job');
     });
 
-    test('próximo passo do pedido à espera do jardineiro escolhido', () {
+    test('próximo passo do pedido à espera do profissional escolhido', () {
       expect(
         clientJobNextStepLabel(_job(direct: DirectRequestStatus.waiting)),
-        startsWith('Só o teu jardineiro vê o pedido até '),
+        startsWith('Só o seu profissional vê o pedido até '),
       );
       expect(
         clientJobNextStepLabel(_job(direct: DirectRequestStatus.waiting, proposals: 1)),
-        'Tens 1 proposta para ver.',
+        'Tem 1 proposta para ver.',
       );
       expect(
         clientJobNextStepLabel(_job(direct: DirectRequestStatus.expired)),
-        'À espera de propostas dos jardineiros.',
+        'À espera de propostas dos profissionais.',
       );
     });
 
@@ -268,7 +268,7 @@ void main() {
   });
 
   group('widgets', () {
-    testWidgets('"Os teus jardineiros" vazio não mostra nada', (tester) async {
+    testWidgets('"Os seus profissionais" vazio não mostra nada', (tester) async {
       await tester.pumpWidget(_app(YourGardenersSection(
         dataAsync: const AsyncValue.data([]),
         onRepeatHire: (_) {},
@@ -276,7 +276,7 @@ void main() {
       expect(find.text(YourGardenersSection.title), findsNothing);
     });
 
-    testWidgets('"Os teus jardineiros" com dados e toque', (tester) async {
+    testWidgets('"Os seus profissionais" com dados e toque', (tester) async {
       YourGardenerCardViewData? tapped;
       await tester.pumpWidget(_app(YourGardenersSection(
         dataAsync: const AsyncValue.data([
@@ -305,7 +305,7 @@ void main() {
       expect(tapped?.workerId, 'ana');
     });
 
-    testWidgets('"Os teus jardineiros" com erro mantém o título e tenta de novo',
+    testWidgets('"Os seus profissionais" com erro mantém o título e tente de novo',
         (tester) async {
       var retried = false;
       await tester.pumpWidget(_app(YourGardenersSection(
@@ -318,11 +318,11 @@ void main() {
       expect(retried, isTrue);
     });
 
-    testWidgets('cartão "Precisas outra vez?" some sem dados', (tester) async {
+    testWidgets('cartão "Precisa outra vez?" some sem dados', (tester) async {
       await tester.pumpWidget(_app(const RepeatHireCard(
         dataAsync: AsyncValue.data(null),
       )));
-      expect(find.text('Precisas outra vez?'), findsNothing);
+      expect(find.text('Precisa outra vez?'), findsNothing);
 
       await tester.pumpWidget(_app(const RepeatHireCard(
         dataAsync: AsyncValue.data(RepeatHireCardViewData(
@@ -332,7 +332,7 @@ void main() {
         )),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Precisas outra vez?'), findsOneWidget);
+      expect(find.text('Precisa outra vez?'), findsOneWidget);
       expect(find.text('Corte de relva, 12/10/2026'), findsOneWidget);
     });
 
@@ -364,7 +364,7 @@ void main() {
         data: const DirectRequestWaitingBannerViewData(
           display: DirectRequestWaitingDisplay.released,
           titleLabel: 'Rui não pode desta vez',
-          descriptionLabel: 'O pedido já está visível para todos os jardineiros.',
+          descriptionLabel: 'O pedido já está visível para todos os profissionais.',
         ),
         onReleaseToAll: () async => null,
       )));
@@ -373,7 +373,7 @@ void main() {
       expect(find.byType(OutlinedButton), findsNothing);
     });
 
-    testWidgets('jardineiro: a avisar bloqueia os dois botões', (tester) async {
+    testWidgets('profissional: a avisar bloqueia os dois botões', (tester) async {
       await tester.pumpWidget(_app(WorkerDirectRequestActions(
         onSendProposalPressed: () {},
         onDeclinePressed: () {},
@@ -384,25 +384,25 @@ void main() {
       expect(outlined.onPressed, isNull);
     });
 
-    testWidgets('jardineiro: histórico a carregar, com erro e vazio', (tester) async {
+    testWidgets('profissional: histórico a carregar, com erro e vazio', (tester) async {
       WorkerDirectRequestViewData data(
         AsyncValue<WorkerDirectHistoryViewData?> history,
       ) =>
           WorkerDirectRequestViewData(
-            tagLabel: 'Pedido só para ti · faltam 18 h',
-            explanationLabel: 'O cliente pediu-te este trabalho primeiro.',
+            tagLabel: 'Pedido só para si · faltam 18 h',
+            explanationLabel: 'O cliente pediu-lhe este trabalho primeiro.',
             history: history,
           );
 
       await tester.pumpWidget(_app(WorkerDirectRequestCard(
         data: data(const AsyncValue.data(WorkerDirectHistoryViewData(
           clientInitial: 'M',
-          label: 'Já trabalhaste com Marta a 12/09/2026.',
+          label: 'Já trabalhou com Marta a 12/09/2026.',
         ))),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Pedido só para ti · faltam 18 h'), findsOneWidget);
-      expect(find.text('Já trabalhaste com Marta a 12/09/2026.'), findsOneWidget);
+      expect(find.text('Pedido só para si · faltam 18 h'), findsOneWidget);
+      expect(find.text('Já trabalhou com Marta a 12/09/2026.'), findsOneWidget);
 
       var retried = false;
       await tester.pumpWidget(_app(WorkerDirectRequestCard(
@@ -418,7 +418,7 @@ void main() {
       )));
       await tester.pumpAndSettle();
       expect(find.text('Tentar novamente'), findsNothing);
-      expect(find.text('O cliente pediu-te este trabalho primeiro.'), findsOneWidget);
+      expect(find.text('O cliente pediu-lhe este trabalho primeiro.'), findsOneWidget);
     });
   });
 }

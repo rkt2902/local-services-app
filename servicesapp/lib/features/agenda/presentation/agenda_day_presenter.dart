@@ -515,7 +515,7 @@ AgendaDayContentViewData buildAgendaDay({
         _recurrenceLabel(b),
       ])!,
       description:
-          '$dates Só aparece na tua agenda: os pedidos novos continuam a '
+          '$dates Só aparece na sua agenda: os pedidos novos continuam a '
           'chegar.',
     );
     summary = _join(['Indisponível · dia todo', summary])!;

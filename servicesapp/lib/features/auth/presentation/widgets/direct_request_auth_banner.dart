@@ -28,7 +28,7 @@ class DirectRequestAuthBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     const tone = AppStatusColor.info;
-    final name = firstNameOr(workerName, 'este jardineiro');
+    final name = firstNameOr(workerName, 'este profissional');
 
     return Container(
       width: double.infinity,
@@ -50,7 +50,7 @@ class DirectRequestAuthBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Vais pedir orçamento a $name',
+                  'Vai pedir orçamento a $name',
                   style: textTheme.bodyMedium?.copyWith(
                     color: tone.foreground,
                     fontWeight: FontWeight.w700,

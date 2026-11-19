@@ -907,7 +907,7 @@ class _WorkerMyJobDetailScreenState extends State<WorkerMyJobDetailScreen> {
         const _InfoBanner(
           icon: Icons.schedule_outlined,
           color: AppStatusColor.waiting,
-          message: 'A tua proposta está à espera de resposta do cliente.',
+          message: 'A sua proposta está à espera de resposta do cliente.',
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
@@ -1394,7 +1394,7 @@ class _RescheduleCancelRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
-                'Só podes remarcar ou cancelar até ao dia anterior ao trabalho.',
+                'Só pode remarcar ou cancelar até ao dia anterior ao trabalho.',
                 style: textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -2102,7 +2102,7 @@ class _ReceivedReviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${review.authorFirstName} avaliou-te com ${review.stars}',
+                  '${review.authorFirstName} avaliou-o com ${review.stars}',
                   style: textTheme.titleSmall?.copyWith(
                     color: AppColors.textPrimary,
                   ),
@@ -2230,7 +2230,7 @@ class _RescheduleBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   proposedByMe
-                      ? 'À espera de resposta à remarcação que propuseste para $label'
+                      ? 'À espera de resposta à remarcação que propôs para $label'
                             .trim()
                       : 'O cliente propôs remarcar para $label'.trim(),
                   style: textTheme.bodyMedium?.copyWith(

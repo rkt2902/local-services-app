@@ -161,7 +161,7 @@ void main() {
       );
       expect(
         WorkerJobDayRules.overdueMessage(DateTime(2026, 10, 15), started: true),
-        'O trabalho já devia ter acabado. Marca como concluído até 18/10, '
+        'O trabalho já devia ter acabado. Marque como concluído até 18/10, '
         'senão o pedido expira.',
       );
       expect(
@@ -179,10 +179,10 @@ void main() {
       expect(jobUnavailableReason(JobStatus.open), isNull);
     });
 
-    test('outro jardineiro, cancelado, expirado', () {
+    test('outro profissional, cancelado, expirado', () {
       expect(
         jobUnavailableReason(JobStatus.confirmed),
-        'Outro jardineiro ficou com este pedido.',
+        'Outro profissional ficou com este pedido.',
       );
       expect(
         jobUnavailableReason(JobStatus.cancelled),
@@ -211,7 +211,7 @@ void main() {
         expect(m.title, 'O cliente cancelou este trabalho');
         expect(
           m.body,
-          'Cancelado a 20/10. Motivo: Já não preciso do serviço. Não precisas de fazer nada.',
+          'Cancelado a 20/10. Motivo: Já não preciso do serviço. Não precisa de fazer nada.',
         );
         expect(m.expired, isFalse);
       },
@@ -219,7 +219,7 @@ void main() {
 
     test('cancelado por mim, sem motivo nem data', () {
       final m = inactiveJobMessage(cancelReason: null, cancelledByMe: true);
-      expect(m.title, 'Cancelaste este trabalho');
+      expect(m.title, 'Cancelou este trabalho');
       expect(m.body, isEmpty);
     });
 

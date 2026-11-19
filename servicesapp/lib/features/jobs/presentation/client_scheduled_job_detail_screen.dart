@@ -106,8 +106,8 @@ class _ClientScheduledJobDetailScreenState
       context,
       icon: Icons.replay_rounded,
       title: 'Voltar a publicar?',
-      message: 'Queres voltar a publicar este pedido para encontrar outro '
-          'jardineiro?',
+      message: 'Pretende voltar a publicar este pedido para encontrar outro '
+          'profissional?',
       confirmLabel: 'Sim',
       cancelLabel: 'Não',
     );
@@ -132,7 +132,7 @@ class _ClientScheduledJobDetailScreenState
       navigatedAway = true;
       router.go('/client/jobs');
       if (newJobId != null) {
-        toast.show('Pedido cancelado e reaberto para encontrar outro jardineiro.');
+        toast.show('Pedido cancelado e reaberto para encontrar outro profissional.');
       } else {
         toast.show('Pedido cancelado.');
       }
@@ -222,7 +222,7 @@ class _ClientScheduledJobDetailScreenState
       for (final id in ids) {
         await repo.approveHelpRequest(id);
       }
-      toast.show('Aprovado. O jardineiro pode agora procurar ajudantes.');
+      toast.show('Aprovado. O profissional pode agora procurar ajudantes.');
       container.invalidate(helpRequestsForJobProvider(widget.jobId));
     } catch (e) {
       toast.error(friendlyError(e));
@@ -306,7 +306,7 @@ class _ClientScheduledJobDetailScreenState
         final String? actionsNotice = started
             ? 'O trabalho já começou: já não dá para cancelar nem remarcar.'
             : reschedulePending
-                ? 'Enquanto houver uma remarcação por responder não podes '
+                ? 'Enquanto houver uma remarcação por responder não pode '
                     'cancelar nem remarcar.'
                 : onOrAfterJobDay
                     ? 'Cancelar e remarcar só é possível até à véspera do trabalho.'
@@ -337,7 +337,7 @@ class _ClientScheduledJobDetailScreenState
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
-                      'O jardineiro propôs remarcar para $dateStr $timeStr'.trim(),
+                      'O profissional propôs remarcar para $dateStr $timeStr'.trim(),
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: AppStatusColor.waiting.foreground),
                     ),
@@ -396,7 +396,7 @@ class _ClientScheduledJobDetailScreenState
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'À espera de resposta à remarcação que propuseste.',
+                    'À espera de resposta à remarcação que propôs.',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: AppStatusColor.waiting.foreground),
                   ),
@@ -660,7 +660,7 @@ class _ClientScheduledJobDetailScreenState
               ],
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Os ajudantes vêm com o responsável. Qualquer dúvida, fala com ele.',
+                'Os ajudantes vêm com o responsável. Qualquer dúvida, fale com ele.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -829,7 +829,7 @@ class _WorkerContactCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name.isEmpty ? 'Jardineiro' : name,
+                    name.isEmpty ? 'Profissional' : name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),

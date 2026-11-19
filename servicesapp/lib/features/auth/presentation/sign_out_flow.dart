@@ -18,7 +18,7 @@ Future<void> confirmAndSignOut(BuildContext context, WidgetRef ref) async {
     context,
     icon: null,
     title: 'Terminar sessão?',
-    message: 'Vais precisar do teu email e senha para voltar a entrar.',
+    message: 'Vai precisar do seu email e senha para voltar a entrar.',
     confirmLabel: 'Terminar sessão',
     destructive: true,
   );

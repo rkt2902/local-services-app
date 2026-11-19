@@ -101,7 +101,7 @@ void main() {
         outcome: WorkerProposalOutcome.chosenOther,
       );
       expect(m.title, 'O cliente escolheu outra proposta');
-      expect(m.body, 'Não precisas de fazer nada.');
+      expect(m.body, 'Não precisa de fazer nada.');
     });
 
     test('cancelado mostra a data e o motivo', () {

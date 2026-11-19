@@ -118,7 +118,7 @@ class WorkerShowcaseSection extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Informação partilhada pelo jardineiro.',
+          'Informação partilhada pelo profissional.',
           style: textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],

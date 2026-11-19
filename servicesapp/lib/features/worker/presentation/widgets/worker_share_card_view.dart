@@ -84,7 +84,7 @@ class WorkerShareCardView extends StatelessWidget {
           children: [
             AppBackHeader(
               title: 'O meu cartão',
-              subtitle: 'Quem ler o QR abre o teu perfil e pede-te um orçamento',
+              subtitle: 'Quem ler o QR abre o seu perfil e pede-lhe um orçamento',
               onBack: onBack,
             ),
             Expanded(
@@ -279,7 +279,7 @@ class WorkerShareCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Pede-me um orçamento',
+                  'Peça-me um orçamento',
                   style: textTheme.titleSmall?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w700,

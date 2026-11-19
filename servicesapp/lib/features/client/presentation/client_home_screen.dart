@@ -133,9 +133,9 @@ class ClientHomeScreen extends ConsumerWidget {
           for (final w in workers)
             YourGardenerCardViewData(
               workerId: w.workerId,
-              workerName: firstNameOr(w.workerName, 'Jardineiro'),
+              workerName: firstNameOr(w.workerName, 'Profissional'),
               workerInitial:
-                  initialOf(w.workerName.isEmpty ? 'Jardineiro' : w.workerName),
+                  initialOf(w.workerName.isEmpty ? 'Profissional' : w.workerName),
               workerAvatarUrl: w.workerAvatarUrl,
               lastServiceLabel: serviceTypes
                       .where((t) => t.id == w.serviceTypeId)
@@ -172,7 +172,7 @@ class ClientHomeScreen extends ConsumerWidget {
     );
   }
 
-  /// "Pedir de novo" a partir de "Os teus jardineiros": o pedido de origem
+  /// "Pedir de novo" a partir de "Os teus profissionais": o pedido de origem
   /// é o último trabalho concluído com esse jardineiro.
   Future<void> _repeatHire(
     BuildContext context,
@@ -196,7 +196,7 @@ class ClientHomeScreen extends ConsumerWidget {
     }
     if (!context.mounted) return;
     if (source == null) {
-      toast.error('Não foi possível abrir o último trabalho. Tenta novamente.');
+      toast.error('Não foi possível abrir o último trabalho. Tente novamente.');
       return;
     }
     await startRepeatHire(

@@ -102,7 +102,7 @@ void main() {
       );
       expect(
         friendlyError(const AuthException('Email not confirmed')),
-        startsWith('Confirma o teu email'),
+        startsWith('Confirme o seu email'),
       );
       expect(
         friendlyError(const AuthException('over_email_send_rate_limit')),
@@ -128,19 +128,19 @@ void main() {
       expect(
         friendlyError(Exception(
             'O cancelamento requer pelo menos 24h de antecedência.')),
-        'Só podes cancelar até à véspera do trabalho.',
+        'Só pode cancelar até à véspera do trabalho.',
       );
       expect(
         friendlyError(Exception(
             'Não pode remarcar com menos de 24h de antecedência')),
-        'Só podes remarcar até à véspera do trabalho.',
+        'Só pode remarcar até à véspera do trabalho.',
       );
     });
 
     test('remarcação pendente', () {
       expect(
         friendlyError(Exception('Já existe uma remarcação pendente')),
-        'Já existe uma remarcação pendente. Espera pela resposta.',
+        'Já existe uma remarcação pendente. Aguarde a resposta.',
       );
       expect(
         friendlyError(Exception('Sem remarcação pendente')),
@@ -151,7 +151,7 @@ void main() {
     test('desconhecido dá mensagem genérica, nunca texto técnico', () {
       expect(
         friendlyError(Exception('PGRST999 something odd')),
-        'Ocorreu um erro inesperado. Tenta novamente.',
+        'Ocorreu um erro inesperado. Tente novamente.',
       );
     });
 
@@ -171,7 +171,7 @@ void main() {
       // Outro código sem regra continua genérico.
       const other = PostgrestException(message: 'boom', code: 'XX000');
       expect(friendlyError(other),
-          'Ocorreu um erro inesperado. Tenta novamente.');
+          'Ocorreu um erro inesperado. Tente novamente.');
     });
   });
 

@@ -47,8 +47,8 @@ String proposalTotalNoteLabel(JobProposal p) => p.isFixedTotal
 
 /// Explicação grande no detalhe da proposta.
 String proposalPriceExplanationLabel(JobProposal p) => p.isFixedTotal
-    ? 'É o que pagas no fim, mesmo que o trabalho demore mais.'
-    : 'Pagas as horas feitas. O total é uma estimativa.';
+    ? 'É o que paga no fim, mesmo que o trabalho demore mais.'
+    : 'Paga as horas feitas. O total é uma estimativa.';
 
 String _number(double v) =>
     v == v.roundToDouble() ? v.round().toString() : decimalLabel(v, 1);

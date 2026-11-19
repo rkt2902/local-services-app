@@ -33,16 +33,16 @@ class ClientProposalDetailScreen extends ConsumerWidget {
   static const _infoLines = [
     ClientProposalInfoLine(
       icon: Icons.notifications_active_outlined,
-      label: 'O jardineiro recebe a confirmação e as outras propostas são '
+      label: 'O profissional recebe a confirmação e as outras propostas são '
           'fechadas.',
     ),
     ClientProposalInfoLine(
       icon: Icons.event_repeat_outlined,
-      label: 'Podes remarcar ou cancelar até à véspera do trabalho.',
+      label: 'Pode remarcar ou cancelar até à véspera do trabalho.',
     ),
     ClientProposalInfoLine(
       icon: Icons.payments_outlined,
-      label: 'Pagas diretamente ao jardineiro, depois de confirmares que o '
+      label: 'Paga diretamente ao profissional, depois de confirmar que o '
           'trabalho está feito.',
     ),
   ];
@@ -133,7 +133,7 @@ class ClientProposalDetailScreen extends ConsumerWidget {
             showWorkerRatingsSheet(
               context,
               workerId: proposal.workerId,
-              workerName: proposal.workerName ?? 'Jardineiro',
+              workerName: proposal.workerName ?? 'Profissional',
             );
           },
           onAccept: (_) => _accept(ref),
@@ -152,7 +152,7 @@ class ClientProposalDetailScreen extends ConsumerWidget {
     List<ProposalIncludeOption> includeOptions,
   ) {
     final name =
-        p.workerName?.isNotEmpty == true ? p.workerName! : 'Jardineiro';
+        p.workerName?.isNotEmpty == true ? p.workerName! : 'Profissional';
     final duration = proposalDurationLabel(p);
     final validUntil = proposalValidUntilLabel(p);
     final helpers = p.peopleNeeded - 1;

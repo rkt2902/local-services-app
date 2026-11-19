@@ -51,7 +51,7 @@ class DirectRequestServicesEmpty extends StatelessWidget {
     return AppEmptyState(
       icon: Icons.work_outline_rounded,
       title: '$workerName ainda não indicou serviços',
-      message: 'Podes escolher entre todos os serviços. O pedido continua a '
+      message: 'Pode escolher entre todos os serviços. O pedido continua a '
           'ir primeiro para $workerName.',
       actionLabel: 'Ver todos os serviços',
       onAction: onShowAllServices,

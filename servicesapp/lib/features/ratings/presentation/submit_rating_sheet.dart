@@ -141,7 +141,7 @@ class _SubmitRatingSheetState extends State<_SubmitRatingSheet> {
                   child: Text(
                     _stars > 0
                         ? _starLabel(_stars)
-                        : 'Toca nas estrelas para dar a nota',
+                        : 'Toque nas estrelas para dar a nota',
                     key: ValueKey(_stars),
                     textAlign: TextAlign.center,
                     style: _stars > 0

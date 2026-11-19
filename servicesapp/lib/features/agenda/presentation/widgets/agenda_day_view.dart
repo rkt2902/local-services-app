@@ -379,7 +379,7 @@ class _AgendaDayViewState extends State<AgendaDayView> {
         add(
           const AgendaOverlapNote(
             level: AgendaNoteLevel.strong,
-            highlight: 'Tens trabalhos marcados neste dia.',
+            highlight: 'Tem trabalhos marcados neste dia.',
             message: ' Continuam de pé: trata deles ou avisa o cliente.',
           ),
         );
@@ -551,9 +551,9 @@ class _EmptyDay extends StatelessWidget {
       icon: Icons.wb_sunny_outlined,
       title: isToday ? 'Nada marcado para hoje' : 'Nada marcado neste dia',
       message: onAddToAgenda == null
-          ? 'Há pedidos novos na tua zona.'
-          : 'Há pedidos novos na tua zona. Ou junta um trabalho que '
-                'arranjaste por fora.',
+          ? 'Há pedidos novos na sua zona.'
+          : 'Há pedidos novos na sua zona. Ou junte um trabalho que '
+                'arranjou por fora.',
       action: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -659,7 +659,7 @@ class _UnavailableDay extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Marcaste este dia como indisponível.',
+                    'Marcou este dia como indisponível.',
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

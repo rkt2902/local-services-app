@@ -21,24 +21,24 @@ String workerPlanSummaryLabel(WorkerPlan plan) {
 String workerPlanExplanation(WorkerPlan plan) {
   final limit = plan.monthlyJobLimit;
   if (!plan.tier.isPaid) {
-    if (limit == null) return 'Estás no plano Grátis.';
+    if (limit == null) return 'Está no plano Grátis.';
     final usage = plan.reachedLimit
-        ? 'Já chegaste aos $limit trabalhos deste mês. Voltas a poder '
+        ? 'Já chegou aos $limit trabalhos deste mês. Volta a poder '
             'enviar propostas no início do próximo mês.'
-        : 'Este mês já tens ${plan.jobsThisMonth} de $limit trabalhos aceites.';
+        : 'Este mês já tem ${plan.jobsThisMonth} de $limit trabalhos aceites.';
     // O limite trava propostas novas; as já enviadas ainda podem ser
     // aceites (decidido 2026-11-02).
-    return 'No plano Grátis podes enviar propostas até teres $limit '
+    return 'No plano Grátis pode enviar propostas até ter $limit '
         'trabalhos aceites no mês. '
         '$usage';
   }
   final verified = plan.verified
-      ? ' Os teus documentos foram confirmados pela ProJardim.'
+      ? ' Os seus documentos foram confirmados pela ProJardim.'
       : '';
   final benefits = plan.tier == WorkerPlanTier.proPlus
       ? ' e acesso aos Benefícios (cartão frota e parceiros)'
       : '';
-  return 'Estás no plano ${plan.tier.label}: trabalhos sem limite, selo '
+  return 'Está no plano ${plan.tier.label}: trabalhos sem limite, selo '
       '${plan.tier.label} no perfil e nas propostas, cartão em PDF e painel '
       'de ganhos$benefits.$verified';
 }

@@ -129,7 +129,7 @@ class _WorkerHelpRequestsScreenState
                   child: _HelpRequestsEmptyState(
                     icon: Icons.group_off_outlined,
                     title: 'Sem pedidos de ajuda agora',
-                    message: 'Não há pedidos de ajuda na tua zona.',
+                    message: 'Não há pedidos de ajuda na sua zona.',
                     action: TextButton.icon(
                       onPressed: () => _onDiscoverRefresh(),
                       icon: const Icon(
@@ -208,7 +208,7 @@ class _WorkerHelpRequestsScreenState
           children: [
             AppBackHeader(
               title: 'Pedidos de ajuda',
-              subtitle: 'Ajuda outros jardineiros',
+              subtitle: 'Ajudar outros profissionais',
               onBack: () => goBackOrToRoleHome(context),
               bottom: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -297,7 +297,7 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
       if (!mounted) return;
       // Regra T4 (sem navegação): SnackBar → invalidar.
       toast.show(
-        isPending ? 'Candidatura retirada.' : 'Desististe desta ajuda.',
+        isPending ? 'Candidatura retirada.' : 'Desistiu desta ajuda.',
       );
       invalidateWorkerLists(ref);
     } catch (e) {
@@ -329,8 +329,8 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
                     icon: Icons.assignment_outlined,
                     title: 'Ainda sem candidaturas',
                     message:
-                        'Candidata-te a um pedido de ajuda para trabalhar '
-                        'com outros jardineiros.',
+                        'Candidate-se a um pedido de ajuda para trabalhar '
+                        'com outros profissionais.',
                     actionLabel: 'Descobrir pedidos',
                     onAction: widget.onGoToDiscover,
                   ),
@@ -479,9 +479,9 @@ class _MyApplicationsTabState extends ConsumerState<_MyApplicationsTab> {
     _ApplicationsFilter.accepted => const AppEmptyState(
       icon: Icons.groups_outlined,
       tone: AppStatusColor.neutral,
-      title: 'Ainda não estás numa equipa',
+      title: 'Ainda não está numa equipa',
       message:
-          'Quando fores aceite como ajudante, o trabalho aparece '
+          'Quando for aceite como ajudante, o trabalho aparece '
           'aqui.',
     ),
     _ApplicationsFilter.history => const AppEmptyState(
@@ -943,7 +943,7 @@ class _AcceptedCardState extends ConsumerState<_AcceptedCard> {
                     child: Text.rich(
                       const TextSpan(
                         children: [
-                          TextSpan(text: 'Já está na tua agenda com o selo '),
+                          TextSpan(text: 'Já está na sua agenda com o selo '),
                           TextSpan(
                             text: 'Ajudante',
                             style: TextStyle(fontWeight: FontWeight.w700),
@@ -1228,7 +1228,7 @@ class _HelpRequestCard extends StatelessWidget {
                   nameStyle: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
-                  fallbackLabel: 'Jardineiro',
+                  fallbackLabel: 'Profissional',
                   subtitle: 'responsável',
                 ),
               ),
@@ -1303,7 +1303,7 @@ class _HelpRequestCard extends StatelessWidget {
                       AgendaAvailability.overlap => Icons.warning_rounded,
                     },
                     label: agenda.$1 == AgendaAvailability.free
-                        ? 'Cabe na tua agenda'
+                        ? 'Cabe na sua agenda'
                         : agenda.$2,
                     tone: switch (agenda.$1) {
                       AgendaAvailability.free => AppStatusColor.success,

@@ -51,7 +51,7 @@ class LegalDocumentScreen extends ConsumerWidget {
           error: (_, _) => Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: AppInlineError(
-              message: 'Não foi possível abrir o texto. Tenta outra vez.',
+              message: 'Não foi possível abrir o texto. Tente outra vez.',
               onRetry: () => ref.invalidate(legalDocumentProvider(kind)),
             ),
           ),

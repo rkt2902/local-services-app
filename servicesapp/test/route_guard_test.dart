@@ -60,7 +60,7 @@ void main() {
       expect(_go('/admin/workers/abc', _noRole), isNull);
     });
 
-    test('clientes e jardineiros também ficam (o ecrã diz "Sem acesso")', () {
+    test('clientes e profissionais também ficam (o ecrã diz "Sem acesso")', () {
       expect(_go('/admin', _client), isNull);
       expect(_go('/admin', _worker), isNull);
     });
@@ -136,7 +136,7 @@ void main() {
       expect(_go(_from('/notifications'), _client), '/notifications');
     });
 
-    test('jardineiro vai para o destino guardado', () {
+    test('profissional vai para o destino guardado', () {
       expect(_go(_from('/worker/jobs'), _worker), '/worker/jobs');
     });
 
@@ -145,7 +145,7 @@ void main() {
       expect(_go(_from('/client/job/abc'), _worker), '/worker/home');
     });
 
-    test('jardineiro com perfil incompleto vai primeiro ao setup', () {
+    test('profissional com perfil incompleto vai primeiro ao setup', () {
       expect(_go(_from('/worker/jobs'), _workerIncomplete), '/worker/setup');
     });
 
@@ -225,7 +225,7 @@ void main() {
       }
     });
 
-    test('não entra em rotas de jardineiro', () {
+    test('não entra em rotas de profissional', () {
       expect(_go('/worker/home', _client), '/client/home');
       expect(_go('/worker/setup', _client), '/client/home');
     });
@@ -241,7 +241,7 @@ void main() {
     });
   });
 
-  group('jardineiro', () {
+  group('profissional', () {
     test('entradas levam para /worker/home', () {
       for (final loc in ['/', '/loading', '/login', '/signup', '/choose-role']) {
         expect(_go(loc, _worker), '/worker/home', reason: loc);
