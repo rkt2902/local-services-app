@@ -310,7 +310,7 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/home` | `WorkerDashboardScreen` | **WorkerShell** | idem |
 | `/worker/available-jobs` | `WorkerAvailableJobsScreen` | **WorkerShell** | idem |
 | `/worker/profile` | `WorkerProfileScreen` | **WorkerShell** | idem |
-| `/worker/partners` | `PartnersScreen` (lista com um banner por parceiro; o botão "Parceiros" no menu e no Perfil só existe quando `get_partners` devolve algum, 0082) | **WorkerShell** | idem |
+| `/worker/partners` | `PartnersScreen` (lista com um banner por parceiro; a entrada "Parceiros" no "+" e no Perfil só existe quando `get_partners` devolve algum, 0082) | fora do shell | idem |
 | `/worker/jobs` | `WorkerJobsScreen` (Trabalhos: tabs Agenda · Propostas · Histórico; a Agenda é `WorkerAgendaTab`, vistas Hoje, Semana e Mês; extra `agendaResult` abre o dia guardado no "+"; `initialTab` "pending" → Propostas, "completed" → Histórico, o resto → Agenda) | **WorkerShell** | idem |
 
 Todos os ecrãs de sub-fluxo (42 fora do shell) usam `SafeArea` próprio e não mostram a
@@ -817,7 +817,7 @@ localmente em cada widget via `MediaQuery.disableAnimations`.
 | `AppLegalConsentText` (`app_legal_links.dart`) | frase com Termos e Política com toque; `openTermsOfUse`/`openPrivacyPolicy` |
 | `AddressSuggestionsList` | sugestões de morada por baixo de um campo (a carregar, sem resultados, lista) |
 | `ServiceCategorySection` / `serviceIcon` | categoria de serviços que abre e fecha, com "Selecionar todos" / ícone por nome vindo da BD |
-| `AppAdaptiveShell` / `AppContentWidth` | scaffold das 2 shells (bottom nav no telemóvel, `NavigationRail` a partir de `AppBreakpoints.expanded`) / largura máxima centrada. A bottom nav aceita 4 ou 5 destinos (2, "+", resto): o jardineiro tem um quinto, "Parceiros", só quando há parceiros (`hasPartnersProvider`, rotas em `workerShellRoutes`). A lista de parceiros volta a ler-se quando o plano muda (`WorkerShell`), quando a app volta ao primeiro plano e com o aviso `partner_new` |
+| `AppAdaptiveShell` / `AppContentWidth` | scaffold das 2 shells (bottom nav no telemóvel, `NavigationRail` a partir de `AppBreakpoints.expanded`) / largura máxima centrada. A bottom nav tem exatamente 4 destinos (rotas do jardineiro em `workerShellRoutes`); "Parceiros" é uma entrada no "+" (`WorkerQuickActionsSheet`) e no Perfil, só quando há parceiros (`hasPartnersProvider`). A lista de parceiros volta a ler-se quando o plano muda (`WorkerShell`), quando a app volta ao primeiro plano e com o aviso `partner_new` |
 
 ---
 

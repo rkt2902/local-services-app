@@ -676,7 +676,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             buildSharedAxisPage(context, state, const WorkerEarningsScreen()),
       ),
-      // Parceiros (0082): o ecrã de cada um fica fora do shell.
+      // Parceiros (0082): fora do shell, abrem pelo "+" e pelo Perfil.
+      GoRoute(
+        path: '/worker/partners',
+        pageBuilder: (context, state) =>
+            buildSharedAxisPage(context, state, const PartnersScreen()),
+      ),
       GoRoute(
         path: '/worker/partners/:id',
         pageBuilder: (context, state) => buildSharedAxisPage(
@@ -751,11 +756,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/worker/profile',
             builder: (_, _) => const WorkerProfileScreen(),
-          ),
-          // Só tem botão no menu quando há parceiros (0082).
-          GoRoute(
-            path: '/worker/partners',
-            builder: (_, _) => const PartnersScreen(),
           ),
           GoRoute(
             path: '/worker/jobs',

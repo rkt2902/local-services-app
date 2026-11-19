@@ -10,8 +10,9 @@ import '../../../../core/widgets/app_motion.dart';
 /// Folha do "+" do jardineiro (design U2, reordenada no A10 M4): primeiro
 /// a Agenda, que é o que mais se repete no dia a dia ("Adicionar à agenda"
 /// em destaque, "Marcar indisponível" mais discreto), um divisor e depois
-/// Procurar trabalho, Pedidos de ajuda e o Cartão frota, este só quando o
-/// cartão está ativo ([showFleetCard]). Não navega: cada callback fecha e
+/// Procurar trabalho, Pedidos de ajuda, o Cartão frota (só quando o cartão
+/// está ativo, [showFleetCard]) e os Parceiros (só quando há parceiros,
+/// [showPartners]). Não navega: cada callback fecha e
 /// decide o destino.
 ///
 /// Sem [AppSheet] de propósito: aqui não há ação principal nem botão de
@@ -22,9 +23,11 @@ class WorkerQuickActionsSheet extends StatelessWidget {
     required this.onFindWork,
     required this.onOpenHelpRequests,
     required this.onOpenFleetCard,
+    this.onOpenPartners,
     this.onAddToAgenda,
     this.onMarkUnavailable,
     this.showFleetCard = false,
+    this.showPartners = false,
   });
 
   final VoidCallback onFindWork;
@@ -37,6 +40,10 @@ class WorkerQuickActionsSheet extends StatelessWidget {
   final VoidCallback onOpenHelpRequests;
   final VoidCallback onOpenFleetCard;
   final bool showFleetCard;
+
+  /// "Parceiros": a lista de descontos (0082).
+  final VoidCallback? onOpenPartners;
+  final bool showPartners;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +79,12 @@ class WorkerQuickActionsSheet extends StatelessWidget {
           icon: Icons.local_gas_station_outlined,
           title: 'Cartão frota',
           onPressed: onOpenFleetCard,
+        ),
+      if (showPartners && onOpenPartners != null)
+        _QuickActionCard(
+          icon: Icons.storefront_outlined,
+          title: 'Parceiros',
+          onPressed: onOpenPartners!,
         ),
     ];
 
@@ -175,8 +188,9 @@ class _QuickActionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: textTheme.titleMedium
-                          ?.copyWith(color: AppColors.textPrimary),
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xxs / 2),
@@ -184,8 +198,9 @@ class _QuickActionCard extends StatelessWidget {
                         subtitle!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall
-                            ?.copyWith(color: AppColors.textSecondary),
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ],

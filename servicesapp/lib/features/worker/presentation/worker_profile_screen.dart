@@ -176,7 +176,7 @@ class WorkerProfileScreen extends ConsumerWidget {
       onDeleteAccountPressed: () => confirmAndDeleteAccount(context, ref),
       onAboutPressed: () => showAppAboutDialog(context),
       onPartnersPressed: ref.watch(hasPartnersProvider)
-          ? () => context.go('/worker/partners')
+          ? () => context.push('/worker/partners')
           : null,
     );
   }

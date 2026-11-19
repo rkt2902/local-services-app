@@ -3,16 +3,14 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
-## 2026-11-17 — "Profissional" em vez de "Jardineiro" e tratamento formal
+## 2026-11-17 — Parceiros saem da barra de baixo
 
-- **Decisão:** na UI, nos avisos, nos emails e nos Termos e Política o papel worker passa
-  a chamar-se "Profissional" e o tom passa a formal, na 3.ª pessoa sem "você" explícito
-  ("Escolha", "o seu", "Pode"). O código continua a dizer `worker`.
-- **Motivo:** a app já cobre jardim, terrenos, agricultura e floresta, não só
-  jardinagem, e o Henrique achou o tom "tu" demasiado próximo.
-- Os textos da BD mudam na `0083` (recria as funções, sem mudar assinaturas). O painel de
-  admin é interno e fica informal, mas também diz "profissional". Avisos já enviados
-  ficam com o texto antigo.
+- **Decisão:** "Parceiros" deixa de ser o quinto botão da barra do jardineiro. Passa a
+  ser uma entrada no "+" (depois do Cartão frota) e continua no Perfil, ambas só
+  quando há parceiros. `/worker/partners` sai do `ShellRoute` e ganha botão de voltar.
+  A barra volta a aceitar só 4 destinos.
+- **Motivo:** o Henrique achou que o quinto botão ficava mal na barra.
+
 ## 2026-11-16 — Login Google feito pela app (sem supabase.co à vista)
 
 - **Decisão:** o login Google passa a ser feito pela própria app (folha nativa no

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_back_navigation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
@@ -15,8 +16,9 @@ import '../application/partner_providers.dart';
 import '../data/partner_model.dart';
 import 'widgets/partner_banner_card.dart';
 
-/// Tab "Parceiros" do jardineiro (`/worker/partners`, 0082). Só tem botão
-/// no menu quando há parceiros; a lista vem do painel de admin.
+/// "Parceiros" do jardineiro (`/worker/partners`, 0082), fora do shell:
+/// abre pelo "+" e pelo Perfil, e só quando há parceiros. A lista vem do
+/// painel de admin.
 class PartnersScreen extends ConsumerWidget {
   const PartnersScreen({super.key});
 
@@ -26,11 +28,13 @@ class PartnersScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppTabHeader(overline: 'Benefícios', title: 'Parceiros'),
+            AppBackHeader(
+              title: 'Parceiros',
+              onBack: () => goBackOrToRoleHome(context),
+            ),
             Expanded(
               child: RefreshIndicator(
                 color: AppColors.primary,
