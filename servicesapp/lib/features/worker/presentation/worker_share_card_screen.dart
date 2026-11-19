@@ -82,7 +82,7 @@ class _WorkerShareCardScreenState extends ConsumerState<WorkerShareCardScreen> {
       data: WorkerShareCardViewData(
         name: profile.fullName,
         professionLocationLabel:
-            parts.isEmpty ? 'Jardineiro ProJardim' : parts.join(' · '),
+            parts.isEmpty ? 'Profissional ProJardim' : parts.join(' · '),
         ratingLabel: ratingLabel,
         avatarUrl: profile.avatarUrl,
         qrUrl: workerPublicCardQrUrl(userId),
@@ -97,7 +97,7 @@ class _WorkerShareCardScreenState extends ConsumerState<WorkerShareCardScreen> {
         final png = await captureCardPng(_cardKey);
         await shareCardImage(
           png,
-          text: 'Vê o meu perfil na ProJardim: $linkUrl',
+          text: 'Veja o meu perfil na ProJardim: $linkUrl',
         );
       }),
       onSavePdf: () {

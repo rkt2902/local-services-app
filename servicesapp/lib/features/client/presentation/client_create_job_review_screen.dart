@@ -91,7 +91,7 @@ class _ClientCreateJobReviewScreenState
     if (wizard.serviceTypeId == null ||
         wizard.locationLat == null ||
         wizard.locationLng == null) {
-      AppToast.of(context).error('Falta informação dos passos anteriores. Volta atrás e confirma.');
+      AppToast.of(context).error('Falta informação dos passos anteriores. Volte atrás e confirme.');
       return;
     }
 
@@ -233,7 +233,7 @@ class _ClientCreateJobReviewScreenState
 
     // "Pedir de novo" (0057): o prazo de 24 horas é o do servidor; aqui só
     // se explica.
-    final directName = firstNameOr(wizard.directWorkerName, 'o jardineiro');
+    final directName = firstNameOr(wizard.directWorkerName, 'o profissional');
     final directBanner = wizard.isDirectRequest
         ? DirectRequestReviewBannerViewData(
             titleLabel: 'Vai primeiro para $directName',
@@ -241,7 +241,7 @@ class _ClientCreateJobReviewScreenState
                 '$directName vê o pedido e pode enviar proposta.',
             workerInitial: initialOf(
               wizard.directWorkerName.isEmpty
-                  ? 'Jardineiro'
+                  ? 'Profissional'
                   : wizard.directWorkerName,
             ),
             workerAvatarUrl: wizard.directWorkerAvatarUrl,
@@ -318,14 +318,14 @@ class _ClientCreateJobReviewScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Revê o teu pedido',
+                              'Reveja o seu pedido',
                               style: textTheme.titleMedium?.copyWith(
                                 color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
-                              'Confirma os detalhes antes de publicar.',
+                              'Confirme os detalhes antes de publicar.',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textSecondary,
                               ),

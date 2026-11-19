@@ -142,7 +142,7 @@ class _RescheduleDialogState extends State<RescheduleDialog> {
     return AppConfirmDialog(
       icon: Icons.event_repeat_outlined,
       title: 'Propor remarcação',
-      message: 'Escolhe uma nova data e hora. A outra parte tem de aceitar.',
+      message: 'Escolha uma nova data e hora. A outra parte tem de aceitar.',
       confirmLabel: 'Enviar proposta',
       onCancel: () => Navigator.pop(context),
       onConfirm: _valid ? _confirm : null,

@@ -42,7 +42,7 @@ void main() {
         friendlyError(Exception(
           'new row violates row-level security policy for table "ratings"',
         )),
-        'Não tens permissão para esta ação.',
+        'Não tem permissão para esta ação.',
       );
     });
   });

@@ -6,7 +6,7 @@ void main() {
   group('createProposalDuplicateError', () {
     test('proposta repetida vira a mensagem própria', () {
       const server = PostgrestException(
-        message: 'Já tens uma proposta para este pedido.',
+        message: 'Já tem uma proposta para este pedido.',
         code: 'P0001',
       );
       const race = PostgrestException(
@@ -15,16 +15,16 @@ void main() {
       );
       for (final e in [server, race]) {
         expect(createProposalDuplicateError(e).toString(),
-            contains('Já enviaste uma proposta'));
+            contains('Já enviou uma proposta'));
       }
     });
 
     test('outras recusas do servidor passam como estão', () {
-      // Antes qualquer P0001 virava "Já enviaste uma proposta".
+      // Antes qualquer P0001 virava "Já enviou uma proposta".
       const messages = [
-        'Chegaste aos 5 trabalhos deste mês do plano Grátis.',
+        'Chegou aos 5 trabalhos deste mês do plano Grátis.',
         'Este pedido já não está disponível.',
-        'O dia proposto já passou. Escolhe hoje ou um dia a seguir.',
+        'O dia proposto já passou. Escolha hoje ou um dia a seguir.',
       ];
       for (final m in messages) {
         expect(

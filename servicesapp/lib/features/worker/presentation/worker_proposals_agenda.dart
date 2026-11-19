@@ -100,7 +100,7 @@ WorkerProposalSchedule? workerProposalSchedule(
     final span = occupiedMinutes(other);
     final timed = other.hasTime && !other.isMultiDay && span != null;
     if (other.kind == AgendaEntryKind.block) {
-      warning = 'Estás indisponível neste dia: $title';
+      warning = 'Está indisponível neste dia: $title';
     } else if (!timed) {
       warning = 'Coincide com $title, que ocupa o dia todo';
     } else {

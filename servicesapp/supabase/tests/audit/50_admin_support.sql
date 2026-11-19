@@ -20,6 +20,8 @@ select count(*) as ev_total0 from job_events where job_id <> :'jdone' \gset
 delete from job_events where job_id = :'jdone';
 \set QUIET on
 \ir ../../migrations/0078_admin_support_tracking.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select audit.eq('T-SUP-01 migration volta a correr e preenche o pedido antigo pelos carimbos',
   format($q$select (count(*) > 0 and bool_and((data->>'backfill')::boolean))::text from job_events where job_id=%L$q$, :'jdone'), 'true');

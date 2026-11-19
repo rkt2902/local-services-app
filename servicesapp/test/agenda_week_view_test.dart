@@ -273,7 +273,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Semana livre'), findsOneWidget);
-    expect(find.text('Ainda não tens nada de 2 a 8 nov.'), findsOneWidget);
+    expect(find.text('Ainda não tem nada de 2 a 8 nov.'), findsOneWidget);
     expect(find.byType(AgendaTodayButton), findsOneWidget);
 
     await tester.tap(find.byType(AgendaTodayButton));
@@ -332,9 +332,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('A tua agenda'), findsOneWidget);
+      expect(find.text('A sua agenda'), findsOneWidget);
       // A lista fica no topo para o cartão se ver, mesmo com hoje a quarta.
-      expect(tester.getTopLeft(find.text('A tua agenda')).dy, lessThan(400));
+      expect(tester.getTopLeft(find.text('A sua agenda')).dy, lessThan(400));
 
       await tester.scrollUntilVisible(
         find.text('Agora não'),

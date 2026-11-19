@@ -16,8 +16,8 @@ import '../../../core/widgets/app_toast.dart';
 /// Mensagem quando a base de dados ainda não tem `delete_my_account`
 /// (migration 0049 por aplicar).
 const _deleteUnavailableMessage =
-    'Ainda não é possível eliminar a conta pela app. Tenta mais tarde ou '
-    'fala connosco em "Contacto e suporte".';
+    'Ainda não é possível eliminar a conta pela app. Tente mais tarde ou '
+    'fale connosco em "Contacto e suporte".';
 
 /// "Eliminar conta" com confirmação em dois passos, partilhado pela conta
 /// do cliente e pela do jardineiro.
@@ -68,7 +68,7 @@ Future<void> confirmAndDeleteAccount(
   // T4: navegar, depois SnackBar (os providers dependem do utilizador e
   // reconstroem-se sozinhos com o fim da sessão).
   router.go('/');
-  toast.show('A tua conta foi eliminada.');
+  toast.show('A sua conta foi eliminada.');
 }
 
 class _ExplainDialog extends StatelessWidget {
@@ -95,7 +95,7 @@ class _ExplainDialog extends StatelessWidget {
           _ImpactRow(
             icon: Icons.delete_outline_rounded,
             color: AppStatusColor.cancelled.foreground,
-            label: 'Os teus dados pessoais são apagados.',
+            label: 'Os seus dados pessoais são apagados.',
           ),
           const SizedBox(height: AppSpacing.sm),
           _ImpactRow(
@@ -108,7 +108,7 @@ class _ExplainDialog extends StatelessWidget {
           _ImpactRow(
             icon: Icons.mail_lock_outlined,
             color: AppStatusColor.neutral.foreground,
-            label: 'O teu email só pode criar uma conta nova daqui a 90 dias.',
+            label: 'O seu email só pode criar uma conta nova daqui a 90 dias.',
           ),
           const SizedBox(height: AppSpacing.sm),
           _ImpactRow(
@@ -190,7 +190,7 @@ class _ConfirmDialogState extends State<_ConfirmDialog> {
   Widget build(BuildContext context) {
     return AppConfirmDialog(
       icon: null,
-      title: 'Tens a certeza?',
+      title: 'Tem a certeza?',
       stepLabel: '2/2',
       message: 'Não dá para desfazer.',
       confirmLabel: 'Eliminar conta',

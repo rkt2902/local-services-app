@@ -83,9 +83,9 @@ class _StartJobSheetState extends State<StartJobSheet> {
         children: [
           Text(
             widget.countsTime
-                ? '$who recebe um aviso de que começaste. O tempo de trabalho '
+                ? '$who recebe um aviso de que começou. O tempo de trabalho '
                       'começa a contar.'
-                : '$who recebe um aviso de que começaste.',
+                : '$who recebe um aviso de que começou.',
             style: textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -115,7 +115,7 @@ class _StartJobSheetState extends State<StartJobSheet> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Protegem-te em caso de reclamação.',
+            'Protegem-no em caso de reclamação.',
             style: textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),

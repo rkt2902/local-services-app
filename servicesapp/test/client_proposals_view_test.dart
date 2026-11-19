@@ -88,7 +88,7 @@ const _detail = ClientProposalDetailViewData(
   priceTitle: 'Valor fechado',
   priceLabel: '450 €',
   priceExplanationLabel:
-      'É o que pagas no fim, mesmo que o trabalho demore mais.',
+      'É o que paga no fim, mesmo que o trabalho demore mais.',
   includeLabels: ['Material', 'Remoção de resíduos'],
   facts: [
     ClientProposalFact('Duração', '2 a 3 dias'),
@@ -171,7 +171,7 @@ void main() {
         'Qui, 22/10 · 9:00',
       );
       expect(
-          proposalScheduleLabel(_p('1')), 'Data a combinar com o jardineiro');
+          proposalScheduleLabel(_p('1')), 'Data a combinar com o profissional');
       expect(proposalRatingLabel((avgRating: 4.9, ratingCount: 38)),
           '4,9 · 38 avaliações');
       expect(proposalRatingLabel((avgRating: 0, ratingCount: 0)), isNull);

@@ -127,13 +127,13 @@ class _FleetCardScanScreenState extends ConsumerState<FleetCardScanScreen> {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
-                            'Fotografa o teu cartão frota',
+                            'Fotografe o seu cartão frota',
                             textAlign: TextAlign.center,
                             style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Tenta incluir o número do cartão e o código de '
+                            'Tente incluir o número do cartão e o código de '
                             'barras numa única foto, com boa luz e sem reflexos.',
                             textAlign: TextAlign.center,
                             style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
@@ -212,13 +212,13 @@ class _ManualEntryState extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Preenche os dados do cartão',
+              'Preencha os dados do cartão',
               textAlign: TextAlign.center,
               style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Na versão web não há leitura automática do cartão. Escreve o '
+              'Na versão web não há leitura automática do cartão. Escreva o '
               'número e o nome no passo seguinte.',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),

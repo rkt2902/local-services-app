@@ -1022,7 +1022,7 @@ String closeHelpRequestMessage({
       : 'Quem já está na equipa também sai e é avisado.';
   final parts = [?pending, ?team];
   if (parts.isEmpty) {
-    return 'O pedido deixa de aparecer aos outros jardineiros.';
+    return 'O pedido deixa de aparecer aos outros profissionais.';
   }
   return parts.join(' ');
 }
@@ -1191,7 +1191,7 @@ class _WorkerSummary extends StatelessWidget {
     // `name` vazio normalmente é RLS a bloquear o perfil do candidato
     // (ver fetchCandidatesForHelpRequest), não "sem nome": mostra o papel
     // em vez de "—"/inicial "?".
-    final displayName = name.isNotEmpty ? name : 'Jardineiro';
+    final displayName = name.isNotEmpty ? name : 'Profissional';
     final initial = displayName.trim()[0].toUpperCase();
     final detailStyle = textTheme.labelMedium?.copyWith(
       color: AppColors.textSecondary,
@@ -1350,7 +1350,7 @@ class _AcceptHelperBottomSheetState extends State<_AcceptHelperBottomSheet> {
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(
-                'Confirma a taxa acordada com ${widget.candidate.name}.',
+                'Confirme a taxa acordada com ${widget.candidate.name}.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
@@ -1535,7 +1535,7 @@ class _NoHelpRequestState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Ainda não pediste ajudantes para este pedido.',
+            'Ainda não pediu ajudantes para este pedido.',
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,

@@ -143,7 +143,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Clientes'), findsOneWidget);
       expect(find.text('Pedidos'), findsOneWidget);
-      expect(find.text('Jardineiros'), findsOneWidget);
+      expect(find.text('Profissionais'), findsOneWidget);
       expect(find.text('50%'), findsWidgets);
       expect(find.textContaining('3 abertos · 2 sem resposta'), findsOneWidget);
       expect(find.textContaining('(mediana)'), findsOneWidget);
@@ -208,7 +208,7 @@ void main() {
     test('nome do ficheiro com a data', () {
       expect(
         adminCsvFileName(AdminExportKind.workers, DateTime(2026, 3, 4)),
-        'projardim-jardineiros-2026-03-04.csv',
+        'projardim-profissionais-2026-03-04.csv',
       );
     });
 
@@ -243,14 +243,14 @@ void main() {
         ),
       );
       asked = null;
-      await tester.tap(find.text('Jardineiros'));
+      await tester.tap(find.text('Profissionais'));
       expect(asked, isNull);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
   });
 
   group('destinatários', () {
-    test('filtros de plano e serviço só valem para jardineiros', () {
+    test('filtros de plano e serviço só valem para profissionais', () {
       const workers = AdminNoticeAudience(
         tiers: {'pro_plus', 'pro'},
         serviceTypeId: 'st',
@@ -292,7 +292,7 @@ void main() {
           'tiers': ['pro', 'pro_plus'],
           'area': 'Braga',
         }, serviceName: 'Relva'),
-        'Jardineiros · Pro, Pro+ · Relva · Braga',
+        'Profissionais · Pro, Pro+ · Relva · Braga',
       );
       expect(adminNoticeAudienceLabel({'role': 'client'}), 'Clientes');
     });
@@ -345,7 +345,7 @@ void main() {
       return repo;
     }
 
-    testWidgets('aviso de parceiro: texto sugerido, só jardineiros, abre o '
+    testWidgets('aviso de parceiro: texto sugerido, só profissionais, abre o '
         'parceiro', (tester) async {
       final partner = AdminPartner.fromJson({
         'id': 'p1',
@@ -471,7 +471,7 @@ void main() {
         ],
       );
       expect(find.text('Manutenção'), findsOneWidget);
-      expect(find.text('Jardineiros · Pro · Corte de relva'), findsOneWidget);
+      expect(find.text('Profissionais · Pro · Corte de relva'), findsOneWidget);
       expect(find.textContaining('12 destinatários · 3 leram'), findsOneWidget);
     });
   });

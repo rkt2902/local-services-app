@@ -119,9 +119,8 @@ class AppAboutDialog extends StatelessWidget {
               AppStaggeredEntrance(
                 index: 2,
                 child: Text(
-                  'Liga quem precisa de um jardim cuidado a jardineiros da '
-                  'sua zona. Pedes, recebes propostas, escolhes e falas '
-                  'pelo WhatsApp.',
+                  'Jardim, terrenos, agricultura e floresta: profissionais '
+                  'da sua zona, com propostas e contacto por WhatsApp.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium
                       ?.copyWith(color: AppColors.textSecondary),

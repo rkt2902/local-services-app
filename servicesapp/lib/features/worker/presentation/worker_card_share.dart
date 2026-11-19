@@ -8,7 +8,7 @@ import '../../../core/config/app_links.dart';
 Future<void> shareWorkerPublicCard(String workerId) =>
     SharePlus.instance.share(
       ShareParams(
-        text: 'Vê o meu perfil na ProJardim: '
+        text: 'Veja o meu perfil na ProJardim: '
             '${AppLinks.publicWorkerProfileUrl(workerId, source: 'link')}',
       ),
     );

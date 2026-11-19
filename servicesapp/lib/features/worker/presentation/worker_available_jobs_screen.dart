@@ -75,7 +75,7 @@ class _WorkerAvailableJobsScreenState
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   radiusKm == profileRadiusKm
-                      ? 'Até $radiusKm km (o teu raio)'
+                      ? 'Até $radiusKm km (o seu raio)'
                       : 'Até $radiusKm km',
                   style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: radiusKm == currentValue
@@ -215,11 +215,11 @@ class _WorkerAvailableJobsScreenState
       directTagLabel: !forMe
           ? null
           : job.isDirectOnHold
-              ? 'Pedido só para ti · prazo terminado'
+              ? 'Pedido só para si · prazo terminado'
               : directUntil != null
-                  ? 'Pedido só para ti · '
+                  ? 'Pedido só para si · '
                       '${directTimeLeftLabel(directUntil, DateTime.now())}'
-                  : 'Pedido só para ti',
+                  : 'Pedido só para si',
       title: serviceType?.name ?? '',
       locationLabel: locationLabel,
       scheduleLabel: scheduleLabel,

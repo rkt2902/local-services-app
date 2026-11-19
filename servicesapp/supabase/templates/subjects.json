@@ -1,8 +1,8 @@
 {
-  "confirmation": "Confirma o teu email no ProJardim",
+  "confirmation": "Confirme o seu email no ProJardim",
   "recovery": "Recuperar a palavra-passe do ProJardim",
-  "magic_link": "O teu código de acesso ao ProJardim",
-  "email_change": "Confirma o teu novo email no ProJardim",
-  "invite": "Foste convidado para o ProJardim",
+  "magic_link": "O seu código de acesso ao ProJardim",
+  "email_change": "Confirme o seu novo email no ProJardim",
+  "invite": "Convite para o ProJardim",
   "reauthentication": "Código de confirmação do ProJardim"
 }

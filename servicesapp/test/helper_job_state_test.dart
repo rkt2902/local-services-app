@@ -66,7 +66,7 @@ void main() {
     expect(helperClosedLabel(HelpAcceptanceStatus.rejected, 'confirmed'),
         'Não selecionado');
     expect(helperClosedLabel(HelpAcceptanceStatus.cancelled, 'confirmed'),
-        'Já não estás na equipa');
+        'Já não está na equipa');
   });
 
   group('helperJobActions', () {

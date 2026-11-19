@@ -16,8 +16,8 @@ class SessionErrorScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isRetrying = ref.watch(sessionStatusProvider).isLoading;
     return AppSystemStateScreen.noInternet(
-      message: 'Não foi possível carregar a tua conta. Verifica a ligação '
-          'e tenta novamente.',
+      message: 'Não foi possível carregar a sua conta. Verifique a ligação '
+          'e tente novamente.',
       isRetrying: isRetrying,
       onRetry: () => ref.read(sessionStatusProvider.notifier).refresh(),
       secondaryActionLabel: 'Terminar sessão',

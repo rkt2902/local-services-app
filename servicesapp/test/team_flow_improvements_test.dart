@@ -13,7 +13,7 @@ AppNotification _n(String id, DateTime at, {bool read = false}) =>
       userId: 'u1',
       type: NotificationType.helpJobStarted,
       title: 'O trabalho começou',
-      body: 'O jardineiro responsável iniciou o trabalho. (Corte de relva, 21/10)',
+      body: 'O profissional responsável iniciou o trabalho. (Corte de relva, 21/10)',
       read: read,
       createdAt: at,
     );
@@ -60,7 +60,7 @@ void main() {
     test('o contexto passa para o título e não leva "Agora"', () {
       final texts = notificationBannerTexts(_n('a', t));
       expect(texts.title, 'O trabalho começou (Corte de relva, 21/10)');
-      expect(texts.body, 'O jardineiro responsável iniciou o trabalho.');
+      expect(texts.body, 'O profissional responsável iniciou o trabalho.');
     });
 
     testWidgets('tocar no aviso abre a notificação e fecha-o', (tester) async {

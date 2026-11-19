@@ -57,7 +57,7 @@ class _WorkerEarningsViewState extends State<WorkerEarningsView> {
           children: [
             AppBackHeader(
               title: 'Ganhos',
-              subtitle: 'O que combinaste receber pelos trabalhos feitos',
+              subtitle: 'O que combinou receber pelos trabalhos feitos',
               onBack: widget.onBack,
             ),
             Expanded(child: _body(context)),
@@ -77,7 +77,7 @@ class _WorkerEarningsViewState extends State<WorkerEarningsView> {
             child: AppEmptyState(
               icon: Icons.insights_outlined,
               title: 'Painel de ganhos no Pro',
-              message: 'Com o plano Pro vês quanto fizeste em cada mês, as '
+              message: 'Com o plano Pro vê quanto faturou em cada mês, as '
                   'horas registadas e o que ainda está por confirmar.',
               actionLabel: 'Ver planos',
               onAction: widget.onOpenPlans,
@@ -95,7 +95,7 @@ class _WorkerEarningsViewState extends State<WorkerEarningsView> {
           child: AppEmptyState(
             icon: Icons.wifi_off_rounded,
             title: 'Não deu para carregar os ganhos',
-            message: 'Verifica a ligação e tenta outra vez.',
+            message: 'Verifique a ligação e tente outra vez.',
             actionLabel: 'Tentar outra vez',
             onAction: widget.onRetry,
             tone: AppStatusColor.cancelled,
@@ -157,7 +157,7 @@ class _WorkerEarningsViewState extends State<WorkerEarningsView> {
                           icon: Icons.event_available_outlined,
                           title: 'Sem trabalhos feitos neste mês',
                           message: 'Os trabalhos aparecem aqui quando os '
-                              'marcas como feitos.',
+                              'marca como feitos.',
                         ),
                       )
                     else

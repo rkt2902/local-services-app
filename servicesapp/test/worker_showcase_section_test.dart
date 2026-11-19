@@ -9,7 +9,7 @@ Widget _wrap(Widget child) =>
 void main() {
   testWidgets('mostra apresentação, destaques e links', (tester) async {
     await tester.pumpWidget(_wrap(const WorkerShowcaseSection(
-      bio: 'Jardineiro em Braga.',
+      bio: 'Profissional em Braga.',
       highlights: ['10 anos de experiência', 'Empresa com seguro'],
       socialLinks: [
         WorkerSocialLink(
@@ -28,7 +28,7 @@ void main() {
     expect(find.text('Empresa com seguro'), findsOneWidget);
     expect(find.text('Instagram'), findsOneWidget);
     expect(find.text('TikTok'), findsOneWidget);
-    expect(find.text('Informação partilhada pelo jardineiro.'), findsOneWidget);
+    expect(find.text('Informação partilhada pelo profissional.'), findsOneWidget);
   });
 
   testWidgets('sem nada preenchido não ocupa espaço', (tester) async {
@@ -37,6 +37,6 @@ void main() {
       highlights: [],
       socialLinks: [],
     )));
-    expect(find.text('Informação partilhada pelo jardineiro.'), findsNothing);
+    expect(find.text('Informação partilhada pelo profissional.'), findsNothing);
   });
 }

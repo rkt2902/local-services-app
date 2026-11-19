@@ -228,7 +228,7 @@ class AdminReportCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             [
-              '${report.reporterIsClient ? 'Cliente' : 'Jardineiro'}: '
+              '${report.reporterIsClient ? 'Cliente' : 'Profissional'}: '
                   '${report.reporterName ?? 'sem nome'}',
               adminDateTimeLabel(report.createdAt),
               if (report.caseNumber != null) 'caso #${report.caseNumber}',

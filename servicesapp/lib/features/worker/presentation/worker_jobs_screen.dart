@@ -170,7 +170,7 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
         final when = hours <= 0 ? 'em breve' : 'em ${hours}h';
         return (
           meta:
-              'Feito a ${_dayMonth.format(done)} · confirma automaticamente $when',
+              'Feito a ${_dayMonth.format(done)} · confirmado automaticamente $when',
           amount: null,
         );
       }
@@ -200,7 +200,7 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
         detail = e.cancelReason == CancelReason.support
             ? 'cancelado pelo suporte'
             : e.cancelledByMe
-            ? 'cancelaste'
+            ? 'cancelou'
             : e.cancelledByClient
             ? 'cancelado pelo cliente'
             : 'cancelado';
@@ -214,7 +214,7 @@ String workerHistoryMonthLabel(DateTime date, DateTime now) {
       } else if (e.status == 'rejected') {
         detail = 'o cliente escolheu outra proposta';
       } else if (e.status == 'superseded') {
-        detail = 'retiraste a proposta';
+        detail = 'retirou a proposta';
       } else {
         detail = _areaOf(e);
       }
@@ -484,7 +484,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       day: schedule.date,
       ghost: AgendaDayPreviewGhost(
         date: schedule.date,
-        label: helper ? 'A tua candidatura' : 'A tua proposta',
+        label: helper ? 'A sua candidatura' : 'A sua proposta',
         startMinutes: schedule.startMinutes,
         durationMinutes: schedule.durationMinutes,
         slotKind: AgendaEntryKind.proposal,
@@ -512,7 +512,7 @@ class _WorkerJobsScreenState extends ConsumerState<WorkerJobsScreen> {
       title: 'Retirar a proposta?',
       message:
           '${e.serviceTypeName}$when. O cliente é avisado de que já não '
-          'estás disponível.',
+          'está disponível.',
       confirmLabel: 'Retirar proposta',
       cancelLabel: 'Manter',
       destructive: true,

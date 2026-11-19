@@ -143,7 +143,7 @@ class _VerifyResetCodeScreenState extends ConsumerState<VerifyResetCodeScreen> {
                     AppStaggeredEntrance(
                       index: 0,
                       child: Text(
-                        'Introduz o código',
+                        'Introduza o código',
                         style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                       ),
                     ),

@@ -9,7 +9,7 @@ import '../../../../core/widgets/app_initials_avatar.dart';
 import '../../../../core/widgets/app_inline_error.dart';
 import '../../../../core/widgets/app_motion.dart';
 
-/// "Os teus jardineiros" no Início do cliente (design A5, 4): jardineiros
+/// "Os teus profissionais" no Início do cliente (design A5, 4): jardineiros
 /// com quem já concluiu trabalhos, numa lista horizontal com cerca de dois
 /// cartões à vista. Lista vazia: a secção não aparece.
 class YourGardenerCardViewData {
@@ -40,7 +40,7 @@ class YourGardenersSection extends StatelessWidget {
     this.onRetry,
   });
 
-  static const title = 'Os teus jardineiros';
+  static const title = 'Os seus profissionais';
 
   final AsyncValue<List<YourGardenerCardViewData>> dataAsync;
   final ValueChanged<YourGardenerCardViewData> onRepeatHire;
@@ -52,7 +52,7 @@ class YourGardenersSection extends StatelessWidget {
       loading: () => const _YourGardenersSkeleton(),
       error: (_, _) => _SectionFrame(
         child: AppInlineError(
-          message: 'Não foi possível carregar os teus jardineiros.',
+          message: 'Não foi possível carregar os seus profissionais.',
           onRetry: onRetry,
         ),
       ),

@@ -158,7 +158,7 @@ AgendaDaySlice buildAgendaDaySlice({
       serviceIcon: data.serviceIcon,
       startLabel: data.startLabel,
       endLabel: data.endLabel,
-      subtitle: 'Marcado por ti',
+      subtitle: 'Marcado por si',
       pill: data.pill,
       repeats: data.repeats,
       canOpen: data.canOpen,

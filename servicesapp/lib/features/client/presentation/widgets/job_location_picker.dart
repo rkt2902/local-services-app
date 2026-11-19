@@ -308,7 +308,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
       }
       if (permission == LocationPermission.deniedForever) {
         throw Exception(
-            'Permissão negada permanentemente. Ativa nas definições.');
+            'Permissão negada permanentemente. Ative nas definições.');
       }
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
@@ -422,7 +422,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
                     right: AppSpacing.xs,
                     child: _MapPill(
                       child: Text(
-                        'Toca no mapa',
+                        'Toque no mapa',
                         style: textTheme.labelMedium
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
@@ -514,7 +514,7 @@ class _JobLocationPickerState extends State<JobLocationPicker> {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             'Não foi possível identificar a rua, mas a localização foi '
-            'guardada. Podes escrever a morada à mão acima.',
+            'guardada. Pode escrever a morada à mão acima.',
             style: textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),

@@ -69,7 +69,7 @@ class _DirectRequestInfoSheetBodyState
     try {
       error = await widget.onConfirm(_doNotShowAgain);
     } catch (_) {
-      error = 'Não foi possível guardar esta preferência. Tenta novamente.';
+      error = 'Não foi possível guardar esta preferência. Tente novamente.';
     }
     if (!mounted) return;
     if (error == null) {

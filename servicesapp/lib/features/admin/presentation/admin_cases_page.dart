@@ -449,7 +449,7 @@ class _AdminCaseDetailViewState extends State<AdminCaseDetailView> {
               ),
             if (row.personId != null)
               _LinkRow(
-                label: d.personRole == 'worker' ? 'Jardineiro' : 'Pessoa',
+                label: d.personRole == 'worker' ? 'Profissional' : 'Pessoa',
                 value: row.personName ?? adminShortId(row.personId!),
                 onTap: () => widget.onOpen(
                   d.personRole == 'worker'

@@ -76,7 +76,7 @@ class JobRequest {
   /// sempre `null`.
   final DirectRequestOrigin? directOrigin;
 
-  /// Interruptor "Se não puder, mostrar a outros jardineiros".
+  /// Interruptor "Se não puder, mostrar a outros profissionais".
   final bool directAutoRelease;
 
   /// Com o pedido parado (`onHold`): "declined" ou "expired".
@@ -84,7 +84,7 @@ class JobRequest {
 
   /// Km além do raio de cada jardineiro em que o pedido também aparece
   /// (0062, 0 a 30). Sobe sozinho ao fim de 24h sem propostas ou quando o
-  /// cliente carrega em "Mostrar a jardineiros mais longe".
+  /// cliente carrega em "Mostrar a profissionais mais longe".
   final int searchExtraKm;
 
   /// Quando o cliente recebeu "Ainda sem propostas" (0062). A partir daqui

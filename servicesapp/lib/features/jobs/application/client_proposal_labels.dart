@@ -34,7 +34,7 @@ List<JobProposal> orderProposals(
 
 /// Data e hora propostas. Ex.: "Qui, 23/10 · 9:00".
 String proposalScheduleLabel(JobProposal p, {DateTime? now}) {
-  if (p.scheduledDate == null) return 'Data a combinar com o jardineiro';
+  if (p.scheduledDate == null) return 'Data a combinar com o profissional';
   return workerScheduleLabel(
     date: p.scheduledDate,
     time: p.scheduledTime,

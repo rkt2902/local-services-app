@@ -127,7 +127,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
-                              'Entra na tua conta ProJardim',
+                              'Entre na sua conta ProJardim',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -143,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             workerName: pendingCard.workerName,
                             workerAvatarUrl: pendingCard.workerAvatarUrl,
                             descriptionLabel:
-                                'Entra e voltas logo ao pedido.',
+                                'Entre e regresse ao pedido.',
                           ),
                         ),
                       ],
@@ -157,7 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           autofillHints: const [AutofillHints.email],
                           validator: (value) {
                             final text = value?.trim() ?? '';
-                            if (text.isEmpty) return 'Introduz o email.';
+                            if (text.isEmpty) return 'Introduza o email.';
                             if (!text.contains('@')) return 'Email inválido.';
                             return null;
                           },
@@ -189,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           validator: (value) {
                             if ((value ?? '').isEmpty) {
-                              return 'Introduz a senha.';
+                              return 'Introduza a senha.';
                             }
                             if ((value ?? '').length < 6) {
                               return 'Mínimo 6 caracteres.';
@@ -211,7 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   );
                                 },
                           child: Text(
-                            'Esqueceste-te da senha?',
+                            'Esqueceu-se da senha?',
                             style: textTheme.labelLarge?.copyWith(
                               color: AppColors.primaryPressed,
                               fontWeight: FontWeight.w700,
@@ -286,7 +286,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      'Não tens conta?',
+                      'Não tem conta?',
                       style: textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),

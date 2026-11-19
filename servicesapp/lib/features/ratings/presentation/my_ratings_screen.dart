@@ -696,7 +696,7 @@ class _GivenRatingCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Avaliaste',
+                      'Avaliou',
                       style: textTheme.labelMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -953,7 +953,7 @@ class _ReceivedEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Ainda não recebeste avaliações',
+                'Ainda não recebeu avaliações',
                 textAlign: TextAlign.center,
                 style: textTheme.titleLarge?.copyWith(
                   color: AppColors.textPrimary,
@@ -1006,7 +1006,7 @@ class _GivenEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Ainda não avaliaste ninguém',
+                'Ainda não avaliou ninguém',
                 textAlign: TextAlign.center,
                 style: textTheme.titleLarge?.copyWith(
                   color: AppColors.textPrimary,
@@ -1014,7 +1014,7 @@ class _GivenEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Quando avaliares alguém após um trabalho, fica registado aqui.',
+                'Quando avaliar alguém após um trabalho, fica registado aqui.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
@@ -1106,7 +1106,7 @@ class _RatingsError extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Verifica a ligação e tenta novamente.',
+                'Verifique a ligação e tente novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,

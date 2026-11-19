@@ -25,21 +25,21 @@ class _OnboardingPageData {
 
 const _pages = [
   _OnboardingPageData(
-    title: 'Encontra o jardineiro ideal',
+    title: 'Encontra o profissional ideal',
     description:
-        'Publica o teu pedido com data e local. Profissionais próximos enviam-te propostas em minutos.',
+        'Publique o seu pedido com data e local. Profissionais próximos enviam-lhe propostas em minutos.',
     illustrationIndex: 0,
   ),
   _OnboardingPageData(
-    title: 'Escolhe a melhor proposta',
+    title: 'Escolha a melhor proposta',
     description:
-        'Compara preços, perfis e disponibilidade. Aceita com um toque e o trabalho fica agendado.',
+        'Compare preços, perfis e disponibilidade. Aceite com um toque e o trabalho fica agendado.',
     illustrationIndex: 1,
   ),
   _OnboardingPageData(
     title: 'Trabalho feito, sem complicações',
     description:
-        'Avalia no fim. As tuas estrelas ajudam a comunidade a encontrar os melhores profissionais.',
+        'Avalie no fim. As suas estrelas ajudam a comunidade a encontrar os melhores profissionais.',
     illustrationIndex: 2,
   ),
 ];

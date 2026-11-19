@@ -522,8 +522,8 @@ class _WorkerProfileOverviewState extends State<_WorkerProfileOverview> {
                       child: AppTextField(
                         controller: widget.hourlyRateController,
                         label: 'Preço/hora habitual (€), opcional',
-                        helperText: 'Sugerido ao fazeres propostas. Em cada '
-                            'proposta podes usar outro valor ou um valor total.',
+                        helperText: 'Sugerido ao fazer propostas. Em cada '
+                            'proposta pode usar outro valor ou um valor total.',
                         keyboardType:
                             const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
@@ -1727,7 +1727,7 @@ class _WorkerShowcaseEditorState extends State<_WorkerShowcaseEditor> {
             child: AppStaggeredEntrance(
               index: 0,
               child: Text(
-                'Esta secção ainda não está disponível. Tenta mais tarde.',
+                'Esta secção ainda não está disponível. Tente mais tarde.',
                 style: textTheme.bodyMedium
                     ?.copyWith(color: AppColors.textSecondary),
               ),
@@ -2047,10 +2047,10 @@ class _AddHighlightSheetState extends State<_AddHighlightSheet> {
           onFieldSubmitted: (_) => _submit(),
           validator: (value) {
             final text = value?.trim() ?? '';
-            if (text.isEmpty) return 'Escreve o destaque.';
+            if (text.isEmpty) return 'Escreva o destaque.';
             final lower = text.toLowerCase();
             if (widget.existing.any((h) => h.toLowerCase() == lower)) {
-              return 'Já tens este destaque.';
+              return 'Já tem este destaque.';
             }
             return null;
           },
@@ -2272,7 +2272,7 @@ class _WorkerProfileError extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Verifica a ligação e tenta novamente.',
+                    'Verifique a ligação e tente novamente.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                   ),
@@ -2343,7 +2343,7 @@ class _WorkerProfileNotFound extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'A tua sessão pode já não ser válida. Entra novamente.',
+                'A sua sessão pode já não ser válida. Entre novamente.',
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
               ),

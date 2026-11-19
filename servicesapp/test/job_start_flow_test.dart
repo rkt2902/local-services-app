@@ -105,7 +105,7 @@ void main() {
       startedAt: DateTime(2026, 10, 20, 14, 5),
     );
     expect(job.isInProgress, isTrue);
-    expect(clientJobNextStepLabel(job), 'O jardineiro já começou o trabalho.');
+    expect(clientJobNextStepLabel(job), 'O profissional já começou o trabalho.');
     final steps = buildJobTimeline(job, now: DateTime(2026, 10, 20, 15));
     expect(steps.map((s) => s.label),
         ['Aceite', 'Agendado', 'Em curso', 'Concluído']);
@@ -127,11 +127,11 @@ void main() {
     );
     expect(
       clientJobNextStepLabel(job, now: DateTime(2026, 10, 20, 12)),
-      'O jardineiro deu o trabalho por concluído. Confirma em 46h.',
+      'O profissional deu o trabalho por concluído. Confirme em 46h.',
     );
     expect(
       clientJobNextStepLabel(job),
-      'O jardineiro deu o trabalho por concluído. Confirma.',
+      'O profissional deu o trabalho por concluído. Confirme.',
     );
   });
 

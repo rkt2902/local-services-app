@@ -13,7 +13,7 @@ class NoProposalsHelpTexts {
   final String title;
   final String description;
 
-  /// "Mostrar a jardineiros mais longe"; `null` quando já está no máximo.
+  /// "Mostrar a profissionais mais longe"; `null` quando já está no máximo.
   final String? widenActionLabel;
 }
 
@@ -31,17 +31,17 @@ NoProposalsHelpTexts? noProposalsHelpTexts(JobRequest job) {
   final extra = job.searchExtraKm;
   final canWiden = extra < JobRequest.maxSearchExtraKm;
   final reach = extra > 0
-      ? 'Já mostrámos o pedido a jardineiros até $extra km mais longe. '
+      ? 'Já mostrámos o pedido a profissionais até $extra km mais longe. '
       : '';
   return NoProposalsHelpTexts(
     title: 'Ainda sem propostas',
     description:
         '${reach}Uma data mais flexível ou uma descrição com mais '
         'pormenores (tamanho, acesso, fotos) costuma trazer respostas.',
-    widenActionLabel: canWiden ? 'Mostrar a jardineiros mais longe' : null,
+    widenActionLabel: canWiden ? 'Mostrar a profissionais mais longe' : null,
   );
 }
 
-/// Aviso depois de "Mostrar a jardineiros mais longe".
+/// Aviso depois de "Mostrar a profissionais mais longe".
 String widenedSearchToast(int extraKm) =>
-    'Pedido mostrado a jardineiros até $extraKm km mais longe.';
+    'Pedido mostrado a profissionais até $extraKm km mais longe.';

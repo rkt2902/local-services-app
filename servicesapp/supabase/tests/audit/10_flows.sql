@@ -323,7 +323,7 @@ select audit.err('T-RATE-02 0 estrelas é recusado',
 select audit.ok('T-RATE-03 cliente avalia o jardineiro',
   format($q$select submit_client_rating(%L, 5, 'muito bom')$q$, :'j1'));
 select audit.err('T-RATE-04a avaliar duas vezes dá erro claro (0074)',
-  format($q$select submit_client_rating(%L, 1)$q$, :'j1'), 'Já avaliaste');
+  format($q$select submit_client_rating(%L, 1)$q$, :'j1'), 'Já avaliou');
 select audit.eq('T-RATE-04b a segunda avaliação é ignorada (fica a primeira)',
   format($q$select string_agg(stars::text, ',') from ratings where job_id=%L and rater_id=%L$q$, :'j1', :'C1'), '5');
 select audit.err('T-RATE-05 INSERT direto em ratings é recusado',

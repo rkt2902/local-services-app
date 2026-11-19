@@ -107,17 +107,17 @@ String clientAutoConfirmHint({
   final reported = myLatestReportAt != null &&
       (markedDoneAt == null || !myLatestReportAt.isBefore(markedDoneAt));
   if (!reported) {
-    return 'Confirma a conclusão ou reporta um problema. Sem resposta, '
+    return 'Confirme a conclusão ou reporte um problema. Sem resposta, '
         'fica confirmado automaticamente 48 horas depois de o '
-        'jardineiro o dar por concluído. Depois de confirmares, '
-        'podes avaliar o jardineiro.';
+        'profissional o dar por concluído. Depois de confirmar, '
+        'pode avaliar o profissional.';
   }
   final until = markedDoneAt == null
       ? ''
       : ' (a ${DateFormat('dd/MM').format(markedDoneAt.add(const Duration(days: 7)).toLocal())})';
-  return 'Recebemos o teu relato. Se não confirmares, o trabalho fica '
-      'confirmado automaticamente 7 dias depois de o jardineiro o dar por '
-      'concluído$until. Depois de confirmares, podes avaliar o jardineiro.';
+  return 'Recebemos o seu relato. Se não confirmar, o trabalho fica '
+      'confirmado automaticamente 7 dias depois de o profissional o dar por '
+      'concluído$until. Depois de confirmar, pode avaliar o profissional.';
 }
 
 /// "09:00:00" (time do Postgres) → "09:00". Texto curto fica como está.

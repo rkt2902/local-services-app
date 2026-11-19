@@ -69,5 +69,5 @@ List<WorkerPlanFeatureRow> workerPlanFeatureRows({int? freeMonthlyLimit}) => [
 /// Texto curto quando uma funcionalidade pede outro plano. Sem preços nem
 /// forma de pagar (regras das lojas): o plano é contratado fora da app.
 String workerPlanUpsellLabel(WorkerPlanTier required) =>
-    'Disponível no plano ${required.label}. Fala com a ProJardim pelo '
-    'Contacto e suporte para mudares de plano.';
+    'Disponível no plano ${required.label}. Fale com a ProJardim pelo '
+    'Contacto e suporte para mudar de plano.';

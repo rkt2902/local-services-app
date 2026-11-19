@@ -2,7 +2,7 @@
 
 Marketplace de serviços locais (Flutter + Supabase), lançado focado em jardinagem mas
 com código e schema genéricos. Dois papéis: cliente (cria pedidos, aceita propostas,
-avalia) e worker/"jardineiro" na UI (propõe, executa, pede ajudantes). Projeto real
+avalia) e worker/"profissional" na UI (propõe, executa, pede ajudantes). Projeto real
 em `servicesapp/`; `ui_playground/` e `doc.txt` são material de referência à parte.
 
 ## Antes de cada tarefa
@@ -37,7 +37,10 @@ relevantes para a tarefa em concreto, não todos de cada vez:
   (`AppToast`, nunca SnackBar)
   → `ref.invalidate(...)`. Invalidar antes de navegar pode rebentar o ecrã atual.
 - **"worker" no código, nunca "provider"** (colisão com Riverpod). Na UI é sempre
-  "Jardineiro".
+  "Profissional" (desde 2026-11-17; antes "Jardineiro").
+- **Tratamento formal na UI**, notificações, emails e textos legais: 3.ª pessoa sem
+  "você" explícito ("Escolha", "o seu", "Pode"), nunca "tu". O painel de admin é
+  interno e pode ficar informal.
 - **Contacto só por WhatsApp.** Nunca chat/email dentro da app.
 - **Só tokens do design system**: `AppColors`, `AppSpacing`, `AppRadius`, `textTheme`.
   Nunca `Color(0xFF...)` nem tamanhos soltos fora de `core/theme/`.

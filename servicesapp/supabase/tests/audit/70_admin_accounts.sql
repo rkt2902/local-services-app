@@ -21,6 +21,8 @@ select t_as('');
 -- notify_proposal_closed_with_job; aqui a ordem real é 0079 e depois 0080.
 \set QUIET on
 \ir ../../migrations/0080_admin_accounts.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select id as st from service_types order by sort_order limit 1 \gset
 
@@ -193,7 +195,7 @@ select audit.eq('T-ACC-42 a proposta do W6 passa a recusada e o aviso fala do su
      :'jopen', :'W6', :'W6', :'jopen'), 'rejected:1');
 select audit.eq('T-ACC-43 sem mensagem própria, o aviso usa o texto padrão',
   format($q$select count(*)::text from notifications where user_id = %L and title = 'Conta suspensa'
-     and body like 'A tua conta ProJardim foi suspensa pelo suporte.%%'$q$, :'C5'), '1');
+     and body like 'A sua conta ProJardim foi suspensa pelo suporte.%%'$q$, :'C5'), '1');
 set role authenticated;
 select t_as(:'C5');
 select audit.err('T-ACC-44 cliente suspensa não cria pedidos',
@@ -314,7 +316,7 @@ select audit.eq('T-ACC-110 jardineiros com raio e pedidos ativos',
 
 -- ── Eliminar a pedido ──
 select audit.err('T-ACC-120 eliminar pede nota', format($q$select admin_erase_user(%L, '')$q$, :'C5'), 'nota');
-select audit.err('T-ACC-121 não se elimina a si próprio', format($q$select admin_erase_user(%L, 'nota de teste')$q$, :'AD'), 'usa a app');
+select audit.err('T-ACC-121 não se elimina a si próprio', format($q$select admin_erase_user(%L, 'nota de teste')$q$, :'AD'), 'use a app');
 select audit.err('T-ACC-122 trabalho em curso impede eliminar, como na app',
   format($q$select admin_erase_user(%L, 'Pedido por email a 16/11.')$q$, :'W5'), 'trabalho');
 select audit.eq('T-ACC-123 eliminar a cliente suspensa devolve os ficheiros a apagar',
@@ -359,6 +361,8 @@ select audit.eq('T-ACC-142 nenhuma RPC recebe o id de quem chama',
 -- ── Correr a migration outra vez ──
 \set QUIET on
 \ir ../../migrations/0080_admin_accounts.sql
+-- A 0083 (textos formais) vem depois desta na ordem real.
+\ir ../../migrations/0083_formal_texts.sql
 \set QUIET off
 select audit.eq('T-ACC-150 correr outra vez não perde estado nem duplica o cron',
   format($q$select (select count(*) from profiles where id = %L and deleted_at is not null) || ':' ||

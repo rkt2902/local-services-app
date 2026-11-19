@@ -249,7 +249,7 @@ class _RatingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final hasRatings = summary.ratingCount > 0;
-    final name = workerName.trim().isEmpty ? 'Jardineiro' : workerName.trim();
+    final name = workerName.trim().isEmpty ? 'Profissional' : workerName.trim();
     final location = locationName?.trim() ?? '';
     final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
 
@@ -299,7 +299,7 @@ class _RatingHeader extends StatelessWidget {
                             ?.copyWith(color: AppColors.textPrimary),
                       ),
                       Text(
-                        location.isEmpty ? 'Jardineiro' : 'Jardineiro · $location',
+                        location.isEmpty ? 'Profissional' : 'Profissional · $location',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodySmall

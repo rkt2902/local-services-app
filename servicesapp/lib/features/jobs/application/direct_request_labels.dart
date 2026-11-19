@@ -43,7 +43,7 @@ String directTimeLeftLabel(DateTime until, DateTime now) {
   return hours == 1 ? 'falta 1 h' : 'faltam $hours h';
 }
 
-/// "há 3 semanas" para "Os teus jardineiros".
+/// "há 3 semanas" para "Os teus profissionais".
 String timeAgoLabel(DateTime date, DateTime now) {
   final day = DateTime(date.year, date.month, date.day);
   final today = DateTime(now.year, now.month, now.day);
@@ -76,7 +76,7 @@ typedef DirectBannerTexts = ({
 /// todos pelo próprio cliente.
 DirectBannerTexts? directBannerTexts(JobRequest job, {required String workerName}) {
   if (job.status != JobStatus.open) return null;
-  final name = firstNameOr(workerName, 'O jardineiro');
+  final name = firstNameOr(workerName, 'O profissional');
   switch (job.directStatus) {
     case DirectRequestStatus.waiting:
       final until = job.directUntil;
@@ -99,13 +99,13 @@ DirectBannerTexts? directBannerTexts(JobRequest job, {required String workerName
             ? '$name não pode desta vez'
             : '$name não respondeu a tempo',
         description:
-            'O pedido está parado. Queres mostrá-lo a outros jardineiros?',
+            'O pedido está parado. Pretende mostrá-lo a outros profissionais?',
       );
     case DirectRequestStatus.declined:
       return (
         kind: DirectBannerKind.released,
         title: '$name não pode desta vez',
-        description: 'O pedido já está visível para todos os jardineiros.',
+        description: 'O pedido já está visível para todos os profissionais.',
       );
     case DirectRequestStatus.expired:
       return (
@@ -113,7 +113,7 @@ DirectBannerTexts? directBannerTexts(JobRequest job, {required String workerName
         title: job.proposalCount > 0
             ? 'Passaram as 24 horas'
             : '$name não respondeu a tempo',
-        description: 'O pedido já está visível para todos os jardineiros.',
+        description: 'O pedido já está visível para todos os profissionais.',
       );
     case DirectRequestStatus.released:
     case null:
@@ -137,26 +137,26 @@ String directHistoryLabel(
     else if (context.hourlyRate != null && context.hourlyRate! > 0)
       hourlyRateLabel(context.hourlyRate!),
   ];
-  if (parts.isEmpty) return 'Já trabalhaste com $name.';
+  if (parts.isEmpty) return 'Já trabalhou com $name.';
   final first = context.jobDate != null ? ' a ${parts.first}' : ', ${parts.first}';
   final rest = parts.skip(1).map((p) => ', $p').join();
-  return 'Já trabalhaste com $name$first$rest.';
+  return 'Já trabalhou com $name$first$rest.';
 }
 
 /// Botão do rodapé do cartão público: "Pedir orçamento a Rui".
 String cardDirectRequestActionLabel(String workerName) =>
-    'Pedir orçamento a ${firstNameOr(workerName, 'este jardineiro')}';
+    'Pedir orçamento a ${firstNameOr(workerName, 'este profissional')}';
 
 /// "Fora da tua área, a 12 km" no cartão do pedido pelo cartão.
 String outsideAreaLabel(double distanceKm) =>
-    'Fora da tua área, a ${distanceKm.round()} km';
+    'Fora da sua área, a ${distanceKm.round()} km';
 
 /// Interruptor do passo 4 (A7): o texto muda com o valor.
-const directReleaseOptionTitle = 'Se não puder, mostrar a outros jardineiros';
+const directReleaseOptionTitle = 'Se não puder, mostrar a outros profissionais';
 
 String directReleaseOptionDescription(String name, {required bool autoRelease}) =>
     autoRelease
         ? 'Se $name não puder ou não responder a tempo, o pedido fica '
             'logo visível para todos.'
         : 'Se $name não puder ou não responder a tempo, o pedido fica '
-            'parado e decides tu.';
+            'parado até decidir o que fazer.';

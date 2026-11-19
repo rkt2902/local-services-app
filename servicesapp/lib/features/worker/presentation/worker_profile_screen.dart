@@ -106,7 +106,7 @@ class WorkerProfileScreen extends ConsumerWidget {
       if (profile.locationName.isNotEmpty) profile.locationName,
     ];
     final professionLocationLabel = professionLocationParts.isEmpty
-        ? 'Jardineiro ProJardim'
+        ? 'Profissional ProJardim'
         : professionLocationParts.join(' · ');
 
     final summary = ratingSummaryAsync?.asData?.value;

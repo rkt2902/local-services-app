@@ -419,7 +419,7 @@ class _AgendaEntryEditorScreenState
       ghost: AgendaDayPreviewGhost(
         date: form.date,
         lastDate: form.lastDay,
-        label: form.isWork ? 'O teu trabalho' : 'Indisponível',
+        label: form.isWork ? 'O seu trabalho' : 'Indisponível',
         startMinutes: form.effectiveStart,
         durationMinutes: form.effectiveDuration,
         // Indisponível sem horas e vários dias ocupam o dia inteiro.
@@ -613,7 +613,7 @@ class _AgendaEntryEditorScreenState
         context,
         icon: Icons.delete_outline_rounded,
         title: 'Apagar da agenda?',
-        message: '"$name" sai da tua agenda. Não dá para desfazer.',
+        message: '"$name" sai da sua agenda. Não dá para desfazer.',
         confirmLabel: 'Apagar',
         destructive: true,
       );
@@ -669,7 +669,7 @@ class _AgendaEntryEditorScreenState
       context,
       icon: Icons.edit_off_outlined,
       title: 'Sair sem guardar?',
-      message: 'O que escreveste nesta entrada perde-se.',
+      message: 'O que escreveu nesta entrada perde-se.',
       confirmLabel: 'Sair sem guardar',
       cancelLabel: 'Continuar a editar',
       destructive: true,

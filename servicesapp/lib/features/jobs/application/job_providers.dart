@@ -123,7 +123,7 @@ final repeatHireForJobProvider =
   return ref.read(jobRepositoryProvider).fetchRepeatHireForJob(jobId);
 });
 
-/// "Os teus jardineiros" no Início do cliente. Muda quando um trabalho
+/// "Os teus profissionais" no Início do cliente. Muda quando um trabalho
 /// fica concluído ou avaliado, por isso não fica em cache além do Início.
 final myPreviousWorkersProvider =
     FutureProvider.autoDispose<List<PreviousWorker>>((ref) {

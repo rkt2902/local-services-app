@@ -136,7 +136,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
 
   String _messageFor(Object e) {
     if (e is AuthException) return e.message;
-    return 'Ocorreu um erro. Tenta novamente.';
+    return 'Ocorreu um erro. Tente novamente.';
   }
 
   @override
@@ -204,7 +204,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                     AppStaggeredEntrance(
                       index: 1,
                       child: Text(
-                        'Confirma o teu email',
+                        'Confirme o seu email',
                         style: textTheme.displaySmall?.copyWith(
                           color: AppColors.textPrimary,
                         ),
@@ -325,7 +325,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                           ),
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
-                            'Não recebeste? Vê também o spam.',
+                            'Não recebeu? Veja também o spam.',
                             textAlign: TextAlign.center,
                             style: smallSecondary,
                           ),
@@ -359,12 +359,12 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text('Já tens conta com este email?',
+                      Text('Já tem conta com este email?',
                           style: smallSecondary),
                       TextButton(
                         style: compactLink,
                         onPressed: _verifying ? null : () => context.go('/login'),
-                        child: Text('Entra', style: smallLink),
+                        child: Text('Entrar', style: smallLink),
                       ),
                       Text('ou', style: smallSecondary),
                       TextButton(

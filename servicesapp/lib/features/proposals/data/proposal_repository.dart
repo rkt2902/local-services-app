@@ -314,8 +314,9 @@ class ProposalRepository {
 Exception? createProposalDuplicateError(Object e) {
   final msg = e.toString().toLowerCase();
   final duplicate = msg.contains('já tens uma proposta') ||
+      msg.contains('já tem uma proposta') ||
       (e is PostgrestException && e.code == '23505');
   return duplicate
-      ? Exception('Já enviaste uma proposta para este pedido.')
+      ? Exception('Já enviou uma proposta para este pedido.')
       : null;
 }

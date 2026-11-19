@@ -139,7 +139,7 @@ class _NoCardView extends StatelessWidget {
                 AppStaggeredEntrance(
                   index: 2,
                   child: Text(
-                    'Adiciona o teu cartão frota para teres desconto no combustível.',
+                    'Adicione o seu cartão frota para ter desconto no combustível.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                   ),
@@ -206,7 +206,7 @@ class _PendingCardView extends StatelessWidget {
                 AppStaggeredEntrance(
                   index: 2,
                   child: Text(
-                    'O teu pedido está a ser analisado',
+                    'O seu pedido está a ser analisado',
                     textAlign: TextAlign.center,
                     style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                   ),
@@ -215,8 +215,8 @@ class _PendingCardView extends StatelessWidget {
                 AppStaggeredEntrance(
                   index: 3,
                   child: Text(
-                    'Assim que confirmarmos os dados do teu cartão, ele fica '
-                    'disponível aqui para usares na bomba de combustível.',
+                    'Assim que confirmarmos os dados do seu cartão, ele fica '
+                    'disponível aqui para usar na bomba de combustível.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
                   ),
@@ -278,7 +278,7 @@ class _RejectedCardView extends StatelessWidget {
                 AppStaggeredEntrance(
                   index: 2,
                   child: Text(
-                    'Não foi possível validar o teu cartão',
+                    'Não foi possível validar o seu cartão',
                     textAlign: TextAlign.center,
                     style: textTheme.titleLarge?.copyWith(color: AppColors.textPrimary),
                   ),
@@ -288,8 +288,8 @@ class _RejectedCardView extends StatelessWidget {
                   index: 3,
                   child: Text(
                     message ??
-                        'Confirma que a foto está legível e que os dados '
-                            'correspondem a um cartão frota válido, e tenta '
+                        'Confirme que a foto está legível e que os dados '
+                            'correspondem a um cartão frota válido, e tente '
                             'outra vez.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),

@@ -463,7 +463,7 @@ class AdminMapView extends StatelessWidget {
   }
 }
 
-/// "12 pedidos abertos · 4 em curso · 9 concluídos · 30 jardineiros".
+/// "12 pedidos abertos · 4 em curso · 9 concluídos · 30 profissionais".
 String adminMapSummary(List<AdminMapPoint> points) {
   var open = 0, active = 0, done = 0, workers = 0, suspended = 0;
   for (final p in points) {
@@ -482,7 +482,7 @@ String adminMapSummary(List<AdminMapPoint> points) {
     '$open pedidos abertos',
     '$active em curso',
     '$done concluídos (30 dias)',
-    '$workers jardineiros${suspended > 0 ? ' ($suspended suspensos)' : ''}',
+    '$workers profissionais${suspended > 0 ? ' ($suspended suspensos)' : ''}',
   ].join(' · ');
 }
 
@@ -516,7 +516,7 @@ class _MapDot extends StatelessWidget {
       button: true,
       label: point.isJob
           ? 'Pedido ${point.label}'
-          : 'Jardineiro ${point.label}',
+          : 'Profissional ${point.label}',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -663,7 +663,7 @@ Polygon adminZonePolygon(
 }
 
 /// Número no meio do quadrado: pedidos sem resposta (camada "Sem
-/// resposta") ou jardineiros que cobrem (camada "Densidade").
+/// resposta") ou profissionais que cobrem (camada "Densidade").
 class _ZoneLabel extends StatelessWidget {
   const _ZoneLabel({
     required this.zone,
@@ -689,7 +689,7 @@ class _ZoneLabel extends StatelessWidget {
       button: true,
       label: showUnanswered
           ? 'Zona ${z.area ?? ''}: $value pedidos sem resposta'
-          : 'Zona ${z.area ?? ''}: $value jardineiros cobrem',
+          : 'Zona ${z.area ?? ''}: $value profissionais cobrem',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -719,7 +719,7 @@ class _ZoneLabel extends StatelessWidget {
   }
 }
 
-/// "Angra · 3 pedidos, 2 sem resposta · 1 jardineiro cobre".
+/// "Angra · 3 pedidos, 2 sem resposta · 1 profissional cobre".
 String adminZoneDetails(AdminMapZone z) {
   final hours = z.medianHoursFirstProposal;
   return [
@@ -728,9 +728,9 @@ String adminZoneDetails(AdminMapZone z) {
         '${z.jobsCompleted > 0 ? ', ${z.jobsCompleted} concluídos' : ''}',
     if (hours != null) '1.ª proposta em ${adminHoursLabel(hours)} (mediana)',
     switch (z.workersCovering) {
-      0 => 'nenhum jardineiro cobre',
-      1 => '1 jardineiro cobre',
-      final n => '$n jardineiros cobrem',
+      0 => 'nenhum profissional cobre',
+      1 => '1 profissional cobre',
+      final n => '$n profissionais cobrem',
     },
     if (z.workersBased > 0) '${z.workersBased} com base aqui',
     if (z.partners > 0)

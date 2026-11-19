@@ -289,8 +289,8 @@ AgendaDayPreviewViewData buildAgendaDayPreview({
         case _:
           assessment = AgendaPreviewAssessment.tight;
           assessmentLabel = ghostUntimed
-              ? 'Já tens $name neste dia.'
-              : 'Já tens $name neste dia, sem hora marcada.';
+              ? 'Já tem $name neste dia.'
+              : 'Já tem $name neste dia, sem hora marcada.';
       }
     }
   }
@@ -323,7 +323,7 @@ AgendaDayPreviewViewData buildAgendaDayPreview({
 /// "Cabe. Fica 1 hora livre antes e depois." Mede até ao trabalho anterior
 /// e ao seguinte que ocupam tempo (sem propostas nem fechados).
 String _fitsLabel((int, int)? ghost, List<AgendaEntry> dayEntries) {
-  if (ghost == null) return 'Cabe. Não tens mais nada neste dia.';
+  if (ghost == null) return 'Cabe. Não tem mais nada neste dia.';
   int? before;
   int? after;
   for (final e in dayEntries) {
@@ -340,7 +340,7 @@ String _fitsLabel((int, int)? ghost, List<AgendaEntry> dayEntries) {
     }
   }
   if (before == null && after == null) {
-    return 'Cabe. Não tens mais nada neste dia.';
+    return 'Cabe. Não tem mais nada neste dia.';
   }
   if (before != null && after != null) {
     return before == after
@@ -349,8 +349,8 @@ String _fitsLabel((int, int)? ghost, List<AgendaEntry> dayEntries) {
               '${agendaLongDuration(after)} depois.';
   }
   return before != null
-      ? 'Cabe. Fica ${agendaLongDuration(before)} livre antes e não tens '
+      ? 'Cabe. Fica ${agendaLongDuration(before)} livre antes e não tem '
             'mais nada depois.'
-      : 'Cabe. Não tens nada antes e fica ${agendaLongDuration(after!)} '
+      : 'Cabe. Não tem nada antes e fica ${agendaLongDuration(after!)} '
             'livre depois.';
 }

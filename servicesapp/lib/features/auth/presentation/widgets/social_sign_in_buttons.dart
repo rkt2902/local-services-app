@@ -138,8 +138,8 @@ class _LegalNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppLegalConsentText(
       prefix: withFacebook
-          ? 'Ao continuar com Google ou Facebook aceitas os '
-          : 'Ao continuar com Google aceitas os ',
+          ? 'Ao continuar com Google ou Facebook aceita os '
+          : 'Ao continuar com Google aceita os ',
       style: Theme.of(context)
           .textTheme
           .bodySmall

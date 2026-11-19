@@ -20,7 +20,7 @@ void main() {
     });
   });
 
-  group('plano do jardineiro na conta', () {
+  group('plano do profissional na conta', () {
     test('Grátis mostra o uso do mês', () {
       final plan = WorkerPlan.fromJson({
         'tier': 'free',
@@ -108,7 +108,7 @@ void main() {
   });
 
   group('respostas das RPCs do painel', () {
-    test('ficha do jardineiro com plano, meses e histórico', () {
+    test('ficha do profissional com plano, meses e histórico', () {
       final worker = AdminWorkerDetail.fromJson({
         'worker_id': 'w1',
         'full_name': 'Rui',

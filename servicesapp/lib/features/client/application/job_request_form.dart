@@ -23,7 +23,7 @@ const availabilityTextHint =
 /// Erro do campo de disponibilidade, ou `null` se for válido.
 String? availabilityTextError(String text) {
   final trimmed = text.trim();
-  if (trimmed.isEmpty) return 'Indica quando estás disponível.';
+  if (trimmed.isEmpty) return 'Indique quando está disponível.';
   if (trimmed.length > availabilityTextMaxLength) {
     return 'Máximo $availabilityTextMaxLength caracteres.';
   }

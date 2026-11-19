@@ -27,7 +27,7 @@ class RepeatHireCardViewData {
   final String previousJobLabel;
 
   /// "Pede de novo e o pedido vai primeiro para Rui..." ou, sem perfil,
-  /// "Este jardineiro já não aceita pedidos...".
+  /// "Este profissional já não aceita pedidos...".
   final String descriptionLabel;
 }
 
@@ -50,7 +50,7 @@ class RepeatHireCard extends StatelessWidget {
     return dataAsync.when(
       loading: () => const _RepeatHireSkeleton(),
       error: (_, _) => AppInlineError(
-        message: 'Não foi possível carregar o jardineiro.',
+        message: 'Não foi possível carregar o profissional.',
         onRetry: onRetry,
       ),
       data: (data) {
@@ -85,7 +85,7 @@ class _RepeatHireLoaded extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Precisas outra vez?',
+            'Precisa outra vez?',
             style: textTheme.titleMedium?.copyWith(
               color: AppColors.textPrimary,
             ),
@@ -94,7 +94,7 @@ class _RepeatHireLoaded extends StatelessWidget {
           UserAvatarWithName(
             name: data.workerName,
             avatarUrl: data.workerAvatarUrl,
-            fallbackLabel: 'Jardineiro',
+            fallbackLabel: 'Profissional',
             subtitle: data.previousJobLabel,
             nameStyle: textTheme.titleSmall?.copyWith(
               color: AppColors.textPrimary,

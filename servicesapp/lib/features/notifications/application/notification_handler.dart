@@ -129,7 +129,7 @@ class NotificationHandler {
           );
         } else {
           context.go('/worker/home');
-          AppToast.of(context).error('Não foi possível abrir o job. Verifica a lista de jobs.');
+          AppToast.of(context).error('Não foi possível abrir o trabalho. Verifique a lista de trabalhos.');
         }
 
       case NotificationType.proposalRejected:

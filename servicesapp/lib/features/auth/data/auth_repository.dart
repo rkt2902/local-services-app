@@ -388,7 +388,7 @@ class AuthRepository {
   Never _throwClassified(Object e) {
     if (isNetworkError(e)) {
       throw AuthException(
-        'Sem ligação à internet. Verifica a tua conexão e tenta novamente.',
+        'Sem ligação à internet. Verifique a sua ligação e tente novamente.',
         code: PasswordResetErrorCode.network,
       );
     }
@@ -396,7 +396,7 @@ class AuthRepository {
     final code = e is AuthException ? e.code : null;
     if (code == 'otp_expired' || code == 'otp_disabled') {
       throw AuthException(
-        'Código inválido ou expirado. Verifica e tenta novamente.',
+        'Código inválido ou expirado. Verifique e tente novamente.',
         code: PasswordResetErrorCode.invalidCode,
       );
     }
@@ -411,7 +411,7 @@ class AuthRepository {
     }
     if (code == 'over_request_rate_limit' || code == 'over_email_send_rate_limit') {
       throw AuthException(
-        'Demasiadas tentativas. Espera alguns minutos e tenta novamente.',
+        'Demasiadas tentativas. Aguarde alguns minutos e tente novamente.',
         code: PasswordResetErrorCode.unexpected,
       );
     }
@@ -420,13 +420,13 @@ class AuthRepository {
     final msg = e.toString().toLowerCase();
     if (msg.contains('expired') || (msg.contains('invalid') && msg.contains('token'))) {
       throw AuthException(
-        'Código inválido ou expirado. Verifica e tenta novamente.',
+        'Código inválido ou expirado. Verifique e tente novamente.',
         code: PasswordResetErrorCode.invalidCode,
       );
     }
 
     throw AuthException(
-      'Ocorreu um erro. Tenta novamente.',
+      'Ocorreu um erro. Tente novamente.',
       code: PasswordResetErrorCode.unexpected,
     );
   }

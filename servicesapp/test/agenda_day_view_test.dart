@@ -210,10 +210,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Férias'), findsOneWidget);
-    expect(find.text('Marcaste este dia como indisponível.'), findsOneWidget);
-    expect(find.text('Tens trabalhos marcados neste dia.', findRichText: true),
+    expect(find.text('Marcou este dia como indisponível.'), findsOneWidget);
+    expect(find.text('Tem trabalhos marcados neste dia.', findRichText: true),
         findsNothing);
-    expect(find.textContaining('Tens trabalhos marcados', findRichText: true),
+    expect(find.textContaining('Tem trabalhos marcados', findRichText: true),
         findsOneWidget);
     // Sem formulário ainda: sem "Mudar datas".
     expect(find.text('Mudar datas'), findsNothing);

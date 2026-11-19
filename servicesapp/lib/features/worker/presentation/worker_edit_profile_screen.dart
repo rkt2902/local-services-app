@@ -204,7 +204,7 @@ class _WorkerEditProfileScreenState
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Permissão negada permanentemente. Ativa nas definições.');
+        throw Exception('Permissão negada permanentemente. Ative nas definições.');
       }
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
@@ -435,7 +435,7 @@ class _WorkerEditProfileScreenState
   Future<bool> _saveServicesAndTools() => _persist();
 
   String? _fullNameValidator(String? value) =>
-      (value == null || value.trim().isEmpty) ? 'Introduz o teu nome.' : null;
+      (value == null || value.trim().isEmpty) ? 'Introduza o seu nome.' : null;
 
   String? _phoneValidator(String? value) => phoneValidator(value);
 

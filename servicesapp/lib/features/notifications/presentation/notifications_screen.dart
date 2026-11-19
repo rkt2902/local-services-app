@@ -52,7 +52,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       title: total == 1
           ? 'Apagar a notificação?'
           : 'Apagar as $total notificações?',
-      message: 'Saem desta lista para sempre. Os teus trabalhos e pedidos '
+      message: 'Saem desta lista para sempre. Os seus trabalhos e pedidos '
           'não mudam.',
       confirmLabel: 'Apagar para sempre',
       cancelLabel: 'Não apagar',
