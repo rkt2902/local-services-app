@@ -43,9 +43,13 @@ jobs:
             fi
           done
 
-      - uses: supabase/setup-cli@v1
+      # v3 instala a CLI pelo npm (sem perguntar à API do GitHub, que dava
+      # "rate limit exceeded") e corre em Node 24. Versão fixa de propósito:
+      # 3.3.0 foi a que fez o último backup com sucesso (24/11). Para subir,
+      # mudar aqui e correr o workflow à mão uma vez.
+      - uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 3.3.0
 
       - name: Dump (roles, schema e dados)
         run: |
@@ -65,7 +69,7 @@ jobs:
           rm -rf dump
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.pack.outputs.name }}
           path: ${{ steps.pack.outputs.name }}
