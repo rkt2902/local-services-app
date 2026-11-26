@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-26 — Consumo de combustível no registo do Profissional
+
+- **Decisão:** o registo do Profissional passa a ter 2 passos. "Configurar perfil"
+  (passo 1) grava o perfil como antes e o botão passa a "Continuar"; o passo 2
+  (`/worker/setup/fuel`) pergunta os combustíveis e os litros por mês, com uma linha
+  por tipo, (+) e remover. É opcional ("Saltar por agora") e fica também no Perfil
+  (`/worker/profile/fuel`). Tipos na tabela `fuel_types` (0084): Gasóleo, Gasolina,
+  Óleo 2 tempos, Óleo de corrente (os dois óleos por confirmar). O painel ganha
+  `/admin/estatisticas` (registados, ativos 30 dias, Pro/Pro+, taxa de resposta,
+  combustível por tipo e por distrito aproximado, trabalhos concluídos por mês).
+- **Motivo:** dados agregados para negociar com parceiros (cartão frota, gasolineiras,
+  seguradoras). Opcional para não haver números inventados; o perfil grava-se no
+  passo 1 para que fechar a app no passo 2 não deixe a conta presa no registo.
+
 ## 2026-11-17 — Parceiros saem da barra de baixo
 
 - **Decisão:** "Parceiros" deixa de ser o quinto botão da barra do jardineiro. Passa a

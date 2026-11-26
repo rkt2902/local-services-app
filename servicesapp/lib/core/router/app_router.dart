@@ -53,6 +53,7 @@ import '../../features/help_requests/presentation/worker_helper_job_screen.dart'
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/ratings/presentation/my_ratings_route.dart';
 import '../../features/worker/presentation/worker_setup_screen.dart';
+import '../../features/worker/presentation/worker_fuel_usage_screen.dart';
 import '../../features/onboarding/application/onboarding_providers.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../widgets/app_launch_screen.dart';
@@ -65,6 +66,7 @@ import '../../features/admin/presentation/admin_cases_page.dart';
 import '../../features/admin/presentation/admin_jobs_page.dart';
 import '../../features/admin/presentation/admin_log_page.dart';
 import '../../features/admin/presentation/admin_funnel_page.dart';
+import '../../features/admin/presentation/admin_partner_stats_page.dart';
 import '../../features/admin/presentation/admin_map_page.dart';
 import '../../features/admin/presentation/admin_notices_page.dart';
 import '../../features/admin/presentation/admin_partners_page.dart';
@@ -177,6 +179,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/worker/setup',
         builder: (_, _) => const AppContentWidth(child: WorkerSetupScreen()),
       ),
+      // Passo 2 de 2 do registo (depois de o perfil ficar gravado) e o
+      // mesmo ecrã no Perfil. Fora do ShellRoute: sub-fluxos sem bottom nav.
+      GoRoute(
+        path: '/worker/setup/fuel',
+        builder: (_, _) => const AppContentWidth(
+          child: WorkerFuelUsageScreen(mode: FuelUsageScreenMode.onboarding),
+        ),
+      ),
+      GoRoute(
+        path: '/worker/profile/fuel',
+        builder: (_, _) => const AppContentWidth(
+          child: WorkerFuelUsageScreen(mode: FuelUsageScreenMode.profile),
+        ),
+      ),
       GoRoute(
         path: '/worker/profile/edit',
         builder: (_, _) =>
@@ -276,6 +292,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-funnel'),
               child: AdminFunnelPage(),
+            ),
+          ),
+          GoRoute(
+            path: '$adminRoutePrefix/estatisticas',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-partner-stats'),
+              child: AdminPartnerStatsPage(),
             ),
           ),
           GoRoute(

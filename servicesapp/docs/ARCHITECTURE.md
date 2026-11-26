@@ -272,7 +272,9 @@ secção 13 e o relatório da sessão 2026-10-16 em `decisions_log.md`.
 | `/worker/help/:acceptanceId` | `WorkerHelperJobScreen` (trabalho visto pelo ajudante) | fora | container-transform / shared-axis |
 | `/session-error` | `SessionErrorScreen` (perfil não carregou: tentar de novo ou sair) | fora | shared-axis |
 | `/account-suspended` | `AccountSuspendedScreen` (0080: conta suspensa pelo suporte; contactar suporte, verificar de novo, terminar sessão, eliminar conta). `SessionStatus.suspended` vem de `get_my_account_status`; enquanto for `true`, `resolveRedirect` manda tudo para aqui | fora | default |
-| `/worker/setup` | `WorkerSetupScreen` | fora | default |
+| `/worker/setup` | `WorkerSetupScreen` (passo 1 de 2) | fora | default |
+| `/worker/setup/fuel` | `WorkerFuelUsageScreen` (passo 2 de 2, opcional, 0084) | fora | default |
+| `/worker/profile/fuel` | `WorkerFuelUsageScreen` (o mesmo, a partir do Perfil) | fora | default |
 | `/worker/profile/edit` | `WorkerEditProfileScreen` | fora | default |
 | `/notifications` | `NotificationsScreen` | fora | fade-through |
 | `/worker/ratings` | `MyRatingsRoute` | fora | fade-through |
@@ -358,6 +360,8 @@ para desfazer o efeito de `context.go()` em deep-links de notificação.
 - **Escolha de papel**: `/choose-role`, grava `role` em `profiles`.
 - **Setup do worker**: `/worker/setup` — raio, base (GPS + `GeocodingService`), serviços,
   ferramentas; `RouterNotifier` força esta rota enquanto `workerProfileComplete == false`.
+  "Continuar" grava o perfil (fica completo) e abre o passo 2, `/worker/setup/fuel`
+  (combustível, opcional, 0084); fechar a app aí leva ao início.
 - **Sessão**: `SessionNotifier` (`AsyncNotifier<SessionStatus>`) — fast path lê
   `Supabase.instance.client.auth.currentSession` (restaurado do storage local,
   disponível no arranque sem esperar pelo stream); slow path observa `authStateProvider`
@@ -627,7 +631,7 @@ job-photos: primeira pasta do path); update/delete só pelo dono.
 `0049` e `0051` a `0074`. A `0050` nunca foi usada. A tabela com o que cada uma faz está
 em `supabase/migrations/README.md`.
 
-Migrations aplicadas até à `0077` (13/11); a `0078` foi corrida a 16/11; a `0079`, a `0080`, a `0081` e a `0082` estão criadas e por aplicar (por esta ordem). Próxima migration: `0083`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
+Migrations aplicadas até à `0082` (17/11); a `0083` e a `0084` estão criadas e por aplicar (por esta ordem). Próxima migration: `0085`. Rotas `/client/messages` e `/worker/messages` removidas a 2026-10-18 (contacto só por WhatsApp).
 
 ---
 

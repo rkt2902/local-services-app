@@ -59,6 +59,13 @@ abstract final class AppSizes {
   /// Ponto verde antes do próximo passo de um pedido que precisa de ação.
   static const double statusDot = 6.0;
 
+  /// Barras de "Passo X de Y" no registo do Profissional.
+  static const double stepSegmentHeight = 4.0;
+
+  /// Ícone grande no topo de um passo (ex.: combustível no registo).
+  static const double stepHeroIconBox = 56.0;
+  static const double stepHeroIcon = 28.0;
+
   // Pedido: passo 2 "Quando e onde" e "Editar pedido" (U3).
   static const double scheduleChoiceHeight = 40.0;
   static const double dateFieldMinHeight = 56.0;

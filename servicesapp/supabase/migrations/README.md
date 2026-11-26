@@ -10,7 +10,10 @@ número ficou reservado para uma thread que não chegou a criar a migration).
 A `0083` (textos formais e "Profissional") está criada mas **não aplicada**: aplicar
 no SQL Editor depois da `0082`.
 
-**Próxima migration nova: `0084`.** Antes de numerar, confirmar com
+A `0084` (consumo de combustível e estatísticas para parceiros) está criada mas
+**não aplicada**: aplicar no SQL Editor depois da `0083`.
+
+**Próxima migration nova: `0085`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -61,6 +64,7 @@ Editor do Supabase e confirma.
 | `0081_admin_growth.sql` | Painel, fase 3: `admin_funnel` (funil por período), `admin_export_rows` (linhas para CSV sem contactos nem moradas), `admin_notices` e `admin_notice_audience`/`admin_send_notice`/`admin_list_notices` (aviso de serviço a um grupo, tipo `admin_notice` com push, só envia se a contagem não mudou) | aplicada (17/11) |
 | `0082_admin_partners_zones.sql` | Painel: cartões frota (`admin_list_fleet_cards`, `admin_review_fleet_card`, colunas `reviewed_at`/`review_message`, aviso `fleet_card_reviewed`), parceiros (`partners` com foto, códigos, QR, link, validade, visível na app e só Pro+; `admin_list_partners`, `admin_save_partner`, `admin_delete_partner`; `get_partners` para a app com a distância à base; uso na app em `partner_events` (`log_partner_event`) com os números no painel; `admin_partner_alerts`; avisos de parceiro com `admin_send_notice(..., p_partner_id)` e tipo `partner_new`; bucket `partner-images`; um parceiro de exemplo) e `admin_map_zones` (quadrados com pedidos sem resposta, cobertura e parceiros). Alterada a 16/11 antes de aplicada; se a versão anterior tiver sido corrida, renomeia `partner_locations` e apaga as funções antigas | aplicada (17/11) |
 | `0083_formal_texts.sql` | Textos dos avisos, notificações e erros em tratamento formal ("O seu pedido", "Pode", "Veja") e "profissional" em vez de "jardineiro". Volta a criar 76 funções com a mesma assinatura e a lógica da última migration de cada uma, só com os textos mudados; o CSV do painel passa a ter a coluna `profissional`. Pode correr-se mais do que uma vez | **criada, não aplicada** |
+| `0084_worker_fuel_usage.sql` | Consumo de combustível do Profissional: tabelas `fuel_types` (4 tipos) e `worker_fuel_usage`, RPCs `get_my_fuel_usage` e `set_my_fuel_usage` (só `auth.uid()`), e `admin_partner_stats` para `/admin/estatisticas` com `approx_district`. Pode correr-se mais do que uma vez | **criada, não aplicada** |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

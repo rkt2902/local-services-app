@@ -169,6 +169,7 @@ class WorkerProfileScreen extends ConsumerWidget {
       onFleetCardPressed: () => fleetCardLocked
           ? showWorkerPlanSheet(context, plan)
           : context.push('/worker/fleet-card'),
+      onFuelUsagePressed: () => context.push('/worker/profile/fuel'),
       onPlanPressed: () => showWorkerPlanSheet(context, plan),
       onEarningsPressed: () => context.push('/worker/earnings'),
       onSupportPressed: () => showSupportContactSheet(context),
