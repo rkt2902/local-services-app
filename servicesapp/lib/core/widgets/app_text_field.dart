@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_status_color.dart';
@@ -25,6 +26,9 @@ class AppTextField extends StatelessWidget {
     this.prefixText,
     this.helperText,
     this.autovalidateMode,
+    this.suffixText,
+    this.inputFormatters,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -62,6 +66,11 @@ class AppTextField extends StatelessWidget {
   /// desatualizado depois de corrigir o valor (ex.: telefone).
   final AutovalidateMode? autovalidateMode;
 
+  /// Texto fixo depois do valor (ex.: a unidade "L/mês").
+  final String? suffixText;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -89,6 +98,8 @@ class AppTextField extends StatelessWidget {
       minLines: minLines,
       maxLength: maxLength,
       onFieldSubmitted: onFieldSubmitted,
+      onChanged: onChanged,
+      inputFormatters: inputFormatters,
       style: textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: label,
@@ -99,6 +110,9 @@ class AppTextField extends StatelessWidget {
             textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
         errorMaxLines: 2,
         prefixText: prefixText,
+        suffixText: suffixText,
+        suffixStyle:
+            textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         prefixStyle:
             textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         counterText: maxLength == null ? null : '',

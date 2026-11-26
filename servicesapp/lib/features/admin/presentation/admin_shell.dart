@@ -27,6 +27,11 @@ enum AdminSection {
     '/admin/parceiros',
   ),
   funnel('Funil e dados', Icons.filter_alt_outlined, '/admin/funil'),
+  partnerStats(
+    'Estatísticas',
+    Icons.bar_chart_rounded,
+    '/admin/estatisticas',
+  ),
   notices('Avisos', Icons.campaign_outlined, '/admin/avisos'),
   log('Registo', Icons.history_rounded, '/admin/registo');
 

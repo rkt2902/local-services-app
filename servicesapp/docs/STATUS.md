@@ -59,6 +59,8 @@
 - Dicas da época por push, com interruptor em Definições.
 
 ### Jardineiro
+- Registo em 2 passos: "Configurar perfil" e "Consumo de combustível" (0084,
+  opcional, também no Perfil). Depende da `0084` aplicada.
 - Shell com **Início · Pedidos · Trabalhos · Perfil** e o sino com o número de não
   lidas nos cabeçalhos (A11).
 - Pedidos disponíveis no raio, com filtro de categorias; pedidos diretos fixos no topo
@@ -89,6 +91,10 @@
   tablet e PC.
 
 ### Administração
+- `/admin/estatisticas` (0084): Profissionais registados e ativos (30 dias), Pro e
+  Pro+, inquérito de combustível (respostas, litros por tipo, estimativa para todos),
+  por distrito aproximado (capital mais perto da base) e trabalhos concluídos por mês
+  e categoria.
 - `/admin` só para contas em `admin_users`, com segundo fator (TOTP). Visão geral,
   jardineiros com pesquisa e filtro por plano, ficha com números e "Mudar plano"
   (Grátis, Pro, Pro+). Funciona desde 23/10.

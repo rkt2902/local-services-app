@@ -4,6 +4,7 @@ import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/admin_account_models.dart';
 import '../data/admin_growth_models.dart';
+import '../data/admin_partner_stats_models.dart';
 import '../data/admin_models.dart';
 import '../data/admin_partner_models.dart';
 import '../data/admin_repository.dart';
@@ -210,6 +211,14 @@ final adminAccountProvider = FutureProvider.autoDispose
 final adminMapPointsProvider = FutureProvider.autoDispose<List<AdminMapPoint>>(
   (ref) => ref.read(adminRepositoryProvider).fetchMapPoints(),
 );
+
+// ── Estatísticas para parceiros (0084) ───────────────────────────
+
+/// Por número de meses dos trabalhos concluídos. Fica no Registo.
+final adminPartnerStatsProvider = FutureProvider.autoDispose
+    .family<AdminPartnerStats, int>((ref, months) {
+      return ref.read(adminRepositoryProvider).fetchPartnerStats(months: months);
+    });
 
 // ── Fase 3: funil, CSV, avisos ────────────────────────────────────
 

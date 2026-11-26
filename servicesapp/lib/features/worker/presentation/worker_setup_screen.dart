@@ -20,6 +20,7 @@ import '../../auth/application/session_provider.dart';
 import '../application/worker_providers.dart';
 import '../data/service_type_model.dart';
 import '../data/worker_profile_model.dart';
+import 'widgets/worker_setup_step_header.dart';
 import '../../../core/widgets/app_toast.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../core/utils/network_image_sizes.dart';
@@ -223,6 +224,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       if (_avatar != null) {
         avatarUrl = await repo.uploadAvatar(currentUser.id, _avatar!);
       }
+      final uploadedAvatarUrl = avatarUrl;
       await repo.createProfile(WorkerProfile(
         profileId: currentUser.id,
         fullName: profileData.fullName,
@@ -240,7 +242,17 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       if (!mounted) return;
       await ref.read(sessionStatusProvider.notifier).refresh();
       if (!mounted) return;
-      context.go('/worker/home');
+      // A foto já subiu: se voltar do passo 2 e carregar outra vez em
+      // "Continuar", não volta a enviar a mesma (o resto é upsert).
+      if (uploadedAvatarUrl != null) {
+        setState(() {
+          _avatar = null;
+          _existingAvatarUrl = uploadedAvatarUrl;
+        });
+      }
+      // O perfil já está completo: se fechar a app no passo 2, entra direto
+      // no início e o combustível fica para o Perfil.
+      context.push('/worker/setup/fuel');
       ref.invalidate(workerProfileProvider);
     } catch (e) {
       appLog('[WorkerSetup] ${e.runtimeType}: $e');
@@ -317,32 +329,11 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header ───────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.s10, AppSpacing.xs, AppSpacing.lg, 0),
-              child: SizedBox(
-                height: 48,
-                child: Row(
-                  children: [
-                    if (context.canPop())
-                      IconButton(
-                        tooltip: 'Voltar',
-                        onPressed: context.pop,
-                        icon: const Icon(Icons.arrow_back_rounded,
-                            color: AppColors.textPrimary),
-                      ),
-                    Expanded(
-                      child: Text(
-                        'Configurar perfil',
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            // ── Header: passo 1 de 2 (o 2 é o combustível) ───────────
+            WorkerSetupStepHeader(
+              step: 1,
+              totalSteps: 2,
+              onBack: context.canPop() ? context.pop : null,
             ),
 
             // ── Scrollable body ──────────────────────────────────────────
@@ -353,6 +344,20 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Configurar perfil',
+                      style: textTheme.displaySmall?.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'É isto que os clientes veem antes de aceitar uma proposta.',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
                     // ── Photo ─────────────────────────────────────────────
                     Center(
                       child: _WorkerPhotoSelector(
@@ -606,7 +611,7 @@ class _WorkerSetupScreenState extends ConsumerState<WorkerSetupScreen> {
                     const SizedBox(height: AppSpacing.xs),
                   ],
                   PrimaryActionButton(
-                    label: 'Entrar na app',
+                    label: 'Continuar',
                     isLoading: _saving,
                     onPressed: _canContinue ? _save : null,
                   ),
@@ -841,7 +846,7 @@ String workerSetupPhotoHint({
   return 'Foto obrigatória: os clientes confiam mais quando veem quem vai.';
 }
 
-/// Por cima de "Entrar na app" enquanto falta alguma coisa.
+/// Por cima de "Continuar" enquanto falta alguma coisa.
 String workerSetupMissingLabel({
   required bool hasPhoto,
   required bool hasServices,

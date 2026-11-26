@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import 'admin_account_models.dart';
 import 'admin_growth_models.dart';
+import 'admin_partner_stats_models.dart';
 import 'admin_models.dart';
 import 'admin_partner_models.dart';
 import 'admin_resolve_models.dart';
@@ -615,6 +616,16 @@ class AdminRepository {
 
   static String? _orNull(String? text) =>
       (text ?? '').trim().isEmpty ? null : text!.trim();
+
+  // ── Estatísticas para parceiros (0084) ────────────────────────
+
+  Future<AdminPartnerStats> fetchPartnerStats({int months = 6}) async {
+    final data = await _client.rpc(
+      'admin_partner_stats',
+      params: {'p_months': months},
+    );
+    return AdminPartnerStats.fromJson((data as Map).cast<String, dynamic>());
+  }
 
   // ── Fase 3: funil, CSV, avisos (0081) ──────────────────────────
 

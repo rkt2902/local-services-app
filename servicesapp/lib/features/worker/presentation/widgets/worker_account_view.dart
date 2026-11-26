@@ -73,6 +73,7 @@ class WorkerAccountScreen extends StatelessWidget {
     required this.onHelpRequestsPressed,
     required this.onReviewsPressed,
     required this.onFleetCardPressed,
+    required this.onFuelUsagePressed,
     required this.onPlanPressed,
     required this.onEarningsPressed,
     required this.onNotificationsPressed,
@@ -95,6 +96,9 @@ class WorkerAccountScreen extends StatelessWidget {
   final VoidCallback onHelpRequestsPressed;
   final VoidCallback onReviewsPressed;
   final VoidCallback onFleetCardPressed;
+
+  /// Consumo de combustível (0084), o mesmo ecrã do passo 2 do registo.
+  final VoidCallback onFuelUsagePressed;
   final VoidCallback onPlanPressed;
   final VoidCallback onEarningsPressed;
 
@@ -225,6 +229,11 @@ class WorkerAccountScreen extends StatelessWidget {
                             icon: Icons.local_gas_station_outlined,
                             trailingLabel: data.fleetCardStatusLabel,
                           ),
+                          const AppAccountMenuItem(
+                            id: 'fuel_usage',
+                            label: 'Consumo de combustível',
+                            icon: Icons.water_drop_outlined,
+                          ),
                           if (onPartnersPressed != null)
                             const AppAccountMenuItem(
                               id: 'partners',
@@ -246,6 +255,8 @@ class WorkerAccountScreen extends StatelessWidget {
                               onPlanPressed();
                             case 'fleet_card':
                               onFleetCardPressed();
+                            case 'fuel_usage':
+                              onFuelUsagePressed();
                             case 'partners':
                               onPartnersPressed?.call();
                           }
