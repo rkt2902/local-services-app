@@ -1,7 +1,8 @@
-# Publica a versão web (servicesapp/) no Netlify. Só corre à mão, em
-# Actions > Deploy web > Run workflow: cada deploy gasta créditos do
-# Netlify, por isso um merge no main já não publica sozinho (26/10).
-# Configuração única: ver servicesapp/docs/web.md, secção "Netlify".
+# Publica a versão web (servicesapp/) no Cloudflare Pages, servida em
+# https://projardim.pt. Só corre à mão, em Actions > Deploy web > Run
+# workflow, para a web não ficar à frente de migrations por aplicar.
+# Desde 27/11 já não usa o Netlify (o DNS do domínio já estava na Cloudflare).
+# Configuração única: ver servicesapp/docs/web.md, secção 2.
 name: Deploy web
 
 on:
@@ -23,14 +24,18 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Nome do projeto no Cloudflare Pages (cria-se sozinho no 1.º deploy).
+      PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || 'projardim' }}
+      # Endereço público: QR e link do cartão do Profissional, textos legais.
+      APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL || 'https://projardim.pt' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Confirmar secrets
         run: |
-          for name in SUPABASE_URL SUPABASE_ANON_KEY NETLIFY_AUTH_TOKEN NETLIFY_SITE_ID; do
+          for name in SUPABASE_URL SUPABASE_ANON_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::Falta o secret $name (Settings > Secrets and variables > Actions)."
               exit 1
@@ -45,35 +50,62 @@ jobs:
 
       - run: flutter pub get
 
-      # APP_PUBLIC_URL, SUPPORT_EMAIL, FACEBOOK_LOGIN_ENABLED e
-      # GOOGLE_WEB_CLIENT_ID (login Google sem supabase.co) são opcionais
-      # (Settings > Secrets and variables > Actions > Variables). Sem eles a
-      # app usa o próprio site, o email por defeito e esconde o botão do
-      # Facebook. Ver servicesapp/docs/SETUP.md.
+      # SUPPORT_EMAIL, FACEBOOK_LOGIN_ENABLED e GOOGLE_WEB_CLIENT_ID são
+      # opcionais (Settings > Secrets and variables > Actions > Variables).
+      # Ver servicesapp/docs/SETUP.md.
       - name: Build web
         env:
-          APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
           SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
           FACEBOOK_LOGIN_ENABLED: ${{ vars.FACEBOOK_LOGIN_ENABLED }}
           GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
         run: |
+          # Uma variável antiga a apontar para o Netlify punha o QR e os links
+          # do cartão no sítio errado: ignora-se e usa-se o domínio.
+          case "$APP_PUBLIC_URL" in
+            *netlify.app*)
+              echo "::warning::A variável APP_PUBLIC_URL ainda aponta para o Netlify ($APP_PUBLIC_URL). Uso https://projardim.pt; apague ou corrija a variável."
+              APP_PUBLIC_URL=https://projardim.pt
+              ;;
+          esac
+          APP_PUBLIC_URL="${APP_PUBLIC_URL%/}"
+          echo "APP_PUBLIC_URL=$APP_PUBLIC_URL" >> "$GITHUB_ENV"
           extra=()
-          if [ -n "$APP_PUBLIC_URL" ]; then extra+=(--dart-define=APP_PUBLIC_URL="$APP_PUBLIC_URL"); fi
           if [ -n "$SUPPORT_EMAIL" ]; then extra+=(--dart-define=SUPPORT_EMAIL="$SUPPORT_EMAIL"); fi
           if [ -n "$FACEBOOK_LOGIN_ENABLED" ]; then extra+=(--dart-define=FACEBOOK_LOGIN_ENABLED="$FACEBOOK_LOGIN_ENABLED"); fi
           if [ -n "$GOOGLE_WEB_CLIENT_ID" ]; then extra+=(--dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID"); fi
           flutter build web --release \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            --dart-define=APP_PUBLIC_URL="$APP_PUBLIC_URL" \
             "${extra[@]}"
 
-      # web/_redirects já vai dentro de build/web (devolve index.html em
-      # qualquer caminho, para /w/<id> e recarregar páginas internas).
-      - name: Publicar no Netlify
+      # O Cloudflare Pages já devolve index.html em caminhos que não existem
+      # (/w/<id>, recarregar páginas internas) porque não há 404.html.
+      # web/_headers impede que o index.html e o service worker fiquem em
+      # cache antigo depois de um deploy.
+      - name: Criar o projeto no Cloudflare Pages (só da primeira vez)
+        run: |
+          if npx --yes wrangler@3 pages project list | grep -qw "$PAGES_PROJECT"; then
+            echo "Projeto $PAGES_PROJECT já existe."
+          else
+            npx --yes wrangler@3 pages project create "$PAGES_PROJECT" --production-branch=main
+          fi
+
+      - name: Publicar no Cloudflare Pages
         run: >
-          npx --yes netlify-cli deploy --prod
-          --no-build
-          --dir build/web
-          --site "$NETLIFY_SITE_ID"
-          --auth "$NETLIFY_AUTH_TOKEN"
-          --message "${{ github.sha }}"
+          npx --yes wrangler@3 pages deploy build/web
+          --project-name="$PAGES_PROJECT"
+          --branch=main
+          --commit-hash="${{ github.sha }}"
+          --commit-dirty=true
+
+      - name: Confirmar que o domínio responde
+        run: |
+          sleep 20
+          for url in "$APP_PUBLIC_URL/" "$APP_PUBLIC_URL/privacidade/"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 20 "$url" || echo 000)
+            echo "$url -> $code"
+            if [ "$code" != "200" ]; then
+              echo "::warning::$url respondeu $code. O deploy foi feito, mas o domínio ainda não serve o site (ver docs/web.md, secção 2)."
+            fi
+          done

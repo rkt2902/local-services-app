@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 /// isso mudar de domínio não mexe em código: ver `docs/SETUP.md`.
 ///
 /// - `APP_PUBLIC_URL`: endereço público da app, sem `/` no fim (por exemplo
-///   `https://projardim.pt` ou `https://projardim.netlify.app`).
+///   `https://projardim.pt`).
 /// - `SUPPORT_EMAIL`: email de suporte mostrado em "Contacto e suporte".
 /// - `TERMS_URL` / `PRIVACY_POLICY_URL`: só para forçar outro endereço. Por
 ///   omissão, `<domínio>/termos` e `<domínio>/privacidade` (páginas

@@ -23,7 +23,7 @@
   Play Store) e alguns pontos de **RGPD** antes de publicar.
 - `flutter analyze` a 0 issues e cerca de 560 testes sem rede; o CI corre os dois em
   cada PR.
-- Corre em Android, na web (Netlify, deploy à mão) e no iPhone como PWA. iOS nativo
+- Corre em Android, na web (Cloudflare Pages em projardim.pt, deploy à mão) e no iPhone como PWA. iOS nativo
   está preparado mas não publicado (sem Mac nem conta Apple).
 
 ---

@@ -945,7 +945,7 @@ falha com qualquer aviso, também `info`).
 Para correr: `flutter analyze` (raiz de `servicesapp/`), `flutter test`. **CI**:
 `.github/workflows/ci.yml` corre os dois em cada PR e em cada push para `main` que mexa
 em `servicesapp/` (falha também com avisos `info`, para manter o analyze a zero).
-`.github/workflows/deploy-web.yml` publica a versão web no Netlify (ver `SETUP.md`).
+`.github/workflows/deploy-web.yml` publica a versão web no Cloudflare Pages, em `projardim.pt` (ver `docs/web.md`).
 
 ---
 
