@@ -156,7 +156,7 @@ Usamos fornecedores externos (subcontratantes), com quem temos ou aceitámos aco
 |---|---|---|
 | **Supabase** | Base de dados, autenticação, armazenamento de fotografias e funções do servidor | União Europeia |
 | **Google Firebase (Firebase Cloud Messaging e Crashlytics)**, Google | Entrega de notificações push e relatórios de erros da app | Pode envolver servidores fora da UE (EUA) |
-| **Netlify** | Alojamento da versão web da app | Pode envolver servidores fora da UE (EUA) |
+| **Cloudflare** | Alojamento da versão web da app e DNS do domínio | Rede global, pode envolver servidores fora da UE (EUA) |
 | **Brevo** | Envio de emails da conta (por exemplo, códigos de confirmação e de recuperação da palavra-passe) | União Europeia (França) |
 | **OpenStreetMap / Nominatim e Photon (komoot)** | Mapa, sugestões de moradas e conversão entre coordenadas e nomes de ruas, quando escolhe uma localização | Recebe o texto da pesquisa ou a localização e o endereço IP do dispositivo |
 | **GitHub** | Guarda as cópias de segurança diárias da base de dados, cifradas | Pode envolver servidores fora da UE (EUA) |
@@ -164,8 +164,8 @@ Usamos fornecedores externos (subcontratantes), com quem temos ou aceitámos aco
 **Serviços que o utilizador escolhe usar e que têm as suas próprias políticas** (não são subcontratantes nossos):
 
 - **Google e Facebook (Meta)**, se escolher entrar com essas contas.
-- **WhatsApp (Meta)**, quando carregas no botão de contacto. A conversa acontece fora da ProJardim.
-- **Google Maps**, quando carregas no link de uma morada para ver o caminho.
+- **WhatsApp (Meta)**, quando carrega no botão de contacto. A conversa acontece fora da ProJardim.
+- **Google Maps**, quando carrega no link de uma morada para ver o caminho.
 - **Serviço de localização do sistema do telemóvel** (Google no Android, Apple no iOS): quando usa o GPS para indicar uma morada, o sistema do telemóvel converte as coordenadas no nome da rua, segundo as regras do fabricante.
 
 O reconhecimento de texto do cartão frota usa uma biblioteca da Google (ML Kit) que corre **no próprio dispositivo**; a imagem não é enviada para a Google nem para nós.
@@ -176,7 +176,7 @@ Não vendemos nem alugamos os seus dados a ninguém.
 
 ## 7. Transferências para fora da União Europeia
 
-A base de dados principal fica na União Europeia. Alguns fornecedores (Google Firebase, Netlify e GitHub) podem tratar dados nos Estados Unidos. Nesses casos, a transferência apoia-se no Quadro de Privacidade de Dados UE-EUA (EU-US Data Privacy Framework), quando o fornecedor está certificado, e/ou nas Cláusulas Contratuais-Tipo aprovadas pela Comissão Europeia. Pode pedir-nos mais informação sobre estas garantias pelo email de contacto.
+A base de dados principal fica na União Europeia. Alguns fornecedores (Google Firebase, Cloudflare e GitHub) podem tratar dados nos Estados Unidos. Nesses casos, a transferência apoia-se no Quadro de Privacidade de Dados UE-EUA (EU-US Data Privacy Framework), quando o fornecedor está certificado, e/ou nas Cláusulas Contratuais-Tipo aprovadas pela Comissão Europeia. Pode pedir-nos mais informação sobre estas garantias pelo email de contacto.
 
 ---
 
