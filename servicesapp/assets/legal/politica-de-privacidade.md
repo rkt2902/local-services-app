@@ -1,6 +1,6 @@
 # ProJardim: Política de Privacidade
 
-**Última atualização:** 17 de novembro de 2026
+**Última atualização:** 27 de novembro de 2026
 
 Esta Política explica que dados pessoais a ProJardim recolhe, para que os usa, com quem os partilha, durante quanto tempo os guarda e que direitos o utilizador tem sobre eles. Aplica-se à aplicação ProJardim (Android, iOS e versão web) e a qualquer página associada.
 
@@ -87,11 +87,17 @@ Se um Profissional aderir ao plano Pro ou Pro+, guardamos o plano, as datas de i
 
 Nos **Parceiros** (descontos para Profissionais), registamos quando o Profissional abre um parceiro, copia o código de desconto ou abre o link ou o mapa, para sabermos que parceiros são úteis e prestarmos contas a cada parceiro em números totais. Os parceiros nunca recebem o seu nome nem os seus contactos. Para mostrar os mais próximos, a app usa a distância à sua base de trabalho, já guardada no perfil.
 
-### 3.10 Pedidos de suporte e administração
+### 3.10 Consumo de combustível (opcional, só Profissionais)
+
+No registo, e mais tarde no Perfil, o Profissional pode indicar que combustíveis usa no trabalho (por exemplo, gasóleo, gasolina ou óleo de mistura) e quantos litros gasta, aproximadamente, por mês. Responder é **opcional**: pode saltar este passo, alterar as respostas ou apagá-las a qualquer momento no Perfil.
+
+Usamos estes valores apenas **somados com os de outros Profissionais** (por exemplo, por tipo de combustível e por distrito, calculado a partir da zona de trabalho já guardada no perfil) para negociar descontos e benefícios com parceiros, como o cartão frota. Os parceiros só recebem totais e médias, nunca o seu nome, os seus contactos nem os seus valores individuais. Estes dados não aparecem no seu perfil nem no cartão público.
+
+### 3.11 Pedidos de suporte e administração
 
 Quando nos escreve, guardamos a sua mensagem e a nossa resposta. Para ajudar, a equipa da ProJardim pode consultar os dados da sua conta, dos seus pedidos e dos seus trabalhos (incluindo fotografias) num painel de administração com acesso restrito, protegido por palavra-passe e por um segundo fator de autenticação. Cada ação feita nesse painel fica registada, com quem a fez e quando. Se uma conta for suspensa ou encerrada (ver os Termos, secção 12), guardamos o estado, as datas, o motivo interno e a mensagem que mostramos ao utilizador quando entra na app.
 
-### 3.11 O que NÃO recolhemos
+### 3.12 O que NÃO recolhemos
 
 - Não recolhemos dados de pagamento (cartões bancários, IBAN), porque a ProJardim não processa pagamentos.
 - Não seguimos a sua localização em segundo plano. O GPS só é usado quando carrega no botão para indicar uma localização.
@@ -115,6 +121,7 @@ Quando nos escreve, guardamos a sua mensagem e a nossa resposta. Para ajudar, a 
 | Avaliações e reputação dos utilizadores | Avaliações | Interesse legítimo (dar confiança a quem usa a plataforma) |
 | Mostrar ao Profissional quantas pessoas abriram o seu cartão e quantas se registaram a partir dele | Visitas ao cartão (secção 3.8) | Interesse legítimo (dar ao Profissional informação sobre o cartão que ele próprio partilha) |
 | Enviar aos Clientes dicas da época (no máximo algumas vezes por ano), que pode desligar em Conta > Editar perfil | Preferências de notificações, token do dispositivo | Interesse legítimo (informar sobre serviços da própria plataforma), com direito de oposição a qualquer momento |
+| Juntar o consumo de combustível declarado em números totais para negociar descontos com parceiros | Tipos de combustível e litros por mês (secção 3.10), zona de trabalho | Consentimento: só se responder, e pode apagar as respostas no Perfil a qualquer momento |
 | Detetar e corrigir erros da app | Relatórios de erros (secção 3.5) | Interesse legítimo (manter a app a funcionar) |
 | Prevenir fraude, abusos e garantir a segurança | Dados da conta, reportes, registos técnicos | Interesse legítimo (segurança da plataforma e dos utilizadores) |
 | Impedir que uma conta eliminada seja recriada logo a seguir com o mesmo email | Código (hash) calculado a partir do email da conta eliminada | Interesse legítimo (evitar que se contornem avaliações, bloqueios ou limites do plano grátis) |
@@ -149,7 +156,7 @@ Usamos fornecedores externos (subcontratantes), com quem temos ou aceitámos aco
 |---|---|---|
 | **Supabase** | Base de dados, autenticação, armazenamento de fotografias e funções do servidor | União Europeia |
 | **Google Firebase (Firebase Cloud Messaging e Crashlytics)**, Google | Entrega de notificações push e relatórios de erros da app | Pode envolver servidores fora da UE (EUA) |
-| **Netlify** | Alojamento da versão web da app | Pode envolver servidores fora da UE (EUA) |
+| **Cloudflare** | Alojamento da versão web da app e DNS do domínio | Rede global, pode envolver servidores fora da UE (EUA) |
 | **Brevo** | Envio de emails da conta (por exemplo, códigos de confirmação e de recuperação da palavra-passe) | União Europeia (França) |
 | **OpenStreetMap / Nominatim e Photon (komoot)** | Mapa, sugestões de moradas e conversão entre coordenadas e nomes de ruas, quando escolhe uma localização | Recebe o texto da pesquisa ou a localização e o endereço IP do dispositivo |
 | **GitHub** | Guarda as cópias de segurança diárias da base de dados, cifradas | Pode envolver servidores fora da UE (EUA) |
@@ -157,8 +164,8 @@ Usamos fornecedores externos (subcontratantes), com quem temos ou aceitámos aco
 **Serviços que o utilizador escolhe usar e que têm as suas próprias políticas** (não são subcontratantes nossos):
 
 - **Google e Facebook (Meta)**, se escolher entrar com essas contas.
-- **WhatsApp (Meta)**, quando carregas no botão de contacto. A conversa acontece fora da ProJardim.
-- **Google Maps**, quando carregas no link de uma morada para ver o caminho.
+- **WhatsApp (Meta)**, quando carrega no botão de contacto. A conversa acontece fora da ProJardim.
+- **Google Maps**, quando carrega no link de uma morada para ver o caminho.
 - **Serviço de localização do sistema do telemóvel** (Google no Android, Apple no iOS): quando usa o GPS para indicar uma morada, o sistema do telemóvel converte as coordenadas no nome da rua, segundo as regras do fabricante.
 
 O reconhecimento de texto do cartão frota usa uma biblioteca da Google (ML Kit) que corre **no próprio dispositivo**; a imagem não é enviada para a Google nem para nós.
@@ -169,7 +176,7 @@ Não vendemos nem alugamos os seus dados a ninguém.
 
 ## 7. Transferências para fora da União Europeia
 
-A base de dados principal fica na União Europeia. Alguns fornecedores (Google Firebase, Netlify e GitHub) podem tratar dados nos Estados Unidos. Nesses casos, a transferência apoia-se no Quadro de Privacidade de Dados UE-EUA (EU-US Data Privacy Framework), quando o fornecedor está certificado, e/ou nas Cláusulas Contratuais-Tipo aprovadas pela Comissão Europeia. Pode pedir-nos mais informação sobre estas garantias pelo email de contacto.
+A base de dados principal fica na União Europeia. Alguns fornecedores (Google Firebase, Cloudflare e GitHub) podem tratar dados nos Estados Unidos. Nesses casos, a transferência apoia-se no Quadro de Privacidade de Dados UE-EUA (EU-US Data Privacy Framework), quando o fornecedor está certificado, e/ou nas Cláusulas Contratuais-Tipo aprovadas pela Comissão Europeia. Pode pedir-nos mais informação sobre estas garantias pelo email de contacto.
 
 ---
 
@@ -179,6 +186,7 @@ A base de dados principal fica na União Europeia. Alguns fornecedores (Google F
 - **Notificações:** as lidas são apagadas automaticamente ao fim de 90 dias e todas as restantes ao fim de 180 dias.
 - **Token de notificações push:** até terminar a sessão nesse dispositivo ou eliminar a conta.
 - **Agenda e trabalhos de fora da app:** enquanto os mantiver. Pode apagar cada um a qualquer momento e são todos apagados quando elimina a conta.
+- **Consumo de combustível:** enquanto não o alterar ou apagar no Perfil; é apagado quando elimina a conta.
 - **Fotografia do cartão frota:** não é guardada (é apagada no dispositivo logo após a leitura).
 - **Quando eliminas a conta:** ver secção 10.
 - **Código (hash) do email de uma conta eliminada:** 90 dias a contar da eliminação, e depois é apagado automaticamente.
