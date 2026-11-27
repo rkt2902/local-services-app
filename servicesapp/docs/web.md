@@ -42,23 +42,24 @@ ficar à frente de migrations por aplicar. No fim confirma que
 `projardim.pt` e `projardim.pt/privacidade` respondem 200 e deixa um aviso
 se não.
 
-Configura-se uma vez:
+Configura-se uma vez (dá para fazer tudo no telemóvel):
 
-1. Cloudflare: My Profile > API Tokens > Create Token > modelo "Edit
-   Cloudflare Workers" ou um token próprio com **Account > Cloudflare Pages >
-   Edit**. Copiar o token.
-2. Cloudflare: na página inicial da conta, copiar o **Account ID** (coluna
-   da direita em qualquer domínio, ou na barra do endereço).
+1. Cloudflare: My Profile > API Tokens > Create Token > Create Custom Token,
+   com 3 permissões: **Account > Cloudflare Pages > Edit**, **Zone > DNS >
+   Edit** e **Zone > Zone > Read**; em Zone Resources, só `projardim.pt`.
+   Copiar o token (não o colar em chats).
+2. Cloudflare: copiar o **Account ID** (página do domínio, coluna da
+   direita, "API" > Account ID).
 3. GitHub: repo > Settings > Secrets and variables > Actions > Secrets:
    - `CLOUDFLARE_API_TOKEN` (passo 1)
    - `CLOUDFLARE_ACCOUNT_ID` (passo 2)
    - `SUPABASE_URL` e `SUPABASE_ANON_KEY` (já existiam)
-4. Correr o workflow uma vez. O projeto `projardim` é criado sozinho no
-   Cloudflare Pages e fica em `https://projardim.pages.dev`.
-5. Cloudflare > Workers & Pages > projardim > Custom domains > Set up a
-   custom domain: `projardim.pt`, e depois `www.projardim.pt`. Como o DNS
-   está na mesma conta, a Cloudflare troca os registos antigos do Netlify e
-   emite o certificado em poucos minutos.
+4. O workflow corre (à mão, ou sozinho quando o próprio ficheiro muda no
+   `main`) e faz o resto: cria o projeto `projardim` no Cloudflare Pages
+   (`https://projardim.pages.dev`), publica, liga `projardim.pt` e
+   `www.projardim.pt` ao projeto e troca os registos A/AAAA/CNAME desses dois
+   nomes (os antigos do Netlify) por um CNAME para `projardim.pages.dev`. MX
+   e TXT (Brevo, email) não são tocados. O certificado sai em poucos minutos.
 
 Variáveis opcionais (Settings > Secrets and variables > Actions >
 Variables): `APP_PUBLIC_URL` (por omissão `https://projardim.pt`; se ainda

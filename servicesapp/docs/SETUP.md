@@ -112,8 +112,9 @@ Actions > Deploy web > Run workflow).
 
 ### 1.1 Secrets no GitHub
 
-- [ ] Cloudflare: My Profile > API Tokens > Create Token, com permissão
-      **Account > Cloudflare Pages > Edit**. Copiar.
+- [ ] Cloudflare: My Profile > API Tokens > Create Custom Token, com **Account >
+      Cloudflare Pages > Edit**, **Zone > DNS > Edit** e **Zone > Zone > Read** (zona
+      `projardim.pt`). Copiar.
 - [ ] Cloudflare: copiar o **Account ID** (página inicial da conta).
 - [ ] GitHub: repo > Settings > Secrets and variables > Actions > **Secrets**, ter os 4:
   - [ ] `CLOUDFLARE_API_TOKEN`
@@ -134,10 +135,9 @@ Actions > Deploy web > Run workflow).
 
 ### 1.2 Primeiro deploy e domínio
 
-- [ ] GitHub > Actions > Deploy web > Run workflow. Cria o projeto `projardim` no
-      Cloudflare Pages (`https://projardim.pages.dev`).
-- [ ] Cloudflare > Workers & Pages > projardim > Custom domains: adicionar
-      `projardim.pt` e `www.projardim.pt`. A Cloudflare troca os registos DNS antigos.
+- [ ] GitHub > Actions > Deploy web > Run workflow (ou o merge do PR que mexe no
+      workflow). Cria o projeto `projardim` no Cloudflare Pages, liga `projardim.pt` e
+      `www` e troca os registos DNS antigos do Netlify.
 - [ ] Netlify: Domain management > remover `projardim.pt` do site (e, se quiser,
       apagar o site).
 

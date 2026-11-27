@@ -7,6 +7,12 @@ name: Deploy web
 
 on:
   workflow_dispatch:
+  # Também corre sozinho quando este ficheiro muda no main (por exemplo no
+  # merge que o criou), para não ser preciso abrir o Actions no telemóvel.
+  # Um merge de código normal não publica.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-web.yml']
 
 permissions:
   contents: read
@@ -99,9 +105,57 @@ jobs:
           --commit-hash="${{ github.sha }}"
           --commit-dirty=true
 
+      # Liga projardim.pt e www ao projeto e põe os registos DNS a apontar
+      # para <projeto>.pages.dev (só A/AAAA/CNAME desses dois nomes; MX e TXT,
+      # como os do Brevo, ficam intactos). Pode correr as vezes que for
+      # preciso: o que já está certo não muda.
+      # O token precisa de: Account > Cloudflare Pages > Edit, Zone > DNS >
+      # Edit e Zone > Zone > Read (zona projardim.pt).
+      - name: Ligar o domínio ao Cloudflare Pages
+        run: |
+          set -euo pipefail
+          api() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "$@"; }
+          base=https://api.cloudflare.com/client/v4
+          apex="${APP_PUBLIC_URL#https://}"; apex="${apex#www.}"; apex="${apex%%/*}"
+          target="$PAGES_PROJECT.pages.dev"
+
+          zone=$(api "$base/zones?name=$apex" | jq -r '.result[0].id // empty')
+          if [ -z "$zone" ]; then
+            echo "::error::Não encontrei a zona $apex na Cloudflare. O token precisa de Zone > Zone > Read e Zone > DNS > Edit nessa zona."
+            exit 1
+          fi
+
+          for name in "$apex" "www.$apex"; do
+            records=$(api "$base/zones/$zone/dns_records?name=$name&per_page=100")
+            ok=$(echo "$records" | jq -r --arg t "$target" '[.result[] | select(.type=="CNAME" and .content==$t)] | length')
+            if [ "$ok" = "0" ]; then
+              for id in $(echo "$records" | jq -r '.result[] | select(.type=="A" or .type=="AAAA" or .type=="CNAME") | .id'); do
+                old=$(echo "$records" | jq -r --arg id "$id" '.result[] | select(.id==$id) | "\(.type) \(.content)"')
+                echo "DNS $name: apagar registo antigo ($old)"
+                api -X DELETE "$base/zones/$zone/dns_records/$id" | jq -e '.success' >/dev/null
+              done
+              echo "DNS $name: criar CNAME -> $target"
+              api -X POST "$base/zones/$zone/dns_records" \
+                --data "{\"type\":\"CNAME\",\"name\":\"$name\",\"content\":\"$target\",\"proxied\":true,\"ttl\":1}" \
+                | jq -e '.success' >/dev/null
+            else
+              echo "DNS $name: já aponta para $target"
+            fi
+
+            res=$(api -X POST "$base/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PAGES_PROJECT/domains" --data "{\"name\":\"$name\"}")
+            if echo "$res" | jq -e '.success' >/dev/null; then
+              echo "Pages: $name adicionado ao projeto"
+            elif echo "$res" | grep -qi 'already'; then
+              echo "Pages: $name já estava no projeto"
+            else
+              echo "::error::Não consegui adicionar $name ao Pages: $(echo "$res" | jq -c '.errors')"
+              exit 1
+            fi
+          done
+
       - name: Confirmar que o domínio responde
         run: |
-          sleep 20
+          sleep 60
           for url in "$APP_PUBLIC_URL/" "$APP_PUBLIC_URL/privacidade/"; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 20 "$url" || echo 000)
             echo "$url -> $code"
