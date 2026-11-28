@@ -3,6 +3,25 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-28 — Convites por email a partir do painel
+
+- **Decisão:** `/admin/convites` envia convites a Profissionais por email, um
+  destinatário de cada vez, com 3 modelos (convite com design, só texto, lembrete)
+  tirados dos materiais de marketing. Os modelos vivem em Dart
+  (`admin_invite_templates.dart`): a mesma estrutura dá o HTML, o texto e a
+  pré-visualização, e os testes correm no CI. O envio é pela Edge Function
+  `send-invite` (API transacional do Brevo, chave em segredo do Supabase), que
+  regista o envio com o JWT do admin antes de enviar. Remetente e Reply-To
+  `suporte@projardim.pt`. Limite de 40 por dia, mesmo modelo ao mesmo email só uma
+  vez em 24 h. Cada email leva o link `/sem-convites?t=<token>` e o cabeçalho
+  `List-Unsubscribe`; quem pede fica em `email_optouts` para sempre e a BD recusa
+  novos envios. O histórico apaga-se aos 12 meses.
+- **Motivo:** o Henrique queria mandar os convites já com os modelos prontos, sem
+  copiar e colar no Gmail. RGPD: só contactos introduzidos à mão, forma simples de
+  deixar de receber e registo mínimo (o registo do admin guarda só o domínio do
+  email). Isto não muda a regra "contacto só por WhatsApp" entre clientes e
+  Profissionais: é um email da ProJardim a quem ainda não tem conta.
+
 ## 2026-11-26 — Consumo de combustível no registo do Profissional
 
 - **Decisão:** o registo do Profissional passa a ter 2 passos. "Configurar perfil"

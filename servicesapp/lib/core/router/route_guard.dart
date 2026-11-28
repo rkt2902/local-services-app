@@ -17,6 +17,11 @@ const publicRoutes = {
   '/privacidade',
 };
 
+/// Link "não quero receber" dos convites por email (0085,
+/// `/sem-convites?t=<token>`). Abre sempre, com ou sem sessão, sem passar
+/// pelo onboarding: quem o abre pode nem ter conta.
+const inviteOptoutRoute = '/sem-convites';
+
 /// Caminho do deep link de volta do login Google/Facebook nas apps
 /// (`pt.projardim.app://login-callback`). O Supabase lê a sessão do link;
 /// o router só tem de sair daqui, senão mostrava "página não encontrada".
@@ -115,7 +120,7 @@ String? resolveRedirect({
 
   // Termos e Política abrem sempre: sem sessão, a meio do registo
   // (/choose-role) ou já com conta.
-  if (legalRoutes.contains(loc)) return null;
+  if (legalRoutes.contains(loc) || loc == inviteOptoutRoute) return null;
 
   final isAuthenticated = session.isAuthenticated;
   final role = session.role;

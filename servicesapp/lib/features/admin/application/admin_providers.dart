@@ -4,6 +4,7 @@ import '../../../core/constants/enums.dart';
 import '../../auth/application/auth_providers.dart';
 import '../data/admin_account_models.dart';
 import '../data/admin_growth_models.dart';
+import '../data/admin_invite_models.dart';
 import '../data/admin_partner_stats_models.dart';
 import '../data/admin_models.dart';
 import '../data/admin_partner_models.dart';
@@ -232,6 +233,15 @@ final adminFunnelProvider = FutureProvider.autoDispose
 final adminNoticesProvider = FutureProvider.autoDispose<List<AdminNoticeRow>>(
   (ref) => ref.read(adminRepositoryProvider).fetchNotices(),
 );
+
+// ── Convites por email (0085) ─────────────────────────────────────
+
+/// Histórico de convites; o argumento é a pesquisa (nome ou email).
+final adminInvitesProvider = FutureProvider.autoDispose
+    .family<List<AdminInviteRow>, String>(
+      (ref, search) =>
+          ref.read(adminRepositoryProvider).fetchInvites(search: search),
+    );
 
 // ── Parceiros e zonas (0082) ──────────────────────────────────────
 

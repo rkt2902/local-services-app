@@ -91,6 +91,14 @@
   tablet e PC.
 
 ### Administração
+- `/admin/convites` (0085, 28/11): convite por email a um Profissional de cada vez,
+  com 3 modelos (convite com design, convite só texto, lembrete), assunto sugerido,
+  assinatura e duração opcional do Pro de fundador, pré-visualização, aviso se o
+  email já recebeu algo, histórico com "Lembrete" e "Não quer receber". Envia pela
+  Edge Function `send-invite` (Brevo) de suporte@projardim.pt; cada email leva o link
+  `/sem-convites` para deixar de receber. Limite de 40 por dia. **Ainda não envia**:
+  falta aplicar a `0085`, publicar a função com o `BREVO_API_KEY` e ter o domínio e o
+  Brevo repostos (SETUP, secção 10). A pré-visualização funciona já.
 - `/admin/estatisticas` (0084): Profissionais registados e ativos (30 dias), Pro e
   Pro+, inquérito de combustível (respostas, litros por tipo, estimativa para todos),
   por distrito aproximado (capital mais perto da base) e trabalhos concluídos por mês

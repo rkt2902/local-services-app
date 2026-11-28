@@ -592,6 +592,53 @@ e guardá-lo noutro sítio (disco ou Google Drive), porque o GitHub só guarda
 
 ---
 
+## 10. Convites por email no painel (`/admin/convites`, 0085)
+
+Só funciona com o domínio `projardim.pt` ativo, o DNS na Cloudflare e o domínio
+autenticado no Brevo (passo 5.3). Enquanto o domínio estiver em novo registo, o ecrã
+abre e pré-visualiza, mas o envio falha.
+
+- [ ] SQL Editor: correr a `0085_admin_invite_emails.sql` (depois da `0084`).
+      Confirmar o cron: `SELECT jobname, schedule, active FROM cron.job WHERE jobname = 'admin-invites-purge';`
+- [ ] Brevo > Senders, Domains & Dedicated IPs > Senders: adicionar
+      `suporte@projardim.pt` como remetente (o domínio tem de aparecer como
+      autenticado em Domains).
+- [ ] Brevo > SMTP & API > API Keys > Generate a new API key (nome: `supabase-convites`).
+      Copiar a chave (começa por `xkeysib-`). Não é a SMTP key do passo 3.
+- [ ] No terminal, dentro de `servicesapp/`:
+
+```bash
+supabase secrets set BREVO_API_KEY=xkeysib-...
+supabase functions deploy send-invite
+```
+
+      Opcionais (só se quiser mudar o que vem por omissão): `INVITE_FROM_EMAIL`
+      (`suporte@projardim.pt`), `INVITE_FROM_NAME` (`ProJardim`), `INVITE_REPLY_TO`
+      (igual ao remetente) e `INVITE_OPTOUT_URL` (`https://projardim.pt/sem-convites`).
+      Esta função usa a verificação de JWT normal (sem `--no-verify-jwt`).
+- [ ] Publicar a versão web nova (o link `/sem-convites` dos emails abre a app web).
+- [ ] As respostas aos convites vão para `suporte@projardim.pt`, que reencaminha para o
+      Gmail (Cloudflare Email Routing). Confirmar que o reencaminhamento voltou depois
+      do novo registo do domínio.
+
+### Testar
+
+- [ ] `/admin/convites` > "Convite com design", o seu nome e um email seu > "Rever e
+      enviar". Chega de `ProJardim <suporte@projardim.pt>` (ver também o spam) e aparece
+      em Brevo > Transactional > Logs e no histórico como "Enviado".
+- [ ] Repetir com "Convite só texto" e "Lembrete" para o mesmo email: os dois passam;
+      o mesmo modelo outra vez no mesmo dia é recusado.
+- [ ] No email, "Não quero receber mais emails" abre `/sem-convites`, confirmar mostra
+      "Pedido registado"; no painel o histórico passa a "Não quer receber" e um envio
+      novo para esse email é recusado.
+- [ ] Responder ao email: a resposta chega ao Gmail.
+- [ ] Sem o `BREVO_API_KEY` o painel diz que o envio não está configurado e nada fica
+      no histórico.
+
+**Diz ao Claude:** "Convites por email a funcionar."
+
+---
+
 ## Não ligar ainda
 
 ### App links (abrir `https://<domínio>/w/...` diretamente na app instalada)

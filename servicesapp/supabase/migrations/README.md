@@ -13,7 +13,10 @@ no SQL Editor depois da `0082`.
 A `0084` (consumo de combustível e estatísticas para parceiros) está criada mas
 **não aplicada**: aplicar no SQL Editor depois da `0083`.
 
-**Próxima migration nova: `0085`.** Antes de numerar, confirmar com
+A `0085` (convites por email no painel de admin) está criada mas **não aplicada**:
+aplicar no SQL Editor depois da `0084`.
+
+**Próxima migration nova: `0086`.** Antes de numerar, confirmar com
 `ls servicesapp/supabase/migrations` no `main`, porque threads paralelas também criam
 migrations.
 
@@ -65,6 +68,7 @@ Editor do Supabase e confirma.
 | `0082_admin_partners_zones.sql` | Painel: cartões frota (`admin_list_fleet_cards`, `admin_review_fleet_card`, colunas `reviewed_at`/`review_message`, aviso `fleet_card_reviewed`), parceiros (`partners` com foto, códigos, QR, link, validade, visível na app e só Pro+; `admin_list_partners`, `admin_save_partner`, `admin_delete_partner`; `get_partners` para a app com a distância à base; uso na app em `partner_events` (`log_partner_event`) com os números no painel; `admin_partner_alerts`; avisos de parceiro com `admin_send_notice(..., p_partner_id)` e tipo `partner_new`; bucket `partner-images`; um parceiro de exemplo) e `admin_map_zones` (quadrados com pedidos sem resposta, cobertura e parceiros). Alterada a 16/11 antes de aplicada; se a versão anterior tiver sido corrida, renomeia `partner_locations` e apaga as funções antigas | aplicada (17/11) |
 | `0083_formal_texts.sql` | Textos dos avisos, notificações e erros em tratamento formal ("O seu pedido", "Pode", "Veja") e "profissional" em vez de "jardineiro". Volta a criar 76 funções com a mesma assinatura e a lógica da última migration de cada uma, só com os textos mudados; o CSV do painel passa a ter a coluna `profissional`. Pode correr-se mais do que uma vez | **criada, não aplicada** |
 | `0084_worker_fuel_usage.sql` | Consumo de combustível do Profissional: tabelas `fuel_types` (4 tipos) e `worker_fuel_usage`, RPCs `get_my_fuel_usage` e `set_my_fuel_usage` (só `auth.uid()`), e `admin_partner_stats` para `/admin/estatisticas` com `approx_district`. Pode correr-se mais do que uma vez | **criada, não aplicada** |
+| `0085_admin_invite_emails.sql` | Convites por email a Profissionais pelo painel (`/admin/convites`): tabelas `admin_invites` (histórico, apagado aos 12 meses por cron `admin-invites-purge`) e `email_optouts` (quem não quer receber, fica sempre), RPCs `admin_invite_status`, `admin_invite_create`, `admin_invite_finish` (chamadas pela Edge Function `send-invite`), `admin_list_invites`, `admin_invite_set_optout` (todas com admin e segundo fator) e `invite_optout` (link do email, anónima, por token). Limite de 40 convites em 24 h. Pode correr-se mais do que uma vez | **criada, não aplicada** |
 
 O detalhe de cada uma está no cabeçalho do próprio ficheiro e em `docs/ARCHITECTURE.md`
 secção 7.

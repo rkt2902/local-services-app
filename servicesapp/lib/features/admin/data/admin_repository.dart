@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/enums.dart';
 import 'admin_account_models.dart';
 import 'admin_growth_models.dart';
+import 'admin_invite_models.dart';
+import 'admin_invite_templates.dart';
 import 'admin_partner_stats_models.dart';
 import 'admin_models.dart';
 import 'admin_partner_models.dart';
@@ -810,4 +812,85 @@ class AdminRepository {
         .map((e) => AdminMapZone.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  // ── Convites por email (0085) ────────────────────────────────────
+
+  /// O que a BD sabe deste email: pediu para não receber, quantos convites
+  /// já recebeu, quantos foram enviados hoje.
+  Future<AdminInviteEmailInfo> fetchInviteEmailInfo(String email) async {
+    final data = await _client.rpc(
+      'admin_invite_status',
+      params: {'p_email': email.trim()},
+    );
+    return AdminInviteEmailInfo.fromJson((data as Map).cast<String, dynamic>());
+  }
+
+  /// Envia pela Edge Function `send-invite` (Brevo). A função regista o
+  /// envio com a sessão deste admin e troca o marcador do link "não quero
+  /// receber" pelo link real. Lança [AdminInviteException] com a mensagem
+  /// para mostrar.
+  Future<void> sendInvite(AdminInviteDraft draft) async {
+    final message = buildAdminInvite(draft);
+    try {
+      await _client.functions.invoke(
+        'send-invite',
+        body: {
+          'template': draft.template.dbValue,
+          'recipientName': draft.recipientName.trim(),
+          'recipientEmail': draft.recipientEmail.trim(),
+          'subject': draft.subject.trim(),
+          'html': message.toHtml(),
+          'text': message.toText(),
+        },
+      );
+    } on FunctionException catch (e) {
+      throw AdminInviteException(adminInviteErrorMessage(e.status, e.details));
+    }
+  }
+
+  Future<List<AdminInviteRow>> fetchInvites({
+    String? search,
+    int limit = 50,
+  }) async {
+    final q = search?.trim();
+    final data = await _client.rpc(
+      'admin_list_invites',
+      params: {
+        'p_search': q == null || q.isEmpty ? null : q,
+        'p_limit': limit,
+        'p_offset': 0,
+      },
+    );
+    return (data as List)
+        .map((e) => AdminInviteRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Regista que este email não quer receber mais (respondeu "não").
+  Future<void> setInviteOptout(String email, {String? note}) => _client.rpc(
+    'admin_invite_set_optout',
+    params: {'p_email': email.trim(), 'p_note': note},
+  );
+}
+
+/// Mensagem para uma resposta de erro da `send-invite`.
+String adminInviteErrorMessage(int status, Object? details) {
+  final error = details is Map ? details['error'] : null;
+  if (status == 0) {
+    return 'Sem ligação à internet. Verifique a ligação e tente novamente.';
+  }
+  if (status == 404) {
+    return 'O envio de emails ainda não está ativo: falta publicar a função '
+        'send-invite no Supabase (ver SETUP, secção 10).';
+  }
+  if (status == 401) {
+    return 'A sessão expirou. Entre outra vez no painel.';
+  }
+  if (error is String && error.trim().isNotEmpty) {
+    if (status == 502) {
+      return 'O Brevo recusou o envio ($error). Ficou no histórico como falhado.';
+    }
+    return error.trim();
+  }
+  return 'Não foi possível enviar o convite (erro $status).';
 }
