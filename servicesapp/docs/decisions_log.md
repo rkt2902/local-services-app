@@ -3,6 +3,20 @@
 > Registo de decisões técnicas importantes. Memória entre sessões Browser/Code.
 > Formato: data — decisão — motivo.
 
+## 2026-11-27 — Web sai do Netlify para o Cloudflare Pages
+
+- **Decisão:** o workflow "Deploy web" publica no Cloudflare Pages (projeto
+  `projardim`, criado pelo próprio workflow) com `wrangler pages deploy`, e o domínio
+  `projardim.pt` (e `www`) liga-se ao projeto em Custom domains. Secrets novos
+  `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`; saem `NETLIFY_*` e
+  `web/_redirects`; entra `web/_headers` (sem cache no index.html e no service worker).
+  `APP_PUBLIC_URL` passa a `https://projardim.pt` por omissão e uma variável antiga
+  com `netlify.app` é ignorada. Continua só à mão.
+- **Motivo:** a 27/11 o projardim.pt estava em baixo e o `netlify.app` funcionava; o
+  deploy ia bem para o Netlify, o problema estava na ligação do domínio ao site. O DNS
+  já estava na Cloudflare, por isso alojar lá tira um intermediário e o Henrique não
+  queria continuar no Netlify (créditos por deploy).
+
 ## 2026-11-26 — Consumo de combustível no registo do Profissional
 
 - **Decisão:** o registo do Profissional passa a ter 2 passos. "Configurar perfil"

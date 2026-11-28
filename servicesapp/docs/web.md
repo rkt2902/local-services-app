@@ -1,6 +1,6 @@
 # ProJardim na web (e no iPhone como app instalada)
 
-> Passo a passo de toda a configuração (Netlify, Supabase, email, push, domínio):
+> Passo a passo de toda a configuração (Cloudflare Pages, Supabase, email, push, domínio):
 > `docs/SETUP.md`. Este ficheiro explica a versão web em si.
 
 A mesma app Flutter corre no browser (Flutter web). É o caminho para quem tem
@@ -22,46 +22,53 @@ flutter build web --release --dart-define=SUPABASE_URL=... --dart-define=SUPABAS
 Os valores são os mesmos do `.vscode/launch.json`. A anon key é pública por
 natureza (vai sempre dentro da app), a segurança está na RLS.
 
-## 2. Pôr online no Netlify (grátis)
+## 2. Pôr online no Cloudflare Pages (grátis)
 
-O Netlify dá HTTPS, que é obrigatório para o GPS e para instalar no iPhone.
-A app usa URLs sem `#` (por exemplo `/w/<id>`); o ficheiro `web/_redirects`
-já faz o Netlify devolver `index.html` em qualquer caminho.
+Desde 27/11 a web está no Cloudflare Pages e é servida em `https://projardim.pt`
+(antes estava no Netlify). O DNS do domínio já estava na Cloudflare, por isso
+o certificado HTTPS e os registos do domínio ficam no mesmo sítio, sem
+intermediários. HTTPS é obrigatório para o GPS e para instalar no iPhone.
 
-### Primeira vez (à mão, uns minutos)
+A app usa URLs sem `#` (por exemplo `/w/<id>`). O Cloudflare Pages devolve
+`index.html` em qualquer caminho que não exista, porque o build não tem
+`404.html`, por isso não precisa de `_redirects`. O `web/_headers` impede que
+o `index.html` e o service worker fiquem em cache antigo depois de um deploy.
 
-1. Criar conta em netlify.com ("Sign up with GitHub").
-2. No PC, em `servicesapp/`: `flutter build web --release` com as
-   `--dart-define` do `.vscode/launch.json` (ver secção 1).
-3. Abrir app.netlify.com/drop e arrastar a pasta `build/web`. Em segundos
-   dá um endereço do tipo `https://nome-aleatorio.netlify.app`.
-4. Site configuration > Change site name > `projardim` (fica
-   `https://projardim.netlify.app`, se o nome estiver livre).
-5. Abrir esse endereço no telemóvel.
+### Publicar (GitHub Actions, à mão)
 
-### Publicar com um clique (GitHub Actions)
+O workflow `.github/workflows/deploy-web.yml` compila e publica. Só corre à
+mão (Actions > Deploy web > Run workflow, branch `main`), para a web não
+ficar à frente de migrations por aplicar. No fim confirma que
+`projardim.pt` e `projardim.pt/privacidade` respondem 200 e deixa um aviso
+se não.
 
-O workflow `.github/workflows/deploy-web.yml` compila e publica. Desde
-26/10 só corre à mão (cada deploy gasta créditos do Netlify), por isso um
-merge no `main` já não publica sozinho. Configura-se uma vez:
+Configura-se uma vez (dá para fazer tudo no telemóvel):
 
-1. Netlify: avatar > User settings > Applications > Personal access tokens >
-   New access token. Copiar o token.
-2. Netlify: no site > Site configuration > Site details > copiar o
-   **Site ID**.
-3. GitHub: repo > Settings > Secrets and variables > Actions > New
-   repository secret, criar 4:
-   - `NETLIFY_AUTH_TOKEN` (passo 1)
-   - `NETLIFY_SITE_ID` (passo 2)
-   - `SUPABASE_URL` e `SUPABASE_ANON_KEY` (os mesmos do `launch.json`)
-4. Para publicar: Actions > Deploy web > Run workflow (branch `main`).
-   Se faltar algum secret o workflow para logo e diz qual. Para voltar ao
-   deploy automático a cada merge, repor o bloco `push` no `on:` do
-   workflow.
+1. Cloudflare: My Profile > API Tokens > Create Token > Create Custom Token,
+   com 3 permissões: **Account > Cloudflare Pages > Edit**, **Zone > DNS >
+   Edit** e **Zone > Zone > Read**; em Zone Resources, só `projardim.pt`.
+   Copiar o token (não o colar em chats).
+2. Cloudflare: copiar o **Account ID** (página do domínio, coluna da
+   direita, "API" > Account ID).
+3. GitHub: repo > Settings > Secrets and variables > Actions > Secrets:
+   - `CLOUDFLARE_API_TOKEN` (passo 1)
+   - `CLOUDFLARE_ACCOUNT_ID` (passo 2)
+   - `SUPABASE_URL` e `SUPABASE_ANON_KEY` (já existiam)
+4. O workflow corre (à mão, ou sozinho quando o próprio ficheiro muda no
+   `main`) e faz o resto: cria o projeto `projardim` no Cloudflare Pages
+   (`https://projardim.pages.dev`), publica, liga `projardim.pt` e
+   `www.projardim.pt` ao projeto e troca os registos A/AAAA/CNAME desses dois
+   nomes (os antigos do Netlify) por um CNAME para `projardim.pages.dev`. MX
+   e TXT (Brevo, email) não são tocados. O certificado sai em poucos minutos.
+
+Variáveis opcionais (Settings > Secrets and variables > Actions >
+Variables): `APP_PUBLIC_URL` (por omissão `https://projardim.pt`; se ainda
+apontar para o Netlify, o workflow ignora-a e avisa), `CLOUDFLARE_PAGES_PROJECT`
+(por omissão `projardim`), `SUPPORT_EMAIL`, `FACEBOOK_LOGIN_ENABLED`,
+`GOOGLE_WEB_CLIENT_ID`.
 
 Alternativas com config já incluída, se um dia for preciso: Firebase Hosting
-(`firebase.json`), Vercel (`web/vercel.json`), Cloudflare Pages
-(`web/_redirects`).
+(`firebase.json`), Vercel (`web/vercel.json`).
 
 ### Ver no telemóvel antes de publicar
 
@@ -79,9 +86,9 @@ para instalar.
 
 Dashboard > Authentication > URL Configuration:
 
-- **Site URL**: o endereço do Netlify, por exemplo `https://projardim.netlify.app`.
-- **Redirect URLs**: adicionar `https://projardim.netlify.app/**` e, para
-  testar no PC, `http://localhost:*/**`.
+- **Site URL**: `https://projardim.pt`.
+- **Redirect URLs**: `https://projardim.pt/**`, `https://www.projardim.pt/**`
+  e, para testar no PC, `http://localhost:*/**`.
 
 A recuperação de senha usa código de 6 dígitos (não usa link), por isso
 funciona sem mais nada. Estes URLs passam a contar quando a confirmação de

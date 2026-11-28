@@ -1,0 +1,16 @@
+# Cloudflare Pages: o index.html, o bootstrap e o service worker do Flutter
+# têm de ser sempre revalidados, senão quem já abriu a app fica com a versão
+# antiga depois de um deploy. O resto (main.dart.js, assets) muda de conteúdo
+# a cada build e o Cloudflare revalida-o pelo ETag.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/flutter_bootstrap.js
+  Cache-Control: no-cache
+/flutter_service_worker.js
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-cache
+/manifest.json
+  Cache-Control: no-cache

@@ -10,11 +10,11 @@ mexe em código.
 
 Ordem recomendada e porquê:
 
-1. Netlify e secrets do GitHub (o site fica online, tudo o resto aponta para ele)
+1. Cloudflare Pages e secrets do GitHub (o site fica online em projardim.pt)
 2. Supabase: Site URL e Redirect URLs
 3. Email: SMTP Brevo e template de recuperação com o código
 4. Firebase e push
-5. Domínio real (quando o comprares; até lá o `netlify.app` serve)
+5. Domínio real (feito a 13/11: projardim.pt)
 6. Testes manuais que ficaram pendentes
 7. Login com Google e Facebook (depende do passo 2; pode ser feito logo a seguir)
 
@@ -104,61 +104,54 @@ desligar uma campanha: `update seasonal_campaigns set active = false where slug 
 
 ---
 
-## 1. Netlify e deploy (à mão)
+## 1. Cloudflare Pages e deploy (à mão)
 
-Detalhe extra em `docs/web.md`, secção 2.
+Detalhe em `docs/web.md`, secção 2. Desde 27/11 a web está no Cloudflare Pages, em
+`https://projardim.pt` (antes estava no Netlify). O deploy só corre à mão (GitHub >
+Actions > Deploy web > Run workflow).
 
-Desde 26/10 (PR #32) o deploy da web só corre à mão (GitHub > Actions > Deploy web >
-Run workflow), para não gastar créditos do Netlify a cada merge.
+### 1.1 Secrets no GitHub
 
-### 1.1 Primeiro deploy (à mão)
-
-- [ ] Criar conta em netlify.com com "Sign up with GitHub".
-- [ ] No PC, em `servicesapp/`:
-      ```bash
-      flutter build web --release --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
-      ```
-- [ ] Abrir app.netlify.com/drop e arrastar a pasta `build/web`.
-- [ ] Site configuration > Change site name > `projardim` (fica
-      `https://projardim.netlify.app`; se estiver ocupado, escolhe outro e usa esse
-      endereço em todo o resto deste guia).
-
-### 1.2 Secrets e variáveis no GitHub
-
-- [ ] Netlify: avatar > User settings > Applications > Personal access tokens > New
-      access token. Copiar.
-- [ ] Netlify: no site > Site configuration > Site details > copiar o **Site ID**.
-- [ ] GitHub: repo > Settings > Secrets and variables > Actions > **Secrets** > New
-      repository secret, criar os 4:
-  - [ ] `NETLIFY_AUTH_TOKEN`
-  - [ ] `NETLIFY_SITE_ID`
+- [ ] Cloudflare: My Profile > API Tokens > Create Custom Token, com **Account >
+      Cloudflare Pages > Edit**, **Zone > DNS > Edit** e **Zone > Zone > Read** (zona
+      `projardim.pt`). Copiar.
+- [ ] Cloudflare: copiar o **Account ID** (página inicial da conta).
+- [ ] GitHub: repo > Settings > Secrets and variables > Actions > **Secrets**, ter os 4:
+  - [ ] `CLOUDFLARE_API_TOKEN`
+  - [ ] `CLOUDFLARE_ACCOUNT_ID`
   - [ ] `SUPABASE_URL`
   - [ ] `SUPABASE_ANON_KEY`
-- [ ] Opcional, no mesmo sítio mas no separador **Variables** (não são secretas):
-  - `SUPPORT_EMAIL`: o email que aparece em "Contacto e suporte". Sem ela fica
-    `projardim26@gmail.com`. Só a mudes quando houver um email no domínio (passo 5).
+- [ ] Apagar os secrets antigos `NETLIFY_AUTH_TOKEN` e `NETLIFY_SITE_ID`.
+- [ ] Opcional, no separador **Variables** (não são secretas):
+  - `APP_PUBLIC_URL`: por omissão `https://projardim.pt`. Se tiver o endereço do
+    Netlify, apagar (o workflow ignora-o e avisa).
+  - `SUPPORT_EMAIL`: o email que aparece em "Contacto e suporte".
   - Os Termos e a Política de Privacidade vêm com a app (`assets/legal/`) e abrem
     nos ecrãs `/termos` e `/privacidade`. Na web, projardim.pt/termos e
     projardim.pt/privacidade servem as páginas estáticas de `web/termos/` e
     `web/privacidade/`, geradas com `python3 tool/build_legal_pages.py` sempre que
     os textos mudarem (o CI falha se ficarem desatualizadas). São estes os links a
     pôr na Google Play, no Google Cloud e na Meta.
-  - `APP_PUBLIC_URL`: deixa vazia por agora. Na web a app já usa o próprio endereço.
-    Só se define no passo 5.
+
+### 1.2 Primeiro deploy e domínio
+
+- [ ] GitHub > Actions > Deploy web > Run workflow (ou o merge do PR que mexe no
+      workflow). Cria o projeto `projardim` no Cloudflare Pages, liga `projardim.pt` e
+      `www` e troca os registos DNS antigos do Netlify.
+- [ ] Netlify: Domain management > remover `projardim.pt` do site (e, se quiser,
+      apagar o site).
 
 ### Testar
 
-- [ ] GitHub > Actions > Deploy web > Run workflow. Fica verde em poucos minutos. Se
-      faltar um secret, o primeiro passo falha e diz qual.
-- [ ] Abrir `https://projardim.netlify.app` no telemóvel, fazer login com uma conta de
-      teste.
+- [ ] `https://projardim.pt` abre a app com cadeado; fazer login com uma conta de teste.
 - [ ] Recarregar a página dentro de um ecrã interno (por exemplo um pedido). Tem de voltar
       ao mesmo ecrã, não dar 404.
+- [ ] `https://projardim.pt/privacidade` e `/termos` abrem as páginas estáticas.
 - [ ] iPhone: Safari > Partilhar > Adicionar ao ecrã principal. Abre em ecrã inteiro.
-- [ ] No jardineiro: Conta > cartão partilhável. O link tem de começar por
-      `https://projardim.netlify.app/w/` e abrir o cartão numa janela anónima.
+- [ ] No Profissional: Conta > cartão partilhável. O link tem de começar por
+      `https://projardim.pt/w/` e abrir o cartão numa janela anónima.
 
-**Diz ao Claude:** "Netlify feito, o site está em `<endereço>` e o deploy ficou verde."
+**Diz ao Claude:** "Cloudflare Pages feito, o deploy ficou verde e projardim.pt abre."
 
 ---
 
@@ -166,9 +159,9 @@ Run workflow), para não gastar créditos do Netlify a cada merge.
 
 Supabase > Authentication > URL Configuration.
 
-- [ ] **Site URL**: `https://projardim.netlify.app`
+- [ ] **Site URL**: `https://projardim.pt`
 - [ ] **Redirect URLs**, adicionar:
-  - `https://projardim.netlify.app/**`
+  - `https://projardim.pt/**` e `https://www.projardim.pt/**`
   - `http://localhost:*/**` (para testar no PC com `flutter run -d chrome`)
 
 A recuperação de senha e a confirmação de email são por código, não por link, mas o
@@ -208,7 +201,7 @@ equipa do projeto. Para utilizadores reais é obrigatório.
 
 ### Testar
 
-Testa no site do Netlify (build de release), porque em debug a app aceita qualquer
+Testa em projardim.pt (build de release), porque em debug a app aceita qualquer
 código e o teste não prova nada.
 
 - [ ] Login > "Esqueci-me da palavra-passe" > email de uma conta de teste.
@@ -233,7 +226,7 @@ Só liga depois de o 3.2 estar a funcionar (sem SMTP os emails não chegam).
 Os utilizadores que já existem não são afetados (a migration 0036 marcou-os todos como
 confirmados).
 
-### Testar (no site do Netlify)
+### Testar (em projardim.pt)
 
 - [ ] Registar uma conta nova com um email teu. A app mostra "Confirme o seu email" e
       chega um email com 6 dígitos.
@@ -325,13 +318,13 @@ select vault.create_secret('UM_SEGREDO_LONGO', 'push_webhook_secret');
 
 ## 5. Domínio real (quando decidires comprar)
 
-Até aqui tudo funciona com `projardim.netlify.app`. Faz isto só quando tiveres o domínio.
+O domínio projardim.pt já existe (13/11) e serve o site desde 27/11 (passo 1.2).
 
-### 5.1 Comprar e ligar ao Netlify
+### 5.1 Domínio
 
 - [ ] Comprar o domínio (`.pt` num registrar como PTisp, Amen ou Dominios.pt).
-- [ ] Netlify > Domain management > Add a domain > seguir as instruções de DNS (mais
-      simples: usar os nameservers do Netlify). O HTTPS ativa-se sozinho.
+- [ ] Feito a 13/11 (PTisp, DNS na Cloudflare). Desde 27/11 o site é servido pelo
+      Cloudflare Pages (passo 1.2), não pelo Netlify.
 
 ### 5.2 Apontar a app para o domínio
 
@@ -364,7 +357,7 @@ Até aqui tudo funciona com `projardim.netlify.app`. Faz isto só quando tiveres
 - [ ] Conta > Contacto e suporte mostra o email novo.
 - [ ] Reset de senha: o email chega do domínio novo e não vai para spam.
 
-**Diz ao Claude:** "Domínio `<domínio>` ligado ao Netlify, variáveis criadas. Agora
+**Diz ao Claude:** "Domínio `<domínio>` ligado ao Cloudflare Pages, variáveis criadas. Agora
 quero os app links." (é o próximo passo de código, ver abaixo).
 
 ### Fotos de perfil (avatar_url)
@@ -424,7 +417,7 @@ Supabase > Authentication > Sign In / Providers, dentro do Google ou do Facebook
 2. [ ] Google Auth Platform (ou APIs & Services > OAuth consent screen) > Get started:
        nome da app "ProJardim", email de suporte o teu, público **External**, contacto o
        teu email.
-3. [ ] Em **Branding**, Authorized domains: `supabase.co` e `netlify.app` (e o domínio
+3. [ ] Em **Branding**, Authorized domains: `supabase.co` e `projardim.pt` (e o domínio
        real quando o tiveres). Não carregues logótipo por agora: com logótipo o Google
        pede verificação manual, que demora semanas.
 4. [ ] Em **Data access**, deixa só os scopes por omissão (`email`, `profile`,
@@ -484,7 +477,7 @@ continua no login antigo da 7.2, por isso dá para fazer isto quando quiseres.
 
 1. [ ] Google Cloud > Clients > o cliente **Web application** da 7.2 > Authorized
        JavaScript origins: `https://projardim.pt`, `https://www.projardim.pt`, o
-       endereço do Netlify e, para testar no PC, `http://localhost:5000`. Guarda.
+       endereço `https://projardim.pt` e, para testar no PC, `http://localhost:5000`. Guarda.
        Copia o **Client ID** deste cliente (acaba em `.apps.googleusercontent.com`;
        não é segredo).
 2. [ ] Clients > Create client > tipo **Android**, nome "ProJardim Android", package
@@ -509,7 +502,7 @@ continua no login antigo da 7.2, por isso dá para fazer isto quando quiseres.
 
 ### Testar
 
-- [ ] Web (site do Netlify): Continuar com Google, conta que nunca usaste na app. Vai
+- [ ] Web (projardim.pt): Continuar com Google, conta que nunca usaste na app. Vai
       para "Como quer usar a ProJardim?", com o nome já escrito e o campo do
       telemóvel vazio. Escolher papel, escrever o telemóvel, Continuar. Entra no início
       do papel e a foto da conta Google aparece no perfil.
