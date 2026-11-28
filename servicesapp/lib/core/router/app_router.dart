@@ -69,6 +69,8 @@ import '../../features/admin/presentation/admin_funnel_page.dart';
 import '../../features/admin/presentation/admin_partner_stats_page.dart';
 import '../../features/admin/presentation/admin_map_page.dart';
 import '../../features/admin/presentation/admin_notices_page.dart';
+import '../../features/admin/presentation/admin_invites_page.dart';
+import '../../features/invites/presentation/invite_optout_screen.dart';
 import '../../features/admin/presentation/admin_partners_page.dart';
 import '../../features/admin/presentation/admin_ratings_page.dart';
 import '../../features/admin/presentation/admin_reports_page.dart';
@@ -311,6 +313,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: '$adminRoutePrefix/convites',
+            pageBuilder: (_, _) => const NoTransitionPage(
+              key: ValueKey('admin-invites'),
+              child: AdminInvitesPage(),
+            ),
+          ),
+          GoRoute(
             path: '$adminRoutePrefix/registo',
             pageBuilder: (_, _) => const NoTransitionPage(
               key: ValueKey('admin-log'),
@@ -381,6 +390,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             LegalDocumentScreen(kind: legal),
           ),
         ),
+      // Link "não quero receber" dos convites por email (0085). Público,
+      // abre com ou sem sessão.
+      GoRoute(
+        path: inviteOptoutRoute,
+        pageBuilder: (context, state) => buildFadeThroughPage(
+          context,
+          state,
+          AppContentWidth(
+            child: InviteOptoutScreen(token: state.uri.queryParameters['t']),
+          ),
+        ),
+      ),
       GoRoute(
         path: '/w/:workerId',
         builder: (_, state) {

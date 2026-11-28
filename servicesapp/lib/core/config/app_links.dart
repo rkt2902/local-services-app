@@ -81,6 +81,13 @@ abstract final class AppLinks {
     return _placeholderDomain;
   }
 
+  /// Site nos emails enviados pelo painel (convites, 0085): o domínio do
+  /// build ou `https://projardim.pt`. Nunca o endereço de onde o painel
+  /// está aberto (podia ser um site de teste).
+  static String get emailSiteUrl => hasConfiguredDomain
+      ? _stripTrailingSlash(_configuredDomain)
+      : _placeholderDomain;
+
   /// Cartão público do jardineiro. [source] (`qr`, `link`) vai em `?src=`
   /// para o servidor saber de onde veio a visita (A7, migration 0059).
   static String publicWorkerProfileUrl(String workerId, {String? source}) =>

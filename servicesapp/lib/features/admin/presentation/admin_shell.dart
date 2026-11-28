@@ -33,6 +33,7 @@ enum AdminSection {
     '/admin/estatisticas',
   ),
   notices('Avisos', Icons.campaign_outlined, '/admin/avisos'),
+  invites('Convites', Icons.mail_outline_rounded, '/admin/convites'),
   log('Registo', Icons.history_rounded, '/admin/registo');
 
   const AdminSection(this.label, this.icon, this.route);

@@ -52,4 +52,15 @@ abstract final class AppColors {
   static const Color agendaStripe = Color(0xFFE6EAE6);
   static const Color agendaOverlapBar = Color(0xFFE0A84A);
   static const Color agendaInfoDash = Color(0xFF9DBBE0);
+
+  // Email de convite (painel de admin, 0085): as mesmas cores do
+  // email-convite.html do marketing, no HTML enviado e na pré-visualização.
+  /// Texto pequeno por cima do verde do topo do email.
+  static const Color onPrimaryMuted = Color(0xFFCDE8C9);
+
+  /// Caixa dourada "Profissional fundador".
+  static const Color founderSurface = Color(0xFFFBF4E2);
+  static const Color founderBorder = Color(0xFFE6D39D);
+  static const Color founderText = Color(0xFF5C4813);
+  static const Color founderTitle = Color(0xFF6E561A);
 }
